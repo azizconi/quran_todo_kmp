@@ -1,6 +1,5 @@
 package tj.app.quran_todo.common.utils
 
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import tj.app.quran_todo.common.json.surahJson
 import tj.app.quran_todo.domain.model.SurahList

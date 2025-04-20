@@ -28,6 +28,7 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
             isStatic = true
+            linkerOpts.add("-lsqlite3")
         }
     }
     
@@ -39,6 +40,8 @@ kotlin {
 
             implementation(libs.koin.android)
             implementation(libs.koin.androidx.compose)
+
+            implementation(libs.ktor.client.okhttp)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -58,7 +61,15 @@ kotlin {
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
             implementation(libs.lifecycle.viewmodel)
+
+            implementation(libs.bundles.ktor)
+
             implementation(libs.navigation.compose)
+
+        }
+
+        nativeMain.dependencies {
+            implementation(libs.ktor.client.darwin)
         }
     }
 }
