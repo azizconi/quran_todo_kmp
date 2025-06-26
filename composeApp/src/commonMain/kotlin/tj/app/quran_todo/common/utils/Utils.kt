@@ -8,11 +8,11 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import org.jetbrains.compose.resources.Font
 import qurantodo.composeapp.generated.resources.Res
-import qurantodo.composeapp.generated.resources.quran_font
+import qurantodo.composeapp.generated.resources.quran_font_2
 
 fun <T> MutableState<T>.asState(): State<T> = this
 
 @Composable
 fun getQuranFontFamily() = FontFamily(
-    Font(Res.font.quran_font, weight = FontWeight.Normal, FontStyle.Normal)     // <-- your internal val FontResource
+    Font(Res.font.quran_font_2, weight = FontWeight.Normal, FontStyle.Normal)     // <-- your internal val FontResource
 )

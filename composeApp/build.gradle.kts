@@ -66,6 +66,7 @@ kotlin {
 
             implementation(libs.navigation.compose)
 
+            implementation(libs.material.icons.core)
         }
 
         nativeMain.dependencies {
