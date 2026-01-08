@@ -4,14 +4,18 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,8 +31,13 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
+import tj.app.quran_todo.common.i18n.LocalAppLanguage
+import tj.app.quran_todo.common.i18n.LocalAppLanguageSetter
+import tj.app.quran_todo.common.i18n.LocalAppStrings
+import tj.app.quran_todo.presentation.components.LanguagePicker
 
 data class ChartSegment(
     val label: String,
@@ -38,7 +47,22 @@ data class ChartSegment(
 
 @Composable
 fun StatsScreen(viewModel: StatsViewModel = koinViewModel()) {
+    val strings = LocalAppStrings.current
+    val language = LocalAppLanguage.current
+    val setLanguage = LocalAppLanguageSetter.current
+
     val uiState by viewModel.uiState.collectAsState()
+
+    val progress = if (uiState.totalAyahs > 0) {
+        uiState.learnedAyahs.toFloat() / uiState.totalAyahs
+    } else {
+        0f
+    }
+    val dailyGoal = if (uiState.totalAyahs > 0) {
+        (uiState.totalAyahs / 30).coerceAtLeast(1)
+    } else {
+        0
+    }
 
     Column(
         modifier = Modifier
@@ -46,47 +70,62 @@ fun StatsScreen(viewModel: StatsViewModel = koinViewModel()) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = "Статистика",
-            style = MaterialTheme.typography.h5
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = strings.statsTitle,
+                style = MaterialTheme.typography.h5,
+                fontWeight = FontWeight.Bold
+            )
+            LanguagePicker(current = language, onSelected = setLanguage)
+        }
 
         StatsCard(
-            title = "Суры",
+            title = strings.statsSurahs,
             total = uiState.totalSurahs,
             segments = listOf(
-                ChartSegment("Выучено", uiState.learnedSurahs, MaterialTheme.colors.primary),
-                ChartSegment("Заучиваю", uiState.learningSurahs, MaterialTheme.colors.secondary),
-                ChartSegment("Без статуса", uiState.idleSurahs, MaterialTheme.colors.onSurface.copy(alpha = 0.2f)),
+                ChartSegment(strings.learnedLabel, uiState.learnedSurahs, MaterialTheme.colors.primary),
+                ChartSegment(strings.learningLabel, uiState.learningSurahs, MaterialTheme.colors.secondary),
+                ChartSegment(strings.noStateLabel, uiState.idleSurahs, MaterialTheme.colors.onSurface.copy(alpha = 0.2f)),
             )
         )
 
         StatsCard(
-            title = "Аяты",
+            title = strings.statsAyahs,
             total = uiState.totalAyahs,
             segments = listOf(
-                ChartSegment("Выучено", uiState.learnedAyahs, MaterialTheme.colors.primary),
-                ChartSegment("Заучиваю", uiState.learningAyahs, MaterialTheme.colors.secondary),
-                ChartSegment("Без статуса", uiState.idleAyahs, MaterialTheme.colors.onSurface.copy(alpha = 0.2f)),
+                ChartSegment(strings.learnedLabel, uiState.learnedAyahs, MaterialTheme.colors.primary),
+                ChartSegment(strings.learningLabel, uiState.learningAyahs, MaterialTheme.colors.secondary),
+                ChartSegment(strings.noStateLabel, uiState.idleAyahs, MaterialTheme.colors.onSurface.copy(alpha = 0.2f)),
             )
+        )
+
+        InsightsCard(
+            progress = progress,
+            dailyGoal = dailyGoal,
+            totalAyahs = uiState.totalAyahs,
+            strings = strings
         )
     }
 }
 
 @Composable
-fun StatsCard(
+private fun StatsCard(
     title: String,
     total: Int,
     segments: List<ChartSegment>,
 ) {
-    Card(elevation = 2.dp) {
+    Card(elevation = 2.dp, shape = RoundedCornerShape(16.dp)) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(text = title, style = MaterialTheme.typography.subtitle1)
+            Text(text = title, style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.SemiBold)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -103,7 +142,7 @@ fun StatsCard(
                 }
             }
             Text(
-                text = "Всего: $total",
+                text = "${LocalAppStrings.current.totalLabel}: $total",
                 style = MaterialTheme.typography.caption
             )
         }
@@ -111,7 +150,80 @@ fun StatsCard(
 }
 
 @Composable
-fun DonutChart(
+private fun InsightsCard(
+    progress: Float,
+    dailyGoal: Int,
+    totalAyahs: Int,
+    strings: tj.app.quran_todo.common.i18n.AppStrings,
+) {
+    Card(elevation = 2.dp, shape = RoundedCornerShape(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(text = strings.insightsTitle, style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.SemiBold)
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = strings.progressTitle, style = MaterialTheme.typography.body1, fontWeight = FontWeight.Medium)
+                Text(
+                    text = strings.progressSubtitle,
+                    style = MaterialTheme.typography.caption,
+                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+                )
+                ProgressBar(progress = progress)
+                Text(
+                    text = "${(progress * 100).toInt()}%",
+                    style = MaterialTheme.typography.caption
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(text = strings.goalTitle, style = MaterialTheme.typography.body1, fontWeight = FontWeight.Medium)
+                Text(
+                    text = strings.goalSubtitle,
+                    style = MaterialTheme.typography.caption,
+                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+                )
+                Text(
+                    text = if (totalAyahs == 0) "-" else "$dailyGoal",
+                    style = MaterialTheme.typography.subtitle1
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgressBar(progress: Float) {
+    val animated by animateFloatAsState(
+        targetValue = progress.coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 700),
+        label = "progress"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(10.dp)
+            .padding(vertical = 2.dp)
+    ) {
+        Surface(
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.08f),
+            shape = RoundedCornerShape(6.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {}
+        Surface(
+            color = MaterialTheme.colors.primary,
+            shape = RoundedCornerShape(6.dp),
+            modifier = Modifier.fillMaxWidth(animated)
+        ) {}
+    }
+}
+
+@Composable
+private fun DonutChart(
     total: Int,
     segments: List<ChartSegment>,
 ) {
@@ -152,7 +264,7 @@ fun DonutChart(
 }
 
 @Composable
-fun LegendRow(segment: ChartSegment) {
+private fun LegendRow(segment: ChartSegment) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Canvas(modifier = Modifier.size(10.dp)) {
             drawRect(segment.color)

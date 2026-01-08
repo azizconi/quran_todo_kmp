@@ -18,4 +18,35 @@ object DatabaseMigrations {
             )
         }
     }
+
+    val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS chapter_name (
+                    languageCode TEXT NOT NULL,
+                    surahNumber INTEGER NOT NULL,
+                    arabic TEXT NOT NULL,
+                    transliteration TEXT NOT NULL,
+                    translated TEXT NOT NULL,
+                    PRIMARY KEY(languageCode, surahNumber)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS chapter_name_cache (
+                    languageCode TEXT NOT NULL,
+                    lastUpdated INTEGER NOT NULL,
+                    PRIMARY KEY(languageCode)
+                )
+                """.trimIndent()
+            )
+        }
+    }
 }

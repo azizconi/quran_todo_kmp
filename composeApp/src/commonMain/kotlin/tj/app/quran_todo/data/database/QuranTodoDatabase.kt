@@ -7,8 +7,12 @@ import androidx.room.RoomDatabaseConstructor
 import androidx.room.TypeConverters
 import tj.app.quran_todo.data.database.dao.QuranDao
 import tj.app.quran_todo.data.database.dao.AyahTodoDao
+import tj.app.quran_todo.data.database.dao.ChapterNameDao
+import tj.app.quran_todo.data.database.dao.ChapterNameCacheDao
 import tj.app.quran_todo.data.database.dao.SurahTodoDao
 import tj.app.quran_todo.data.database.entity.quran.AyahEntity
+import tj.app.quran_todo.data.database.entity.quran.ChapterNameEntity
+import tj.app.quran_todo.data.database.entity.quran.ChapterNameCacheEntity
 import tj.app.quran_todo.data.database.entity.quran.EditionEntity
 import tj.app.quran_todo.data.database.entity.quran.Sajda
 import tj.app.quran_todo.data.database.entity.quran.SurahEntity
@@ -21,9 +25,11 @@ import tj.app.quran_todo.data.database.entity.type_converter.BaseTypeConverter
     entities = [
         SurahTodoEntity::class,
         AyahTodoEntity::class,
+        ChapterNameEntity::class,
+        ChapterNameCacheEntity::class,
         EditionEntity::class, SurahEntity::class, AyahEntity::class
     ],
-    version = 6,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(SajdaConverter::class)
@@ -31,6 +37,8 @@ import tj.app.quran_todo.data.database.entity.type_converter.BaseTypeConverter
 abstract class QuranTodoDatabase : RoomDatabase() {
     abstract fun getSurahTodoDao(): SurahTodoDao
     abstract fun getAyahTodoDao(): AyahTodoDao
+    abstract fun getChapterNameDao(): ChapterNameDao
+    abstract fun getChapterNameCacheDao(): ChapterNameCacheDao
     abstract fun getQuranDao(): QuranDao
 
 }

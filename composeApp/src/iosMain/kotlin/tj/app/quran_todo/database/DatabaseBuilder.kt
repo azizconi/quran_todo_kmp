@@ -18,7 +18,11 @@ fun getDatabaseBuilder(): RoomDatabase.Builder<QuranTodoDatabase> {
     return Room.databaseBuilder<QuranTodoDatabase>(
         name = dbFilePath
     ).setDriver(driver)
-        .addMigrations(DatabaseMigrations.MIGRATION_5_6)
+        .addMigrations(
+            DatabaseMigrations.MIGRATION_5_6,
+            DatabaseMigrations.MIGRATION_6_7,
+            DatabaseMigrations.MIGRATION_7_8
+        )
 }
 
 @OptIn(ExperimentalForeignApi::class)
