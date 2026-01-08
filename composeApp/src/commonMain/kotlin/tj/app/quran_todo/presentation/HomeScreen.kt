@@ -44,11 +44,9 @@ import androidx.compose.ui.window.DialogProperties
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
-import tj.app.quran_todo.common.i18n.LocalAppLanguageSetter
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.i18n.localizeRevelationPlace
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
-import tj.app.quran_todo.presentation.components.LanguagePicker
 import tj.app.quran_todo.presentation.surah.SurahScreen
 
 @OptIn(ExperimentalFoundationApi::class, KoinExperimentalAPI::class)
@@ -58,7 +56,6 @@ fun HomeScreen(
 ) {
     val strings = LocalAppStrings.current
     val language = LocalAppLanguage.current
-    val setLanguage = LocalAppLanguageSetter.current
 
     val uiState by viewModel.uiState.collectAsState()
     val todoByNumber = uiState.todoSurahs.associateBy { it.surahNumber }
@@ -105,25 +102,18 @@ fun HomeScreen(
                 Column(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = strings.appName,
-                                style = MaterialTheme.typography.h5,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = strings.homeSubtitle,
-                                style = MaterialTheme.typography.body2,
-                                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
-                            )
-                        }
-                        LanguagePicker(current = language, onSelected = setLanguage)
+                    Column {
+                        Text(
+                            text = strings.appName,
+                            style = MaterialTheme.typography.h5,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = strings.homeSubtitle,
+                            style = MaterialTheme.typography.body2,
+                            color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+                        )
                     }
 
                     if (selectionMode) {
