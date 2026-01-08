@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.Divider
@@ -24,13 +26,12 @@ import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.material.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,11 +39,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
-import tj.app.quran_todo.common.utils.Resource
-import tj.app.quran_todo.common.utils.parseSurahList
-import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
-import tj.app.quran_todo.domain.model.SurahModel
 import tj.app.quran_todo.presentation.surah.SurahScreen
 
 @OptIn(ExperimentalFoundationApi::class, KoinExperimentalAPI::class)
@@ -50,287 +47,273 @@ import tj.app.quran_todo.presentation.surah.SurahScreen
 fun HomeScreen(
     viewModel: HomeViewModel = koinViewModel(),
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+    val todoByNumber = uiState.todoSurahs.associateBy { it.surahNumber }
+    val selectionMode = uiState.selectedSurahNumbers.isNotEmpty()
 
-    val surahList = remember { mutableStateOf<List<SurahModel>>(emptyList()) }
-
-    val selectedSurahList = remember { mutableStateListOf<SurahModel>() }
-
-    val todoSurahList = viewModel.surahList.collectAsState(emptyList())
-
-    val filterParam = remember {
-        mutableStateOf<SurahTodoStatus?>(null)
-    }
-
-    fun save(status: SurahTodoStatus) {
-        selectedSurahList.forEach {
-            viewModel.upsertSurahToTodo(it.toEntity(status))
-        }
-        selectedSurahList.clear()
-    }
-
-    LaunchedEffect(Unit) {
-        viewModel.getCompleteQuran()
-        surahList.value = parseSurahList()
-    }
-
-    val selectedSurah = remember { mutableStateOf<SurahWithAyahs?>(null) }
-    val completeQuran = remember { mutableStateOf<List<SurahWithAyahs>>(emptyList()) }
-
-    LaunchedEffect(viewModel.completeQuranResult.value) {
-        when (val result = viewModel.completeQuranResult.value) {
-            is Resource.Success -> {
-                completeQuran.value = result.data
-            }
-            else -> {}
+    val filteredSurahs = if (uiState.filter == null) {
+        uiState.surahList
+    } else {
+        uiState.surahList.filter { element ->
+            todoByNumber[element.surahNumber]?.status == uiState.filter
         }
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Quran Todo")
+                    val title = if (selectionMode) {
+                        "Выбрано: ${uiState.selectedSurahNumbers.size}"
+                    } else {
+                        "Quran Todo"
+                    }
+                    Text(title)
                 },
                 actions = {
-                    if (selectedSurahList.isNotEmpty()) {
-                        val isShowDropDown = remember { mutableStateOf(false) }
+                    if (selectionMode) {
+                        var isShowDropDown by remember { mutableStateOf(false) }
 
                         Text(
-                            text = "Выбрано: ${selectedSurahList.size}",
+                            text = "Действия",
                             modifier = Modifier
                                 .padding(end = 16.dp)
-                                .clickable {
-                                    isShowDropDown.value = true
-                                },
+                                .clickable { isShowDropDown = true },
                             fontSize = 14.sp,
-                            color = Color.Black,
                             fontWeight = FontWeight.Bold
                         )
 
-                        if (isShowDropDown.value) {
-                            DropdownMenu(
-                                expanded = isShowDropDown.value,
-                                onDismissRequest = {
-                                    isShowDropDown.value = false
+                        DropdownMenu(
+                            expanded = isShowDropDown,
+                            onDismissRequest = { isShowDropDown = false }
+                        ) {
+                            DropdownMenuItem(onClick = {
+                                isShowDropDown = false
+                                viewModel.markSelected(SurahTodoStatus.LEARNED)
+                            }) {
+                                Text("Выучил", fontWeight = FontWeight.Bold)
+                            }
+                            DropdownMenuItem(onClick = {
+                                isShowDropDown = false
+                                viewModel.markSelected(SurahTodoStatus.LEARNING)
+                            }) {
+                                Text("Заучиваю", fontWeight = FontWeight.Bold)
+                            }
+                            DropdownMenuItem(
+                                onClick = {
+                                    isShowDropDown = false
+                                    viewModel.clearSelection()
                                 }
                             ) {
-                                DropdownMenuItem(onClick = {
-                                    isShowDropDown.value = false
-                                    save(SurahTodoStatus.LEARNED)
-                                }) {
-                                    Text("Выучил", fontWeight = FontWeight.Bold)
-                                }
-                                DropdownMenuItem(onClick = {
-                                    isShowDropDown.value = false
-                                    save(SurahTodoStatus.LEARNING)
-                                }) {
-                                    Text("Заучиваю", fontWeight = FontWeight.Bold)
-                                }
-                                DropdownMenuItem(
-                                    onClick = {
-                                        isShowDropDown.value = false
-                                        selectedSurahList.clear()
-                                    }
-                                ) {
-                                    Text("Сбросить выбранные", color = Color.Red)
-                                }
+                                Text("Сбросить выбранные", color = MaterialTheme.colors.error)
                             }
                         }
                     } else {
-                        val isShowDropDown = remember { mutableStateOf(false) }
+                        var isShowDropDown by remember { mutableStateOf(false) }
 
                         Text(
                             text = "Фильтр",
                             modifier = Modifier.padding(end = 16.dp).clickable {
-                                isShowDropDown.value = true
+                                isShowDropDown = true
                             },
                             fontSize = 14.sp,
-                            color = Color.Black,
                             fontWeight = FontWeight.Bold
                         )
 
-                        if (isShowDropDown.value) {
-                            DropdownMenu(
-                                expanded = isShowDropDown.value,
-                                onDismissRequest = {
-                                    isShowDropDown.value = false
+                        val learnedCount =
+                            uiState.todoSurahs.count { it.status == SurahTodoStatus.LEARNED }
+                        val learningCount =
+                            uiState.todoSurahs.count { it.status == SurahTodoStatus.LEARNING }
+
+                        DropdownMenu(
+                            expanded = isShowDropDown,
+                            onDismissRequest = { isShowDropDown = false }
+                        ) {
+                            DropdownMenuItem(onClick = {
+                                isShowDropDown = false
+                                viewModel.setFilter(null)
+                            }) {
+                                Text("Все", fontWeight = FontWeight.Bold)
+                            }
+
+                            DropdownMenuItem(
+                                onClick = {
+                                    isShowDropDown = false
+                                    viewModel.setFilter(SurahTodoStatus.LEARNED)
                                 }
                             ) {
-                                DropdownMenuItem(onClick = {
-                                    isShowDropDown.value = false
-                                    filterParam.value = null
-                                }) {
-                                    Text(
-                                        "Все",
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                Text("Выучил: $learnedCount", fontWeight = FontWeight.Bold)
+                            }
+                            DropdownMenuItem(
+                                onClick = {
+                                    isShowDropDown = false
+                                    viewModel.setFilter(SurahTodoStatus.LEARNING)
                                 }
-
-                                DropdownMenuItem(onClick = {
-                                    isShowDropDown.value = false
-                                    filterParam.value = SurahTodoStatus.LEARNED
-                                }) {
-                                    Text(
-                                        "Выучил: ${todoSurahList.value.filter { it.status == SurahTodoStatus.LEARNED }.size}",
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                DropdownMenuItem(onClick = {
-                                    isShowDropDown.value = false
-                                    filterParam.value = SurahTodoStatus.LEARNING
-                                }) {
-                                    Text(
-                                        "Заучиваю: ${todoSurahList.value.filter { it.status == SurahTodoStatus.LEARNING }.size}",
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
+                            ) {
+                                Text("Заучиваю: $learningCount", fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 },
-                backgroundColor = Color.White,
-                elevation = 0.dp,
-                modifier = Modifier.statusBarsPadding()
+                backgroundColor = MaterialTheme.colors.surface,
+                elevation = 0.dp
             )
         }
     ) {
-
         LazyColumn(contentPadding = PaddingValues(vertical = 16.dp)) {
+            if (uiState.isLoadingQuran) {
+                item {
+                    Text(
+                        text = "Загрузка полного Корана...",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.caption
+                    )
+                }
+            }
+
+            if (uiState.errorMessage != null) {
+                item {
+                    Text(
+                        text = uiState.errorMessage ?: "",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        color = MaterialTheme.colors.error,
+                        style = MaterialTheme.typography.caption
+                    )
+                }
+            }
 
             itemsIndexed(
-                items = if (filterParam.value == null) surahList.value else
-                    surahList.value.filter { element ->
-                        todoSurahList.value.find {
-                            it.surahNumber == element.surahNumber && it.status == filterParam.value
-                        } != null
-                    },
+                items = filteredSurahs,
+                key = { _, surah -> surah.surahNumber }
             ) { index, surah ->
-                val isSelected =
-                    selectedSurahList.find { it.surahNumber == surah.surahNumber } != null
-
-                val inTodoSaved =
-                    todoSurahList.value.find { it.surahNumber == surah.surahNumber }
-
-                val selectedColor = when {
-                    inTodoSaved?.status == SurahTodoStatus.LEARNED -> Color.Red
-                    inTodoSaved?.status == SurahTodoStatus.LEARNING -> Color.Red.copy(.3f)
-                    isSelected -> Color.Red.copy(.6f)
-                    else -> Color.White
+                val isSelected = uiState.selectedSurahNumbers.contains(surah.surahNumber)
+                val inTodoSaved = todoByNumber[surah.surahNumber]
+                val selectedColor = MaterialTheme.colors.primary.copy(alpha = 0.14f)
+                val learnedColor = MaterialTheme.colors.secondary.copy(alpha = 0.22f)
+                val learningColor = MaterialTheme.colors.secondary.copy(alpha = 0.12f)
+                val backgroundColor = when {
+                    isSelected -> selectedColor
+                    inTodoSaved?.status == SurahTodoStatus.LEARNED -> learnedColor
+                    inTodoSaved?.status == SurahTodoStatus.LEARNING -> learningColor
+                    else -> MaterialTheme.colors.surface
                 }
 
-                val isShowDropDown = remember { mutableStateOf(false) }
+                var isItemMenuOpen by remember { mutableStateOf(false) }
 
-                if (index == 0) Divider(color = selectedColor)
+                if (index == 0) Divider(color = MaterialTheme.colors.onSurface.copy(alpha = 0.06f))
 
                 Box {
-
                     SurahItem(
                         surahNumber = surah.surahNumber,
                         name = surah.name,
                         ayats = surah.ayats,
                         revelationOrder = surah.revelationOrder,
                         revelationPlace = surah.revelationPlace,
+                        statusLabel = when (inTodoSaved?.status) {
+                            SurahTodoStatus.LEARNED -> "Выучил"
+                            SurahTodoStatus.LEARNING -> "Заучиваю"
+                            null -> null
+                        },
+                        selected = isSelected,
+                        onStatusClick = if (inTodoSaved != null) {
+                            { isItemMenuOpen = true }
+                        } else {
+                            null
+                        },
                         modifier = Modifier
                             .combinedClickable(
                                 onClick = {
-                                    if (selectedSurahList.isNotEmpty() && inTodoSaved == null) {
-                                        if (isSelected) selectedSurahList.remove(surah)
-                                        else selectedSurahList.add(surah)
-                                    } else if (completeQuran.value.isNotEmpty()) {
-                                        selectedSurah.value = completeQuran.value.find {
-                                            it.surah.number == surah.surahNumber
-                                        }
-                                        println("selected surah = ${selectedSurah.value}")
+                                    if (selectionMode) {
+                                        viewModel.toggleSelection(surah.surahNumber)
+                                    } else if (uiState.completeQuran.isNotEmpty()) {
+                                        viewModel.openSurahDetail(surah.surahNumber)
                                     }
-                                    println("completeQuran.value = ${completeQuran.value}")
                                 },
                                 onLongClick = {
-                                    if (inTodoSaved != null) {
-                                        isShowDropDown.value = true
-                                    }
-                                },
-                                onDoubleClick = {
-                                    if (inTodoSaved == null && !isSelected) {
-                                        selectedSurahList.add(surah)
-                                    }
+                                    viewModel.toggleSelection(surah.surahNumber)
                                 }
                             )
-                            .background(selectedColor)
+                            .background(backgroundColor)
                     )
                     DropdownMenu(
-                        expanded = isShowDropDown.value,
+                        expanded = isItemMenuOpen,
                         onDismissRequest = {
-                            isShowDropDown.value = false
+                            isItemMenuOpen = false
                         }
                     ) {
                         when (inTodoSaved?.status) {
                             SurahTodoStatus.LEARNED -> {
                                 DropdownMenuItem(onClick = {
-                                    isShowDropDown.value = false
-                                    viewModel.upsertSurahToTodo(inTodoSaved.copy(status = SurahTodoStatus.LEARNING))
+                                    isItemMenuOpen = false
+                                    viewModel.setSurahStatus(
+                                        inTodoSaved.surahNumber,
+                                        SurahTodoStatus.LEARNING
+                                    )
                                 }) {
                                     Text("Заучиваю", fontWeight = FontWeight.Bold)
                                 }
 
                                 DropdownMenuItem(onClick = {
-                                    isShowDropDown.value = false
-                                    viewModel.deleteSurahFromTodo(inTodoSaved)
+                                    isItemMenuOpen = false
+                                    viewModel.setSurahStatus(inTodoSaved.surahNumber, null)
                                 }) {
                                     Text(
                                         "Сбросить",
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.Red
+                                        color = MaterialTheme.colors.error
                                     )
                                 }
                             }
 
                             SurahTodoStatus.LEARNING -> {
                                 DropdownMenuItem(onClick = {
-                                    isShowDropDown.value = false
-                                    viewModel.upsertSurahToTodo(inTodoSaved.copy(status = SurahTodoStatus.LEARNED))
+                                    isItemMenuOpen = false
+                                    viewModel.setSurahStatus(
+                                        inTodoSaved.surahNumber,
+                                        SurahTodoStatus.LEARNED
+                                    )
                                 }) {
                                     Text("Выучил", fontWeight = FontWeight.Bold)
                                 }
                                 DropdownMenuItem(onClick = {
-                                    isShowDropDown.value = false
-                                    viewModel.deleteSurahFromTodo(inTodoSaved)
+                                    isItemMenuOpen = false
+                                    viewModel.setSurahStatus(inTodoSaved.surahNumber, null)
                                 }) {
                                     Text(
                                         "Сбросить",
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.Red
+                                        color = MaterialTheme.colors.error
                                     )
                                 }
                             }
 
                             null -> {
                                 DropdownMenuItem(onClick = {
-                                    isShowDropDown.value = false
+                                    isItemMenuOpen = false
                                 }) {
                                     Text("Отмена", fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
-
-
                     }
                 }
 
-                if (index < surahList.value.size - 1) Divider(color = selectedColor)
+                if (index < filteredSurahs.size - 1) {
+                    Divider(color = MaterialTheme.colors.onSurface.copy(alpha = 0.06f))
+                }
             }
-
         }
     }
 
-
-    selectedSurah.value?.let { surah ->
+    uiState.selectedSurah?.let { surah ->
         Dialog(
-            onDismissRequest = { selectedSurah.value = null },
+            onDismissRequest = { viewModel.dismissSurahDetail() },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             SurahScreen(
                 surah,
-                onDismiss = { selectedSurah.value = null }
+                onDismiss = { viewModel.dismissSurahDetail() }
             )
         }
     }
@@ -344,9 +327,11 @@ fun SurahItem(
     ayats: Int,
     revelationPlace: String,
     revelationOrder: Int,
+    statusLabel: String?,
+    selected: Boolean,
+    onStatusClick: (() -> Unit)?,
 ) {
     Column(modifier = Modifier.then(modifier).padding(16.dp)) {
-        // Верхняя строка: Номер суры и место ниспослания
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -362,9 +347,25 @@ fun SurahItem(
             )
         }
 
+        if (statusLabel != null && onStatusClick != null) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Статус: $statusLabel",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.secondary,
+                modifier = Modifier.clickable { onStatusClick() }
+            )
+        } else if (selected) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Выбрано",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.primary
+            )
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Название суры
         Text(
             text = name,
             style = MaterialTheme.typography.h6,
@@ -374,7 +375,6 @@ fun SurahItem(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Количество аятов и порядок ниспослания
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween

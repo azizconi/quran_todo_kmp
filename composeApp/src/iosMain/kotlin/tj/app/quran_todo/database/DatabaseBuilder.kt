@@ -9,6 +9,7 @@ import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDomainMask
 
 import tj.app.quran_todo.data.database.QuranTodoDatabase
+import tj.app.quran_todo.data.database.DatabaseMigrations
 
 
 fun getDatabaseBuilder(): RoomDatabase.Builder<QuranTodoDatabase> {
@@ -17,6 +18,7 @@ fun getDatabaseBuilder(): RoomDatabase.Builder<QuranTodoDatabase> {
     return Room.databaseBuilder<QuranTodoDatabase>(
         name = dbFilePath
     ).setDriver(driver)
+        .addMigrations(DatabaseMigrations.MIGRATION_5_6)
 }
 
 @OptIn(ExperimentalForeignApi::class)

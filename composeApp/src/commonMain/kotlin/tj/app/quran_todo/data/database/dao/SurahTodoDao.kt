@@ -16,6 +16,9 @@ interface SurahTodoDao {
     @Delete
     suspend fun delete(entity: SurahTodoEntity)
 
+    @Query("DELETE FROM `surah_todo` WHERE surahNumber = :surahNumber")
+    suspend fun deleteBySurahNumber(surahNumber: Int)
+
     @Query("SELECT * FROM `surah_todo`")
     fun getAllSurahTodo(): Flow<List<SurahTodoEntity>>
 

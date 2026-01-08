@@ -16,5 +16,9 @@ class QuranTodoRepositoryImpl(
         dao.delete(entity)
     }
 
+    override suspend fun deleteBySurahNumber(surahNumber: Int) {
+        dao.deleteBySurahNumber(surahNumber)
+    }
+
     override fun getAll(): Flow<List<SurahTodoEntity>> = dao.getAllSurahTodo()
 }

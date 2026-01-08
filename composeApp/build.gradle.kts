@@ -64,7 +64,7 @@ kotlin {
 
             implementation(libs.bundles.ktor)
 
-            implementation(libs.navigation.compose)
+            implementation(libs.navigation3.runtime)
 
             implementation(libs.material.icons.core)
         }
