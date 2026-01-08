@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Icon
 import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
@@ -23,9 +24,17 @@ import androidx.compose.ui.unit.dp
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppLanguageSetter
 import tj.app.quran_todo.common.i18n.LocalAppStrings
+import tj.app.quran_todo.common.settings.LocalAppSettings
+import tj.app.quran_todo.common.settings.LocalAppSettingsSetter
 import tj.app.quran_todo.common.theme.LocalThemeMode
 import tj.app.quran_todo.common.theme.LocalThemeModeSetter
+import tj.app.quran_todo.common.theme.LocalThemePalette
+import tj.app.quran_todo.common.theme.LocalThemePaletteSetter
 import tj.app.quran_todo.common.theme.ThemeMode
+import tj.app.quran_todo.common.theme.ThemePalette
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import tj.app.quran_todo.presentation.components.LanguagePicker
 
 @Composable
@@ -35,6 +44,10 @@ fun SettingsScreen() {
     val setLanguage = LocalAppLanguageSetter.current
     val themeMode = LocalThemeMode.current
     val setThemeMode = LocalThemeModeSetter.current
+    val themePalette = LocalThemePalette.current
+    val setThemePalette = LocalThemePaletteSetter.current
+    val settings = LocalAppSettings.current
+    val setSettings = LocalAppSettingsSetter.current
 
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
@@ -57,12 +70,46 @@ fun SettingsScreen() {
             }
 
             SettingsCard(title = strings.themeLabel) {
-                ThemeToggle(
-                    selected = themeMode,
-                    onSelected = setThemeMode,
-                    lightLabel = strings.themeLight,
-                    darkLabel = strings.themeDark
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ThemeToggle(
+                        selected = themeMode,
+                        onSelected = setThemeMode,
+                        lightLabel = strings.themeLight,
+                        darkLabel = strings.themeDark
+                    )
+                    ThemePaletteToggle(
+                        selected = themePalette,
+                        onSelected = setThemePalette,
+                        sandLabel = strings.themeSand,
+                        oceanLabel = strings.themeOcean,
+                        forestLabel = strings.themeForest,
+                        title = strings.themeStyleLabel
+                    )
+                }
+            }
+
+            SettingsCard(title = strings.planTitle) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StepperRow(
+                        label = strings.dailyGoalLabel,
+                        value = settings.dailyGoal,
+                        min = 1,
+                        max = 50,
+                        onChange = { setSettings(settings.copy(dailyGoal = it)) }
+                    )
+                    StepperRow(
+                        label = strings.focusMinutesLabel,
+                        value = settings.focusMinutes,
+                        min = 5,
+                        max = 60,
+                        onChange = { setSettings(settings.copy(focusMinutes = it)) }
+                    )
+                    ToggleRow(
+                        label = strings.remindersLabel,
+                        enabled = settings.remindersEnabled,
+                        onToggle = { setSettings(settings.copy(remindersEnabled = it)) }
+                    )
+                }
             }
         }
     }
@@ -119,6 +166,41 @@ private fun ThemeToggle(
 }
 
 @Composable
+private fun ThemePaletteToggle(
+    selected: ThemePalette,
+    onSelected: (ThemePalette) -> Unit,
+    sandLabel: String,
+    oceanLabel: String,
+    forestLabel: String,
+    title: String,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.caption,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ThemeOptionChip(
+                label = sandLabel,
+                isSelected = selected == ThemePalette.SAND,
+                onClick = { onSelected(ThemePalette.SAND) }
+            )
+            ThemeOptionChip(
+                label = oceanLabel,
+                isSelected = selected == ThemePalette.OCEAN,
+                onClick = { onSelected(ThemePalette.OCEAN) }
+            )
+            ThemeOptionChip(
+                label = forestLabel,
+                isSelected = selected == ThemePalette.FOREST,
+                onClick = { onSelected(ThemePalette.FOREST) }
+            )
+        }
+    }
+}
+
+@Composable
 private fun ThemeOptionChip(
     label: String,
     isSelected: Boolean,
@@ -138,15 +220,81 @@ private fun ThemeOptionChip(
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = background,
-        modifier = Modifier
-            .clickable { onClick() }
-            .padding(vertical = 4.dp)
+        modifier = Modifier.clickable { onClick() }
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.caption,
             color = textColor,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun StepperRow(
+    label: String,
+    value: Int,
+    min: Int,
+    max: Int,
+    onChange: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, style = MaterialTheme.typography.body2)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = null,
+                tint = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .clickable(enabled = value > min) {
+                        onChange((value - 1).coerceAtLeast(min))
+                    }
+                    .padding(6.dp)
+            )
+            Text(
+                text = value.toString(),
+                style = MaterialTheme.typography.subtitle1,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .clickable(enabled = value < max) {
+                        onChange((value + 1).coerceAtMost(max))
+                    }
+                    .padding(6.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ToggleRow(
+    label: String,
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    val strings = LocalAppStrings.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle(!enabled) },
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, style = MaterialTheme.typography.body2)
+        val chipLabel = if (enabled) strings.enabledLabel else strings.disabledLabel
+        ThemeOptionChip(
+            label = chipLabel,
+            isSelected = enabled,
+            onClick = { onToggle(!enabled) }
         )
     }
 }

@@ -8,7 +8,8 @@ data class AyahTodoEntity(
     @PrimaryKey(autoGenerate = false)
     val ayahNumber: Int,
     val surahNumber: Int,
-    val status: AyahTodoStatus
+    val status: AyahTodoStatus,
+    val updatedAt: Long
 )
 
 enum class AyahTodoStatus {

@@ -14,18 +14,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,12 +45,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.i18n.localizeRevelationPlace
+import tj.app.quran_todo.common.settings.LocalAppSettings
+import tj.app.quran_todo.common.utils.currentLocalDate
+import tj.app.quran_todo.common.utils.daysBetween
+import tj.app.quran_todo.common.utils.localDateFromEpoch
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
+import tj.app.quran_todo.data.database.entity.todo.AyahReviewEntity
 import tj.app.quran_todo.presentation.surah.SurahScreen
 
 @OptIn(ExperimentalFoundationApi::class, KoinExperimentalAPI::class)
@@ -56,6 +66,7 @@ fun HomeScreen(
 ) {
     val strings = LocalAppStrings.current
     val language = LocalAppLanguage.current
+    val settings = LocalAppSettings.current
 
     val uiState by viewModel.uiState.collectAsState()
     val todoByNumber = uiState.todoSurahs.associateBy { it.surahNumber }
@@ -89,6 +100,17 @@ fun HomeScreen(
     val focusSurahNumber = uiState.todoSurahs
         .firstOrNull { it.status == SurahTodoStatus.LEARNING }
         ?.surahNumber
+    val today = remember { currentLocalDate() }
+    val todayProgress = uiState.ayahTodos.count {
+        it.updatedAt > 0 && localDateFromEpoch(it.updatedAt) == today
+    }
+    val lastActivityDays = uiState.lastActivityAt?.let {
+        daysBetween(localDateFromEpoch(it), today)
+    }
+    val showReminder = settings.remindersEnabled &&
+        lastActivityDays != null &&
+        lastActivityDays >= 2
+    var showFocus by remember { mutableStateOf(false) }
 
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
@@ -135,17 +157,44 @@ fun HomeScreen(
                 }
             }
 
+            if (showReminder) {
+                item {
+                    ReminderCard(
+                        title = strings.reminderTitle,
+                        body = strings.reminderBody
+                    )
+                }
+            }
+
+            item {
+                PlanCard(
+                    title = strings.planTitle,
+                    subtitle = strings.planSubtitle,
+                    todayLabel = strings.todayProgressLabel,
+                    todayProgress = todayProgress,
+                    dailyGoal = settings.dailyGoal
+                )
+            }
+
+            item {
+                DueReviewsCard(
+                    title = strings.reviewDueTitle,
+                    emptyLabel = strings.reviewEmptyLabel,
+                    actionLabel = strings.reviewNowLabel,
+                    dueReviews = uiState.dueReviews.take(3),
+                    onComplete = { ayahNumber, surahNumber ->
+                        viewModel.completeReview(ayahNumber, surahNumber)
+                    }
+                )
+            }
+
             item {
                 FocusCard(
                     title = strings.focusTitle,
                     subtitle = if (focusSurahNumber == null) strings.noLearningYet else strings.focusSubtitle,
                     actionLabel = strings.startFocus,
-                    enabled = focusSurahNumber != null && uiState.completeQuran.isNotEmpty(),
-                    onClick = {
-                        if (focusSurahNumber != null) {
-                            viewModel.openSurahDetail(focusSurahNumber)
-                        }
-                    }
+                    enabled = uiState.completeQuran.isNotEmpty(),
+                    onClick = { showFocus = true }
                 )
             }
 
@@ -289,6 +338,22 @@ fun HomeScreen(
         }
     }
 
+    if (showFocus) {
+        FocusSessionDialog(
+            title = strings.focusSessionTitle,
+            subtitle = strings.focusSessionSubtitle,
+            startLabel = strings.focusStartLabel,
+            stopLabel = strings.focusStopLabel,
+            doneLabel = strings.focusDoneLabel,
+            minutes = settings.focusMinutes,
+            onDismiss = { showFocus = false },
+            onCompleted = { minutes ->
+                viewModel.recordFocusSession(minutes)
+                showFocus = false
+            }
+        )
+    }
+
     uiState.selectedSurah?.let { surah ->
         Dialog(
             onDismissRequest = { viewModel.dismissSurahDetail() },
@@ -326,6 +391,227 @@ private fun SelectionBar(
             ActionPill(label = strings.clearLabel, onClick = onClear, isDestructive = true)
         }
     }
+}
+
+@Composable
+private fun ReminderCard(
+    title: String,
+    body: String,
+) {
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        elevation = 2.dp,
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(text = title, style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = body,
+                style = MaterialTheme.typography.body2,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlanCard(
+    title: String,
+    subtitle: String,
+    todayLabel: String,
+    todayProgress: Int,
+    dailyGoal: Int,
+) {
+    val progress = if (dailyGoal > 0) todayProgress.toFloat() / dailyGoal else 0f
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        elevation = 2.dp,
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(text = title, style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "$todayLabel: $todayProgress/$dailyGoal",
+                    style = MaterialTheme.typography.body2
+                )
+                Text(
+                    text = "${(progress.coerceIn(0f, 1f) * 100).toInt()}%",
+                    style = MaterialTheme.typography.caption,
+                    color = MaterialTheme.colors.primary
+                )
+            }
+            ProgressBarLine(progress = progress)
+        }
+    }
+}
+
+@Composable
+private fun ProgressBarLine(progress: Float) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(8.dp)
+    ) {
+        Surface(
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.08f),
+            shape = RoundedCornerShape(6.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {}
+        Surface(
+            color = MaterialTheme.colors.primary,
+            shape = RoundedCornerShape(6.dp),
+            modifier = Modifier.fillMaxWidth(progress.coerceIn(0f, 1f))
+        ) {}
+    }
+}
+
+@Composable
+private fun DueReviewsCard(
+    title: String,
+    emptyLabel: String,
+    actionLabel: String,
+    dueReviews: List<AyahReviewEntity>,
+    onComplete: (Int, Int) -> Unit,
+) {
+    val strings = LocalAppStrings.current
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        elevation = 2.dp,
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(text = title, style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.SemiBold)
+            if (dueReviews.isEmpty()) {
+                Text(
+                    text = emptyLabel,
+                    style = MaterialTheme.typography.body2,
+                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                )
+            } else {
+                dueReviews.forEach { review ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${strings.surahLabel} ${review.surahNumber} · ${strings.ayahsLabel} ${review.ayahNumber}",
+                            style = MaterialTheme.typography.body2
+                        )
+                        Text(
+                            text = actionLabel,
+                            style = MaterialTheme.typography.caption,
+                            color = MaterialTheme.colors.primary,
+                            modifier = Modifier.clickable {
+                                onComplete(review.ayahNumber, review.surahNumber)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FocusSessionDialog(
+    title: String,
+    subtitle: String,
+    startLabel: String,
+    stopLabel: String,
+    doneLabel: String,
+    minutes: Int,
+    onDismiss: () -> Unit,
+    onCompleted: (Int) -> Unit,
+) {
+    var isRunning by remember { mutableStateOf(false) }
+    var secondsLeft by remember { mutableStateOf(minutes * 60) }
+
+    LaunchedEffect(isRunning, secondsLeft) {
+        if (!isRunning) return@LaunchedEffect
+        if (secondsLeft <= 0) {
+            onCompleted(minutes)
+            return@LaunchedEffect
+        }
+        delay(1000)
+        secondsLeft -= 1
+    }
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            elevation = 4.dp,
+            modifier = Modifier
+                .padding(24.dp)
+                .fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(Icons.Default.Timer, contentDescription = null, tint = MaterialTheme.colors.primary)
+                Text(text = title, style = MaterialTheme.typography.h6, fontWeight = FontWeight.Bold)
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.caption,
+                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+                )
+                Text(
+                    text = formatTimer(secondsLeft),
+                    style = MaterialTheme.typography.h4,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { isRunning = !isRunning },
+                        enabled = secondsLeft > 0
+                    ) {
+                        Text(if (isRunning) stopLabel else startLabel)
+                    }
+                    Button(
+                        onClick = { onCompleted(minutes) },
+                        enabled = secondsLeft <= 0 || !isRunning
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(doneLabel)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatTimer(totalSeconds: Int): String {
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
 }
 
 @Composable

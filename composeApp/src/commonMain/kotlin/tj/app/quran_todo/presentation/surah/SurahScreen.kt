@@ -26,18 +26,26 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
 import androidx.compose.material.SwipeToDismiss
 import androidx.compose.material.Text
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.rememberDismissState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,10 +54,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import io.ktor.util.date.getTimeMillis
 import org.koin.compose.viewmodel.koinViewModel
+import tj.app.quran_todo.common.audio.AudioPlayer
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.i18n.localizeRevelationPlace
@@ -71,12 +84,29 @@ fun SurahScreen(
     val translations by viewModel.ayahTranslations.collectAsState()
     val ruSurahNames by viewModel.ruSurahNames.collectAsState()
     val chapterNames by viewModel.chapterNames.collectAsState()
+    val notes by viewModel.notes.collectAsState()
+    val reviews by viewModel.reviews.collectAsState()
     val totalAyahs = surahWithAyahs.ayahs.size
     val surahNumber = surahWithAyahs.surah.number
+    val audioUrl = "https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/$surahNumber.mp3"
+    val audioPlayer = remember { AudioPlayer() }
+    var isPlaying by remember { mutableStateOf(false) }
+    var repeatCount by remember { mutableStateOf(1) }
+    var noteTarget by remember { mutableStateOf<AyahEntity?>(null) }
+    var noteDraft by remember { mutableStateOf("") }
+
+    DisposableEffect(Unit) {
+        onDispose { audioPlayer.stop() }
+    }
 
     LaunchedEffect(language, surahWithAyahs.surah.number) {
         viewModel.loadTranslations(surahNumber, language)
         viewModel.loadChapterNames(language)
+    }
+
+    LaunchedEffect(surahNumber) {
+        viewModel.observeNotes(surahNumber)
+        viewModel.observeReviews(surahNumber)
     }
 
     Scaffold(
@@ -127,9 +157,34 @@ fun SurahScreen(
                     surahNumber = surahWithAyahs.surah.number.toString()
                 )
             }
+            item {
+                AudioControls(
+                    isPlaying = isPlaying,
+                    repeatCount = repeatCount,
+                    onPlayPause = {
+                        if (isPlaying) {
+                            audioPlayer.pause()
+                            isPlaying = false
+                        } else {
+                            startPlayback(
+                                player = audioPlayer,
+                                url = audioUrl,
+                                repeatCount = repeatCount,
+                                onPlayingChange = { isPlaying = it }
+                            )
+                        }
+                    },
+                    onRepeatChange = {
+                        repeatCount = if (repeatCount == 3) 1 else repeatCount + 1
+                    }
+                )
+            }
             items(surahWithAyahs.ayahs, key = { it.number }) { ayah ->
                 val status = todoByAyah[ayah.number]?.status
                 val translation = translations[ayah.number]
+                val note = notes[ayah.number]?.note
+                val review = reviews[ayah.number]
+                val reviewDue = review != null && review.nextReviewAt <= getTimeMillis()
                 AyahCard(
                     ayah = ayah,
                     status = status,
@@ -140,6 +195,19 @@ fun SurahScreen(
                     },
                     clearLabel = strings.clearLabel,
                     translation = translation,
+                    note = note,
+                    reviewDue = reviewDue,
+                    onNoteClick = {
+                        noteTarget = ayah
+                        noteDraft = note ?: ""
+                    },
+                    onReviewComplete = if (reviewDue) {
+                        {
+                            viewModel.completeReview(ayah.number, surahNumber)
+                        }
+                    } else {
+                        null
+                    },
                     onSwipeToLearning = {
                         viewModel.updateAyahStatus(
                             ayahNumber = ayah.number,
@@ -168,6 +236,61 @@ fun SurahScreen(
                         null
                     }
                 )
+            }
+        }
+    }
+
+    noteTarget?.let { ayah ->
+        Dialog(
+            onDismissRequest = { noteTarget = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                elevation = 4.dp,
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "${strings.noteTitle} · ${strings.ayahsLabel} ${ayah.numberInSurah}",
+                        style = MaterialTheme.typography.subtitle1,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    OutlinedTextField(
+                        value = noteDraft,
+                        onValueChange = { noteDraft = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(strings.notePlaceholder) }
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Text(
+                            text = strings.clearLabel,
+                            color = MaterialTheme.colors.error,
+                            modifier = Modifier
+                                .padding(end = 16.dp)
+                                .clickable {
+                                    viewModel.upsertNote(ayah.number, surahNumber, "")
+                                    noteTarget = null
+                                }
+                        )
+                        Text(
+                            text = strings.saveLabel,
+                            color = MaterialTheme.colors.primary,
+                            modifier = Modifier.clickable {
+                                viewModel.upsertNote(ayah.number, surahNumber, noteDraft)
+                                noteTarget = null
+                            }
+                        )
+                    }
+                }
             }
         }
     }
@@ -229,6 +352,73 @@ private fun HeaderChip(text: String) {
     }
 }
 
+@Composable
+private fun AudioControls(
+    isPlaying: Boolean,
+    repeatCount: Int,
+    onPlayPause: () -> Unit,
+    onRepeatChange: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        elevation = 2.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onPlayPause) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = null
+                    )
+                }
+                Text(
+                    text = if (isPlaying) LocalAppStrings.current.focusStopLabel else LocalAppStrings.current.focusStartLabel,
+                    style = MaterialTheme.typography.body2
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.clickable { onRepeatChange() }
+            ) {
+                Icon(Icons.Default.Repeat, contentDescription = null, modifier = Modifier.size(18.dp))
+                Text(
+                    text = "${repeatCount}x",
+                    style = MaterialTheme.typography.caption
+                )
+            }
+        }
+    }
+}
+
+private fun startPlayback(
+    player: AudioPlayer,
+    url: String,
+    repeatCount: Int,
+    onPlayingChange: (Boolean) -> Unit,
+) {
+    if (repeatCount <= 0) return
+    onPlayingChange(true)
+    player.play(url) {
+        val remaining = repeatCount - 1
+        if (remaining > 0) {
+            startPlayback(player, url, remaining, onPlayingChange)
+        } else {
+            onPlayingChange(false)
+            player.stop()
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun AyahCard(
@@ -237,6 +427,10 @@ fun AyahCard(
     statusLabel: String?,
     clearLabel: String,
     translation: String?,
+    note: String?,
+    reviewDue: Boolean,
+    onNoteClick: () -> Unit,
+    onReviewComplete: (() -> Unit)?,
     onSwipeToLearning: () -> Unit,
     onSwipeToLearned: () -> Unit,
     onClearStatus: (() -> Unit)?,
@@ -358,6 +552,41 @@ fun AyahCard(
                                     modifier = Modifier.clickable { onClearStatus() }
                                 )
                             }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.clickable { onNoteClick() }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null,
+                                tint = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = if (note.isNullOrBlank()) LocalAppStrings.current.notePlaceholder else note,
+                                style = MaterialTheme.typography.caption,
+                                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        if (reviewDue && onReviewComplete != null) {
+                            Text(
+                                text = LocalAppStrings.current.reviewNowLabel,
+                                style = MaterialTheme.typography.caption,
+                                color = MaterialTheme.colors.primary,
+                                modifier = Modifier.clickable { onReviewComplete() }
+                            )
                         }
                     }
                 }

@@ -17,6 +17,8 @@ import tj.app.quran_todo.common.utils.Resource
 import tj.app.quran_todo.common.utils.parseSurahList
 import tj.app.quran_todo.data.database.dao.ChapterNameDao
 import tj.app.quran_todo.data.database.dao.ChapterNameCacheDao
+import tj.app.quran_todo.data.database.dao.AyahReviewDao
+import tj.app.quran_todo.data.database.dao.FocusSessionDao
 import tj.app.quran_todo.data.database.entity.quran.ChapterNameEntity
 import tj.app.quran_todo.data.database.entity.quran.ChapterNameCacheEntity
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
@@ -24,6 +26,8 @@ import tj.app.quran_todo.data.database.entity.todo.SurahTodoEntity
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
+import tj.app.quran_todo.data.database.entity.todo.AyahReviewEntity
+import tj.app.quran_todo.data.database.entity.todo.FocusSessionEntity
 import tj.app.quran_todo.data.model.QuranComChaptersResponse
 import tj.app.quran_todo.domain.model.SurahModel
 import tj.app.quran_todo.domain.use_case.AyahTodoDeleteBySurahUseCase
@@ -33,14 +37,18 @@ import tj.app.quran_todo.domain.use_case.TodoDeleteSurahByNumberUseCase
 import tj.app.quran_todo.domain.use_case.TodoDeleteSurahUseCase
 import tj.app.quran_todo.domain.use_case.TodoGetSurahListUseCase
 import tj.app.quran_todo.domain.use_case.TodoUpsertSurahUseCase
+import tj.app.quran_todo.domain.use_case.AyahTodoGetAllUseCase
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.code
 
 data class HomeUiState(
     val surahList: List<SurahModel> = emptyList(),
     val todoSurahs: List<SurahTodoEntity> = emptyList(),
+    val ayahTodos: List<AyahTodoEntity> = emptyList(),
     val completeQuran: List<SurahWithAyahs> = emptyList(),
     val chapterNames: Map<Int, ChapterName> = emptyMap(),
+    val dueReviews: List<AyahReviewEntity> = emptyList(),
+    val lastActivityAt: Long? = null,
     val selectedSurah: SurahWithAyahs? = null,
     val selectedSurahNumbers: Set<Int> = emptySet(),
     val filter: SurahTodoStatus? = null,
@@ -58,6 +66,8 @@ class HomeViewModel(
     private val httpClient: HttpClient,
     private val chapterNameDao: ChapterNameDao,
     private val chapterNameCacheDao: ChapterNameCacheDao,
+    private val ayahReviewDao: AyahReviewDao,
+    private val focusSessionDao: FocusSessionDao,
     private val todoDeleteSurahUseCase: TodoDeleteSurahUseCase,
     private val todoDeleteSurahByNumberUseCase: TodoDeleteSurahByNumberUseCase,
     private val todoUpsertSurahUseCase: TodoUpsertSurahUseCase,
@@ -65,6 +75,7 @@ class HomeViewModel(
     private val getCompleteQuranUseCase: GetCompleteQuranUseCase,
     private val ayahTodoUpsertUseCase: AyahTodoUpsertUseCase,
     private val ayahTodoDeleteBySurahUseCase: AyahTodoDeleteBySurahUseCase,
+    ayahTodoGetAllUseCase: AyahTodoGetAllUseCase,
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -83,6 +94,19 @@ class HomeViewModel(
         viewModelScope.launch {
             todoGetSurahListUseCase().collect { list ->
                 _uiState.value = _uiState.value.copy(todoSurahs = list)
+            }
+        }
+
+        viewModelScope.launch {
+            ayahTodoGetAllUseCase().collect { list ->
+                val lastActivity = list.map { it.updatedAt }.filter { it > 0 }.maxOrNull()
+                _uiState.value = _uiState.value.copy(
+                    ayahTodos = list,
+                    lastActivityAt = lastActivity
+                )
+                viewModelScope.launch(Dispatchers.IO) {
+                    refreshDueReviews()
+                }
             }
         }
 
@@ -161,6 +185,7 @@ class HomeViewModel(
             if (status == null) {
                 todoDeleteSurahByNumberUseCase(surahNumber)
                 ayahTodoDeleteBySurahUseCase(surahNumber)
+                ayahReviewDao.deleteBySurahNumber(surahNumber)
                 return@launch
             }
 
@@ -177,11 +202,80 @@ class HomeViewModel(
                         status = when (status) {
                             SurahTodoStatus.LEARNED -> AyahTodoStatus.LEARNED
                             SurahTodoStatus.LEARNING -> AyahTodoStatus.LEARNING
-                        }
+                        },
+                        updatedAt = getTimeMillis()
                     )
                 )
+                scheduleReview(
+                    ayahNumber = ayah.number,
+                    surahNumber = surahNumber,
+                    status = status
+                )
             }
+            refreshDueReviews()
         }
+    }
+
+    fun completeReview(ayahNumber: Int, surahNumber: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val now = getTimeMillis()
+            val review = _uiState.value.dueReviews.firstOrNull { it.ayahNumber == ayahNumber }
+            val nextIndex = ((review?.intervalIndex ?: 0) + 1)
+                .coerceAtMost(reviewIntervalsDays.lastIndex)
+            val nextAt = now + reviewIntervalsDays[nextIndex] * dayMillis
+            ayahReviewDao.upsert(
+                AyahReviewEntity(
+                    ayahNumber = ayahNumber,
+                    surahNumber = surahNumber,
+                    nextReviewAt = nextAt,
+                    intervalIndex = nextIndex,
+                    lastReviewedAt = now
+                )
+            )
+            refreshDueReviews()
+        }
+    }
+
+    fun recordFocusSession(durationMinutes: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            focusSessionDao.insert(
+                FocusSessionEntity(
+                    startedAt = getTimeMillis(),
+                    durationMinutes = durationMinutes
+                )
+            )
+        }
+    }
+
+    private suspend fun refreshDueReviews() {
+        val due = ayahReviewDao.getDue(getTimeMillis())
+        _uiState.value = _uiState.value.copy(dueReviews = due)
+    }
+
+    private suspend fun scheduleReview(
+        ayahNumber: Int,
+        surahNumber: Int,
+        status: SurahTodoStatus,
+    ) {
+        val now = getTimeMillis()
+        val intervalIndex = 0
+        val nextAt = now + reviewIntervalsDays[intervalIndex] * dayMillis
+        if (status == SurahTodoStatus.LEARNING || status == SurahTodoStatus.LEARNED) {
+            ayahReviewDao.upsert(
+                AyahReviewEntity(
+                    ayahNumber = ayahNumber,
+                    surahNumber = surahNumber,
+                    nextReviewAt = nextAt,
+                    intervalIndex = intervalIndex,
+                    lastReviewedAt = now
+                )
+            )
+        }
+    }
+
+    private companion object {
+        val reviewIntervalsDays = listOf(1L, 3L, 7L, 14L, 30L)
+        const val dayMillis = 24L * 60 * 60 * 1000
     }
 
     fun refreshQuran(withLocalAction: Boolean = true) {

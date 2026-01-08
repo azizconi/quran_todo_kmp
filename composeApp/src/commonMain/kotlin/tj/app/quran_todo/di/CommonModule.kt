@@ -24,6 +24,9 @@ import tj.app.quran_todo.domain.use_case.TodoUpsertSurahUseCase
 val commonModule = module {
     single { get<QuranTodoDatabase>().getSurahTodoDao() }
     single { get<QuranTodoDatabase>().getAyahTodoDao() }
+    single { get<QuranTodoDatabase>().getAyahNoteDao() }
+    single { get<QuranTodoDatabase>().getAyahReviewDao() }
+    single { get<QuranTodoDatabase>().getFocusSessionDao() }
     single { get<QuranTodoDatabase>().getChapterNameDao() }
     single { get<QuranTodoDatabase>().getChapterNameCacheDao() }
     single { get<QuranTodoDatabase>().getQuranDao() }

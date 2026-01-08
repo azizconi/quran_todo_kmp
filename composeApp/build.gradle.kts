@@ -53,6 +53,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
 
             implementation(libs.room.runtime)
             implementation(libs.sqlite.bundled)
@@ -67,6 +68,9 @@ kotlin {
             implementation(libs.navigation3.runtime)
 
             implementation(libs.material.icons.core)
+            implementation(libs.material.icons.extended)
+
+
         }
 
         nativeMain.dependencies {

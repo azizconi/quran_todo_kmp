@@ -36,10 +36,17 @@ import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppLanguageSetter
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.i18n.stringsFor
+import tj.app.quran_todo.common.settings.AppSettings
+import tj.app.quran_todo.common.settings.LocalAppSettings
+import tj.app.quran_todo.common.settings.LocalAppSettingsSetter
+import tj.app.quran_todo.common.settings.UserSettingsStorage
 import tj.app.quran_todo.common.theme.AppTheme
 import tj.app.quran_todo.common.theme.LocalThemeMode
 import tj.app.quran_todo.common.theme.LocalThemeModeSetter
+import tj.app.quran_todo.common.theme.LocalThemePalette
+import tj.app.quran_todo.common.theme.LocalThemePaletteSetter
 import tj.app.quran_todo.common.theme.ThemeMode
+import tj.app.quran_todo.common.theme.ThemePalette
 import tj.app.quran_todo.common.theme.ThemeStorage
 import tj.app.quran_todo.presentation.HomeScreen
 import tj.app.quran_todo.presentation.settings.SettingsScreen
@@ -57,10 +64,22 @@ fun App() {
         ThemeStorage.getSavedThemeMode() ?: if (systemDark) ThemeMode.DARK else ThemeMode.LIGHT
     }
     var themeMode by remember { mutableStateOf(initialTheme) }
+    val initialPalette = remember {
+        ThemeStorage.getSavedThemePalette() ?: ThemePalette.SAND
+    }
+    var themePalette by remember { mutableStateOf(initialPalette) }
 
     val strings = remember(language) { stringsFor(language) }
     val backStack = remember { mutableStateListOf<AppTab>(AppTab.Home) }
     val current = backStack.lastOrNull() ?: AppTab.Home
+    val initialSettings = remember {
+        AppSettings(
+            dailyGoal = UserSettingsStorage.getDailyGoal() ?: 5,
+            focusMinutes = UserSettingsStorage.getFocusMinutes() ?: 10,
+            remindersEnabled = UserSettingsStorage.isReminderEnabled() ?: true
+        )
+    }
+    var appSettings by remember { mutableStateOf(initialSettings) }
 
     CompositionLocalProvider(
         LocalAppStrings provides strings,
@@ -74,8 +93,20 @@ fun App() {
             themeMode = it
             ThemeStorage.saveThemeMode(it)
         },
+        LocalThemePalette provides themePalette,
+        LocalThemePaletteSetter provides {
+            themePalette = it
+            ThemeStorage.saveThemePalette(it)
+        },
+        LocalAppSettings provides appSettings,
+        LocalAppSettingsSetter provides {
+            appSettings = it
+            UserSettingsStorage.saveDailyGoal(it.dailyGoal)
+            UserSettingsStorage.saveFocusMinutes(it.focusMinutes)
+            UserSettingsStorage.saveReminderEnabled(it.remindersEnabled)
+        },
     ) {
-        AppTheme(mode = themeMode) {
+        AppTheme(mode = themeMode, palette = themePalette) {
             Scaffold(
                 contentWindowInsets = WindowInsets.safeDrawing,
                 bottomBar = {

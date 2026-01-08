@@ -34,10 +34,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
-import tj.app.quran_todo.common.i18n.LocalAppLanguage
-import tj.app.quran_todo.common.i18n.LocalAppLanguageSetter
 import tj.app.quran_todo.common.i18n.LocalAppStrings
-import tj.app.quran_todo.presentation.components.LanguagePicker
+import tj.app.quran_todo.common.settings.LocalAppSettings
 
 data class ChartSegment(
     val label: String,
@@ -48,8 +46,7 @@ data class ChartSegment(
 @Composable
 fun StatsScreen(viewModel: StatsViewModel = koinViewModel()) {
     val strings = LocalAppStrings.current
-    val language = LocalAppLanguage.current
-    val setLanguage = LocalAppLanguageSetter.current
+    val settings = LocalAppSettings.current
 
     val uiState by viewModel.uiState.collectAsState()
 
@@ -58,11 +55,7 @@ fun StatsScreen(viewModel: StatsViewModel = koinViewModel()) {
     } else {
         0f
     }
-    val dailyGoal = if (uiState.totalAyahs > 0) {
-        (uiState.totalAyahs / 30).coerceAtLeast(1)
-    } else {
-        0
-    }
+    val dailyGoal = settings.dailyGoal
 
     Column(
         modifier = Modifier
@@ -70,18 +63,11 @@ fun StatsScreen(viewModel: StatsViewModel = koinViewModel()) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = strings.statsTitle,
-                style = MaterialTheme.typography.h5,
-                fontWeight = FontWeight.Bold
-            )
-            LanguagePicker(current = language, onSelected = setLanguage)
-        }
+        Text(
+            text = strings.statsTitle,
+            style = MaterialTheme.typography.h5,
+            fontWeight = FontWeight.Bold
+        )
 
         StatsCard(
             title = strings.statsSurahs,
@@ -107,6 +93,14 @@ fun StatsScreen(viewModel: StatsViewModel = koinViewModel()) {
             progress = progress,
             dailyGoal = dailyGoal,
             totalAyahs = uiState.totalAyahs,
+            strings = strings
+        )
+
+        HighlightsCard(
+            streakDays = uiState.streakDays,
+            bestDayCount = uiState.bestDayCount,
+            avgPerDay = uiState.avgPerDay,
+            focusMinutes = uiState.focusMinutes,
             strings = strings
         )
     }
@@ -192,6 +186,52 @@ private fun InsightsCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun HighlightsCard(
+    streakDays: Int,
+    bestDayCount: Int,
+    avgPerDay: Int,
+    focusMinutes: Int,
+    strings: tj.app.quran_todo.common.i18n.AppStrings,
+) {
+    Card(elevation = 2.dp, shape = RoundedCornerShape(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(text = strings.insightsTitle, style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.SemiBold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                HighlightItem(label = strings.streakLabel, value = streakDays.toString())
+                HighlightItem(label = strings.bestDayLabel, value = bestDayCount.toString())
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                HighlightItem(label = strings.avgPerDayLabel, value = avgPerDay.toString())
+                HighlightItem(label = strings.focusMinutesStatsLabel, value = focusMinutes.toString())
+            }
+        }
+    }
+}
+
+@Composable
+private fun HighlightItem(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(text = value, style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.SemiBold)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.caption,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+        )
     }
 }
 

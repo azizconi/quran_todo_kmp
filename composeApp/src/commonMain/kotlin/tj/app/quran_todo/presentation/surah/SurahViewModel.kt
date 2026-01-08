@@ -16,10 +16,14 @@ import kotlinx.coroutines.launch
 import tj.app.quran_todo.common.utils.parseSurahList
 import tj.app.quran_todo.data.database.dao.ChapterNameDao
 import tj.app.quran_todo.data.database.dao.ChapterNameCacheDao
+import tj.app.quran_todo.data.database.dao.AyahNoteDao
+import tj.app.quran_todo.data.database.dao.AyahReviewDao
 import tj.app.quran_todo.data.database.entity.quran.ChapterNameEntity
 import tj.app.quran_todo.data.database.entity.quran.ChapterNameCacheEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
+import tj.app.quran_todo.data.database.entity.todo.AyahNoteEntity
+import tj.app.quran_todo.data.database.entity.todo.AyahReviewEntity
 import tj.app.quran_todo.data.model.QuranComChaptersResponse
 import tj.app.quran_todo.data.model.SurahResponse
 import tj.app.quran_todo.domain.use_case.AyahTodoDeleteByAyahUseCase
@@ -40,6 +44,8 @@ class SurahViewModel(
     private val httpClient: HttpClient,
     private val chapterNameDao: ChapterNameDao,
     private val chapterNameCacheDao: ChapterNameCacheDao,
+    private val ayahNoteDao: AyahNoteDao,
+    private val ayahReviewDao: AyahReviewDao,
     private val ayahTodoGetBySurahUseCase: AyahTodoGetBySurahUseCase,
     private val ayahTodoUpsertUseCase: AyahTodoUpsertUseCase,
     private val ayahTodoDeleteByAyahUseCase: AyahTodoDeleteByAyahUseCase,
@@ -57,6 +63,12 @@ class SurahViewModel(
     private val _chapterNames = MutableStateFlow<Map<Int, ChapterName>>(emptyMap())
     val chapterNames: StateFlow<Map<Int, ChapterName>> = _chapterNames.asStateFlow()
 
+    private val _notes = MutableStateFlow<Map<Int, AyahNoteEntity>>(emptyMap())
+    val notes: StateFlow<Map<Int, AyahNoteEntity>> = _notes.asStateFlow()
+
+    private val _reviews = MutableStateFlow<Map<Int, AyahReviewEntity>>(emptyMap())
+    val reviews: StateFlow<Map<Int, AyahReviewEntity>> = _reviews.asStateFlow()
+
     private var lastLoaded: Pair<Int, AppLanguage>? = null
     private var lastChapterLanguage: AppLanguage? = null
     private val cacheTtlMs = 1000L * 60 * 60 * 24 * 30
@@ -70,6 +82,22 @@ class SurahViewModel(
 
     fun ayahTodos(surahNumber: Int): Flow<List<AyahTodoEntity>> =
         ayahTodoGetBySurahUseCase(surahNumber)
+
+    fun observeNotes(surahNumber: Int) {
+        viewModelScope.launch {
+            ayahNoteDao.getBySurahNumber(surahNumber).collect { list ->
+                _notes.value = list.associateBy { it.ayahNumber }
+            }
+        }
+    }
+
+    fun observeReviews(surahNumber: Int) {
+        viewModelScope.launch {
+            ayahReviewDao.getBySurahNumber(surahNumber).collect { list ->
+                _reviews.value = list.associateBy { it.ayahNumber }
+            }
+        }
+    }
 
     fun loadTranslations(surahNumber: Int, language: AppLanguage) {
         if (lastLoaded == surahNumber to language && _ayahTranslations.value.isNotEmpty()) return
@@ -153,9 +181,11 @@ class SurahViewModel(
                 AyahTodoEntity(
                     ayahNumber = ayahNumber,
                     surahNumber = surahNumber,
-                    status = status
+                    status = status,
+                    updatedAt = getTimeMillis()
                 )
             )
+            scheduleReview(ayahNumber, surahNumber)
             syncSurahStatusInternal(surahNumber, totalAyahs)
         }
     }
@@ -163,7 +193,44 @@ class SurahViewModel(
     fun clearAyahStatus(ayahNumber: Int, surahNumber: Int, totalAyahs: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             ayahTodoDeleteByAyahUseCase(ayahNumber)
+            ayahReviewDao.deleteByAyahNumber(ayahNumber)
             syncSurahStatusInternal(surahNumber, totalAyahs)
+        }
+    }
+
+    fun upsertNote(ayahNumber: Int, surahNumber: Int, note: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (note.isBlank()) {
+                ayahNoteDao.getByAyahNumber(ayahNumber)?.let { ayahNoteDao.delete(it) }
+            } else {
+                ayahNoteDao.upsert(
+                    AyahNoteEntity(
+                        ayahNumber = ayahNumber,
+                        surahNumber = surahNumber,
+                        note = note.trim(),
+                        updatedAt = getTimeMillis()
+                    )
+                )
+            }
+        }
+    }
+
+    fun completeReview(ayahNumber: Int, surahNumber: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val now = getTimeMillis()
+            val current = _reviews.value[ayahNumber]
+            val nextIndex = ((current?.intervalIndex ?: 0) + 1)
+                .coerceAtMost(reviewIntervalsDays.lastIndex)
+            val nextAt = now + reviewIntervalsDays[nextIndex] * dayMillis
+            ayahReviewDao.upsert(
+                AyahReviewEntity(
+                    ayahNumber = ayahNumber,
+                    surahNumber = surahNumber,
+                    nextReviewAt = nextAt,
+                    intervalIndex = nextIndex,
+                    lastReviewedAt = now
+                )
+            )
         }
     }
 
@@ -184,5 +251,24 @@ class SurahViewModel(
         }
 
         todoUpsertSurahUseCase(SurahTodoEntity(surahNumber, status))
+    }
+
+    private suspend fun scheduleReview(ayahNumber: Int, surahNumber: Int) {
+        val now = getTimeMillis()
+        val nextAt = now + reviewIntervalsDays.first() * dayMillis
+        ayahReviewDao.upsert(
+            AyahReviewEntity(
+                ayahNumber = ayahNumber,
+                surahNumber = surahNumber,
+                nextReviewAt = nextAt,
+                intervalIndex = 0,
+                lastReviewedAt = now
+            )
+        )
+    }
+
+    private companion object {
+        val reviewIntervalsDays = listOf(1L, 3L, 7L, 14L, 30L)
+        const val dayMillis = 24L * 60 * 60 * 1000
     }
 }
