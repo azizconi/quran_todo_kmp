@@ -98,7 +98,6 @@ class QuranRemoteRepositoryImpl(
                     }
                 }
 
-                dao.clearAllData()
                 dao.insertEdition(edition)
                 dao.insertSurahs(surahs)
                 dao.insertAyahs(ayahs)
@@ -109,14 +108,18 @@ class QuranRemoteRepositoryImpl(
 
             if (withLocalAction) {
                 try {
-                    val surahWithAyahs = dao.getSurahsWithAyahs("quran-uthmani")
-                    if (surahWithAyahs.isEmpty()) {
+                    val editionIds = dao.getEditionIds()
+                    val editionId = editionIds.firstOrNull()
+                    if (editionId == null) {
                         sendRequest()
                     } else {
-                        emit(Resource.Success(surahWithAyahs))
+                        val surahWithAyahs = dao.getSurahsWithAyahs(editionId)
+                        if (surahWithAyahs.isEmpty()) {
+                            sendRequest()
+                        } else {
+                            emit(Resource.Success(surahWithAyahs))
+                        }
                     }
-
-
                 } catch (e: Exception) {
                     emit(Resource.Error("Unexpected error: ${e.message}"))
                 }

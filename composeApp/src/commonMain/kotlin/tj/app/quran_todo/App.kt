@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.captionBar
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.Icon
@@ -24,10 +27,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.navigation3.runtime.DecoratedNavEntryProvider
-import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.entry
-import androidx.navigation3.runtime.entryProvider
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import tj.app.quran_todo.common.i18n.AppLanguage
@@ -48,9 +47,7 @@ import tj.app.quran_todo.common.theme.LocalThemePaletteSetter
 import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.common.theme.ThemePalette
 import tj.app.quran_todo.common.theme.ThemeStorage
-import tj.app.quran_todo.presentation.HomeScreen
-import tj.app.quran_todo.presentation.settings.SettingsScreen
-import tj.app.quran_todo.presentation.stats.StatsScreen
+import tj.app.quran_todo.navigation.AppNavHost
 
 @Composable
 @Preview
@@ -108,11 +105,12 @@ fun App() {
     ) {
         AppTheme(mode = themeMode, palette = themePalette) {
             Scaffold(
-                contentWindowInsets = WindowInsets.safeDrawing,
+                contentWindowInsets = WindowInsets.statusBars,
                 bottomBar = {
                     BottomNavigation(
                         backgroundColor = MaterialTheme.colors.surface,
-                        modifier = Modifier.navigationBarsPadding()
+                        windowInsets = WindowInsets.navigationBars
+//                        modifier = Modifier.navigationBarsPadding()
                     ) {
                         BottomNavigationItem(
                             selected = current == AppTab.Home,
@@ -141,21 +139,8 @@ fun App() {
                     }
                 }
             ) { paddingValues ->
-                val entryProvider = remember {
-                    entryProvider<AppTab> {
-                        entry<AppTab.Home> { HomeScreen() }
-                        entry<AppTab.Stats> { StatsScreen() }
-                        entry<AppTab.Settings> { SettingsScreen() }
-                    }
-                }
-
                 Box(modifier = Modifier.padding(paddingValues)) {
-                    DecoratedNavEntryProvider(
-                        backStack = backStack,
-                        entryProvider = entryProvider,
-                    ) { entries ->
-                        entries.last().Content()
-                    }
+                    AppNavHost(current)
                 }
             }
         }
@@ -163,7 +148,7 @@ fun App() {
 }
 
 @Serializable
-sealed interface AppTab : NavKey {
+sealed interface AppTab {
     @Serializable
     data object Home : AppTab
 

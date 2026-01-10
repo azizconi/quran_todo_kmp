@@ -2,38 +2,44 @@ package tj.app.quran_todo.database
 
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.sqlite.driver.NativeSQLiteDriver
 import kotlinx.cinterop.ExperimentalForeignApi
-import platform.Foundation.NSDocumentDirectory
+import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSLog
+import platform.Foundation.NSURL
 import platform.Foundation.NSUserDomainMask
-
 import tj.app.quran_todo.data.database.QuranTodoDatabase
-import tj.app.quran_todo.data.database.DatabaseMigrations
-
 
 fun getDatabaseBuilder(): RoomDatabase.Builder<QuranTodoDatabase> {
-    val dbFilePath = documentDirectory() + "/quran_todo.db"
-    val driver = NativeSQLiteDriver()
+    val dbFilePath = databasePath()
+    logDatabaseFile("before build", dbFilePath)
     return Room.databaseBuilder<QuranTodoDatabase>(
-        name = dbFilePath
-    ).setDriver(driver)
-        .addMigrations(
-            DatabaseMigrations.MIGRATION_5_6,
-            DatabaseMigrations.MIGRATION_6_7,
-            DatabaseMigrations.MIGRATION_7_8,
-            DatabaseMigrations.MIGRATION_8_9
-        )
+        name = dbFilePath,
+    )
+}
+
+fun databasePath(): String = applicationSupportDirectory() + "/quran_todo.db"
+
+fun logDatabaseFile(stage: String, path: String) {
+    val exists = NSFileManager.defaultManager.fileExistsAtPath(path)
+    NSLog("Room DB (%s): %s exists=%s", stage, path, exists.toString())
 }
 
 @OptIn(ExperimentalForeignApi::class)
-private fun documentDirectory(): String {
-    val documentDirectory = NSFileManager.defaultManager.URLForDirectory(
-        directory = NSDocumentDirectory,
+private fun applicationSupportDirectory(): String {
+    val url = NSFileManager.defaultManager.URLForDirectory(
+        directory = NSApplicationSupportDirectory,
         inDomain = NSUserDomainMask,
         appropriateForURL = null,
-        create = false,
+        create = true,
         error = null,
+    ) as NSURL?
+    val path = requireNotNull(url?.path)
+    NSFileManager.defaultManager.createDirectoryAtPath(
+        path,
+        withIntermediateDirectories = true,
+        attributes = null,
+        error = null
     )
-    return requireNotNull(documentDirectory?.path)
+    return path
 }

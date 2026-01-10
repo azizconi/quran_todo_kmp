@@ -1,6 +1,5 @@
 package tj.app.quran_todo.common.i18n
 
-import platform.Foundation.NSLocale
 import platform.Foundation.NSUserDefaults
 
 private const val KEY_LANGUAGE = "language_code"
@@ -18,8 +17,9 @@ actual object LanguageStorage {
     }
 
     actual fun getDeviceLanguage(): AppLanguage {
-        val preferred = NSLocale.preferredLanguages.firstOrNull() as? String
-        val code = preferred ?: NSLocale.currentLocale.languageCode
+        val languages = defaults.arrayForKey("AppleLanguages") as? List<*>
+        val preferred = languages?.firstOrNull() as? String
+        val code = preferred?.substringBefore("-") ?: "en"
         return languageFromCode(code)
     }
 }

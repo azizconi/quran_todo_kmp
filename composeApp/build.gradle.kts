@@ -54,7 +54,6 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.datetime)
-
             implementation(libs.room.runtime)
             implementation(libs.sqlite.bundled)
 
@@ -65,7 +64,7 @@ kotlin {
 
             implementation(libs.bundles.ktor)
 
-            implementation(libs.navigation3.runtime)
+//            implementation(libs.navigation3.runtime)
 
             implementation(libs.material.icons.core)
             implementation(libs.material.icons.extended)
@@ -116,5 +115,8 @@ room {
 }
 
 dependencies {
-    ksp(libs.room.compiler)
+    add("kspAndroid", libs.room.compiler)
+    add("kspIosSimulatorArm64", libs.room.compiler)
+    add("kspIosX64", libs.room.compiler)
+    add("kspIosArm64", libs.room.compiler)
 }

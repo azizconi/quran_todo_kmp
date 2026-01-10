@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
@@ -25,6 +26,7 @@ import androidx.compose.material.DismissValue
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
+import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
@@ -37,6 +39,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.rememberDismissState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -47,6 +51,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,11 +67,17 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import io.ktor.util.date.getTimeMillis
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
+import tj.app.quran_todo.common.audio.AudioCache
 import tj.app.quran_todo.common.audio.AudioPlayer
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.i18n.localizeRevelationPlace
+import tj.app.quran_todo.common.settings.UserSettingsStorage
+import tj.app.quran_todo.common.utils.ayahStableId
 import tj.app.quran_todo.common.utils.getQuranFontFamily
 import tj.app.quran_todo.data.database.entity.quran.AyahEntity
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
@@ -88,25 +100,253 @@ fun SurahScreen(
     val reviews by viewModel.reviews.collectAsState()
     val totalAyahs = surahWithAyahs.ayahs.size
     val surahNumber = surahWithAyahs.surah.number
-    val audioUrl = "https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/$surahNumber.mp3"
+    val audioList = surahWithAyahs.ayahs
+    val audioCache = remember { AudioCache() }
     val audioPlayer = remember { AudioPlayer() }
+    val scope = rememberCoroutineScope()
     var isPlaying by remember { mutableStateOf(false) }
-    var repeatCount by remember { mutableStateOf(1) }
+    var canResume by remember { mutableStateOf(false) }
+    var repeatCount by remember { mutableStateOf(UserSettingsStorage.getRepeatCount() ?: 1) }
+    var playbackMode by remember {
+        val saved = UserSettingsStorage.getPlaybackMode()
+        mutableStateOf(PlaybackMode.fromStorage(saved))
+    }
+    var playbackSpeed by remember { mutableStateOf(UserSettingsStorage.getPlaybackSpeed() ?: 1.0f) }
+    var loopStartAyahNumber by remember { mutableStateOf(UserSettingsStorage.getLoopStartAyahNumber()) }
+    var loopEndAyahNumber by remember { mutableStateOf(UserSettingsStorage.getLoopEndAyahNumber()) }
+    var translationMode by remember { mutableStateOf(UserSettingsStorage.isTranslationModeEnabled() ?: false) }
+    var translationDelayMs by remember { mutableStateOf(UserSettingsStorage.getTranslationDelayMs() ?: 3000L) }
+    var isTranslationPause by remember { mutableStateOf(false) }
+    var translationFocusAyahNumber by remember { mutableStateOf<Int?>(null) }
+    var translationPauseJob by remember { mutableStateOf<Job?>(null) }
+    var playbackJob by remember { mutableStateOf<Job?>(null) }
+    var currentAyahIndex by remember { mutableStateOf(0) }
+    var positionMs by remember { mutableStateOf(0L) }
+    var durationMs by remember { mutableStateOf(0L) }
     var noteTarget by remember { mutableStateOf<AyahEntity?>(null) }
     var noteDraft by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
+    val playbackModeState = rememberUpdatedState(playbackMode)
+    val repeatCountState = rememberUpdatedState(repeatCount)
+    val playbackSpeedState = rememberUpdatedState(playbackSpeed)
+    val ayahsState = rememberUpdatedState(audioList)
+    val translationModeState = rememberUpdatedState(translationMode)
+    val translationDelayState = rememberUpdatedState(translationDelayMs)
+    val loopStartState = rememberUpdatedState(loopStartAyahNumber)
+    val loopEndState = rememberUpdatedState(loopEndAyahNumber)
 
     DisposableEffect(Unit) {
         onDispose { audioPlayer.stop() }
     }
 
     LaunchedEffect(language, surahWithAyahs.surah.number) {
-        viewModel.loadTranslations(surahNumber, language)
+        viewModel.loadTranslations(surahNumber, language, totalAyahs)
         viewModel.loadChapterNames(language)
     }
 
     LaunchedEffect(surahNumber) {
         viewModel.observeNotes(surahNumber)
         viewModel.observeReviews(surahNumber)
+    }
+
+    LaunchedEffect(surahNumber) {
+        val lastSurah = UserSettingsStorage.getLastPlaybackSurah()
+        val lastAyah = UserSettingsStorage.getLastPlaybackAyahNumber()
+        if (lastSurah == surahNumber && lastAyah != null) {
+            val index = audioList.indexOfFirst { it.number == lastAyah }
+            if (index >= 0) {
+                currentAyahIndex = index
+            }
+        }
+    }
+
+    LaunchedEffect(currentAyahIndex, surahNumber) {
+        val ayahNumber = audioList.getOrNull(currentAyahIndex)?.number
+        if (ayahNumber != null) {
+            UserSettingsStorage.saveLastPlaybackPosition(surahNumber, ayahNumber)
+        }
+    }
+
+    LaunchedEffect(playbackMode) {
+        UserSettingsStorage.savePlaybackMode(playbackMode.storageValue)
+    }
+
+    LaunchedEffect(playbackSpeed) {
+        UserSettingsStorage.savePlaybackSpeed(playbackSpeed)
+    }
+
+    LaunchedEffect(repeatCount) {
+        UserSettingsStorage.saveRepeatCount(repeatCount)
+    }
+
+    LaunchedEffect(loopStartAyahNumber, loopEndAyahNumber) {
+        UserSettingsStorage.saveLoopRange(loopStartAyahNumber, loopEndAyahNumber)
+    }
+
+    LaunchedEffect(translationMode) {
+        UserSettingsStorage.saveTranslationModeEnabled(translationMode)
+    }
+
+    LaunchedEffect(translationDelayMs) {
+        UserSettingsStorage.saveTranslationDelayMs(translationDelayMs)
+    }
+
+    LaunchedEffect(currentAyahIndex) {
+        if (currentAyahIndex >= 0) {
+            listState.animateScrollToItem((currentAyahIndex + 2).coerceAtLeast(0))
+        }
+    }
+
+    LaunchedEffect(isPlaying, currentAyahIndex) {
+        if (!isPlaying) return@LaunchedEffect
+        while (isPlaying) {
+            positionMs = audioPlayer.getPositionMs()
+            durationMs = audioPlayer.getDurationMs()
+            delay(200)
+        }
+    }
+
+    fun cancelTranslationPause() {
+        translationPauseJob?.cancel()
+        translationPauseJob = null
+        isTranslationPause = false
+        translationFocusAyahNumber = null
+    }
+
+    fun stopPlayback() {
+        cancelTranslationPause()
+        audioPlayer.stop()
+        isPlaying = false
+        canResume = false
+    }
+
+    fun ayahAudioUrl(ayahNumber: Int): String {
+        return "https://cdn.islamic.network/quran/audio/128/ar.alafasy/$ayahNumber.mp3"
+    }
+
+    fun resolveLoopRangeIndices(): Pair<Int, Int>? {
+        val startNumber = loopStartState.value
+        val endNumber = loopEndState.value
+        if (startNumber == null || endNumber == null) return null
+        val startIndex = audioList.indexOfFirst { it.number == startNumber }
+        val endIndex = audioList.indexOfFirst { it.number == endNumber }
+        if (startIndex < 0 || endIndex < 0) return null
+        return if (startIndex <= endIndex) startIndex to endIndex else endIndex to startIndex
+    }
+
+    fun normalizeLoopRange() {
+        val range = resolveLoopRangeIndices() ?: return
+        val startAyah = audioList.getOrNull(range.first)?.number
+        val endAyah = audioList.getOrNull(range.second)?.number
+        if (startAyah != null && endAyah != null) {
+            loopStartAyahNumber = startAyah
+            loopEndAyahNumber = endAyah
+        }
+    }
+
+    fun setLoopStartToCurrent() {
+        val currentAyahNumber = audioList.getOrNull(currentAyahIndex)?.number ?: return
+        loopStartAyahNumber = currentAyahNumber
+        if (loopEndAyahNumber != null) {
+            normalizeLoopRange()
+        }
+    }
+
+    fun setLoopEndToCurrent() {
+        val currentAyahNumber = audioList.getOrNull(currentAyahIndex)?.number ?: return
+        loopEndAyahNumber = currentAyahNumber
+        if (loopStartAyahNumber != null) {
+            normalizeLoopRange()
+            playbackMode = PlaybackMode.RANGE
+        }
+    }
+
+    fun clearLoopRange() {
+        loopStartAyahNumber = null
+        loopEndAyahNumber = null
+        if (playbackMode == PlaybackMode.RANGE) {
+            playbackMode = PlaybackMode.SURAH
+        }
+    }
+
+    fun playAyahAt(index: Int, remainingRepeats: Int) {
+        playbackJob?.cancel()
+        playbackJob = scope.launch {
+            val ayahs = ayahsState.value
+            val range = resolveLoopRangeIndices()
+            val targetIndex = if (playbackModeState.value == PlaybackMode.RANGE && range != null) {
+                index.coerceIn(range.first, range.second)
+            } else {
+                index
+            }
+            val ayah = ayahs.getOrNull(targetIndex)
+            if (ayah == null) {
+                stopPlayback()
+                return@launch
+            }
+            currentAyahIndex = targetIndex
+            positionMs = 0L
+            durationMs = 0L
+            canResume = true
+            cancelTranslationPause()
+            audioPlayer.setPlaybackSpeed(playbackSpeedState.value)
+            val remoteUrl = ayahAudioUrl(ayah.number)
+            val cacheKey = "ayah_${ayahStableId(ayah.surahNumber, ayah.numberInSurah)}"
+            val cachedPath = audioCache.getOrFetch(remoteUrl, cacheKey)
+            val source = cachedPath ?: remoteUrl
+            audioPlayer.play(source) {
+                val mode = playbackModeState.value
+                val delayMs = translationDelayState.value
+                val nextAction = {
+                    when (mode) {
+                        PlaybackMode.AYAH -> {
+                            if (remainingRepeats > 1) {
+                                playAyahAt(targetIndex, remainingRepeats - 1)
+                            } else {
+                                stopPlayback()
+                            }
+                        }
+                        PlaybackMode.SURAH -> {
+                            if (remainingRepeats > 1) {
+                                playAyahAt(targetIndex, remainingRepeats - 1)
+                            } else {
+                                playAyahAt(targetIndex + 1, repeatCountState.value)
+                            }
+                        }
+                        PlaybackMode.RANGE -> {
+                            val resolved = resolveLoopRangeIndices()
+                            if (resolved == null) {
+                                stopPlayback()
+                            } else {
+                                val nextIndex = if (remainingRepeats > 1) {
+                                    targetIndex
+                                } else if (targetIndex >= resolved.second) {
+                                    resolved.first
+                                } else {
+                                    targetIndex + 1
+                                }
+                                val repeats = if (remainingRepeats > 1) remainingRepeats - 1 else repeatCountState.value
+                                playAyahAt(nextIndex, repeats)
+                            }
+                        }
+                    }
+                }
+                if (translationModeState.value) {
+                    translationPauseJob?.cancel()
+                    translationPauseJob = scope.launch {
+                        isTranslationPause = true
+                        translationFocusAyahNumber = ayah.number
+                        delay(delayMs)
+                        isTranslationPause = false
+                        translationFocusAyahNumber = null
+                        nextAction()
+                    }
+                } else {
+                    nextAction()
+                }
+            }
+            isPlaying = true
+        }
     }
 
     Scaffold(
@@ -129,6 +369,57 @@ fun SurahScreen(
                 },
                 backgroundColor = MaterialTheme.colors.surface,
             )
+        },
+        bottomBar = {
+            val activeAyah = audioList.getOrNull(currentAyahIndex)
+            if (activeAyah != null) {
+                MiniPlayerBar(
+                    isPlaying = isPlaying,
+                    isPausedForTranslation = isTranslationPause,
+                    currentLabel = "${strings.ayahsLabel} ${activeAyah.numberInSurah} / $totalAyahs",
+                    progress = if (durationMs > 0) {
+                        (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    },
+                    onPrev = {
+                        cancelTranslationPause()
+                        val range = resolveLoopRangeIndices()
+                        val prevIndex = if (playbackMode == PlaybackMode.RANGE && range != null) {
+                            if (currentAyahIndex <= range.first) range.second else currentAyahIndex - 1
+                        } else {
+                            (currentAyahIndex - 1).coerceAtLeast(0)
+                        }
+                        canResume = false
+                        playAyahAt(prevIndex, repeatCount)
+                    },
+                    onNext = {
+                        cancelTranslationPause()
+                        val range = resolveLoopRangeIndices()
+                        val nextIndex = if (playbackMode == PlaybackMode.RANGE && range != null) {
+                            if (currentAyahIndex >= range.second) range.first else currentAyahIndex + 1
+                        } else {
+                            (currentAyahIndex + 1).coerceAtMost(audioList.lastIndex)
+                        }
+                        canResume = false
+                        playAyahAt(nextIndex, repeatCount)
+                    },
+                    onPlayPause = {
+                        if (isTranslationPause) {
+                            stopPlayback()
+                        } else if (isPlaying) {
+                            audioPlayer.pause()
+                            isPlaying = false
+                        } else if (canResume) {
+                            audioPlayer.setPlaybackSpeed(playbackSpeed)
+                            audioPlayer.resume()
+                            isPlaying = true
+                        } else {
+                            playAyahAt(currentAyahIndex, repeatCount)
+                        }
+                    }
+                )
+            }
         }
     ) { innerPadding ->
         LazyColumn(
@@ -139,7 +430,8 @@ fun SurahScreen(
                 bottom = innerPadding.calculateBottomPadding() + 16.dp
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            state = listState
         ) {
             item {
                 val translated = chapterNames[surahNumber]?.translated ?: when (language) {
@@ -158,33 +450,86 @@ fun SurahScreen(
                 )
             }
             item {
+                val loopStartText = loopStartAyahNumber?.let { number ->
+                    val index = audioList.indexOfFirst { it.number == number }
+                    if (index >= 0) "${strings.ayahsLabel} ${audioList[index].numberInSurah}" else null
+                }
+                val loopEndText = loopEndAyahNumber?.let { number ->
+                    val index = audioList.indexOfFirst { it.number == number }
+                    if (index >= 0) "${strings.ayahsLabel} ${audioList[index].numberInSurah}" else null
+                }
                 AudioControls(
                     isPlaying = isPlaying,
+                    isPausedForTranslation = isTranslationPause,
                     repeatCount = repeatCount,
+                    playbackMode = playbackMode,
+                    playbackSpeed = playbackSpeed,
+                    currentLabel = "${strings.ayahsLabel} ${(audioList.getOrNull(currentAyahIndex)?.numberInSurah ?: 1)} / $totalAyahs",
+                    loopStartLabel = loopStartText,
+                    loopEndLabel = loopEndText,
+                    translationMode = translationMode,
+                    translationDelayMs = translationDelayMs,
                     onPlayPause = {
-                        if (isPlaying) {
+                        if (isTranslationPause) {
+                            stopPlayback()
+                        } else if (isPlaying) {
                             audioPlayer.pause()
                             isPlaying = false
+                        } else if (canResume) {
+                            audioPlayer.setPlaybackSpeed(playbackSpeed)
+                            audioPlayer.resume()
+                            isPlaying = true
                         } else {
-                            startPlayback(
-                                player = audioPlayer,
-                                url = audioUrl,
-                                repeatCount = repeatCount,
-                                onPlayingChange = { isPlaying = it }
-                            )
+                            if (playbackMode == PlaybackMode.RANGE && resolveLoopRangeIndices() == null) {
+                                setLoopStartToCurrent()
+                                setLoopEndToCurrent()
+                            }
+                            playAyahAt(currentAyahIndex, repeatCount)
                         }
                     },
                     onRepeatChange = {
-                        repeatCount = if (repeatCount == 3) 1 else repeatCount + 1
+                        repeatCount = when (repeatCount) {
+                            1 -> 3
+                            3 -> 5
+                            else -> 1
+                        }
+                    },
+                    onPlaybackModeChange = {
+                        playbackMode = when (playbackMode) {
+                            PlaybackMode.SURAH -> PlaybackMode.AYAH
+                            PlaybackMode.AYAH -> PlaybackMode.RANGE
+                            PlaybackMode.RANGE -> PlaybackMode.SURAH
+                        }
+                    },
+                    onSpeedChange = {
+                        playbackSpeed = when (playbackSpeed) {
+                            0.75f -> 1.0f
+                            1.0f -> 1.25f
+                            else -> 0.75f
+                        }
+                        audioPlayer.setPlaybackSpeed(playbackSpeed)
+                    },
+                    onSetLoopStart = { setLoopStartToCurrent() },
+                    onSetLoopEnd = { setLoopEndToCurrent() },
+                    onClearLoop = { clearLoopRange() },
+                    onToggleTranslationMode = { translationMode = !translationMode },
+                    onTranslationDelayChange = {
+                        translationDelayMs = when (translationDelayMs) {
+                            2000L -> 3500L
+                            3500L -> 5000L
+                            else -> 2000L
+                        }
                     }
                 )
             }
-            items(surahWithAyahs.ayahs, key = { it.number }) { ayah ->
+            items(audioList, key = { ayahStableId(it.surahNumber, it.numberInSurah) }) { ayah ->
                 val status = todoByAyah[ayah.number]?.status
                 val translation = translations[ayah.number]
                 val note = notes[ayah.number]?.note
                 val review = reviews[ayah.number]
                 val reviewDue = review != null && review.nextReviewAt <= getTimeMillis()
+                val isActive = audioList.getOrNull(currentAyahIndex)?.number == ayah.number
+                val isTranslationFocus = translationFocusAyahNumber == ayah.number
                 AyahCard(
                     ayah = ayah,
                     status = status,
@@ -197,6 +542,20 @@ fun SurahScreen(
                     translation = translation,
                     note = note,
                     reviewDue = reviewDue,
+                    isActive = isActive,
+                    isTranslationFocus = isTranslationFocus,
+                    playbackProgress = if (isActive && durationMs > 0) {
+                        (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    },
+                    onPlayFromHere = {
+                        val index = audioList.indexOfFirst { it.number == ayah.number }
+                        if (index >= 0) {
+                            canResume = false
+                            playAyahAt(index, repeatCount)
+                        }
+                    },
                     onNoteClick = {
                         noteTarget = ayah
                         noteDraft = note ?: ""
@@ -355,9 +714,24 @@ private fun HeaderChip(text: String) {
 @Composable
 private fun AudioControls(
     isPlaying: Boolean,
+    isPausedForTranslation: Boolean,
     repeatCount: Int,
+    playbackMode: PlaybackMode,
+    playbackSpeed: Float,
+    currentLabel: String,
+    loopStartLabel: String?,
+    loopEndLabel: String?,
+    translationMode: Boolean,
+    translationDelayMs: Long,
     onPlayPause: () -> Unit,
     onRepeatChange: () -> Unit,
+    onPlaybackModeChange: () -> Unit,
+    onSpeedChange: () -> Unit,
+    onSetLoopStart: () -> Unit,
+    onSetLoopEnd: () -> Unit,
+    onClearLoop: () -> Unit,
+    onToggleTranslationMode: () -> Unit,
+    onTranslationDelayChange: () -> Unit,
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -366,55 +740,132 @@ private fun AudioControls(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onPlayPause) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = null
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onPlayPause) {
+                        Icon(
+                            imageVector = if (isPlaying && !isPausedForTranslation) {
+                                Icons.Default.Pause
+                            } else {
+                                Icons.Default.PlayArrow
+                            },
+                            contentDescription = null
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = if (isPlaying && !isPausedForTranslation) {
+                                LocalAppStrings.current.focusStopLabel
+                            } else {
+                                LocalAppStrings.current.focusStartLabel
+                            },
+                            style = MaterialTheme.typography.body2
+                        )
+                        Text(
+                            text = currentLabel,
+                            style = MaterialTheme.typography.caption,
+                            color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.clickable { onRepeatChange() }
+                    ) {
+                        Icon(Icons.Default.Repeat, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Text(text = "${repeatCount}x", style = MaterialTheme.typography.caption)
+                    }
+                    Text(
+                        text = "${playbackSpeed}x",
+                        style = MaterialTheme.typography.caption,
+                        modifier = Modifier.clickable { onSpeedChange() }
+                    )
+                    Text(
+                        text = playbackMode.label(LocalAppStrings.current),
+                        style = MaterialTheme.typography.caption,
+                        modifier = Modifier.clickable { onPlaybackModeChange() }
                     )
                 }
-                Text(
-                    text = if (isPlaying) LocalAppStrings.current.focusStopLabel else LocalAppStrings.current.focusStartLabel,
-                    style = MaterialTheme.typography.body2
-                )
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.clickable { onRepeatChange() }
-            ) {
-                Icon(Icons.Default.Repeat, contentDescription = null, modifier = Modifier.size(18.dp))
-                Text(
-                    text = "${repeatCount}x",
-                    style = MaterialTheme.typography.caption
-                )
-            }
-        }
-    }
-}
 
-private fun startPlayback(
-    player: AudioPlayer,
-    url: String,
-    repeatCount: Int,
-    onPlayingChange: (Boolean) -> Unit,
-) {
-    if (repeatCount <= 0) return
-    onPlayingChange(true)
-    player.play(url) {
-        val remaining = repeatCount - 1
-        if (remaining > 0) {
-            startPlayback(player, url, remaining, onPlayingChange)
-        } else {
-            onPlayingChange(false)
-            player.stop()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = LocalAppStrings.current.loopSetStartLabel,
+                        style = MaterialTheme.typography.caption,
+                        modifier = Modifier.clickable { onSetLoopStart() }
+                    )
+                    Text(
+                        text = LocalAppStrings.current.loopSetEndLabel,
+                        style = MaterialTheme.typography.caption,
+                        modifier = Modifier.clickable { onSetLoopEnd() }
+                    )
+                    Text(
+                        text = LocalAppStrings.current.clearLabel,
+                        style = MaterialTheme.typography.caption,
+                        color = MaterialTheme.colors.error,
+                        modifier = Modifier.clickable { onClearLoop() }
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = when {
+                            loopStartLabel != null && loopEndLabel != null ->
+                                "${loopStartLabel} → ${loopEndLabel}"
+                            loopStartLabel != null ->
+                                "${LocalAppStrings.current.loopStartLabel}: ${loopStartLabel}"
+                            loopEndLabel != null ->
+                                "${LocalAppStrings.current.loopEndLabel}: ${loopEndLabel}"
+                            else -> LocalAppStrings.current.loopRangeEmptyLabel
+                        },
+                        style = MaterialTheme.typography.caption,
+                        color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (translationMode) {
+                        LocalAppStrings.current.translationModeOnLabel
+                    } else {
+                        LocalAppStrings.current.translationModeOffLabel
+                    },
+                    style = MaterialTheme.typography.caption,
+                    modifier = Modifier.clickable { onToggleTranslationMode() }
+                )
+                Text(
+                    text = "${LocalAppStrings.current.translationDelayLabel}: ${translationDelayMs / 1000}s",
+                    style = MaterialTheme.typography.caption,
+                    modifier = Modifier.clickable { onTranslationDelayChange() }
+                )
+            }
         }
     }
 }
@@ -429,6 +880,10 @@ fun AyahCard(
     translation: String?,
     note: String?,
     reviewDue: Boolean,
+    isActive: Boolean,
+    isTranslationFocus: Boolean,
+    playbackProgress: Float,
+    onPlayFromHere: () -> Unit,
     onNoteClick: () -> Unit,
     onReviewComplete: (() -> Unit)?,
     onSwipeToLearning: () -> Unit,
@@ -492,12 +947,32 @@ fun AyahCard(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 16.dp)
+                    .clickable { onPlayFromHere() },
                 shape = RoundedCornerShape(16.dp),
                 elevation = 4.dp,
-                backgroundColor = MaterialTheme.colors.surface
+                backgroundColor = if (isActive) {
+                    MaterialTheme.colors.primary.copy(alpha = 0.08f)
+                } else {
+                    MaterialTheme.colors.surface
+                }
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    if (isActive) {
+                        Text(
+                            text = "${LocalAppStrings.current.nowReadingLabel} ${ayah.numberInSurah}",
+                            style = MaterialTheme.typography.caption,
+                            color = MaterialTheme.colors.primary
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                    } else if (isTranslationFocus) {
+                        Text(
+                            text = LocalAppStrings.current.translationPauseLabel,
+                            style = MaterialTheme.typography.caption,
+                            color = MaterialTheme.colors.secondary
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
@@ -511,6 +986,13 @@ fun AyahCard(
                                 style = MaterialTheme.typography.body1
                             )
                         }
+                        IconButton(onClick = onPlayFromHere, modifier = Modifier.size(32.dp)) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = MaterialTheme.colors.primary
+                            )
+                        }
                         Spacer(modifier = Modifier.width(12.dp))
                         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                             Text(
@@ -521,6 +1003,16 @@ fun AyahCard(
                                 fontFamily = getQuranFontFamily()
                             )
                         }
+                    }
+
+                    if (isActive) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = playbackProgress,
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = MaterialTheme.colors.onSurface.copy(alpha = 0.08f),
+                            color = MaterialTheme.colors.primary
+                        )
                     }
 
                     if (!translation.isNullOrBlank()) {
@@ -593,4 +1085,85 @@ fun AyahCard(
             }
         }
     )
+}
+
+private enum class PlaybackMode(val storageValue: String) {
+    SURAH("surah"),
+    AYAH("ayah"),
+    RANGE("range");
+
+    fun label(strings: tj.app.quran_todo.common.i18n.AppStrings): String = when (this) {
+        SURAH -> strings.playbackModeSurah
+        AYAH -> strings.playbackModeAyah
+        RANGE -> strings.playbackModeRange
+    }
+
+    companion object {
+        fun fromStorage(value: String?): PlaybackMode = when (value) {
+            SURAH.storageValue -> SURAH
+            AYAH.storageValue -> AYAH
+            RANGE.storageValue -> RANGE
+            else -> SURAH
+        }
+    }
+}
+
+@Composable
+private fun MiniPlayerBar(
+    isPlaying: Boolean,
+    isPausedForTranslation: Boolean,
+    currentLabel: String,
+    progress: Float,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onPlayPause: () -> Unit,
+) {
+    Card(
+        elevation = 8.dp,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            LinearProgressIndicator(
+                progress = progress,
+                modifier = Modifier.fillMaxWidth(),
+                backgroundColor = MaterialTheme.colors.onSurface.copy(alpha = 0.08f),
+                color = MaterialTheme.colors.primary
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = currentLabel,
+                    style = MaterialTheme.typography.caption,
+                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+                )
+                if (isPausedForTranslation) {
+                    Text(
+                        text = LocalAppStrings.current.translationPauseLabel,
+                        style = MaterialTheme.typography.caption,
+                        color = MaterialTheme.colors.secondary
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onPrev) {
+                        Icon(Icons.Default.SkipPrevious, contentDescription = null)
+                    }
+                    IconButton(onClick = onPlayPause) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = null
+                        )
+                    }
+                    IconButton(onClick = onNext) {
+                        Icon(Icons.Default.SkipNext, contentDescription = null)
+                    }
+                }
+            }
+        }
+    }
 }

@@ -5,8 +5,6 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 
 abstract class BaseTypeConverter<T>(private val serializer: KSerializer<T>) {
-
-    // Можно настроить Json, например, ignoreUnknownKeys = true
     private val json = Json { ignoreUnknownKeys = true }
 
     @TypeConverter
@@ -16,5 +14,4 @@ abstract class BaseTypeConverter<T>(private val serializer: KSerializer<T>) {
     @TypeConverter
     fun to(value: String): T =
         json.decodeFromString(serializer, value)
-
 }

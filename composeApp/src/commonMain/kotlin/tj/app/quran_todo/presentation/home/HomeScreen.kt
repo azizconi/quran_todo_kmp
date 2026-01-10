@@ -1,4 +1,4 @@
-package tj.app.quran_todo.presentation
+package tj.app.quran_todo.presentation.home
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -48,6 +48,8 @@ import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
+import tj.app.quran_todo.common.i18n.AppLanguage
+import tj.app.quran_todo.common.i18n.AppStrings
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.i18n.localizeRevelationPlace
@@ -255,7 +257,7 @@ fun HomeScreen(
                                 ?: transliterationByNumber[surah.surahNumber],
                             translatedName = uiState.chapterNames[surah.surahNumber]?.translated
                                 ?: when (language) {
-                                    tj.app.quran_todo.common.i18n.AppLanguage.RU -> surah.name
+                                    AppLanguage.RU -> surah.name
                                     else -> englishNameByNumber[surah.surahNumber]
                                 },
                             ayats = surah.ayats,
@@ -687,7 +689,7 @@ private fun FocusCard(
 
 @Composable
 private fun FilterRow(
-    strings: tj.app.quran_todo.common.i18n.AppStrings,
+    strings: AppStrings,
     learnedCount: Int,
     learningCount: Int,
     filter: SurahTodoStatus?,
@@ -786,7 +788,7 @@ fun SurahItem(
     statusLabel: String?,
     statusColor: Color,
     isSelected: Boolean,
-    strings: tj.app.quran_todo.common.i18n.AppStrings,
+    strings: AppStrings,
     onStatusClick: (() -> Unit)?,
 ) {
     Column(modifier = Modifier.then(modifier).padding(16.dp)) {

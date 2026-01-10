@@ -4,9 +4,11 @@ import org.koin.core.module.Module
 import org.koin.dsl.module
 import tj.app.quran_todo.data.database.QuranTodoDatabase
 import tj.app.quran_todo.data.repository.AyahTodoRepositoryImpl
+import tj.app.quran_todo.data.repository.QuranReferenceRepositoryImpl
 import tj.app.quran_todo.data.repository.QuranRemoteRepositoryImpl
 import tj.app.quran_todo.data.repository.QuranTodoRepositoryImpl
 import tj.app.quran_todo.domain.repository.AyahTodoRepository
+import tj.app.quran_todo.domain.repository.QuranReferenceRepository
 import tj.app.quran_todo.domain.repository.QuranRemoteRepository
 import tj.app.quran_todo.domain.repository.QuranTodoRepository
 import tj.app.quran_todo.domain.use_case.AyahTodoDeleteByAyahUseCase
@@ -15,6 +17,8 @@ import tj.app.quran_todo.domain.use_case.AyahTodoGetAllUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoGetBySurahUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoGetBySurahOnceUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoUpsertUseCase
+import tj.app.quran_todo.domain.use_case.GetAyahTranslationsUseCase
+import tj.app.quran_todo.domain.use_case.GetChapterNamesUseCase
 import tj.app.quran_todo.domain.use_case.GetCompleteQuranUseCase
 import tj.app.quran_todo.domain.use_case.TodoDeleteSurahUseCase
 import tj.app.quran_todo.domain.use_case.TodoDeleteSurahByNumberUseCase
@@ -29,12 +33,14 @@ val commonModule = module {
     single { get<QuranTodoDatabase>().getFocusSessionDao() }
     single { get<QuranTodoDatabase>().getChapterNameDao() }
     single { get<QuranTodoDatabase>().getChapterNameCacheDao() }
+    single { get<QuranTodoDatabase>().getAyahTranslationDao() }
     single { get<QuranTodoDatabase>().getQuranDao() }
 
     // Repositories
     single<QuranTodoRepository> { QuranTodoRepositoryImpl(get()) }
     single<QuranRemoteRepository> { QuranRemoteRepositoryImpl(get(), get()) }
     single<AyahTodoRepository> { AyahTodoRepositoryImpl(get()) }
+    single<QuranReferenceRepository> { QuranReferenceRepositoryImpl(get(), get(), get(), get()) }
 
 
     // Use Cases
@@ -49,6 +55,8 @@ val commonModule = module {
     single<AyahTodoUpsertUseCase> { AyahTodoUpsertUseCase(get()) }
     single<AyahTodoDeleteBySurahUseCase> { AyahTodoDeleteBySurahUseCase(get()) }
     single<AyahTodoDeleteByAyahUseCase> { AyahTodoDeleteByAyahUseCase(get()) }
+    single<GetChapterNamesUseCase> { GetChapterNamesUseCase(get()) }
+    single<GetAyahTranslationsUseCase> { GetAyahTranslationsUseCase(get()) }
 }
 
 

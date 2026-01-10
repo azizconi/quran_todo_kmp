@@ -12,7 +12,6 @@ import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
 
 @Dao
 interface QuranDao {
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEdition(edition: EditionEntity)
 
@@ -26,7 +25,9 @@ interface QuranDao {
     @Query("SELECT * FROM surahs WHERE editionId = :editionId")
     suspend fun getSurahsWithAyahs(editionId: String): List<SurahWithAyahs>
 
-    // --- методы очистки отдельных таблиц ---
+    @Query("SELECT identifier FROM editions")
+    suspend fun getEditionIds(): List<String>
+
     @Query("DELETE FROM ayahs")
     suspend fun clearAyahs()
 
@@ -36,7 +37,6 @@ interface QuranDao {
     @Query("DELETE FROM editions")
     suspend fun clearEditions()
 
-    // --- объединённая очистка всех трёх таблиц ---
     @Transaction
     suspend fun clearAllData() {
         clearAyahs()

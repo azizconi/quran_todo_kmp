@@ -9,7 +9,6 @@ import tj.app.quran_todo.data.database.entity.todo.AyahTodoEntity
 
 @Dao
 interface AyahTodoDao {
-
     @Upsert
     suspend fun upsert(entity: AyahTodoEntity)
 

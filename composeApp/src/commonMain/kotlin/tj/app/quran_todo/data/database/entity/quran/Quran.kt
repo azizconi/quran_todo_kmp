@@ -8,10 +8,10 @@ import androidx.room.PrimaryKey
 import androidx.room.Relation
 import kotlinx.serialization.Serializable
 
-// 1. Сущность для Edition
 @Entity(tableName = "editions")
 data class EditionEntity(
-    @PrimaryKey val identifier: String,
+    @PrimaryKey
+    val identifier: String,
     val englishName: String,
     val format: String,
     val language: String,
@@ -19,19 +19,17 @@ data class EditionEntity(
     val type: String
 )
 
-// 2. Сущность для Surah
 @Entity(tableName = "surahs")
 data class SurahEntity(
-    @PrimaryKey val number: Int,
+    @PrimaryKey
+    val number: Int,
     val name: String,
     val englishName: String,
     val englishNameTranslation: String,
     val revelationType: String,
-    // при желании: связь на Edition
     val editionId: String
 )
 
-// 3. Сущность для Ayah с FK на Surah
 @Entity(
     tableName = "ayahs",
     foreignKeys = [
@@ -42,10 +40,11 @@ data class SurahEntity(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [ Index("surahNumber") ]
+    indices = [Index("surahNumber")]
 )
 data class AyahEntity(
-    @PrimaryKey val number: Int,
+    @PrimaryKey
+    val number: Int,
     val numberInSurah: Int,
     val juz: Int,
     val hizbQuarter: Int,
@@ -57,9 +56,9 @@ data class AyahEntity(
     val surahNumber: Int
 )
 
-// 4. DTO для выборки Surah + её Ayahs
 data class SurahWithAyahs(
-    @Embedded val surah: SurahEntity,
+    @Embedded
+    val surah: SurahEntity,
     @Relation(
         parentColumn = "number",
         entityColumn = "surahNumber"
