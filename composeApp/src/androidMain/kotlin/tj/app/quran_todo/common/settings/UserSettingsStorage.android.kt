@@ -16,6 +16,12 @@ private const val KEY_LOOP_START_AYAH = "loop_start_ayah"
 private const val KEY_LOOP_END_AYAH = "loop_end_ayah"
 private const val KEY_TRANSLATION_MODE = "translation_mode"
 private const val KEY_TRANSLATION_DELAY = "translation_delay"
+private const val KEY_EXAM_MODE = "exam_mode"
+private const val KEY_TARGET_AYAHS = "target_ayahs"
+private const val KEY_TARGET_EPOCH_DAY = "target_epoch_day"
+private const val KEY_WEAK_AYAHS = "weak_ayahs"
+private const val KEY_RECITATION_METRICS_JSON = "recitation_metrics_json"
+private const val KEY_FEATURE_GUIDE_SEEN = "feature_guide_seen"
 
 actual object UserSettingsStorage {
     private fun prefs() =
@@ -109,5 +115,55 @@ actual object UserSettingsStorage {
 
     actual fun saveTranslationDelayMs(delayMs: Long) {
         prefs().edit().putLong(KEY_TRANSLATION_DELAY, delayMs).apply()
+    }
+
+    actual fun isExamModeEnabled(): Boolean? =
+        if (prefs().contains(KEY_EXAM_MODE)) prefs().getBoolean(KEY_EXAM_MODE, false) else null
+
+    actual fun saveExamModeEnabled(enabled: Boolean) {
+        prefs().edit().putBoolean(KEY_EXAM_MODE, enabled).apply()
+    }
+
+    actual fun getTargetAyahs(): Int? =
+        if (prefs().contains(KEY_TARGET_AYAHS)) prefs().getInt(KEY_TARGET_AYAHS, 0) else null
+
+    actual fun saveTargetAyahs(value: Int) {
+        prefs().edit().putInt(KEY_TARGET_AYAHS, value).apply()
+    }
+
+    actual fun getTargetEpochDay(): Int? =
+        if (prefs().contains(KEY_TARGET_EPOCH_DAY)) prefs().getInt(KEY_TARGET_EPOCH_DAY, 0) else null
+
+    actual fun saveTargetEpochDay(epochDay: Int) {
+        prefs().edit().putInt(KEY_TARGET_EPOCH_DAY, epochDay).apply()
+    }
+
+    actual fun getWeakAyahKeys(): Set<String>? =
+        if (prefs().contains(KEY_WEAK_AYAHS)) prefs().getStringSet(KEY_WEAK_AYAHS, emptySet()) else null
+
+    actual fun saveWeakAyahKeys(keys: Set<String>) {
+        prefs().edit().putStringSet(KEY_WEAK_AYAHS, keys).apply()
+    }
+
+    actual fun getRecitationMetricsJson(): String? =
+        if (prefs().contains(KEY_RECITATION_METRICS_JSON)) {
+            prefs().getString(KEY_RECITATION_METRICS_JSON, null)
+        } else {
+            null
+        }
+
+    actual fun saveRecitationMetricsJson(value: String) {
+        prefs().edit().putString(KEY_RECITATION_METRICS_JSON, value).apply()
+    }
+
+    actual fun isFeatureGuideSeen(): Boolean? =
+        if (prefs().contains(KEY_FEATURE_GUIDE_SEEN)) {
+            prefs().getBoolean(KEY_FEATURE_GUIDE_SEEN, false)
+        } else {
+            null
+        }
+
+    actual fun saveFeatureGuideSeen(seen: Boolean) {
+        prefs().edit().putBoolean(KEY_FEATURE_GUIDE_SEEN, seen).apply()
     }
 }

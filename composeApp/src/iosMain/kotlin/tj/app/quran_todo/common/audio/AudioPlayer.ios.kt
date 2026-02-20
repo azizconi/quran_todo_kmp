@@ -1,6 +1,9 @@
 package tj.app.quran_todo.common.audio
 
 import kotlinx.cinterop.ExperimentalForeignApi
+import platform.AVFAudio.AVAudioSession
+import platform.AVFAudio.AVAudioSessionCategoryPlayback
+import platform.AVFAudio.setActive
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
 import platform.AVFoundation.AVPlayerItemDidPlayToEndTimeNotification
@@ -23,6 +26,7 @@ actual class AudioPlayer {
 
     actual fun play(url: String, onComplete: () -> Unit) {
         stop()
+        configureAudioSession()
         val nsUrl = if (url.startsWith("http")) {
             NSURL.URLWithString(url)
         } else {
@@ -47,6 +51,7 @@ actual class AudioPlayer {
     }
 
     actual fun resume() {
+        configureAudioSession()
         player?.play()
         player?.rate = playbackRate
     }
@@ -74,5 +79,13 @@ actual class AudioPlayer {
             NSNotificationCenter.defaultCenter.removeObserver(it)
         }
         observer = null
+    }
+
+    private fun configureAudioSession() {
+        runCatching {
+            val session = AVAudioSession.sharedInstance()
+            session.setCategory(AVAudioSessionCategoryPlayback, error = null)
+            session.setActive(true, error = null)
+        }
     }
 }

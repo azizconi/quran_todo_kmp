@@ -6,6 +6,8 @@ import tj.app.quran_todo.common.platform.AndroidContextHolder
 private const val PREFS_NAME = "quran_todo_prefs"
 private const val KEY_THEME = "theme_mode"
 private const val KEY_THEME_PALETTE = "theme_palette"
+private const val KEY_READING_FONT_STYLE = "reading_font_style"
+private const val KEY_AYAH_CARD_STYLE = "ayah_card_style"
 
 actual object ThemeStorage {
     private fun prefs() =
@@ -27,5 +29,23 @@ actual object ThemeStorage {
 
     actual fun saveThemePalette(palette: ThemePalette) {
         prefs().edit().putString(KEY_THEME_PALETTE, palette.name).apply()
+    }
+
+    actual fun getSavedReadingFontStyle(): ReadingFontStyle? {
+        val value = prefs().getString(KEY_READING_FONT_STYLE, null) ?: return null
+        return runCatching { ReadingFontStyle.fromStorage(value) }.getOrNull()
+    }
+
+    actual fun saveReadingFontStyle(style: ReadingFontStyle) {
+        prefs().edit().putString(KEY_READING_FONT_STYLE, style.storageValue).apply()
+    }
+
+    actual fun getSavedAyahCardStyle(): AyahCardStyle? {
+        val value = prefs().getString(KEY_AYAH_CARD_STYLE, null) ?: return null
+        return runCatching { AyahCardStyle.fromStorage(value) }.getOrNull()
+    }
+
+    actual fun saveAyahCardStyle(style: AyahCardStyle) {
+        prefs().edit().putString(KEY_AYAH_CARD_STYLE, style.storageValue).apply()
     }
 }

@@ -4,11 +4,13 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Icon
 import androidx.compose.material.Card
@@ -30,12 +32,24 @@ import tj.app.quran_todo.common.theme.LocalThemeMode
 import tj.app.quran_todo.common.theme.LocalThemeModeSetter
 import tj.app.quran_todo.common.theme.LocalThemePalette
 import tj.app.quran_todo.common.theme.LocalThemePaletteSetter
+import tj.app.quran_todo.common.theme.LocalReadingFontStyle
+import tj.app.quran_todo.common.theme.LocalReadingFontStyleSetter
+import tj.app.quran_todo.common.theme.LocalAyahCardStyle
+import tj.app.quran_todo.common.theme.LocalAyahCardStyleSetter
+import tj.app.quran_todo.common.theme.ReadingFontStyle
+import tj.app.quran_todo.common.theme.AyahCardStyle
 import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.common.theme.ThemePalette
+import tj.app.quran_todo.common.theme.mutedText
+import tj.app.quran_todo.common.theme.softSurface
+import tj.app.quran_todo.common.theme.subtleBorder
+import tj.app.quran_todo.common.theme.tintedSurface
+import tj.app.quran_todo.common.utils.currentLocalDate
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Remove
 import tj.app.quran_todo.presentation.components.LanguagePicker
+import tj.app.quran_todo.presentation.onboarding.featureGuideItems
 
 @Composable
 fun SettingsScreen() {
@@ -46,68 +60,197 @@ fun SettingsScreen() {
     val setThemeMode = LocalThemeModeSetter.current
     val themePalette = LocalThemePalette.current
     val setThemePalette = LocalThemePaletteSetter.current
+    val readingFont = LocalReadingFontStyle.current
+    val setReadingFont = LocalReadingFontStyleSetter.current
+    val ayahCardStyle = LocalAyahCardStyle.current
+    val setAyahCardStyle = LocalAyahCardStyleSetter.current
     val settings = LocalAppSettings.current
     val setSettings = LocalAppSettingsSetter.current
+    val todayEpochDay = currentLocalDate().toEpochDays()
+    val targetDaysLeft = (settings.targetEpochDay - todayEpochDay).coerceAtLeast(1)
+    val guideItems = featureGuideItems(strings)
 
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
         backgroundColor = MaterialTheme.colors.background
     ) { paddingValues ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = strings.settingsTitle,
-                style = MaterialTheme.typography.h5,
-                fontWeight = FontWeight.Bold
-            )
-
-            SettingsCard(title = strings.languageLabel) {
-                LanguagePicker(current = language, onSelected = setLanguage)
+            item {
+                Text(
+                    text = strings.settingsTitle,
+                    style = MaterialTheme.typography.h5,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
-            SettingsCard(title = strings.themeLabel) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ThemeToggle(
-                        selected = themeMode,
-                        onSelected = setThemeMode,
-                        lightLabel = strings.themeLight,
-                        darkLabel = strings.themeDark
-                    )
-                    ThemePaletteToggle(
-                        selected = themePalette,
-                        onSelected = setThemePalette,
-                        sandLabel = strings.themeSand,
-                        oceanLabel = strings.themeOcean,
-                        forestLabel = strings.themeForest,
-                        title = strings.themeStyleLabel
+            item {
+                SettingsCard(title = strings.languageLabel) {
+                    LanguagePicker(current = language, onSelected = setLanguage)
+                }
+            }
+
+            item {
+                SettingsCard(title = strings.themeLabel) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ThemeToggle(
+                            selected = themeMode,
+                            onSelected = setThemeMode,
+                            lightLabel = strings.themeLight,
+                            darkLabel = strings.themeDark
+                        )
+                        ThemePaletteToggle(
+                            selected = themePalette,
+                            onSelected = setThemePalette,
+                            sandLabel = strings.themeSand,
+                            oceanLabel = strings.themeOcean,
+                            forestLabel = strings.themeForest,
+                            title = strings.themeStyleLabel
+                        )
+                    }
+                }
+            }
+
+            item {
+                SettingsCard(title = strings.readingFontLabel) {
+                    ReadingFontSelector(
+                        selected = readingFont,
+                        onSelected = setReadingFont
                     )
                 }
             }
 
-            SettingsCard(title = strings.planTitle) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StepperRow(
-                        label = strings.dailyGoalLabel,
-                        value = settings.dailyGoal,
-                        min = 1,
-                        max = 50,
-                        onChange = { setSettings(settings.copy(dailyGoal = it)) }
+            item {
+                SettingsCard(title = strings.cardStyleLabel) {
+                    AyahCardStyleSelector(
+                        selected = ayahCardStyle,
+                        onSelected = setAyahCardStyle
                     )
-                    StepperRow(
-                        label = strings.focusMinutesLabel,
-                        value = settings.focusMinutes,
-                        min = 5,
-                        max = 60,
-                        onChange = { setSettings(settings.copy(focusMinutes = it)) }
+                }
+            }
+
+            item {
+                SettingsCard(title = strings.planTitle) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        StepperRow(
+                            label = strings.dailyGoalLabel,
+                            value = settings.dailyGoal,
+                            min = 1,
+                            max = 50,
+                            onChange = { setSettings(settings.copy(dailyGoal = it)) }
+                        )
+                        StepperRow(
+                            label = strings.focusMinutesLabel,
+                            value = settings.focusMinutes,
+                            min = 5,
+                            max = 60,
+                            onChange = { setSettings(settings.copy(focusMinutes = it)) }
+                        )
+                        ToggleRow(
+                            label = strings.remindersLabel,
+                            enabled = settings.remindersEnabled,
+                            onToggle = { setSettings(settings.copy(remindersEnabled = it)) }
+                        )
+                        StepperRow(
+                            label = strings.targetAyahsLabel,
+                            value = settings.targetAyahs,
+                            min = 50,
+                            max = 6236,
+                            onChange = { setSettings(settings.copy(targetAyahs = it)) }
+                        )
+                        StepperRow(
+                            label = strings.deadlineDaysLabel,
+                            value = targetDaysLeft,
+                            min = 1,
+                            max = 365,
+                            onChange = { days ->
+                                setSettings(settings.copy(targetEpochDay = todayEpochDay + days))
+                            }
+                        )
+                        ToggleRow(
+                            label = strings.examModeDefaultLabel,
+                            enabled = settings.examModeEnabled,
+                            onToggle = { setSettings(settings.copy(examModeEnabled = it)) }
+                        )
+                    }
+                }
+            }
+
+            item {
+                SettingsCard(title = strings.featureGuideTitle) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = strings.featureGuideSubtitle,
+                            style = MaterialTheme.typography.caption,
+                            color = MaterialTheme.colors.mutedText
+                        )
+                        guideItems.forEach { item ->
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = item.title,
+                                    style = MaterialTheme.typography.subtitle2,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = item.description,
+                                    style = MaterialTheme.typography.caption,
+                                    color = MaterialTheme.colors.mutedText
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReadingFontSelector(
+    selected: ReadingFontStyle,
+    onSelected: (ReadingFontStyle) -> Unit,
+) {
+    val strings = LocalAppStrings.current
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        ReadingFontStyle.values().toList().chunked(3).forEach { rowItems ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                rowItems.forEach { style ->
+                    ThemeOptionChip(
+                        label = style.label(strings),
+                        isSelected = selected == style,
+                        onClick = { onSelected(style) }
                     )
-                    ToggleRow(
-                        label = strings.remindersLabel,
-                        enabled = settings.remindersEnabled,
-                        onToggle = { setSettings(settings.copy(remindersEnabled = it)) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AyahCardStyleSelector(
+    selected: AyahCardStyle,
+    onSelected: (AyahCardStyle) -> Unit,
+) {
+    val strings = LocalAppStrings.current
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        AyahCardStyle.values().toList().chunked(3).forEach { rowItems ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                rowItems.forEach { style ->
+                    ThemeOptionChip(
+                        label = style.label(strings),
+                        isSelected = selected == style,
+                        onClick = { onSelected(style) }
                     )
                 }
             }
@@ -124,7 +267,7 @@ private fun SettingsCard(
         shape = RoundedCornerShape(18.dp),
         elevation = 0.dp,
         backgroundColor = MaterialTheme.colors.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colors.onSurface.copy(alpha = 0.08f)),
+        border = BorderStroke(1.dp, MaterialTheme.colors.subtleBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -178,7 +321,7 @@ private fun ThemePaletteToggle(
         Text(
             text = title,
             style = MaterialTheme.typography.caption,
-            color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+            color = MaterialTheme.colors.mutedText
         )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ThemeOptionChip(
@@ -206,15 +349,16 @@ private fun ThemeOptionChip(
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
+    val colors = MaterialTheme.colors
     val background = if (isSelected) {
-        MaterialTheme.colors.primary.copy(alpha = 0.16f)
+        colors.tintedSurface(colors.primary, emphasis = 0.2f)
     } else {
-        MaterialTheme.colors.onSurface.copy(alpha = 0.04f)
+        colors.softSurface
     }
     val textColor = if (isSelected) {
-        MaterialTheme.colors.primary
+        colors.primary
     } else {
-        MaterialTheme.colors.onSurface
+        colors.onSurface
     }
 
     Surface(
@@ -247,9 +391,9 @@ private fun StepperRow(
         Text(text = label, style = MaterialTheme.typography.body2)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                imageVector = Icons.Default.Delete,
+                imageVector = Icons.Default.Remove,
                 contentDescription = null,
-                tint = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                tint = MaterialTheme.colors.mutedText,
                 modifier = Modifier
                     .clickable(enabled = value > min) {
                         onChange((value - 1).coerceAtLeast(min))
@@ -264,7 +408,7 @@ private fun StepperRow(
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = null,
-                tint = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                tint = MaterialTheme.colors.mutedText,
                 modifier = Modifier
                     .clickable(enabled = value < max) {
                         onChange((value + 1).coerceAtMost(max))

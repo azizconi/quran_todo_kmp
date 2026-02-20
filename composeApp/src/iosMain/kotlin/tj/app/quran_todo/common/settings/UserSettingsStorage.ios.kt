@@ -14,6 +14,12 @@ private const val KEY_LOOP_START_AYAH = "loop_start_ayah"
 private const val KEY_LOOP_END_AYAH = "loop_end_ayah"
 private const val KEY_TRANSLATION_MODE = "translation_mode"
 private const val KEY_TRANSLATION_DELAY = "translation_delay"
+private const val KEY_EXAM_MODE = "exam_mode"
+private const val KEY_TARGET_AYAHS = "target_ayahs"
+private const val KEY_TARGET_EPOCH_DAY = "target_epoch_day"
+private const val KEY_WEAK_AYAHS = "weak_ayahs"
+private const val KEY_RECITATION_METRICS_JSON = "recitation_metrics_json"
+private const val KEY_FEATURE_GUIDE_SEEN = "feature_guide_seen"
 
 actual object UserSettingsStorage {
     private val defaults = NSUserDefaults.standardUserDefaults
@@ -106,5 +112,53 @@ actual object UserSettingsStorage {
 
     actual fun saveTranslationDelayMs(delayMs: Long) {
         defaults.setDouble(delayMs.toDouble(), forKey = KEY_TRANSLATION_DELAY)
+    }
+
+    actual fun isExamModeEnabled(): Boolean? =
+        if (defaults.objectForKey(KEY_EXAM_MODE) != null) defaults.boolForKey(KEY_EXAM_MODE) else null
+
+    actual fun saveExamModeEnabled(enabled: Boolean) {
+        defaults.setBool(enabled, forKey = KEY_EXAM_MODE)
+    }
+
+    actual fun getTargetAyahs(): Int? =
+        if (defaults.objectForKey(KEY_TARGET_AYAHS) != null) defaults.integerForKey(KEY_TARGET_AYAHS).toInt() else null
+
+    actual fun saveTargetAyahs(value: Int) {
+        defaults.setInteger(value.toLong(), forKey = KEY_TARGET_AYAHS)
+    }
+
+    actual fun getTargetEpochDay(): Int? =
+        if (defaults.objectForKey(KEY_TARGET_EPOCH_DAY) != null) defaults.integerForKey(KEY_TARGET_EPOCH_DAY).toInt() else null
+
+    actual fun saveTargetEpochDay(epochDay: Int) {
+        defaults.setInteger(epochDay.toLong(), forKey = KEY_TARGET_EPOCH_DAY)
+    }
+
+    actual fun getWeakAyahKeys(): Set<String>? {
+        val list = defaults.arrayForKey(KEY_WEAK_AYAHS) as? List<*> ?: return null
+        return list.mapNotNull { it as? String }.toSet()
+    }
+
+    actual fun saveWeakAyahKeys(keys: Set<String>) {
+        defaults.setObject(keys.toList(), forKey = KEY_WEAK_AYAHS)
+    }
+
+    actual fun getRecitationMetricsJson(): String? =
+        defaults.stringForKey(KEY_RECITATION_METRICS_JSON)
+
+    actual fun saveRecitationMetricsJson(value: String) {
+        defaults.setObject(value, forKey = KEY_RECITATION_METRICS_JSON)
+    }
+
+    actual fun isFeatureGuideSeen(): Boolean? =
+        if (defaults.objectForKey(KEY_FEATURE_GUIDE_SEEN) != null) {
+            defaults.boolForKey(KEY_FEATURE_GUIDE_SEEN)
+        } else {
+            null
+        }
+
+    actual fun saveFeatureGuideSeen(seen: Boolean) {
+        defaults.setBool(seen, forKey = KEY_FEATURE_GUIDE_SEEN)
     }
 }

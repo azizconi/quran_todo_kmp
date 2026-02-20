@@ -28,7 +28,10 @@ import tj.app.quran_todo.domain.use_case.TodoUpsertSurahUseCase
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoEntity
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.common.i18n.AppLanguage
+import tj.app.quran_todo.common.settings.addWeakAyah
+import tj.app.quran_todo.common.settings.removeWeakAyah
 import tj.app.quran_todo.domain.model.ChapterNameModel
+import tj.app.quran_todo.presentation.review.ReviewQuality
 
 class SurahViewModel(
     private val ayahNoteDao: AyahNoteDao,
@@ -157,13 +160,23 @@ class SurahViewModel(
         }
     }
 
-    fun completeReview(ayahNumber: Int, surahNumber: Int) {
+    fun completeReview(
+        ayahNumber: Int,
+        surahNumber: Int,
+        quality: ReviewQuality = ReviewQuality.GOOD,
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             val now = getTimeMillis()
             val current = _reviews.value[ayahNumber]
-            val nextIndex = ((current?.intervalIndex ?: 0) + 1)
-                .coerceAtMost(reviewIntervalsDays.lastIndex)
-            val nextAt = now + reviewIntervalsDays[nextIndex] * dayMillis
+            val currentIndex = current?.intervalIndex ?: 0
+            val nextIndex = when (quality) {
+                ReviewQuality.HARD -> (currentIndex - 1).coerceAtLeast(0)
+                ReviewQuality.GOOD -> (currentIndex + 1).coerceAtMost(reviewIntervalsDays.lastIndex)
+                ReviewQuality.EASY -> (currentIndex + 2).coerceAtMost(reviewIntervalsDays.lastIndex)
+            }
+            val baseDays = reviewIntervalsDays[nextIndex]
+            val bonusDays = if (quality == ReviewQuality.EASY && nextIndex >= 2) baseDays / 2 else 0L
+            val nextAt = now + (baseDays + bonusDays) * dayMillis
             ayahReviewDao.upsert(
                 AyahReviewEntity(
                     ayahNumber = ayahNumber,
@@ -173,6 +186,11 @@ class SurahViewModel(
                     lastReviewedAt = now
                 )
             )
+            when (quality) {
+                ReviewQuality.HARD -> addWeakAyah(surahNumber, ayahNumber)
+                ReviewQuality.EASY -> removeWeakAyah(surahNumber, ayahNumber)
+                ReviewQuality.GOOD -> Unit
+            }
         }
     }
 

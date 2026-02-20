@@ -23,4 +23,16 @@ expect object UserSettingsStorage {
     fun saveTranslationModeEnabled(enabled: Boolean)
     fun getTranslationDelayMs(): Long?
     fun saveTranslationDelayMs(delayMs: Long)
+    fun isExamModeEnabled(): Boolean?
+    fun saveExamModeEnabled(enabled: Boolean)
+    fun getTargetAyahs(): Int?
+    fun saveTargetAyahs(value: Int)
+    fun getTargetEpochDay(): Int?
+    fun saveTargetEpochDay(epochDay: Int)
+    fun getWeakAyahKeys(): Set<String>?
+    fun saveWeakAyahKeys(keys: Set<String>)
+    fun getRecitationMetricsJson(): String?
+    fun saveRecitationMetricsJson(value: String)
+    fun isFeatureGuideSeen(): Boolean?
+    fun saveFeatureGuideSeen(seen: Boolean)
 }

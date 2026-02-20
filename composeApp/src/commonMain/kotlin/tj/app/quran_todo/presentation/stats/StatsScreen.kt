@@ -6,12 +6,14 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
@@ -36,6 +38,13 @@ import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.settings.LocalAppSettings
+import tj.app.quran_todo.common.utils.currentLocalDate
+import tj.app.quran_todo.common.theme.mutedText
+import tj.app.quran_todo.common.theme.progressTrack
+import tj.app.quran_todo.common.theme.subtleBorder
+import tj.app.quran_todo.common.theme.tintedSurface
+import kotlin.math.ceil
+import kotlin.math.roundToInt
 
 data class ChartSegment(
     val label: String,
@@ -56,53 +65,98 @@ fun StatsScreen(viewModel: StatsViewModel = koinViewModel()) {
         0f
     }
     val dailyGoal = settings.dailyGoal
+    val todayEpochDay = currentLocalDate().toEpochDays()
+    val remainingAyahs = (settings.targetAyahs - uiState.learnedAyahs).coerceAtLeast(0)
+    val avgForProjection = uiState.avgPerDay.coerceAtLeast(1)
+    val projectedDays = if (remainingAyahs == 0) 0 else ceil(remainingAyahs.toDouble() / avgForProjection).toInt()
+    val targetDaysLeft = (settings.targetEpochDay - todayEpochDay).coerceAtLeast(0)
+    val onTrack = projectedDays <= targetDaysLeft
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = strings.statsTitle,
-            style = MaterialTheme.typography.h5,
-            fontWeight = FontWeight.Bold
-        )
-
-        StatsCard(
-            title = strings.statsSurahs,
-            total = uiState.totalSurahs,
-            segments = listOf(
-                ChartSegment(strings.learnedLabel, uiState.learnedSurahs, MaterialTheme.colors.primary),
-                ChartSegment(strings.learningLabel, uiState.learningSurahs, MaterialTheme.colors.secondary),
-                ChartSegment(strings.noStateLabel, uiState.idleSurahs, MaterialTheme.colors.onSurface.copy(alpha = 0.2f)),
+        item {
+            Text(
+                text = strings.statsTitle,
+                style = MaterialTheme.typography.h5,
+                fontWeight = FontWeight.Bold
             )
-        )
+        }
 
-        StatsCard(
-            title = strings.statsAyahs,
-            total = uiState.totalAyahs,
-            segments = listOf(
-                ChartSegment(strings.learnedLabel, uiState.learnedAyahs, MaterialTheme.colors.primary),
-                ChartSegment(strings.learningLabel, uiState.learningAyahs, MaterialTheme.colors.secondary),
-                ChartSegment(strings.noStateLabel, uiState.idleAyahs, MaterialTheme.colors.onSurface.copy(alpha = 0.2f)),
+        item {
+            StatsCard(
+                title = strings.statsSurahs,
+                total = uiState.totalSurahs,
+                segments = listOf(
+                    ChartSegment(strings.learnedLabel, uiState.learnedSurahs, MaterialTheme.colors.primary),
+                    ChartSegment(strings.learningLabel, uiState.learningSurahs, MaterialTheme.colors.secondary),
+                    ChartSegment(strings.noStateLabel, uiState.idleSurahs, MaterialTheme.colors.subtleBorder),
+                )
             )
-        )
+        }
 
-        InsightsCard(
-            progress = progress,
-            dailyGoal = dailyGoal,
-            totalAyahs = uiState.totalAyahs,
-            strings = strings
-        )
+        item {
+            StatsCard(
+                title = strings.statsAyahs,
+                total = uiState.totalAyahs,
+                segments = listOf(
+                    ChartSegment(strings.learnedLabel, uiState.learnedAyahs, MaterialTheme.colors.primary),
+                    ChartSegment(strings.learningLabel, uiState.learningAyahs, MaterialTheme.colors.secondary),
+                    ChartSegment(strings.noStateLabel, uiState.idleAyahs, MaterialTheme.colors.subtleBorder),
+                )
+            )
+        }
 
-        HighlightsCard(
-            streakDays = uiState.streakDays,
-            bestDayCount = uiState.bestDayCount,
-            avgPerDay = uiState.avgPerDay,
-            focusMinutes = uiState.focusMinutes,
-            strings = strings
-        )
+        item {
+            InsightsCard(
+                progress = progress,
+                dailyGoal = dailyGoal,
+                totalAyahs = uiState.totalAyahs,
+                strings = strings
+            )
+        }
+
+        item {
+            HighlightsCard(
+                streakDays = uiState.streakDays,
+                bestDayCount = uiState.bestDayCount,
+                avgPerDay = uiState.avgPerDay,
+                focusMinutes = uiState.focusMinutes,
+                strings = strings
+            )
+        }
+
+        item {
+            RecitationReportCard(
+                sessions = uiState.recitationSessions,
+                attempts = uiState.recitationAttempts,
+                matches = uiState.recitationMatches,
+                accuracy = uiState.recitationAccuracy,
+                confidence = uiState.recitationConfidence,
+                issueRate = uiState.recitationIssueRate,
+                bestStreak = uiState.recitationBestStreak,
+                score = uiState.recitationScore,
+                topSurahs = uiState.recitationTopSurahs,
+                hasData = uiState.hasRecitationData
+            )
+        }
+
+        item { WeakAyahCard(weakAyahCount = uiState.weakAyahCount) }
+
+        item { ActivityHeatCard(counts = uiState.last14DailyCounts) }
+
+        item {
+            ProjectionCard(
+                remainingAyahs = remainingAyahs,
+                projectedDays = projectedDays,
+                targetDaysLeft = targetDaysLeft,
+                onTrack = onTrack
+            )
+        }
     }
 }
 
@@ -164,7 +218,7 @@ private fun InsightsCard(
                 Text(
                     text = strings.progressSubtitle,
                     style = MaterialTheme.typography.caption,
-                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+                    color = MaterialTheme.colors.mutedText
                 )
                 ProgressBar(progress = progress)
                 Text(
@@ -178,7 +232,7 @@ private fun InsightsCard(
                 Text(
                     text = strings.goalSubtitle,
                     style = MaterialTheme.typography.caption,
-                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+                    color = MaterialTheme.colors.mutedText
                 )
                 Text(
                     text = if (totalAyahs == 0) "-" else "$dailyGoal",
@@ -224,13 +278,197 @@ private fun HighlightsCard(
 }
 
 @Composable
+private fun WeakAyahCard(weakAyahCount: Int) {
+    val strings = LocalAppStrings.current
+    Card(elevation = 2.dp, shape = RoundedCornerShape(16.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(strings.weakAyahBankTitle, style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.SemiBold)
+            Text(
+                weakAyahCount.toString(),
+                style = MaterialTheme.typography.h6,
+                color = if (weakAyahCount > 0) MaterialTheme.colors.error else MaterialTheme.colors.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActivityHeatCard(counts: List<Int>) {
+    val strings = LocalAppStrings.current
+    val safeCounts = if (counts.isEmpty()) List(14) { 0 } else counts
+    val maxValue = safeCounts.maxOrNull()?.coerceAtLeast(1) ?: 1
+    Card(elevation = 2.dp, shape = RoundedCornerShape(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(strings.last14DaysTitle, style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.SemiBold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                safeCounts.forEach { value ->
+                    val ratio = (value.toFloat() / maxValue.toFloat()).coerceIn(0f, 1f)
+                    val barColor = if (value == 0) {
+                        MaterialTheme.colors.progressTrack
+                    } else {
+                        MaterialTheme.colors.tintedSurface(MaterialTheme.colors.primary, 0.24f + ratio * 0.26f)
+                    }
+                    Surface(
+                        color = barColor,
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height((10 + ratio * 44).dp)
+                    ) {}
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProjectionCard(
+    remainingAyahs: Int,
+    projectedDays: Int,
+    targetDaysLeft: Int,
+    onTrack: Boolean,
+) {
+    val strings = LocalAppStrings.current
+    Card(elevation = 2.dp, shape = RoundedCornerShape(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(strings.projectionTitle, style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = "$remainingAyahs ${strings.ayahsLeftLabel}",
+                style = MaterialTheme.typography.body2
+            )
+            Text(
+                text = "${strings.finishEstimateLabel}: $projectedDays ${strings.daysLabel}",
+                style = MaterialTheme.typography.body2
+            )
+            Text(
+                text = "${strings.targetWindowLabel}: $targetDaysLeft ${strings.daysLabel}",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.mutedText
+            )
+            Text(
+                text = if (onTrack) strings.onTrackLabel else strings.behindPaceLabel,
+                style = MaterialTheme.typography.caption,
+                color = if (onTrack) MaterialTheme.colors.primary else MaterialTheme.colors.error
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecitationReportCard(
+    sessions: Int,
+    attempts: Int,
+    matches: Int,
+    accuracy: Float,
+    confidence: Float,
+    issueRate: Float,
+    bestStreak: Int,
+    score: Int,
+    topSurahs: List<RecitationTopSurahUi>,
+    hasData: Boolean,
+) {
+    val strings = LocalAppStrings.current
+    Card(elevation = 2.dp, shape = RoundedCornerShape(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = strings.recitationReportTitle,
+                style = MaterialTheme.typography.subtitle1,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (!hasData) {
+                Text(
+                    text = strings.recitationNoDataLabel,
+                    style = MaterialTheme.typography.body2,
+                    color = MaterialTheme.colors.mutedText
+                )
+                return@Column
+            }
+
+            Text(
+                text = "${strings.recitationScoreLabel}: $score",
+                style = MaterialTheme.typography.h6,
+                color = MaterialTheme.colors.primary
+            )
+            Text(
+                text = "${strings.recitationSessionsLabel}: $sessions • ${strings.recitationAttemptsLabel}: $attempts • ${strings.recitationMatchedLabel}: $matches",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.mutedText
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                HighlightItem(strings.recitationAccuracyLabel, formatPercent(accuracy))
+                HighlightItem(strings.recitationFluencyLabel, formatPercent(confidence))
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                HighlightItem(strings.recitationIssueRateLabel, formatDecimal(issueRate))
+                HighlightItem(strings.recitationBestStreakLabel, bestStreak.toString())
+            }
+
+            Text(
+                text = strings.recitationTopSurahsTitle,
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.mutedText
+            )
+            topSurahs.forEach { item ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${item.surahLabel} #${item.surahNumber}",
+                        style = MaterialTheme.typography.body2
+                    )
+                    Text(
+                        text = "${item.attempts} • ${formatPercent(item.accuracy)}",
+                        style = MaterialTheme.typography.caption,
+                        color = MaterialTheme.colors.primary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun HighlightItem(label: String, value: String) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(text = value, style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.SemiBold)
         Text(
             text = label,
             style = MaterialTheme.typography.caption,
-            color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+            color = MaterialTheme.colors.mutedText
         )
     }
 }
@@ -250,7 +488,7 @@ private fun ProgressBar(progress: Float) {
             .padding(vertical = 2.dp)
     ) {
         Surface(
-            color = MaterialTheme.colors.onSurface.copy(alpha = 0.08f),
+            color = MaterialTheme.colors.progressTrack,
             shape = RoundedCornerShape(6.dp),
             modifier = Modifier.fillMaxWidth()
         ) {}
@@ -315,4 +553,12 @@ private fun LegendRow(segment: ChartSegment) {
             style = MaterialTheme.typography.caption
         )
     }
+}
+
+private fun formatPercent(value: Float): String =
+    "${(value.coerceIn(0f, 1f) * 100f).roundToInt()}%"
+
+private fun formatDecimal(value: Float): String {
+    val scaled = (value.coerceAtLeast(0f) * 100f).roundToInt() / 100f
+    return scaled.toString()
 }

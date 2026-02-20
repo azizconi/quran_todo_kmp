@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import tj.app.quran_todo.common.i18n.AppLanguage
+import tj.app.quran_todo.common.theme.subtleBorder
 
 @Composable
 fun LanguagePicker(
@@ -30,7 +31,7 @@ fun LanguagePicker(
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colors.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colors.onSurface.copy(alpha = 0.12f)),
+            border = BorderStroke(1.dp, MaterialTheme.colors.subtleBorder),
             modifier = Modifier.clickable { expanded = true }
         ) {
             Text(

@@ -48,17 +48,26 @@ import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
+import kotlin.math.ceil
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.AppStrings
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.i18n.localizeRevelationPlace
 import tj.app.quran_todo.common.settings.LocalAppSettings
+import tj.app.quran_todo.common.theme.faintText
+import tj.app.quran_todo.common.theme.mutedText
+import tj.app.quran_todo.common.theme.progressTrack
+import tj.app.quran_todo.common.theme.softSurface
+import tj.app.quran_todo.common.theme.softSurfaceStrong
+import tj.app.quran_todo.common.theme.tintedSurface
 import tj.app.quran_todo.common.utils.currentLocalDate
 import tj.app.quran_todo.common.utils.daysBetween
 import tj.app.quran_todo.common.utils.localDateFromEpoch
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
+import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
 import tj.app.quran_todo.data.database.entity.todo.AyahReviewEntity
+import tj.app.quran_todo.presentation.review.ReviewQuality
 import tj.app.quran_todo.presentation.surah.SurahScreen
 
 @OptIn(ExperimentalFoundationApi::class, KoinExperimentalAPI::class)
@@ -73,6 +82,7 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val todoByNumber = uiState.todoSurahs.associateBy { it.surahNumber }
     val selectionMode = uiState.selectedSurahNumbers.isNotEmpty()
+    var showMistakesOnly by remember { mutableStateOf(false) }
 
     LaunchedEffect(language) {
         viewModel.loadChapterNames(language)
@@ -88,16 +98,27 @@ fun HomeScreen(
         uiState.completeQuran.associate { it.surah.number to it.surah.englishName }
     }
 
-    val filteredSurahs = if (uiState.filter == null) {
+    val weakSurahNumbers = remember(uiState.weakAyahKeys) {
+        uiState.weakAyahKeys.mapNotNull { key ->
+            key.substringBefore(":").toIntOrNull()
+        }.toSet()
+    }
+    val filteredByStatus = if (uiState.filter == null) {
         uiState.surahList
     } else {
         uiState.surahList.filter { element ->
             todoByNumber[element.surahNumber]?.status == uiState.filter
         }
     }
+    val filteredSurahs = if (showMistakesOnly) {
+        filteredByStatus.filter { weakSurahNumbers.contains(it.surahNumber) }
+    } else {
+        filteredByStatus
+    }
 
     val learnedCount = uiState.todoSurahs.count { it.status == SurahTodoStatus.LEARNED }
     val learningCount = uiState.todoSurahs.count { it.status == SurahTodoStatus.LEARNING }
+    val learnedAyahs = uiState.ayahTodos.count { it.status == AyahTodoStatus.LEARNED }
 
     val focusSurahNumber = uiState.todoSurahs
         .firstOrNull { it.status == SurahTodoStatus.LEARNING }
@@ -136,7 +157,7 @@ fun HomeScreen(
                         Text(
                             text = strings.homeSubtitle,
                             style = MaterialTheme.typography.body2,
-                            color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+                            color = MaterialTheme.colors.mutedText
                         )
                     }
 
@@ -174,7 +195,10 @@ fun HomeScreen(
                     subtitle = strings.planSubtitle,
                     todayLabel = strings.todayProgressLabel,
                     todayProgress = todayProgress,
-                    dailyGoal = settings.dailyGoal
+                    dailyGoal = settings.dailyGoal,
+                    learnedAyahs = learnedAyahs,
+                    targetAyahs = settings.targetAyahs,
+                    targetEpochDay = settings.targetEpochDay
                 )
             }
 
@@ -182,10 +206,9 @@ fun HomeScreen(
                 DueReviewsCard(
                     title = strings.reviewDueTitle,
                     emptyLabel = strings.reviewEmptyLabel,
-                    actionLabel = strings.reviewNowLabel,
                     dueReviews = uiState.dueReviews.take(3),
-                    onComplete = { ayahNumber, surahNumber ->
-                        viewModel.completeReview(ayahNumber, surahNumber)
+                    onComplete = { ayahNumber, surahNumber, quality ->
+                        viewModel.completeReview(ayahNumber, surahNumber, quality)
                     }
                 )
             }
@@ -201,12 +224,25 @@ fun HomeScreen(
             }
 
             item {
+                OfflinePackageCard(
+                    isRunning = uiState.offlineDownloadRunning,
+                    done = uiState.offlineDownloadDone,
+                    total = uiState.offlineDownloadTotal,
+                    status = uiState.offlineDownloadStatus,
+                    onStart = { viewModel.startOfflinePackage(language) }
+                )
+            }
+
+            item {
                 FilterRow(
                     strings = strings,
                     learnedCount = learnedCount,
                     learningCount = learningCount,
                     filter = uiState.filter,
-                    onFilterChange = viewModel::setFilter
+                    weakCount = weakSurahNumbers.size,
+                    showMistakesOnly = showMistakesOnly,
+                    onFilterChange = viewModel::setFilter,
+                    onToggleMistakes = { showMistakesOnly = !showMistakesOnly }
                 )
             }
 
@@ -218,9 +254,11 @@ fun HomeScreen(
                 val inTodoSaved = todoByNumber[surah.surahNumber]
 
                 val backgroundColor = when {
-                    isSelected -> MaterialTheme.colors.primary//.copy(alpha = 0.12f)
-                    inTodoSaved?.status == SurahTodoStatus.LEARNED -> MaterialTheme.colors.secondary//.copy(alpha = 0.18f)
-                    inTodoSaved?.status == SurahTodoStatus.LEARNING -> MaterialTheme.colors.secondary//.copy(alpha = 0.12f)
+                    isSelected -> MaterialTheme.colors.tintedSurface(MaterialTheme.colors.primary, 0.2f)
+                    inTodoSaved?.status == SurahTodoStatus.LEARNED ->
+                        MaterialTheme.colors.tintedSurface(MaterialTheme.colors.secondary, 0.26f)
+                    inTodoSaved?.status == SurahTodoStatus.LEARNING ->
+                        MaterialTheme.colors.tintedSurface(MaterialTheme.colors.secondary, 0.18f)
                     else -> MaterialTheme.colors.surface
                 }
 
@@ -271,7 +309,7 @@ fun HomeScreen(
                             statusColor = when (inTodoSaved?.status) {
                                 SurahTodoStatus.LEARNED -> MaterialTheme.colors.primary
                                 SurahTodoStatus.LEARNING -> MaterialTheme.colors.secondary
-                                null -> MaterialTheme.colors.onSurface.copy(alpha = 0.4f)
+                                null -> MaterialTheme.colors.faintText
                             },
                             isSelected = isSelected,
                             strings = strings,
@@ -415,7 +453,7 @@ private fun ReminderCard(
             Text(
                 text = body,
                 style = MaterialTheme.typography.body2,
-                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+                color = MaterialTheme.colors.mutedText
             )
         }
     }
@@ -428,7 +466,14 @@ private fun PlanCard(
     todayLabel: String,
     todayProgress: Int,
     dailyGoal: Int,
+    learnedAyahs: Int,
+    targetAyahs: Int,
+    targetEpochDay: Int,
 ) {
+    val todayEpochDay = currentLocalDate().toEpochDays()
+    val daysLeft = (targetEpochDay - todayEpochDay).coerceAtLeast(1)
+    val remainingAyahs = (targetAyahs - learnedAyahs).coerceAtLeast(0)
+    val pace = if (remainingAyahs == 0) 0 else ceil(remainingAyahs.toDouble() / daysLeft).toInt()
     val progress = if (dailyGoal > 0) todayProgress.toFloat() / dailyGoal else 0f
     Card(
         shape = RoundedCornerShape(18.dp),
@@ -445,7 +490,7 @@ private fun PlanCard(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.caption,
-                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+                color = MaterialTheme.colors.mutedText
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -463,6 +508,11 @@ private fun PlanCard(
                 )
             }
             ProgressBarLine(progress = progress)
+            Text(
+                text = "${LocalAppStrings.current.targetPaceLabel}: $pace/${LocalAppStrings.current.perDayShortLabel} • $remainingAyahs ${LocalAppStrings.current.leftLabel} • $daysLeft ${LocalAppStrings.current.daysLabel}",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.mutedText
+            )
         }
     }
 }
@@ -475,7 +525,7 @@ private fun ProgressBarLine(progress: Float) {
             .height(8.dp)
     ) {
         Surface(
-            color = MaterialTheme.colors.onSurface.copy(alpha = 0.08f),
+            color = MaterialTheme.colors.progressTrack,
             shape = RoundedCornerShape(6.dp),
             modifier = Modifier.fillMaxWidth()
         ) {}
@@ -491,9 +541,8 @@ private fun ProgressBarLine(progress: Float) {
 private fun DueReviewsCard(
     title: String,
     emptyLabel: String,
-    actionLabel: String,
     dueReviews: List<AyahReviewEntity>,
-    onComplete: (Int, Int) -> Unit,
+    onComplete: (Int, Int, ReviewQuality) -> Unit,
 ) {
     val strings = LocalAppStrings.current
     Card(
@@ -512,7 +561,7 @@ private fun DueReviewsCard(
                 Text(
                     text = emptyLabel,
                     style = MaterialTheme.typography.body2,
-                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                    color = MaterialTheme.colors.mutedText
                 )
             } else {
                 dueReviews.forEach { review ->
@@ -525,16 +574,90 @@ private fun DueReviewsCard(
                             text = "${strings.surahLabel} ${review.surahNumber} · ${strings.ayahsLabel} ${review.ayahNumber}",
                             style = MaterialTheme.typography.body2
                         )
-                        Text(
-                            text = actionLabel,
-                            style = MaterialTheme.typography.caption,
-                            color = MaterialTheme.colors.primary,
-                            modifier = Modifier.clickable {
-                                onComplete(review.ayahNumber, review.surahNumber)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            ReviewChip(label = strings.hardLabel, color = MaterialTheme.colors.error) {
+                                onComplete(review.ayahNumber, review.surahNumber, ReviewQuality.HARD)
                             }
-                        )
+                            ReviewChip(label = strings.goodLabel, color = MaterialTheme.colors.primary) {
+                                onComplete(review.ayahNumber, review.surahNumber, ReviewQuality.GOOD)
+                            }
+                            ReviewChip(label = strings.easyLabel, color = MaterialTheme.colors.secondary) {
+                                onComplete(review.ayahNumber, review.surahNumber, ReviewQuality.EASY)
+                            }
+                        }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewChip(
+    label: String,
+    color: Color,
+    onClick: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colors.tintedSurface(color, 0.16f),
+        modifier = Modifier.clickable { onClick() }
+    ) {
+        Text(
+            text = label,
+            color = color,
+            style = MaterialTheme.typography.caption,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
+    }
+}
+
+@Composable
+private fun OfflinePackageCard(
+    isRunning: Boolean,
+    done: Int,
+    total: Int,
+    status: String?,
+    onStart: () -> Unit,
+) {
+    val strings = LocalAppStrings.current
+    val statusText = when (status) {
+        "DOWNLOADING" -> strings.offlinePackageDownloadingLabel
+        "READY" -> strings.offlinePackageReadyLabel
+        else -> strings.offlinePackageSubtitle
+    }
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        elevation = 3.dp,
+        modifier = Modifier.padding(horizontal = 16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(strings.offlinePackageTitle, style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.Bold)
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.mutedText
+            )
+            if (total > 0) {
+                Text("$done / $total", style = MaterialTheme.typography.caption)
+                ProgressBarLine(progress = done.toFloat() / total.toFloat())
+            }
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = if (isRunning) MaterialTheme.colors.softSurfaceStrong else MaterialTheme.colors.primary,
+                modifier = Modifier.clickable(enabled = !isRunning) { onStart() }
+            ) {
+                Text(
+                    text = if (isRunning) strings.offlinePackageDownloadingLabel else strings.offlinePackageDownloadLabel,
+                    color = if (isRunning) MaterialTheme.colors.faintText else Color.White,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.caption
+                )
             }
         }
     }
@@ -582,7 +705,7 @@ private fun FocusSessionDialog(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.caption,
-                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+                    color = MaterialTheme.colors.mutedText
                 )
                 Text(
                     text = formatTimer(secondsLeft),
@@ -632,7 +755,7 @@ private fun StatsRow(learned: Int, learning: Int, total: Int) {
 private fun StatChip(label: String, value: Int) {
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colors.onSurface.copy(alpha = 0.04f),
+        color = MaterialTheme.colors.softSurface,
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -671,14 +794,14 @@ private fun FocusCard(
             }
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = if (enabled) MaterialTheme.colors.primary else MaterialTheme.colors.onSurface.copy(alpha = 0.1f),
+                color = if (enabled) MaterialTheme.colors.primary else MaterialTheme.colors.softSurfaceStrong,
                 modifier = Modifier
                     .padding(start = 12.dp)
                     .clickable(enabled = enabled) { onClick() }
             ) {
                 Text(
                     text = actionLabel,
-                    color = if (enabled) Color.White else MaterialTheme.colors.onSurface.copy(alpha = 0.5f),
+                    color = if (enabled) Color.White else MaterialTheme.colors.faintText,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.caption
                 )
@@ -692,8 +815,11 @@ private fun FilterRow(
     strings: AppStrings,
     learnedCount: Int,
     learningCount: Int,
+    weakCount: Int,
+    showMistakesOnly: Boolean,
     filter: SurahTodoStatus?,
     onFilterChange: (SurahTodoStatus?) -> Unit,
+    onToggleMistakes: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -719,6 +845,12 @@ private fun FilterRow(
             selected = filter == SurahTodoStatus.LEARNING,
             onClick = { onFilterChange(SurahTodoStatus.LEARNING) }
         )
+        FilterChip(
+            label = strings.mistakesFilterLabel,
+            count = weakCount,
+            selected = showMistakesOnly,
+            onClick = onToggleMistakes
+        )
     }
 }
 
@@ -729,7 +861,11 @@ private fun FilterChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val background = if (selected) MaterialTheme.colors.primary.copy(alpha = 0.15f) else MaterialTheme.colors.onSurface.copy(alpha = 0.04f)
+    val background = if (selected) {
+        MaterialTheme.colors.tintedSurface(MaterialTheme.colors.primary, 0.18f)
+    } else {
+        MaterialTheme.colors.softSurface
+    }
     val textColor = if (selected) MaterialTheme.colors.primary else MaterialTheme.colors.onSurface
     Surface(
         shape = RoundedCornerShape(20.dp),
@@ -763,7 +899,7 @@ private fun ActionPill(
     val color = if (isDestructive) MaterialTheme.colors.error else MaterialTheme.colors.primary
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = color.copy(alpha = 0.12f),
+        color = MaterialTheme.colors.tintedSurface(color, 0.16f),
         modifier = Modifier.clickable { onClick() }
     ) {
         Text(
@@ -812,7 +948,7 @@ fun SurahItem(
         if (statusLabel != null && onStatusClick != null) {
             Spacer(modifier = Modifier.height(6.dp))
             Surface(
-                color = statusColor.copy(alpha = 0.12f),
+                color = MaterialTheme.colors.tintedSurface(statusColor, 0.16f),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.clickable { onStatusClick() }
             ) {
@@ -846,7 +982,7 @@ fun SurahItem(
             Text(
                 text = transliteration,
                 style = MaterialTheme.typography.body2,
-                color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colors.mutedText
             )
         }
 
@@ -855,7 +991,7 @@ fun SurahItem(
             Text(
                 text = translatedName,
                 style = MaterialTheme.typography.body2,
-                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+                color = MaterialTheme.colors.mutedText
             )
         }
 

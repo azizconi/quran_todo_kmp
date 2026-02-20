@@ -9,7 +9,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.launch
+import tj.app.quran_todo.common.audio.AudioCache
 import tj.app.quran_todo.common.utils.Resource
 import tj.app.quran_todo.common.utils.parseSurahList
 import tj.app.quran_todo.data.database.dao.AyahReviewDao
@@ -24,6 +27,7 @@ import tj.app.quran_todo.data.database.entity.todo.FocusSessionEntity
 import tj.app.quran_todo.domain.model.SurahModel
 import tj.app.quran_todo.domain.use_case.AyahTodoDeleteBySurahUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoUpsertUseCase
+import tj.app.quran_todo.domain.use_case.GetAyahTranslationsUseCase
 import tj.app.quran_todo.domain.use_case.GetChapterNamesUseCase
 import tj.app.quran_todo.domain.use_case.GetCompleteQuranUseCase
 import tj.app.quran_todo.domain.use_case.TodoDeleteSurahByNumberUseCase
@@ -32,7 +36,12 @@ import tj.app.quran_todo.domain.use_case.TodoGetSurahListUseCase
 import tj.app.quran_todo.domain.use_case.TodoUpsertSurahUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoGetAllUseCase
 import tj.app.quran_todo.common.i18n.AppLanguage
+import tj.app.quran_todo.common.settings.addWeakAyah
+import tj.app.quran_todo.common.settings.removeWeakAyah
+import tj.app.quran_todo.common.settings.weakAyahKeySet
+import tj.app.quran_todo.common.settings.UserSettingsStorage
 import tj.app.quran_todo.domain.model.ChapterNameModel
+import tj.app.quran_todo.presentation.review.ReviewQuality
 
 data class HomeUiState(
     val surahList: List<SurahModel> = emptyList(),
@@ -44,9 +53,14 @@ data class HomeUiState(
     val lastActivityAt: Long? = null,
     val selectedSurah: SurahWithAyahs? = null,
     val selectedSurahNumbers: Set<Int> = emptySet(),
+    val weakAyahKeys: Set<String> = emptySet(),
     val filter: SurahTodoStatus? = null,
     val isLoadingQuran: Boolean = false,
     val errorMessage: String? = null,
+    val offlineDownloadRunning: Boolean = false,
+    val offlineDownloadDone: Int = 0,
+    val offlineDownloadTotal: Int = 0,
+    val offlineDownloadStatus: String? = null,
 )
 
 class HomeViewModel(
@@ -57,6 +71,7 @@ class HomeViewModel(
     private val todoUpsertSurahUseCase: TodoUpsertSurahUseCase,
     todoGetSurahListUseCase: TodoGetSurahListUseCase,
     private val getCompleteQuranUseCase: GetCompleteQuranUseCase,
+    private val getAyahTranslationsUseCase: GetAyahTranslationsUseCase,
     private val ayahTodoUpsertUseCase: AyahTodoUpsertUseCase,
     private val ayahTodoDeleteBySurahUseCase: AyahTodoDeleteBySurahUseCase,
     private val getChapterNamesUseCase: GetChapterNamesUseCase,
@@ -68,8 +83,11 @@ class HomeViewModel(
 
     private var completeQuranJob: Job? = null
     private var lastChapterLanguage: AppLanguage? = null
+    private val offlineDownloadMutex = Mutex()
 
     init {
+        _uiState.value = _uiState.value.copy(weakAyahKeys = weakAyahKeySet())
+
         viewModelScope.launch(Dispatchers.IO) {
             val list = parseSurahList()
             _uiState.value = _uiState.value.copy(surahList = list)
@@ -124,6 +142,9 @@ class HomeViewModel(
                 todoDeleteSurahByNumberUseCase(surahNumber)
                 ayahTodoDeleteBySurahUseCase(surahNumber)
                 ayahReviewDao.deleteBySurahNumber(surahNumber)
+                val weak = weakAyahKeySet().filterNot { it.startsWith("$surahNumber:") }.toSet()
+                UserSettingsStorage.saveWeakAyahKeys(weak)
+                _uiState.value = _uiState.value.copy(weakAyahKeys = weak)
                 return@launch
             }
 
@@ -154,13 +175,24 @@ class HomeViewModel(
         }
     }
 
-    fun completeReview(ayahNumber: Int, surahNumber: Int) {
+    fun completeReview(
+        ayahNumber: Int,
+        surahNumber: Int,
+        quality: ReviewQuality = ReviewQuality.GOOD,
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             val now = getTimeMillis()
-            val review = _uiState.value.dueReviews.firstOrNull { it.ayahNumber == ayahNumber }
-            val nextIndex = ((review?.intervalIndex ?: 0) + 1)
-                .coerceAtMost(reviewIntervalsDays.lastIndex)
-            val nextAt = now + reviewIntervalsDays[nextIndex] * dayMillis
+            val review = ayahReviewDao.getByAyahNumber(ayahNumber)
+                ?: _uiState.value.dueReviews.firstOrNull { it.ayahNumber == ayahNumber }
+            val currentIndex = review?.intervalIndex ?: 0
+            val nextIndex = when (quality) {
+                ReviewQuality.HARD -> (currentIndex - 1).coerceAtLeast(0)
+                ReviewQuality.GOOD -> (currentIndex + 1).coerceAtMost(reviewIntervalsDays.lastIndex)
+                ReviewQuality.EASY -> (currentIndex + 2).coerceAtMost(reviewIntervalsDays.lastIndex)
+            }
+            val baseDays = reviewIntervalsDays[nextIndex]
+            val bonusDays = if (quality == ReviewQuality.EASY && nextIndex >= 2) baseDays / 2 else 0L
+            val nextAt = now + (baseDays + bonusDays) * dayMillis
             ayahReviewDao.upsert(
                 AyahReviewEntity(
                     ayahNumber = ayahNumber,
@@ -170,7 +202,70 @@ class HomeViewModel(
                     lastReviewedAt = now
                 )
             )
+            when (quality) {
+                ReviewQuality.HARD -> addWeakAyah(surahNumber, ayahNumber)
+                ReviewQuality.EASY -> removeWeakAyah(surahNumber, ayahNumber)
+                ReviewQuality.GOOD -> Unit
+            }
+            _uiState.value = _uiState.value.copy(weakAyahKeys = weakAyahKeySet())
             refreshDueReviews()
+        }
+    }
+
+    fun startOfflinePackage(language: AppLanguage) {
+        viewModelScope.launch(Dispatchers.IO) {
+            offlineDownloadMutex.withLock {
+                if (_uiState.value.offlineDownloadRunning) return@withLock
+
+                val complete = _uiState.value.completeQuran
+                if (complete.isEmpty()) return@withLock
+                val learningSurahNumbers = _uiState.value.todoSurahs
+                    .filter { it.status == SurahTodoStatus.LEARNING || it.status == SurahTodoStatus.LEARNED }
+                    .map { it.surahNumber }
+                    .toSet()
+                val targets = if (learningSurahNumbers.isNotEmpty()) {
+                    complete.filter { learningSurahNumbers.contains(it.surah.number) }
+                } else {
+                    complete.take(3)
+                }
+                val total = targets.sumOf { it.ayahs.size }
+                if (total <= 0) return@withLock
+
+                _uiState.value = _uiState.value.copy(
+                    offlineDownloadRunning = true,
+                    offlineDownloadDone = 0,
+                    offlineDownloadTotal = total,
+                    offlineDownloadStatus = "DOWNLOADING"
+                )
+
+                val cache = AudioCache()
+                var done = 0
+                targets.forEach { surah ->
+                    runCatching {
+                        getAyahTranslationsUseCase(
+                            surahNumber = surah.surah.number,
+                            language = language,
+                            expectedCount = surah.ayahs.size
+                        )
+                    }
+
+                    surah.ayahs.forEach { ayah ->
+                        val url = "https://cdn.islamic.network/quran/audio/128/ar.alafasy/${ayah.number}.mp3"
+                        val cacheKey = "ayah_${ayah.surahNumber}_${ayah.numberInSurah}"
+                        cache.prefetch(url, cacheKey)
+                        done += 1
+                        _uiState.value = _uiState.value.copy(
+                            offlineDownloadDone = done,
+                            offlineDownloadTotal = total
+                        )
+                    }
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    offlineDownloadRunning = false,
+                    offlineDownloadStatus = "READY"
+                )
+            }
         }
     }
 
@@ -281,6 +376,9 @@ class HomeViewModel(
     }
 
     fun dismissSurahDetail() {
-        _uiState.value = _uiState.value.copy(selectedSurah = null)
+        _uiState.value = _uiState.value.copy(
+            selectedSurah = null,
+            weakAyahKeys = weakAyahKeySet()
+        )
     }
 }

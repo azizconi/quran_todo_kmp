@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import tj.app.quran_todo.common.platform.AndroidContextHolder
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,6 +26,18 @@ class MainActivity : ComponentActivity() {
         setContent {
             App()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        AndroidContextHolder.activity = this
+    }
+
+    override fun onPause() {
+        if (AndroidContextHolder.activity === this) {
+            AndroidContextHolder.activity = null
+        }
+        super.onPause()
     }
 }
 

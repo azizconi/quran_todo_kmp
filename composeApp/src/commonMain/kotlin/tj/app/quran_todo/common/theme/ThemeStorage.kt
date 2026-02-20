@@ -5,4 +5,8 @@ expect object ThemeStorage {
     fun saveThemeMode(mode: ThemeMode)
     fun getSavedThemePalette(): ThemePalette?
     fun saveThemePalette(palette: ThemePalette)
+    fun getSavedReadingFontStyle(): ReadingFontStyle?
+    fun saveReadingFontStyle(style: ReadingFontStyle)
+    fun getSavedAyahCardStyle(): AyahCardStyle?
+    fun saveAyahCardStyle(style: AyahCardStyle)
 }

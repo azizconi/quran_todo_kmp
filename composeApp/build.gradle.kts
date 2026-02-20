@@ -28,7 +28,10 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
             isStatic = true
+            binaryOption("bundleId", "tj.app.quran_todo.compose")
             linkerOpts.add("-lsqlite3")
+            linkerOpts.add("-framework")
+            linkerOpts.add("Speech")
         }
     }
     
