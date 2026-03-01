@@ -12,11 +12,25 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.launch
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import tj.app.quran_todo.common.settings.AppSettings
 import tj.app.quran_todo.common.audio.AudioCache
+import tj.app.quran_todo.common.sync.CloudSyncStorage
+import tj.app.quran_todo.common.sync.ProgressSnapshot
+import tj.app.quran_todo.common.sync.SettingsSnapshot
+import tj.app.quran_todo.common.sync.SurahTodoSnapshot
+import tj.app.quran_todo.common.sync.AyahTodoSnapshot
+import tj.app.quran_todo.common.sync.AyahReviewSnapshot
+import tj.app.quran_todo.common.sync.AyahNoteSnapshot
 import tj.app.quran_todo.common.utils.Resource
 import tj.app.quran_todo.common.utils.parseSurahList
+import tj.app.quran_todo.data.database.dao.AyahNoteDao
+import tj.app.quran_todo.data.database.dao.AyahTodoDao
 import tj.app.quran_todo.data.database.dao.AyahReviewDao
 import tj.app.quran_todo.data.database.dao.FocusSessionDao
+import tj.app.quran_todo.data.database.dao.SurahTodoDao
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoEntity
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
@@ -39,9 +53,11 @@ import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.settings.addWeakAyah
 import tj.app.quran_todo.common.settings.removeWeakAyah
 import tj.app.quran_todo.common.settings.weakAyahKeySet
+import tj.app.quran_todo.common.settings.ReviewStateStore
 import tj.app.quran_todo.common.settings.UserSettingsStorage
 import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.presentation.review.ReviewQuality
+import tj.app.quran_todo.presentation.review.Sm2Scheduler
 
 data class HomeUiState(
     val surahList: List<SurahModel> = emptyList(),
@@ -61,9 +77,17 @@ data class HomeUiState(
     val offlineDownloadDone: Int = 0,
     val offlineDownloadTotal: Int = 0,
     val offlineDownloadStatus: String? = null,
+    val syncProviderLabel: String = "",
+    val syncStatusMessage: String? = null,
+    val lastSyncAt: Long? = null,
+    val hasCloudSnapshot: Boolean = false,
+    val restoredSettings: SettingsSnapshot? = null,
 )
 
 class HomeViewModel(
+    private val surahTodoDao: SurahTodoDao,
+    private val ayahTodoDao: AyahTodoDao,
+    private val ayahNoteDao: AyahNoteDao,
     private val ayahReviewDao: AyahReviewDao,
     private val focusSessionDao: FocusSessionDao,
     private val todoDeleteSurahUseCase: TodoDeleteSurahUseCase,
@@ -84,9 +108,14 @@ class HomeViewModel(
     private var completeQuranJob: Job? = null
     private var lastChapterLanguage: AppLanguage? = null
     private val offlineDownloadMutex = Mutex()
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     init {
-        _uiState.value = _uiState.value.copy(weakAyahKeys = weakAyahKeySet())
+        _uiState.value = _uiState.value.copy(
+            weakAyahKeys = weakAyahKeySet(),
+            syncProviderLabel = CloudSyncStorage.providerLabel(),
+            hasCloudSnapshot = CloudSyncStorage.loadSnapshot() != null
+        )
 
         viewModelScope.launch(Dispatchers.IO) {
             val list = parseSurahList()
@@ -142,6 +171,10 @@ class HomeViewModel(
                 todoDeleteSurahByNumberUseCase(surahNumber)
                 ayahTodoDeleteBySurahUseCase(surahNumber)
                 ayahReviewDao.deleteBySurahNumber(surahNumber)
+                val ayahNumbers = _uiState.value.completeQuran.firstOrNull {
+                    it.surah.number == surahNumber
+                }?.ayahs?.map { it.number }.orEmpty()
+                ReviewStateStore.removeAll(ayahNumbers)
                 val weak = weakAyahKeySet().filterNot { it.startsWith("$surahNumber:") }.toSet()
                 UserSettingsStorage.saveWeakAyahKeys(weak)
                 _uiState.value = _uiState.value.copy(weakAyahKeys = weak)
@@ -182,23 +215,16 @@ class HomeViewModel(
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             val now = getTimeMillis()
-            val review = ayahReviewDao.getByAyahNumber(ayahNumber)
-                ?: _uiState.value.dueReviews.firstOrNull { it.ayahNumber == ayahNumber }
-            val currentIndex = review?.intervalIndex ?: 0
-            val nextIndex = when (quality) {
-                ReviewQuality.HARD -> (currentIndex - 1).coerceAtLeast(0)
-                ReviewQuality.GOOD -> (currentIndex + 1).coerceAtMost(reviewIntervalsDays.lastIndex)
-                ReviewQuality.EASY -> (currentIndex + 2).coerceAtMost(reviewIntervalsDays.lastIndex)
-            }
-            val baseDays = reviewIntervalsDays[nextIndex]
-            val bonusDays = if (quality == ReviewQuality.EASY && nextIndex >= 2) baseDays / 2 else 0L
-            val nextAt = now + (baseDays + bonusDays) * dayMillis
+            val currentState = ReviewStateStore.get(ayahNumber)
+            val nextState = Sm2Scheduler.nextState(currentState, quality)
+            ReviewStateStore.put(ayahNumber, nextState)
+            val nextAt = now + nextState.intervalDays.toLong() * dayMillis
             ayahReviewDao.upsert(
                 AyahReviewEntity(
                     ayahNumber = ayahNumber,
                     surahNumber = surahNumber,
                     nextReviewAt = nextAt,
-                    intervalIndex = nextIndex,
+                    intervalIndex = nextState.repetitions,
                     lastReviewedAt = now
                 )
             )
@@ -280,6 +306,176 @@ class HomeViewModel(
         }
     }
 
+    fun refreshDueReviewsNow() {
+        viewModelScope.launch(Dispatchers.IO) {
+            refreshDueReviews()
+        }
+    }
+
+    fun consumeRestoredSettings() {
+        _uiState.value = _uiState.value.copy(restoredSettings = null)
+    }
+
+    fun syncProgressToCloud(settings: AppSettings) {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val snapshot = ProgressSnapshot(
+                    createdAt = getTimeMillis(),
+                    settings = SettingsSnapshot(
+                        dailyGoal = settings.dailyGoal,
+                        focusMinutes = settings.focusMinutes,
+                        remindersEnabled = settings.remindersEnabled,
+                        targetAyahs = settings.targetAyahs,
+                        targetEpochDay = settings.targetEpochDay,
+                        examModeEnabled = settings.examModeEnabled
+                    ),
+                    weakAyahKeys = weakAyahKeySet(),
+                    recitationMetricsJson = UserSettingsStorage.getRecitationMetricsJson(),
+                    surahTodos = _uiState.value.todoSurahs.map {
+                        SurahTodoSnapshot(
+                            surahNumber = it.surahNumber,
+                            status = it.status.name
+                        )
+                    },
+                    ayahTodos = _uiState.value.ayahTodos.map {
+                        AyahTodoSnapshot(
+                            ayahNumber = it.ayahNumber,
+                            surahNumber = it.surahNumber,
+                            status = it.status.name,
+                            updatedAt = it.updatedAt
+                        )
+                    },
+                    ayahReviews = ayahReviewDao.getAll().map {
+                        AyahReviewSnapshot(
+                            ayahNumber = it.ayahNumber,
+                            surahNumber = it.surahNumber,
+                            nextReviewAt = it.nextReviewAt,
+                            intervalIndex = it.intervalIndex,
+                            lastReviewedAt = it.lastReviewedAt
+                        )
+                    },
+                    ayahNotes = ayahNoteDao.getAll().map {
+                        AyahNoteSnapshot(
+                            ayahNumber = it.ayahNumber,
+                            surahNumber = it.surahNumber,
+                            note = it.note,
+                            updatedAt = it.updatedAt
+                        )
+                    }
+                )
+                CloudSyncStorage.saveSnapshot(json.encodeToString(snapshot))
+                _uiState.value = _uiState.value.copy(
+                    hasCloudSnapshot = true,
+                    lastSyncAt = snapshot.createdAt,
+                    syncStatusMessage = "Synced to ${CloudSyncStorage.providerLabel()}."
+                )
+            }.onFailure {
+                _uiState.value = _uiState.value.copy(
+                    syncStatusMessage = "Cloud sync failed."
+                )
+            }
+        }
+    }
+
+    fun restoreProgressFromCloud() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val raw = CloudSyncStorage.loadSnapshot()
+            if (raw.isNullOrBlank()) {
+                _uiState.value = _uiState.value.copy(
+                    hasCloudSnapshot = false,
+                    syncStatusMessage = "No cloud snapshot found."
+                )
+                return@launch
+            }
+
+            runCatching {
+                json.decodeFromString<ProgressSnapshot>(raw)
+            }.onSuccess { snapshot ->
+                val surahTodos = snapshot.surahTodos.mapNotNull { item ->
+                    runCatching {
+                        SurahTodoEntity(
+                            surahNumber = item.surahNumber,
+                            status = SurahTodoStatus.valueOf(item.status)
+                        )
+                    }.getOrNull()
+                }
+                val ayahTodos = snapshot.ayahTodos.mapNotNull { item ->
+                    runCatching {
+                        AyahTodoEntity(
+                            ayahNumber = item.ayahNumber,
+                            surahNumber = item.surahNumber,
+                            status = AyahTodoStatus.valueOf(item.status),
+                            updatedAt = item.updatedAt
+                        )
+                    }.getOrNull()
+                }
+                val ayahReviews = snapshot.ayahReviews.map {
+                    AyahReviewEntity(
+                        ayahNumber = it.ayahNumber,
+                        surahNumber = it.surahNumber,
+                        nextReviewAt = it.nextReviewAt,
+                        intervalIndex = it.intervalIndex,
+                        lastReviewedAt = it.lastReviewedAt
+                    )
+                }
+                val ayahNotes = snapshot.ayahNotes.map {
+                    tj.app.quran_todo.data.database.entity.todo.AyahNoteEntity(
+                        ayahNumber = it.ayahNumber,
+                        surahNumber = it.surahNumber,
+                        note = it.note,
+                        updatedAt = it.updatedAt
+                    )
+                }
+
+                surahTodoDao.clear()
+                ayahTodoDao.clear()
+                ayahReviewDao.clear()
+                ayahNoteDao.clear()
+
+                if (surahTodos.isNotEmpty()) surahTodoDao.upsertAll(surahTodos)
+                if (ayahTodos.isNotEmpty()) ayahTodoDao.upsertAll(ayahTodos)
+                if (ayahReviews.isNotEmpty()) ayahReviewDao.upsertAll(ayahReviews)
+                if (ayahNotes.isNotEmpty()) ayahNoteDao.upsertAll(ayahNotes)
+
+                ReviewStateStore.clear()
+                val now = getTimeMillis()
+                ayahReviews.forEach { review ->
+                    val daysLeft = ((review.nextReviewAt - now) / dayMillis).toInt().coerceAtLeast(1)
+                    ReviewStateStore.put(
+                        review.ayahNumber,
+                        tj.app.quran_todo.common.settings.ReviewMemoryState(
+                            repetitions = review.intervalIndex.coerceAtLeast(0),
+                            intervalDays = daysLeft,
+                            easiness = 2.5f
+                        )
+                    )
+                }
+
+                UserSettingsStorage.saveDailyGoal(snapshot.settings.dailyGoal)
+                UserSettingsStorage.saveFocusMinutes(snapshot.settings.focusMinutes)
+                UserSettingsStorage.saveReminderEnabled(snapshot.settings.remindersEnabled)
+                UserSettingsStorage.saveTargetAyahs(snapshot.settings.targetAyahs)
+                UserSettingsStorage.saveTargetEpochDay(snapshot.settings.targetEpochDay)
+                UserSettingsStorage.saveExamModeEnabled(snapshot.settings.examModeEnabled)
+                UserSettingsStorage.saveWeakAyahKeys(snapshot.weakAyahKeys)
+                UserSettingsStorage.saveRecitationMetricsJson(snapshot.recitationMetricsJson ?: "")
+
+                _uiState.value = _uiState.value.copy(
+                    weakAyahKeys = snapshot.weakAyahKeys,
+                    hasCloudSnapshot = true,
+                    lastSyncAt = snapshot.createdAt,
+                    restoredSettings = snapshot.settings,
+                    syncStatusMessage = "Restored from ${CloudSyncStorage.providerLabel()}."
+                )
+                refreshDueReviews()
+            }.onFailure {
+                _uiState.value = _uiState.value.copy(
+                    syncStatusMessage = "Cloud restore failed."
+                )
+            }
+        }
+    }
+
     private suspend fun refreshDueReviews() {
         val due = ayahReviewDao.getDue(getTimeMillis())
         _uiState.value = _uiState.value.copy(dueReviews = due)
@@ -291,15 +487,17 @@ class HomeViewModel(
         status: SurahTodoStatus,
     ) {
         val now = getTimeMillis()
-        val intervalIndex = 0
-        val nextAt = now + reviewIntervalsDays[intervalIndex] * dayMillis
+        val state = ReviewStateStore.get(ayahNumber) ?: Sm2Scheduler.initialState().also {
+            ReviewStateStore.put(ayahNumber, it)
+        }
+        val nextAt = now + state.intervalDays.toLong() * dayMillis
         if (status == SurahTodoStatus.LEARNING || status == SurahTodoStatus.LEARNED) {
             ayahReviewDao.upsert(
                 AyahReviewEntity(
                     ayahNumber = ayahNumber,
                     surahNumber = surahNumber,
                     nextReviewAt = nextAt,
-                    intervalIndex = intervalIndex,
+                    intervalIndex = state.repetitions,
                     lastReviewedAt = now
                 )
             )
@@ -307,7 +505,6 @@ class HomeViewModel(
     }
 
     private companion object {
-        val reviewIntervalsDays = listOf(1L, 3L, 7L, 14L, 30L)
         const val dayMillis = 24L * 60 * 60 * 1000
     }
 

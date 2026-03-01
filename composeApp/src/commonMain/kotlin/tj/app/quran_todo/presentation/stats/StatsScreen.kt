@@ -3,6 +3,7 @@ package tj.app.quran_todo.presentation.stats
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +59,7 @@ fun StatsScreen(viewModel: StatsViewModel = koinViewModel()) {
     val settings = LocalAppSettings.current
 
     val uiState by viewModel.uiState.collectAsState()
+    var teacherReportWindow by remember { mutableStateOf(30) }
 
     val progress = if (uiState.totalAyahs > 0) {
         uiState.learnedAyahs.toFloat() / uiState.totalAyahs
@@ -142,6 +144,21 @@ fun StatsScreen(viewModel: StatsViewModel = koinViewModel()) {
                 score = uiState.recitationScore,
                 topSurahs = uiState.recitationTopSurahs,
                 hasData = uiState.hasRecitationData
+            )
+        }
+
+        item {
+            TeacherReportCard(
+                selectedWindow = teacherReportWindow,
+                onWindowSelected = { teacherReportWindow = it },
+                ayahUpdates7 = uiState.ayahUpdates7,
+                ayahUpdates30 = uiState.ayahUpdates30,
+                ayahUpdates90 = uiState.ayahUpdates90,
+                focusMinutes7 = uiState.focusMinutes7,
+                focusMinutes30 = uiState.focusMinutes30,
+                focusMinutes90 = uiState.focusMinutes90,
+                surahPeriodActivity = uiState.surahPeriodActivity,
+                weakSurahReport = uiState.weakSurahReport
             )
         }
 
@@ -371,6 +388,151 @@ private fun ProjectionCard(
                 color = if (onTrack) MaterialTheme.colors.primary else MaterialTheme.colors.error
             )
         }
+    }
+}
+
+@Composable
+private fun TeacherReportCard(
+    selectedWindow: Int,
+    onWindowSelected: (Int) -> Unit,
+    ayahUpdates7: Int,
+    ayahUpdates30: Int,
+    ayahUpdates90: Int,
+    focusMinutes7: Int,
+    focusMinutes30: Int,
+    focusMinutes90: Int,
+    surahPeriodActivity: List<SurahPeriodActivityUi>,
+    weakSurahReport: List<WeakSurahReportUi>,
+) {
+    val updates = when (selectedWindow) {
+        7 -> ayahUpdates7
+        90 -> ayahUpdates90
+        else -> ayahUpdates30
+    }
+    val focusMinutes = when (selectedWindow) {
+        7 -> focusMinutes7
+        90 -> focusMinutes90
+        else -> focusMinutes30
+    }
+    val activeSurahs = surahPeriodActivity.mapNotNull { item ->
+        val count = when (selectedWindow) {
+            7 -> item.count7
+            90 -> item.count90
+            else -> item.count30
+        }
+        if (count <= 0) null else item to count
+    }.sortedByDescending { it.second }
+
+    Card(elevation = 2.dp, shape = RoundedCornerShape(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Teacher / Exam report",
+                style = MaterialTheme.typography.subtitle1,
+                fontWeight = FontWeight.SemiBold
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ReportWindowChip(label = "7d", selected = selectedWindow == 7) { onWindowSelected(7) }
+                ReportWindowChip(label = "30d", selected = selectedWindow == 30) { onWindowSelected(30) }
+                ReportWindowChip(label = "90d", selected = selectedWindow == 90) { onWindowSelected(90) }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                HighlightItem(label = "Ayah checks", value = updates.toString())
+                HighlightItem(label = "Focus min", value = focusMinutes.toString())
+                HighlightItem(label = "Weak ayahs", value = weakSurahReport.sumOf { it.weakCount }.toString())
+            }
+            Text(
+                text = "Most active surahs",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.mutedText
+            )
+            if (activeSurahs.isEmpty()) {
+                Text(
+                    text = "No activity in selected period.",
+                    style = MaterialTheme.typography.caption,
+                    color = MaterialTheme.colors.mutedText
+                )
+            } else {
+                activeSurahs.take(5).forEach { (item, count) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "${item.surahLabel} #${item.surahNumber}",
+                            style = MaterialTheme.typography.body2
+                        )
+                        Text(
+                            text = count.toString(),
+                            style = MaterialTheme.typography.caption,
+                            color = MaterialTheme.colors.primary
+                        )
+                    }
+                }
+            }
+            Text(
+                text = "Weak bank by surah",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.mutedText
+            )
+            if (weakSurahReport.isEmpty()) {
+                Text(
+                    text = "No weak ayahs.",
+                    style = MaterialTheme.typography.caption,
+                    color = MaterialTheme.colors.mutedText
+                )
+            } else {
+                weakSurahReport.take(6).forEach { weak ->
+                    val sample = weak.sampleAyahNumbers.joinToString(", ")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "${weak.surahLabel} #${weak.surahNumber}",
+                            style = MaterialTheme.typography.body2
+                        )
+                        Text(
+                            text = "${weak.weakCount} (${sample})",
+                            style = MaterialTheme.typography.caption,
+                            color = MaterialTheme.colors.error
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReportWindowChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val tint = if (selected) MaterialTheme.colors.primary else MaterialTheme.colors.onSurface
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) {
+            MaterialTheme.colors.tintedSurface(MaterialTheme.colors.primary, 0.18f)
+        } else {
+            MaterialTheme.colors.progressTrack
+        },
+        modifier = Modifier.clickable { onClick() }
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.caption,
+            color = tint,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+        )
     }
 }
 

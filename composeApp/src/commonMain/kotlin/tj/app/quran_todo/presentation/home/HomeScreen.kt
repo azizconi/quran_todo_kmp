@@ -55,6 +55,7 @@ import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.i18n.localizeRevelationPlace
 import tj.app.quran_todo.common.settings.LocalAppSettings
+import tj.app.quran_todo.common.settings.LocalAppSettingsSetter
 import tj.app.quran_todo.common.theme.faintText
 import tj.app.quran_todo.common.theme.mutedText
 import tj.app.quran_todo.common.theme.progressTrack
@@ -67,6 +68,7 @@ import tj.app.quran_todo.common.utils.localDateFromEpoch
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
 import tj.app.quran_todo.data.database.entity.todo.AyahReviewEntity
+import tj.app.quran_todo.common.sync.SettingsSnapshot
 import tj.app.quran_todo.presentation.review.ReviewQuality
 import tj.app.quran_todo.presentation.surah.SurahScreen
 
@@ -78,14 +80,26 @@ fun HomeScreen(
     val strings = LocalAppStrings.current
     val language = LocalAppLanguage.current
     val settings = LocalAppSettings.current
+    val setSettings = LocalAppSettingsSetter.current
 
     val uiState by viewModel.uiState.collectAsState()
     val todoByNumber = uiState.todoSurahs.associateBy { it.surahNumber }
     val selectionMode = uiState.selectedSurahNumbers.isNotEmpty()
     var showMistakesOnly by remember { mutableStateOf(false) }
+    var showReviewSession by remember { mutableStateOf(false) }
 
     LaunchedEffect(language) {
         viewModel.loadChapterNames(language)
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshDueReviewsNow()
+    }
+
+    LaunchedEffect(uiState.restoredSettings) {
+        val restored = uiState.restoredSettings ?: return@LaunchedEffect
+        setSettings(mergeSettings(settings, restored))
+        viewModel.consumeRestoredSettings()
     }
 
     val englishNameByNumber = remember(uiState.completeQuran) {
@@ -96,6 +110,11 @@ fun HomeScreen(
     }
     val transliterationByNumber = remember(uiState.completeQuran) {
         uiState.completeQuran.associate { it.surah.number to it.surah.englishName }
+    }
+    val ayahTextByNumber = remember(uiState.completeQuran) {
+        uiState.completeQuran
+            .flatMap { it.ayahs }
+            .associate { it.number to it.text }
     }
 
     val weakSurahNumbers = remember(uiState.weakAyahKeys) {
@@ -134,6 +153,23 @@ fun HomeScreen(
         lastActivityDays != null &&
         lastActivityDays >= 2
     var showFocus by remember { mutableStateOf(false) }
+    val todayEpochDay = remember(today) { today.toEpochDays() }
+    val daysLeft = (settings.targetEpochDay - todayEpochDay).coerceAtLeast(1)
+    val remainingAyahs = (settings.targetAyahs - learnedAyahs).coerceAtLeast(0)
+    val pace = if (remainingAyahs == 0) 0 else ceil(remainingAyahs.toDouble() / daysLeft).toInt()
+    val smartPlan = remember(
+        settings.focusMinutes,
+        settings.dailyGoal,
+        uiState.dueReviews.size,
+        pace
+    ) {
+        recommendDailyPlan(
+            focusMinutes = settings.focusMinutes,
+            dueReviews = uiState.dueReviews.size,
+            paceAyahs = pace,
+            dailyGoal = settings.dailyGoal
+        )
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
@@ -196,6 +232,9 @@ fun HomeScreen(
                     todayLabel = strings.todayProgressLabel,
                     todayProgress = todayProgress,
                     dailyGoal = settings.dailyGoal,
+                    recommendedNewAyahs = smartPlan.newAyahs,
+                    recommendedReviewAyahs = smartPlan.reviewAyahs,
+                    focusMinutes = settings.focusMinutes,
                     learnedAyahs = learnedAyahs,
                     targetAyahs = settings.targetAyahs,
                     targetEpochDay = settings.targetEpochDay
@@ -207,6 +246,9 @@ fun HomeScreen(
                     title = strings.reviewDueTitle,
                     emptyLabel = strings.reviewEmptyLabel,
                     dueReviews = uiState.dueReviews.take(3),
+                    dueTotal = uiState.dueReviews.size,
+                    openSessionLabel = strings.reviewNowLabel,
+                    onOpenSession = { showReviewSession = true },
                     onComplete = { ayahNumber, surahNumber, quality ->
                         viewModel.completeReview(ayahNumber, surahNumber, quality)
                     }
@@ -230,6 +272,17 @@ fun HomeScreen(
                     total = uiState.offlineDownloadTotal,
                     status = uiState.offlineDownloadStatus,
                     onStart = { viewModel.startOfflinePackage(language) }
+                )
+            }
+
+            item {
+                CloudSyncCard(
+                    status = uiState.syncStatusMessage,
+                    providerLabel = uiState.syncProviderLabel,
+                    hasSnapshot = uiState.hasCloudSnapshot,
+                    lastSyncAt = uiState.lastSyncAt,
+                    onSync = { viewModel.syncProgressToCloud(settings) },
+                    onRestore = { viewModel.restoreProgressFromCloud() }
                 )
             }
 
@@ -394,6 +447,20 @@ fun HomeScreen(
         )
     }
 
+    if (showReviewSession) {
+        ReviewSessionDialog(
+            title = strings.reviewDueTitle,
+            doneLabel = strings.focusDoneLabel,
+            emptyLabel = strings.reviewEmptyLabel,
+            dueReviews = uiState.dueReviews,
+            ayahTextByNumber = ayahTextByNumber,
+            onDismiss = { showReviewSession = false },
+            onComplete = { ayahNumber, surahNumber, quality ->
+                viewModel.completeReview(ayahNumber, surahNumber, quality)
+            }
+        )
+    }
+
     uiState.selectedSurah?.let { surah ->
         Dialog(
             onDismissRequest = { viewModel.dismissSurahDetail() },
@@ -466,6 +533,9 @@ private fun PlanCard(
     todayLabel: String,
     todayProgress: Int,
     dailyGoal: Int,
+    recommendedNewAyahs: Int,
+    recommendedReviewAyahs: Int,
+    focusMinutes: Int,
     learnedAyahs: Int,
     targetAyahs: Int,
     targetEpochDay: Int,
@@ -513,6 +583,16 @@ private fun PlanCard(
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.mutedText
             )
+            Text(
+                text = "Smart plan: new $recommendedNewAyahs • review $recommendedReviewAyahs • ${focusMinutes}m focus",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.primary
+            )
+            Text(
+                text = "Daily baseline: $dailyGoal",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.mutedText
+            )
         }
     }
 }
@@ -542,6 +622,9 @@ private fun DueReviewsCard(
     title: String,
     emptyLabel: String,
     dueReviews: List<AyahReviewEntity>,
+    dueTotal: Int,
+    openSessionLabel: String,
+    onOpenSession: () -> Unit,
     onComplete: (Int, Int, ReviewQuality) -> Unit,
 ) {
     val strings = LocalAppStrings.current
@@ -564,6 +647,20 @@ private fun DueReviewsCard(
                     color = MaterialTheme.colors.mutedText
                 )
             } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Due: $dueTotal",
+                        style = MaterialTheme.typography.caption,
+                        color = MaterialTheme.colors.mutedText
+                    )
+                    ReviewChip(label = openSessionLabel, color = MaterialTheme.colors.primary) {
+                        onOpenSession()
+                    }
+                }
                 dueReviews.forEach { review ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -658,6 +755,129 @@ private fun OfflinePackageCard(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.caption
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CloudSyncCard(
+    status: String?,
+    providerLabel: String,
+    hasSnapshot: Boolean,
+    lastSyncAt: Long?,
+    onSync: () -> Unit,
+    onRestore: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        elevation = 3.dp,
+        modifier = Modifier.padding(horizontal = 16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text("Cloud sync", style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Provider: $providerLabel",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.mutedText
+            )
+            Text(
+                text = if (hasSnapshot) {
+                    "Snapshot ready${lastSyncAt?.let { " (${localDateFromEpoch(it)})" } ?: ""}"
+                } else {
+                    "No snapshot"
+                },
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.mutedText
+            )
+            if (!status.isNullOrBlank()) {
+                Text(
+                    text = status,
+                    style = MaterialTheme.typography.caption,
+                    color = MaterialTheme.colors.primary
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ReviewChip(label = "Sync now", color = MaterialTheme.colors.primary) { onSync() }
+                ReviewChip(label = "Restore", color = MaterialTheme.colors.secondary) { onRestore() }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewSessionDialog(
+    title: String,
+    doneLabel: String,
+    emptyLabel: String,
+    dueReviews: List<AyahReviewEntity>,
+    ayahTextByNumber: Map<Int, String>,
+    onDismiss: () -> Unit,
+    onComplete: (Int, Int, ReviewQuality) -> Unit,
+) {
+    var queue by remember(dueReviews) { mutableStateOf(dueReviews) }
+    val current = queue.firstOrNull()
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            elevation = 4.dp,
+            modifier = Modifier
+                .padding(24.dp)
+                .fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(text = title, style = MaterialTheme.typography.h6, fontWeight = FontWeight.Bold)
+                if (current == null) {
+                    Text(
+                        text = emptyLabel,
+                        style = MaterialTheme.typography.body2,
+                        color = MaterialTheme.colors.mutedText
+                    )
+                    ReviewChip(label = doneLabel, color = MaterialTheme.colors.primary) { onDismiss() }
+                } else {
+                    Text(
+                        text = "Left: ${queue.size}",
+                        style = MaterialTheme.typography.caption,
+                        color = MaterialTheme.colors.mutedText
+                    )
+                    Text(
+                        text = "${LocalAppStrings.current.surahLabel} ${current.surahNumber} · ${LocalAppStrings.current.ayahsLabel} ${current.ayahNumber}",
+                        style = MaterialTheme.typography.subtitle2,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = ayahTextByNumber[current.ayahNumber] ?: "Ayah text unavailable",
+                        style = MaterialTheme.typography.body2
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ReviewChip(label = LocalAppStrings.current.hardLabel, color = MaterialTheme.colors.error) {
+                            onComplete(current.ayahNumber, current.surahNumber, ReviewQuality.HARD)
+                            queue = queue.drop(1)
+                        }
+                        ReviewChip(label = LocalAppStrings.current.goodLabel, color = MaterialTheme.colors.primary) {
+                            onComplete(current.ayahNumber, current.surahNumber, ReviewQuality.GOOD)
+                            queue = queue.drop(1)
+                        }
+                        ReviewChip(label = LocalAppStrings.current.easyLabel, color = MaterialTheme.colors.secondary) {
+                            onComplete(current.ayahNumber, current.surahNumber, ReviewQuality.EASY)
+                            queue = queue.drop(1)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ReviewChip(label = doneLabel, color = MaterialTheme.colors.primary) { onDismiss() }
+                    }
+                }
             }
         }
     }
@@ -1011,4 +1231,42 @@ fun SurahItem(
             )
         }
     }
+}
+
+private data class DailyPlanRecommendation(
+    val newAyahs: Int,
+    val reviewAyahs: Int,
+)
+
+private fun recommendDailyPlan(
+    focusMinutes: Int,
+    dueReviews: Int,
+    paceAyahs: Int,
+    dailyGoal: Int,
+): DailyPlanRecommendation {
+    val totalSeconds = (focusMinutes.coerceAtLeast(5) * 60).coerceAtLeast(300)
+    val maxReviewsByTime = (totalSeconds / 25).coerceAtLeast(6)
+    val reviewAyahs = dueReviews.coerceAtMost(maxReviewsByTime).coerceAtLeast(0)
+    val secondsAfterReview = (totalSeconds - reviewAyahs * 25).coerceAtLeast(0)
+    val newByTime = (secondsAfterReview / 180).coerceAtLeast(1)
+    val baselineNew = maxOf(1, dailyGoal, paceAyahs)
+    val newAyahs = baselineNew.coerceAtMost(newByTime + 2).coerceAtLeast(1)
+    return DailyPlanRecommendation(
+        newAyahs = newAyahs,
+        reviewAyahs = reviewAyahs
+    )
+}
+
+private fun mergeSettings(
+    current: tj.app.quran_todo.common.settings.AppSettings,
+    restored: SettingsSnapshot,
+): tj.app.quran_todo.common.settings.AppSettings {
+    return current.copy(
+        dailyGoal = restored.dailyGoal,
+        focusMinutes = restored.focusMinutes,
+        remindersEnabled = restored.remindersEnabled,
+        targetAyahs = restored.targetAyahs,
+        targetEpochDay = restored.targetEpochDay,
+        examModeEnabled = restored.examModeEnabled
+    )
 }

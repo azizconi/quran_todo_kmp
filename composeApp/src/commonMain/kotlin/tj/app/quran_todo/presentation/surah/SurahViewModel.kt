@@ -30,8 +30,10 @@ import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.settings.addWeakAyah
 import tj.app.quran_todo.common.settings.removeWeakAyah
+import tj.app.quran_todo.common.settings.ReviewStateStore
 import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.presentation.review.ReviewQuality
+import tj.app.quran_todo.presentation.review.Sm2Scheduler
 
 class SurahViewModel(
     private val ayahNoteDao: AyahNoteDao,
@@ -139,6 +141,7 @@ class SurahViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             ayahTodoDeleteByAyahUseCase(ayahNumber)
             ayahReviewDao.deleteByAyahNumber(ayahNumber)
+            ReviewStateStore.remove(ayahNumber)
             syncSurahStatusInternal(surahNumber, totalAyahs)
         }
     }
@@ -167,22 +170,16 @@ class SurahViewModel(
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             val now = getTimeMillis()
-            val current = _reviews.value[ayahNumber]
-            val currentIndex = current?.intervalIndex ?: 0
-            val nextIndex = when (quality) {
-                ReviewQuality.HARD -> (currentIndex - 1).coerceAtLeast(0)
-                ReviewQuality.GOOD -> (currentIndex + 1).coerceAtMost(reviewIntervalsDays.lastIndex)
-                ReviewQuality.EASY -> (currentIndex + 2).coerceAtMost(reviewIntervalsDays.lastIndex)
-            }
-            val baseDays = reviewIntervalsDays[nextIndex]
-            val bonusDays = if (quality == ReviewQuality.EASY && nextIndex >= 2) baseDays / 2 else 0L
-            val nextAt = now + (baseDays + bonusDays) * dayMillis
+            val currentState = ReviewStateStore.get(ayahNumber)
+            val nextState = Sm2Scheduler.nextState(currentState, quality)
+            ReviewStateStore.put(ayahNumber, nextState)
+            val nextAt = now + nextState.intervalDays.toLong() * dayMillis
             ayahReviewDao.upsert(
                 AyahReviewEntity(
                     ayahNumber = ayahNumber,
                     surahNumber = surahNumber,
                     nextReviewAt = nextAt,
-                    intervalIndex = nextIndex,
+                    intervalIndex = nextState.repetitions,
                     lastReviewedAt = now
                 )
             )
@@ -215,20 +212,22 @@ class SurahViewModel(
 
     private suspend fun scheduleReview(ayahNumber: Int, surahNumber: Int) {
         val now = getTimeMillis()
-        val nextAt = now + reviewIntervalsDays.first() * dayMillis
+        val state = ReviewStateStore.get(ayahNumber) ?: Sm2Scheduler.initialState().also {
+            ReviewStateStore.put(ayahNumber, it)
+        }
+        val nextAt = now + state.intervalDays.toLong() * dayMillis
         ayahReviewDao.upsert(
             AyahReviewEntity(
                 ayahNumber = ayahNumber,
                 surahNumber = surahNumber,
                 nextReviewAt = nextAt,
-                intervalIndex = 0,
+                intervalIndex = state.repetitions,
                 lastReviewedAt = now
             )
         )
     }
 
     private companion object {
-        val reviewIntervalsDays = listOf(1L, 3L, 7L, 14L, 30L)
         const val dayMillis = 24L * 60 * 60 * 1000
     }
 }

@@ -12,6 +12,9 @@ interface SurahTodoDao {
     @Upsert
     suspend fun upsert(entity: SurahTodoEntity)
 
+    @Upsert
+    suspend fun upsertAll(entities: List<SurahTodoEntity>)
+
     @Delete
     suspend fun delete(entity: SurahTodoEntity)
 
@@ -20,4 +23,7 @@ interface SurahTodoDao {
 
     @Query("SELECT * FROM surah_todo")
     fun getAllSurahTodo(): Flow<List<SurahTodoEntity>>
+
+    @Query("DELETE FROM surah_todo")
+    suspend fun clear()
 }

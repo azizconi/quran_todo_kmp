@@ -33,6 +33,8 @@ expect object UserSettingsStorage {
     fun saveWeakAyahKeys(keys: Set<String>)
     fun getRecitationMetricsJson(): String?
     fun saveRecitationMetricsJson(value: String)
+    fun getReviewStateJson(): String?
+    fun saveReviewStateJson(value: String)
     fun isFeatureGuideSeen(): Boolean?
     fun saveFeatureGuideSeen(seen: Boolean)
 }

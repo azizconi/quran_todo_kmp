@@ -19,6 +19,7 @@ private const val KEY_TARGET_AYAHS = "target_ayahs"
 private const val KEY_TARGET_EPOCH_DAY = "target_epoch_day"
 private const val KEY_WEAK_AYAHS = "weak_ayahs"
 private const val KEY_RECITATION_METRICS_JSON = "recitation_metrics_json"
+private const val KEY_REVIEW_STATE_JSON = "review_state_json"
 private const val KEY_FEATURE_GUIDE_SEEN = "feature_guide_seen"
 
 actual object UserSettingsStorage {
@@ -149,6 +150,13 @@ actual object UserSettingsStorage {
 
     actual fun saveRecitationMetricsJson(value: String) {
         defaults.setObject(value, forKey = KEY_RECITATION_METRICS_JSON)
+    }
+
+    actual fun getReviewStateJson(): String? =
+        defaults.stringForKey(KEY_REVIEW_STATE_JSON)
+
+    actual fun saveReviewStateJson(value: String) {
+        defaults.setObject(value, forKey = KEY_REVIEW_STATE_JSON)
     }
 
     actual fun isFeatureGuideSeen(): Boolean? =

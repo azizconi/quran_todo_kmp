@@ -12,6 +12,9 @@ interface AyahTodoDao {
     @Upsert
     suspend fun upsert(entity: AyahTodoEntity)
 
+    @Upsert
+    suspend fun upsertAll(entities: List<AyahTodoEntity>)
+
     @Delete
     suspend fun delete(entity: AyahTodoEntity)
 
@@ -24,9 +27,15 @@ interface AyahTodoDao {
     @Query("SELECT * FROM ayah_todo")
     fun getAll(): Flow<List<AyahTodoEntity>>
 
+    @Query("SELECT * FROM ayah_todo")
+    suspend fun getAllOnce(): List<AyahTodoEntity>
+
     @Query("DELETE FROM ayah_todo WHERE surahNumber = :surahNumber")
     suspend fun deleteBySurahNumber(surahNumber: Int)
 
     @Query("DELETE FROM ayah_todo WHERE ayahNumber = :ayahNumber")
     suspend fun deleteByAyahNumber(ayahNumber: Int)
+
+    @Query("DELETE FROM ayah_todo")
+    suspend fun clear()
 }

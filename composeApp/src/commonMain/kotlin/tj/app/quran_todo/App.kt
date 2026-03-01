@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +37,7 @@ import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppLanguageSetter
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.i18n.stringsFor
+import tj.app.quran_todo.common.reminder.ReminderScheduler
 import tj.app.quran_todo.common.settings.AppSettings
 import tj.app.quran_todo.common.settings.LocalAppSettings
 import tj.app.quran_todo.common.settings.LocalAppSettingsSetter
@@ -109,6 +111,14 @@ fun App() {
         )
     }
     var appSettings by remember { mutableStateOf(initialSettings) }
+
+    LaunchedEffect(appSettings.remindersEnabled, strings.reminderTitle, strings.reminderBody) {
+        ReminderScheduler.syncDailyReminder(
+            enabled = appSettings.remindersEnabled,
+            title = strings.reminderTitle,
+            body = strings.reminderBody
+        )
+    }
 
     CompositionLocalProvider(
         LocalAppStrings provides strings,

@@ -15,6 +15,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
 import tj.app.quran_todo.common.recitation.RecitationPerformanceStore
+import tj.app.quran_todo.common.settings.parseAyahKey
 import tj.app.quran_todo.common.settings.UserSettingsStorage
 import tj.app.quran_todo.common.utils.parseSurahList
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
@@ -45,6 +46,14 @@ data class StatsUiState(
     val recitationBestStreak: Int = 0,
     val recitationScore: Int = 0,
     val recitationTopSurahs: List<RecitationTopSurahUi> = emptyList(),
+    val ayahUpdates7: Int = 0,
+    val ayahUpdates30: Int = 0,
+    val ayahUpdates90: Int = 0,
+    val focusMinutes7: Int = 0,
+    val focusMinutes30: Int = 0,
+    val focusMinutes90: Int = 0,
+    val surahPeriodActivity: List<SurahPeriodActivityUi> = emptyList(),
+    val weakSurahReport: List<WeakSurahReportUi> = emptyList(),
 ) {
     val idleSurahs: Int get() = (totalSurahs - learnedSurahs - learningSurahs).coerceAtLeast(0)
     val idleAyahs: Int get() = (totalAyahs - learnedAyahs - learningAyahs).coerceAtLeast(0)
@@ -57,6 +66,21 @@ data class RecitationTopSurahUi(
     val surahLabel: String,
     val attempts: Int,
     val accuracy: Float,
+)
+
+data class SurahPeriodActivityUi(
+    val surahNumber: Int,
+    val surahLabel: String,
+    val count7: Int,
+    val count30: Int,
+    val count90: Int,
+)
+
+data class WeakSurahReportUi(
+    val surahNumber: Int,
+    val surahLabel: String,
+    val weakCount: Int,
+    val sampleAyahNumbers: List<Int>,
 )
 
 class StatsViewModel(
@@ -102,8 +126,49 @@ class StatsViewModel(
                 val bestDayCount = activityDays.values.maxOrNull() ?: 0
                 val avgPerDay = calculateAveragePerDay(activityDays, today, 30)
                 val focusMinutes = focusSessions.sumOf { it.durationMinutes }
-                val weakAyahCount = UserSettingsStorage.getWeakAyahKeys()?.size ?: 0
+                val focusActivityDays = focusSessions
+                    .filter { it.startedAt > 0 }
+                    .groupBy { epochToLocalDay(it.startedAt) }
+                    .mapValues { (_, list) -> list.sumOf { it.durationMinutes } }
+                val weakKeys = UserSettingsStorage.getWeakAyahKeys().orEmpty()
+                val weakAyahCount = weakKeys.size
                 val last14DailyCounts = buildWindowCounts(activityDays, today, 14)
+                val ayahUpdates7 = sumInWindow(activityDays, today, 7)
+                val ayahUpdates30 = sumInWindow(activityDays, today, 30)
+                val ayahUpdates90 = sumInWindow(activityDays, today, 90)
+                val focusMinutes7 = sumInWindow(focusActivityDays, today, 7)
+                val focusMinutes30 = sumInWindow(focusActivityDays, today, 30)
+                val focusMinutes90 = sumInWindow(focusActivityDays, today, 90)
+
+                val surahPeriodActivity = ayahTodos
+                    .filter { it.updatedAt > 0 }
+                    .groupBy { it.surahNumber }
+                    .map { (surahNumber, entries) ->
+                        val countsByDay = entries
+                            .groupBy { epochToLocalDay(it.updatedAt) }
+                            .mapValues { it.value.size }
+                        SurahPeriodActivityUi(
+                            surahNumber = surahNumber,
+                            surahLabel = surahNameByNumber[surahNumber] ?: "Surah $surahNumber",
+                            count7 = sumInWindow(countsByDay, today, 7),
+                            count30 = sumInWindow(countsByDay, today, 30),
+                            count90 = sumInWindow(countsByDay, today, 90)
+                        )
+                    }
+                    .sortedByDescending { it.count30 }
+
+                val weakSurahReport = weakKeys
+                    .mapNotNull { parseAyahKey(it) }
+                    .groupBy { it.surahNumber }
+                    .map { (surahNumber, ayahs) ->
+                        WeakSurahReportUi(
+                            surahNumber = surahNumber,
+                            surahLabel = surahNameByNumber[surahNumber] ?: "Surah $surahNumber",
+                            weakCount = ayahs.size,
+                            sampleAyahNumbers = ayahs.map { it.ayahNumber }.sorted().take(6)
+                        )
+                    }
+                    .sortedByDescending { it.weakCount }
                 val recitationAttempts = recitationStats.attempts
                 val recitationMatches = recitationStats.matched
                 val recitationAccuracy = if (recitationAttempts > 0) {
@@ -164,7 +229,15 @@ class StatsViewModel(
                     recitationIssueRate = recitationIssueRate,
                     recitationBestStreak = recitationStats.bestStreak,
                     recitationScore = recitationScore,
-                    recitationTopSurahs = recitationTopSurahs
+                    recitationTopSurahs = recitationTopSurahs,
+                    ayahUpdates7 = ayahUpdates7,
+                    ayahUpdates30 = ayahUpdates30,
+                    ayahUpdates90 = ayahUpdates90,
+                    focusMinutes7 = focusMinutes7,
+                    focusMinutes30 = focusMinutes30,
+                    focusMinutes90 = focusMinutes90,
+                    surahPeriodActivity = surahPeriodActivity,
+                    weakSurahReport = weakSurahReport
                 )
             }.collect { state ->
                 _uiState.value = state
@@ -194,6 +267,15 @@ class StatsViewModel(
         val windowStart = today.minus(DatePeriod(days = windowDays - 1))
         val total = activityDays.filterKeys { it >= windowStart }.values.sum()
         return (total.toDouble() / windowDays).toInt()
+    }
+
+    private fun sumInWindow(
+        valuesByDay: Map<kotlinx.datetime.LocalDate, Int>,
+        today: kotlinx.datetime.LocalDate,
+        windowDays: Int,
+    ): Int {
+        val windowStart = today.minus(DatePeriod(days = windowDays - 1))
+        return valuesByDay.filterKeys { it >= windowStart }.values.sum()
     }
 
     private fun buildWindowCounts(

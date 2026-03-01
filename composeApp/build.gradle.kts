@@ -32,6 +32,8 @@ kotlin {
             linkerOpts.add("-lsqlite3")
             linkerOpts.add("-framework")
             linkerOpts.add("Speech")
+            linkerOpts.add("-framework")
+            linkerOpts.add("UserNotifications")
         }
     }
     

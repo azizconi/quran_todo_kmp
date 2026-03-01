@@ -169,13 +169,13 @@ object AyahRecitationMatcher {
         var j = 0
         val matches = mutableSetOf<Int>()
         while (i < expected.size && j < actual.size) {
-            if (expected[i] == actual[j]) {
+            if (isTokenMatch(expected[i], actual[j])) {
                 matches += i
                 i++
                 j++
-            } else if (i + 1 < expected.size && expected[i + 1] == actual[j]) {
+            } else if (i + 1 < expected.size && isTokenMatch(expected[i + 1], actual[j])) {
                 i++
-            } else if (j + 1 < actual.size && expected[i] == actual[j + 1]) {
+            } else if (j + 1 < actual.size && isTokenMatch(expected[i], actual[j + 1])) {
                 j++
             } else {
                 i++
@@ -190,19 +190,19 @@ object AyahRecitationMatcher {
         var i = 0
         var j = 0
         while (i < expected.size || j < actual.size) {
-            if (i < expected.size && j < actual.size && expected[i] == actual[j]) {
+            if (i < expected.size && j < actual.size && isTokenMatch(expected[i], actual[j])) {
                 i++
                 j++
                 continue
             }
 
-            if (i + 1 < expected.size && j < actual.size && expected[i + 1] == actual[j]) {
+            if (i + 1 < expected.size && j < actual.size && isTokenMatch(expected[i + 1], actual[j])) {
                 issues += RecitationIssue(type = RecitationIssueType.MISSING, expected = expected[i])
                 i++
                 continue
             }
 
-            if (j + 1 < actual.size && i < expected.size && expected[i] == actual[j + 1]) {
+            if (j + 1 < actual.size && i < expected.size && isTokenMatch(expected[i], actual[j + 1])) {
                 issues += RecitationIssue(type = RecitationIssueType.EXTRA, actual = actual[j])
                 j++
                 continue
@@ -241,7 +241,7 @@ object AyahRecitationMatcher {
 
         for (i in 1..expected.size) {
             for (j in 1..actual.size) {
-                val cost = if (expected[i - 1] == actual[j - 1]) 0 else 1
+                val cost = if (isTokenMatch(expected[i - 1], actual[j - 1])) 0 else 1
                 dp[i][j] = minOf(
                     dp[i - 1][j] + 1,
                     dp[i][j - 1] + 1,
@@ -250,6 +250,44 @@ object AyahRecitationMatcher {
             }
         }
         return dp[expected.size][actual.size]
+    }
+
+    private fun isTokenMatch(expected: String, actual: String): Boolean {
+        if (expected == actual) return true
+        val similarity = tokenSimilarity(expected, actual)
+        return similarity >= 0.74f
+    }
+
+    private fun tokenSimilarity(left: String, right: String): Float {
+        if (left == right) return 1f
+        if (left.isBlank() || right.isBlank()) return 0f
+        val maxLength = maxOf(left.length, right.length)
+        if (maxLength <= 0) return 1f
+        val distance = levenshteinChars(left, right)
+        return (1f - distance.toFloat() / maxLength.toFloat()).coerceIn(0f, 1f)
+    }
+
+    private fun levenshteinChars(left: String, right: String): Int {
+        if (left == right) return 0
+        if (left.isEmpty()) return right.length
+        if (right.isEmpty()) return left.length
+        val previous = IntArray(right.length + 1) { it }
+        val current = IntArray(right.length + 1)
+        for (i in left.indices) {
+            current[0] = i + 1
+            for (j in right.indices) {
+                val cost = if (left[i] == right[j]) 0 else 1
+                current[j + 1] = minOf(
+                    current[j] + 1,
+                    previous[j + 1] + 1,
+                    previous[j] + cost
+                )
+            }
+            for (j in previous.indices) {
+                previous[j] = current[j]
+            }
+        }
+        return previous[right.length]
     }
 }
 
