@@ -17,6 +17,7 @@ private const val KEY_TRANSLATION_DELAY = "translation_delay"
 private const val KEY_EXAM_MODE = "exam_mode"
 private const val KEY_TARGET_AYAHS = "target_ayahs"
 private const val KEY_TARGET_EPOCH_DAY = "target_epoch_day"
+private const val KEY_READING_FONT_SIZE = "reading_font_size"
 private const val KEY_WEAK_AYAHS = "weak_ayahs"
 private const val KEY_RECITATION_METRICS_JSON = "recitation_metrics_json"
 private const val KEY_REVIEW_STATE_JSON = "review_state_json"
@@ -134,6 +135,17 @@ actual object UserSettingsStorage {
 
     actual fun saveTargetEpochDay(epochDay: Int) {
         defaults.setInteger(epochDay.toLong(), forKey = KEY_TARGET_EPOCH_DAY)
+    }
+
+    actual fun getReadingFontSize(): Int? =
+        if (defaults.objectForKey(KEY_READING_FONT_SIZE) != null) {
+            defaults.integerForKey(KEY_READING_FONT_SIZE).toInt()
+        } else {
+            null
+        }
+
+    actual fun saveReadingFontSize(value: Int) {
+        defaults.setInteger(value.toLong(), forKey = KEY_READING_FONT_SIZE)
     }
 
     actual fun getWeakAyahKeys(): Set<String>? {

@@ -29,6 +29,8 @@ expect object UserSettingsStorage {
     fun saveTargetAyahs(value: Int)
     fun getTargetEpochDay(): Int?
     fun saveTargetEpochDay(epochDay: Int)
+    fun getReadingFontSize(): Int?
+    fun saveReadingFontSize(value: Int)
     fun getWeakAyahKeys(): Set<String>?
     fun saveWeakAyahKeys(keys: Set<String>)
     fun getRecitationMetricsJson(): String?

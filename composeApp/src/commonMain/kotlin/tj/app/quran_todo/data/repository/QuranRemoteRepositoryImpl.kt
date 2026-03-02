@@ -11,6 +11,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.utils.Constants
 import tj.app.quran_todo.common.utils.Resource
 import tj.app.quran_todo.data.database.dao.QuranDao
@@ -121,6 +122,11 @@ class QuranRemoteRepositoryImpl(
                         }
                     }
                 } catch (e: Exception) {
+                    AppTelemetry.logError(
+                        throwable = e,
+                        context = "quran_remote_load_failed",
+                        params = mapOf("with_local_action" to withLocalAction.toString())
+                    )
                     emit(Resource.Error("Unexpected error: ${e.message}"))
                 }
             } else {

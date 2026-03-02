@@ -18,14 +18,14 @@ fun <T> MutableState<T>.asState(): State<T> = this
 @Composable
 fun getQuranFontFamily(): FontFamily {
     return when (LocalReadingFontStyle.current) {
-        ReadingFontStyle.MUSHAF_MODERN -> FontFamily(
+        ReadingFontStyle.UTHMANI -> FontFamily(
             Font(Res.font.quran_font_2, weight = FontWeight.Normal, style = FontStyle.Normal)
         )
-        ReadingFontStyle.MUSHAF_CLASSIC -> FontFamily(
+        ReadingFontStyle.AMIRI_QURAN -> FontFamily(
             Font(Res.font.quran_font, weight = FontWeight.Normal, style = FontStyle.Normal)
         )
-        ReadingFontStyle.SANS -> FontFamily.SansSerif
-        ReadingFontStyle.SERIF -> FontFamily.Serif
-        ReadingFontStyle.MONO -> FontFamily.Monospace
+        ReadingFontStyle.SCHEHERAZADE_NEW -> FontFamily.Serif
+        ReadingFontStyle.NOTO_NASKH_ARABIC -> FontFamily.Serif
+        ReadingFontStyle.NOTO_NASTALIQ -> FontFamily.Cursive
     }
 }

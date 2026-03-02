@@ -1,13 +1,18 @@
 package tj.app.quran_todo.common.theme
 
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Colors
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Typography
 import androidx.compose.material.darkColors
 import androidx.compose.material.lightColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 enum class ThemeMode {
     LIGHT,
@@ -25,102 +30,233 @@ val LocalThemeModeSetter = staticCompositionLocalOf<(ThemeMode) -> Unit> { {} }
 val LocalThemePalette = staticCompositionLocalOf { ThemePalette.SAND }
 val LocalThemePaletteSetter = staticCompositionLocalOf<(ThemePalette) -> Unit> { {} }
 
+private data class NeutralTokens(
+    val bg: Color,
+    val surface: Color,
+    val surfaceAlt: Color,
+    val border: Color,
+    val textPrimary: Color,
+    val textSecondary: Color,
+    val textTertiary: Color,
+    val disabled: Color,
+    val shadow: Color,
+)
+
+private data class AccentTokens(
+    val primary: Color,
+    val primaryWeak: Color,
+    val primaryPressed: Color,
+)
+
+data class ExtendedColors(
+    val surfaceAlt: Color,
+    val border: Color,
+    val textSecondary: Color,
+    val textTertiary: Color,
+    val disabled: Color,
+    val shadow: Color,
+    val success: Color,
+    val warning: Color,
+    val danger: Color,
+    val info: Color,
+    val primaryWeak: Color,
+    val primaryPressed: Color,
+)
+
+private val LightNeutral = NeutralTokens(
+    bg = Color(0xFFF7F7F5),
+    surface = Color(0xFFFFFFFF),
+    surfaceAlt = Color(0xFFF2F3F1),
+    border = Color(0xFFE6E7E3),
+    textPrimary = Color(0xFF101113),
+    textSecondary = Color(0xFF5B5E66),
+    textTertiary = Color(0xFF7B7F89),
+    disabled = Color(0xFFB8BCC6),
+    shadow = Color(0x14000000),
+)
+
+private val DarkNeutral = NeutralTokens(
+    bg = Color(0xFF0F1012),
+    surface = Color(0xFF15171A),
+    surfaceAlt = Color(0xFF1C1F24),
+    border = Color(0xFF2A2E35),
+    textPrimary = Color(0xFFF2F4F7),
+    textSecondary = Color(0xFFB7BCC6),
+    textTertiary = Color(0xFF8F96A3),
+    disabled = Color(0xFF5B616D),
+    shadow = Color(0x66000000),
+)
+
+private val SemanticSuccess = Color(0xFF22C55E)
+private val SemanticWarning = Color(0xFFF59E0B)
+private val SemanticDanger = Color(0xFFEF4444)
+private val SemanticInfo = Color(0xFF3B82F6)
+
+private fun accentFor(palette: ThemePalette): AccentTokens = when (palette) {
+    ThemePalette.SAND -> AccentTokens(
+        primary = Color(0xFFC9A227),
+        primaryWeak = Color(0xFFF1E4B8),
+        primaryPressed = Color(0xFFA8841D),
+    )
+    ThemePalette.OCEAN -> AccentTokens(
+        primary = Color(0xFF1E88E5),
+        primaryWeak = Color(0xFFCFE6FB),
+        primaryPressed = Color(0xFF1569B5),
+    )
+    ThemePalette.FOREST -> AccentTokens(
+        primary = Color(0xFF2E7D32),
+        primaryWeak = Color(0xFFCFE8D0),
+        primaryPressed = Color(0xFF215A24),
+    )
+}
+
+private fun materialPalette(
+    mode: ThemeMode,
+    palette: ThemePalette,
+): Pair<Colors, ExtendedColors> {
+    val neutral = if (mode == ThemeMode.DARK) DarkNeutral else LightNeutral
+    val accent = accentFor(palette)
+    val colors = if (mode == ThemeMode.DARK) {
+        darkColors(
+            primary = accent.primary,
+            primaryVariant = accent.primaryPressed,
+            secondary = accent.primaryWeak,
+            secondaryVariant = accent.primaryPressed,
+            background = neutral.bg,
+            surface = neutral.surface,
+            error = SemanticDanger,
+            onPrimary = Color.White,
+            onSecondary = neutral.textPrimary,
+            onBackground = neutral.textPrimary,
+            onSurface = neutral.textPrimary,
+            onError = Color.White,
+        )
+    } else {
+        lightColors(
+            primary = accent.primary,
+            primaryVariant = accent.primaryPressed,
+            secondary = accent.primaryWeak,
+            secondaryVariant = accent.primaryPressed,
+            background = neutral.bg,
+            surface = neutral.surface,
+            error = SemanticDanger,
+            onPrimary = Color.White,
+            onSecondary = neutral.textPrimary,
+            onBackground = neutral.textPrimary,
+            onSurface = neutral.textPrimary,
+            onError = Color.White,
+        )
+    }
+
+    val extended = ExtendedColors(
+        surfaceAlt = neutral.surfaceAlt,
+        border = neutral.border,
+        textSecondary = neutral.textSecondary,
+        textTertiary = neutral.textTertiary,
+        disabled = neutral.disabled,
+        shadow = neutral.shadow,
+        success = SemanticSuccess,
+        warning = SemanticWarning,
+        danger = SemanticDanger,
+        info = SemanticInfo,
+        primaryWeak = accent.primaryWeak,
+        primaryPressed = accent.primaryPressed,
+    )
+
+    return colors to extended
+}
+
+private val appTypography = Typography(
+    h4 = TextStyle(
+        fontSize = 28.sp,
+        lineHeight = 34.sp,
+        fontWeight = FontWeight.Bold,
+    ),
+    h5 = TextStyle(
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        fontWeight = FontWeight.Bold,
+    ),
+    h6 = TextStyle(
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
+        fontWeight = FontWeight.SemiBold,
+    ),
+    subtitle1 = TextStyle(
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
+        fontWeight = FontWeight.SemiBold,
+    ),
+    body1 = TextStyle(
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        fontWeight = FontWeight.Normal,
+    ),
+    body2 = TextStyle(
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        fontWeight = FontWeight.Normal,
+    ),
+    caption = TextStyle(
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        fontWeight = FontWeight.Normal,
+    ),
+    button = TextStyle(
+        fontSize = 16.sp,
+        lineHeight = 20.sp,
+        fontWeight = FontWeight.SemiBold,
+    ),
+)
+
+val LocalExtendedColors = staticCompositionLocalOf {
+    ExtendedColors(
+        surfaceAlt = Color(0xFFF2F3F1),
+        border = Color(0xFFE6E7E3),
+        textSecondary = Color(0xFF5B5E66),
+        textTertiary = Color(0xFF7B7F89),
+        disabled = Color(0xFFB8BCC6),
+        shadow = Color(0x14000000),
+        success = SemanticSuccess,
+        warning = SemanticWarning,
+        danger = SemanticDanger,
+        info = SemanticInfo,
+        primaryWeak = Color(0xFFF1E4B8),
+        primaryPressed = Color(0xFFA8841D),
+    )
+}
+
+val MaterialTheme.extendedColors: ExtendedColors
+    @Composable
+    get() = LocalExtendedColors.current
+
 val Colors.mutedText: Color
-    get() = lerp(onSurface, surface, if (isLight) 0.34f else 0.26f)
+    @Composable
+    get() = MaterialTheme.extendedColors.textSecondary
 
 val Colors.faintText: Color
-    get() = lerp(onSurface, surface, if (isLight) 0.48f else 0.38f)
+    @Composable
+    get() = MaterialTheme.extendedColors.textTertiary
 
 val Colors.softSurface: Color
-    get() = lerp(surface, onSurface, if (isLight) 0.05f else 0.11f)
+    @Composable
+    get() = MaterialTheme.extendedColors.surfaceAlt
 
 val Colors.softSurfaceStrong: Color
-    get() = lerp(surface, onSurface, if (isLight) 0.1f else 0.2f)
+    @Composable
+    get() = lerp(surface, onSurface, if (isLight) 0.12f else 0.22f)
 
 val Colors.subtleBorder: Color
-    get() = lerp(surface, onSurface, if (isLight) 0.14f else 0.25f)
+    @Composable
+    get() = MaterialTheme.extendedColors.border
 
 val Colors.progressTrack: Color
-    get() = lerp(surface, onSurface, if (isLight) 0.12f else 0.22f)
+    @Composable
+    get() = lerp(surface, onSurface, if (isLight) 0.1f else 0.2f)
 
 fun Colors.tintedSurface(tint: Color, emphasis: Float = 0.16f): Color {
     val adjusted = if (isLight) emphasis else emphasis + 0.08f
     return lerp(surface, tint, adjusted.coerceIn(0f, 1f))
-}
-
-private fun lightPalette(palette: ThemePalette) = when (palette) {
-    ThemePalette.SAND -> lightColors(
-        primary = Color(0xFF9C6A38),
-        primaryVariant = Color(0xFF7C522A),
-        secondary = Color(0xFF2F7E73),
-        secondaryVariant = Color(0xFF236458),
-        background = Color(0xFFF7F3EE),
-        surface = Color(0xFFFFFCFA),
-        onPrimary = Color(0xFFFFFFFF),
-        onSecondary = Color(0xFFFFFFFF),
-        onBackground = Color(0xFF1E242C),
-        onSurface = Color(0xFF1E242C),
-    )
-    ThemePalette.OCEAN -> lightColors(
-        primary = Color(0xFF1E6FA8),
-        primaryVariant = Color(0xFF155987),
-        secondary = Color(0xFF107F76),
-        secondaryVariant = Color(0xFF0B655D),
-        background = Color(0xFFEFF5FA),
-        surface = Color(0xFFFAFCFF),
-        onPrimary = Color(0xFFFFFFFF),
-        onSecondary = Color(0xFFFFFFFF),
-        onBackground = Color(0xFF15222E),
-        onSurface = Color(0xFF15222E),
-    )
-    ThemePalette.FOREST -> lightColors(
-        primary = Color(0xFF2E7B5D),
-        primaryVariant = Color(0xFF225D46),
-        secondary = Color(0xFF9A6A3E),
-        secondaryVariant = Color(0xFF7A532E),
-        background = Color(0xFFF1F5F1),
-        surface = Color(0xFFFBFEFB),
-        onPrimary = Color(0xFFFFFFFF),
-        onSecondary = Color(0xFFFFFFFF),
-        onBackground = Color(0xFF1A241E),
-        onSurface = Color(0xFF1A241E),
-    )
-}
-
-private fun darkPalette(palette: ThemePalette) = when (palette) {
-    ThemePalette.SAND -> darkColors(
-        primary = Color(0xFFE1B17B),
-        primaryVariant = Color(0xFFC68E57),
-        secondary = Color(0xFF6AC3B1),
-        background = Color(0xFF101418),
-        surface = Color(0xFF1A2026),
-        onPrimary = Color(0xFF2F1B09),
-        onSecondary = Color(0xFF03211C),
-        onBackground = Color(0xFFEAE5DD),
-        onSurface = Color(0xFFEAE5DD),
-    )
-    ThemePalette.OCEAN -> darkColors(
-        primary = Color(0xFF79BBE9),
-        primaryVariant = Color(0xFF4D93CE),
-        secondary = Color(0xFF5EC8BC),
-        background = Color(0xFF0D141B),
-        surface = Color(0xFF15202B),
-        onPrimary = Color(0xFF062033),
-        onSecondary = Color(0xFF01241F),
-        onBackground = Color(0xFFE4EDF4),
-        onSurface = Color(0xFFE4EDF4),
-    )
-    ThemePalette.FOREST -> darkColors(
-        primary = Color(0xFF78C8A6),
-        primaryVariant = Color(0xFF4CA980),
-        secondary = Color(0xFFE0AA72),
-        background = Color(0xFF0E1512),
-        surface = Color(0xFF16211C),
-        onPrimary = Color(0xFF0E2419),
-        onSecondary = Color(0xFF2C1D10),
-        onBackground = Color(0xFFE2ECE5),
-        onSurface = Color(0xFFE2ECE5),
-    )
 }
 
 @Composable
@@ -129,9 +265,12 @@ fun AppTheme(
     palette: ThemePalette,
     content: @Composable () -> Unit,
 ) {
-    val colors = if (mode == ThemeMode.DARK) darkPalette(palette) else lightPalette(palette)
-    MaterialTheme(
-        colors = colors,
-        content = content
-    )
+    val (colors, extended) = materialPalette(mode, palette)
+    CompositionLocalProvider(LocalExtendedColors provides extended) {
+        MaterialTheme(
+            colors = colors,
+            typography = appTypography,
+            content = content
+        )
+    }
 }

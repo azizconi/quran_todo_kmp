@@ -23,6 +23,7 @@ data class SettingsSnapshot(
     val targetAyahs: Int,
     val targetEpochDay: Int,
     val examModeEnabled: Boolean,
+    val readingFontSize: Int = 24,
 )
 
 @Serializable

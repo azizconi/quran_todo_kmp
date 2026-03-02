@@ -4,26 +4,26 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import tj.app.quran_todo.common.i18n.AppStrings
 
 enum class ReadingFontStyle(val storageValue: String) {
-    MUSHAF_MODERN("mushaf_modern"),
-    MUSHAF_CLASSIC("mushaf_classic"),
-    SANS("sans"),
-    SERIF("serif"),
-    MONO("mono");
+    UTHMANI("uthmani"),
+    AMIRI_QURAN("amiri_quran"),
+    SCHEHERAZADE_NEW("scheherazade_new"),
+    NOTO_NASKH_ARABIC("noto_naskh_arabic"),
+    NOTO_NASTALIQ("noto_nastaliq");
 
     fun label(strings: AppStrings): String = when (this) {
-        MUSHAF_MODERN -> strings.fontMushafModernLabel
-        MUSHAF_CLASSIC -> strings.fontMushafClassicLabel
-        SANS -> strings.fontSansLabel
-        SERIF -> strings.fontSerifLabel
-        MONO -> strings.fontMonoLabel
+        UTHMANI -> strings.fontUthmaniLabel
+        AMIRI_QURAN -> strings.fontAmiriQuranLabel
+        SCHEHERAZADE_NEW -> strings.fontScheherazadeLabel
+        NOTO_NASKH_ARABIC -> strings.fontNotoNaskhLabel
+        NOTO_NASTALIQ -> strings.fontNotoNastaliqLabel
     }
 
     companion object {
         fun fromStorage(value: String?): ReadingFontStyle {
-            return values().firstOrNull { it.storageValue == value } ?: MUSHAF_MODERN
+            return values().firstOrNull { it.storageValue == value } ?: UTHMANI
         }
     }
 }
 
-val LocalReadingFontStyle = staticCompositionLocalOf { ReadingFontStyle.MUSHAF_MODERN }
+val LocalReadingFontStyle = staticCompositionLocalOf { ReadingFontStyle.UTHMANI }
 val LocalReadingFontStyleSetter = staticCompositionLocalOf<(ReadingFontStyle) -> Unit> { {} }

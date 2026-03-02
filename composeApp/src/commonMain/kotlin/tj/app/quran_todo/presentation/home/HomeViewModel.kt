@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.settings.AppSettings
 import tj.app.quran_todo.common.audio.AudioCache
 import tj.app.quran_todo.common.sync.CloudSyncStorage
@@ -154,18 +155,36 @@ class HomeViewModel(
     }
 
     fun deleteSurahFromTodo(entity: SurahTodoEntity) {
+        AppTelemetry.logEvent(
+            name = "home_surah_deleted",
+            params = mapOf("surah_number" to entity.surahNumber.toString())
+        )
         viewModelScope.launch(Dispatchers.IO) {
             todoDeleteSurahUseCase(entity)
         }
     }
 
     fun upsertSurahToTodo(entity: SurahTodoEntity) {
+        AppTelemetry.logEvent(
+            name = "home_surah_saved",
+            params = mapOf(
+                "surah_number" to entity.surahNumber.toString(),
+                "status" to entity.status.name.lowercase()
+            )
+        )
         viewModelScope.launch(Dispatchers.IO) {
             todoUpsertSurahUseCase(entity)
         }
     }
 
     fun setSurahStatus(surahNumber: Int, status: SurahTodoStatus?) {
+        AppTelemetry.logEvent(
+            name = "home_surah_status_changed",
+            params = mapOf(
+                "surah_number" to surahNumber.toString(),
+                "status" to (status?.name?.lowercase() ?: "cleared")
+            )
+        )
         viewModelScope.launch(Dispatchers.IO) {
             if (status == null) {
                 todoDeleteSurahByNumberUseCase(surahNumber)
@@ -213,6 +232,14 @@ class HomeViewModel(
         surahNumber: Int,
         quality: ReviewQuality = ReviewQuality.GOOD,
     ) {
+        AppTelemetry.logEvent(
+            name = "home_review_completed",
+            params = mapOf(
+                "surah_number" to surahNumber.toString(),
+                "ayah_number" to ayahNumber.toString(),
+                "quality" to quality.name.lowercase()
+            )
+        )
         viewModelScope.launch(Dispatchers.IO) {
             val now = getTimeMillis()
             val currentState = ReviewStateStore.get(ayahNumber)
@@ -263,6 +290,13 @@ class HomeViewModel(
                     offlineDownloadTotal = total,
                     offlineDownloadStatus = "DOWNLOADING"
                 )
+                AppTelemetry.logEvent(
+                    name = "home_offline_package_started",
+                    params = mapOf(
+                        "language" to language.name.lowercase(),
+                        "total_ayahs" to total.toString()
+                    )
+                )
 
                 val cache = AudioCache()
                 var done = 0
@@ -291,11 +325,19 @@ class HomeViewModel(
                     offlineDownloadRunning = false,
                     offlineDownloadStatus = "READY"
                 )
+                AppTelemetry.logEvent(
+                    name = "home_offline_package_completed",
+                    params = mapOf("total_ayahs" to total.toString())
+                )
             }
         }
     }
 
     fun recordFocusSession(durationMinutes: Int) {
+        AppTelemetry.logEvent(
+            name = "home_focus_session_completed",
+            params = mapOf("minutes" to durationMinutes.toString())
+        )
         viewModelScope.launch(Dispatchers.IO) {
             focusSessionDao.insert(
                 FocusSessionEntity(
@@ -317,6 +359,10 @@ class HomeViewModel(
     }
 
     fun syncProgressToCloud(settings: AppSettings) {
+        AppTelemetry.logEvent(
+            name = "home_cloud_sync_started",
+            params = mapOf("provider" to CloudSyncStorage.providerLabel())
+        )
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
                 val snapshot = ProgressSnapshot(
@@ -327,7 +373,8 @@ class HomeViewModel(
                         remindersEnabled = settings.remindersEnabled,
                         targetAyahs = settings.targetAyahs,
                         targetEpochDay = settings.targetEpochDay,
-                        examModeEnabled = settings.examModeEnabled
+                        examModeEnabled = settings.examModeEnabled,
+                        readingFontSize = settings.readingFontSize
                     ),
                     weakAyahKeys = weakAyahKeySet(),
                     recitationMetricsJson = UserSettingsStorage.getRecitationMetricsJson(),
@@ -369,21 +416,38 @@ class HomeViewModel(
                     lastSyncAt = snapshot.createdAt,
                     syncStatusMessage = "Synced to ${CloudSyncStorage.providerLabel()}."
                 )
+                AppTelemetry.logEvent(
+                    name = "home_cloud_sync_success",
+                    params = mapOf("provider" to CloudSyncStorage.providerLabel())
+                )
             }.onFailure {
                 _uiState.value = _uiState.value.copy(
                     syncStatusMessage = "Cloud sync failed."
+                )
+                AppTelemetry.logError(
+                    throwable = it,
+                    context = "home_cloud_sync_failed",
+                    params = mapOf("provider" to CloudSyncStorage.providerLabel())
                 )
             }
         }
     }
 
     fun restoreProgressFromCloud() {
+        AppTelemetry.logEvent(
+            name = "home_cloud_restore_started",
+            params = mapOf("provider" to CloudSyncStorage.providerLabel())
+        )
         viewModelScope.launch(Dispatchers.IO) {
             val raw = CloudSyncStorage.loadSnapshot()
             if (raw.isNullOrBlank()) {
                 _uiState.value = _uiState.value.copy(
                     hasCloudSnapshot = false,
                     syncStatusMessage = "No cloud snapshot found."
+                )
+                AppTelemetry.logEvent(
+                    name = "home_cloud_restore_skipped",
+                    params = mapOf("reason" to "snapshot_missing")
                 )
                 return@launch
             }
@@ -457,6 +521,7 @@ class HomeViewModel(
                 UserSettingsStorage.saveTargetAyahs(snapshot.settings.targetAyahs)
                 UserSettingsStorage.saveTargetEpochDay(snapshot.settings.targetEpochDay)
                 UserSettingsStorage.saveExamModeEnabled(snapshot.settings.examModeEnabled)
+                UserSettingsStorage.saveReadingFontSize(snapshot.settings.readingFontSize)
                 UserSettingsStorage.saveWeakAyahKeys(snapshot.weakAyahKeys)
                 UserSettingsStorage.saveRecitationMetricsJson(snapshot.recitationMetricsJson ?: "")
 
@@ -467,10 +532,19 @@ class HomeViewModel(
                     restoredSettings = snapshot.settings,
                     syncStatusMessage = "Restored from ${CloudSyncStorage.providerLabel()}."
                 )
+                AppTelemetry.logEvent(
+                    name = "home_cloud_restore_success",
+                    params = mapOf("provider" to CloudSyncStorage.providerLabel())
+                )
                 refreshDueReviews()
             }.onFailure {
                 _uiState.value = _uiState.value.copy(
                     syncStatusMessage = "Cloud restore failed."
+                )
+                AppTelemetry.logError(
+                    throwable = it,
+                    context = "home_cloud_restore_failed",
+                    params = mapOf("provider" to CloudSyncStorage.providerLabel())
                 )
             }
         }
@@ -509,6 +583,10 @@ class HomeViewModel(
     }
 
     fun refreshQuran(withLocalAction: Boolean = true) {
+        AppTelemetry.logEvent(
+            name = "home_quran_refresh_started",
+            params = mapOf("with_local_action" to withLocalAction.toString())
+        )
         completeQuranJob?.cancel()
         completeQuranJob = viewModelScope.launch {
             getCompleteQuranUseCase(withLocalAction).collect { result ->
@@ -525,11 +603,19 @@ class HomeViewModel(
                             isLoadingQuran = false,
                             errorMessage = null
                         )
+                        AppTelemetry.logEvent(
+                            name = "home_quran_refresh_success",
+                            params = mapOf("surah_count" to result.data.size.toString())
+                        )
                     }
                     is Resource.Error -> {
                         _uiState.value = _uiState.value.copy(
                             isLoadingQuran = false,
                             errorMessage = result.errorMessage
+                        )
+                        AppTelemetry.logEvent(
+                            name = "home_quran_refresh_failed",
+                            params = mapOf("message" to (result.errorMessage ?: "unknown"))
                         )
                     }
                     is Resource.Idle -> Unit
@@ -539,6 +625,10 @@ class HomeViewModel(
     }
 
     fun setFilter(filter: SurahTodoStatus?) {
+        AppTelemetry.logEvent(
+            name = "home_filter_changed",
+            params = mapOf("filter" to (filter?.name?.lowercase() ?: "all"))
+        )
         _uiState.value = _uiState.value.copy(filter = filter)
     }
 
@@ -559,6 +649,13 @@ class HomeViewModel(
     fun markSelected(status: SurahTodoStatus) {
         val selected = _uiState.value.selectedSurahNumbers
         if (selected.isEmpty()) return
+        AppTelemetry.logEvent(
+            name = "home_bulk_status_changed",
+            params = mapOf(
+                "count" to selected.size.toString(),
+                "status" to status.name.lowercase()
+            )
+        )
         selected.forEach { number ->
             setSurahStatus(number, status)
         }
@@ -566,6 +663,10 @@ class HomeViewModel(
     }
 
     fun openSurahDetail(surahNumber: Int) {
+        AppTelemetry.logEvent(
+            name = "home_surah_opened",
+            params = mapOf("surah_number" to surahNumber.toString())
+        )
         val surah = _uiState.value.completeQuran.firstOrNull {
             it.surah.number == surahNumber
         }

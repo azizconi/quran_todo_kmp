@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +17,7 @@ import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
+import androidx.compose.material.Slider
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -38,7 +40,9 @@ import tj.app.quran_todo.common.theme.tintedSurface
 @Composable
 fun FontOnboardingScreen(
     selected: ReadingFontStyle,
+    fontSize: Int,
     onSelected: (ReadingFontStyle) -> Unit,
+    onFontSizeChange: (Int) -> Unit,
     onContinue: () -> Unit,
 ) {
     val strings = LocalAppStrings.current
@@ -71,16 +75,45 @@ fun FontOnboardingScreen(
                 backgroundColor = MaterialTheme.colors.surface,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "الرَّحْمَٰنُ عَلَّمَ الْقُرْآنَ",
-                    style = MaterialTheme.typography.body1.copy(
-                        fontSize = 28.sp,
-                        fontFamily = previewFontFamily(selected)
-                    ),
-                    textAlign = TextAlign.End,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                Column(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "الرَّحْمَٰنُ • عَلَّمَ الْقُرْآنَ • خَلَقَ الْإِنسَانَ",
+                        style = MaterialTheme.typography.body1.copy(
+                            fontSize = fontSize.sp,
+                            lineHeight = (fontSize * 1.6f).sp,
+                            fontFamily = previewFontFamily(selected)
+                        ),
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = "فَعَلَّمَهُ الْبَيَانَ",
+                        style = MaterialTheme.typography.body1.copy(
+                            fontSize = (fontSize - 2).coerceAtLeast(18).sp,
+                            lineHeight = ((fontSize - 2).coerceAtLeast(18) * 1.6f).sp,
+                            fontFamily = previewFontFamily(selected)
+                        ),
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(strings.ayahSizeLabel, style = MaterialTheme.typography.caption)
+                    Text("$fontSize", style = MaterialTheme.typography.caption, color = MaterialTheme.colors.primary)
+                }
+                Slider(
+                    value = fontSize.toFloat(),
+                    onValueChange = { onFontSizeChange(it.toInt()) },
+                    valueRange = 18f..34f
                 )
             }
 
@@ -146,14 +179,14 @@ private fun FontOptionCard(
 @Composable
 private fun previewFontFamily(style: ReadingFontStyle): FontFamily {
     return when (style) {
-        ReadingFontStyle.MUSHAF_MODERN -> FontFamily(
+        ReadingFontStyle.UTHMANI -> FontFamily(
             Font(Res.font.quran_font_2, weight = FontWeight.Normal, style = FontStyle.Normal)
         )
-        ReadingFontStyle.MUSHAF_CLASSIC -> FontFamily(
+        ReadingFontStyle.AMIRI_QURAN -> FontFamily(
             Font(Res.font.quran_font, weight = FontWeight.Normal, style = FontStyle.Normal)
         )
-        ReadingFontStyle.SANS -> FontFamily.SansSerif
-        ReadingFontStyle.SERIF -> FontFamily.Serif
-        ReadingFontStyle.MONO -> FontFamily.Monospace
+        ReadingFontStyle.SCHEHERAZADE_NEW -> FontFamily.Serif
+        ReadingFontStyle.NOTO_NASKH_ARABIC -> FontFamily.Serif
+        ReadingFontStyle.NOTO_NASTALIQ -> FontFamily.Cursive
     }
 }

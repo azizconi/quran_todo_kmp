@@ -7,6 +7,7 @@ import io.ktor.util.date.getTimeMillis
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.code
 import tj.app.quran_todo.common.i18n.editionForLanguage
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.utils.Constants
 import tj.app.quran_todo.data.database.dao.AyahTranslationDao
 import tj.app.quran_todo.data.database.dao.ChapterNameCacheDao
@@ -69,7 +70,12 @@ class QuranReferenceRepositoryImpl(
                 )
             )
             map
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            AppTelemetry.logError(
+                throwable = error,
+                context = "chapter_names_load_failed",
+                params = mapOf("language" to language.name.lowercase())
+            )
             cachedMap
         }
     }
@@ -110,7 +116,15 @@ class QuranReferenceRepositoryImpl(
             translationsBySurah.values.forEach { ayahTranslationDao.insertAll(it) }
             val currentTranslations = translationsBySurah[surahNumber].orEmpty()
             currentTranslations.associate { it.ayahNumber to it.text }
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            AppTelemetry.logError(
+                throwable = error,
+                context = "ayah_translations_load_failed",
+                params = mapOf(
+                    "surah_number" to surahNumber.toString(),
+                    "language" to language.name.lowercase()
+                )
+            )
             emptyMap()
         }
     }

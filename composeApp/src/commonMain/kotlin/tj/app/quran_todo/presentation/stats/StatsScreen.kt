@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.settings.LocalAppSettings
 import tj.app.quran_todo.common.utils.currentLocalDate
@@ -60,6 +61,13 @@ fun StatsScreen(viewModel: StatsViewModel = koinViewModel()) {
 
     val uiState by viewModel.uiState.collectAsState()
     var teacherReportWindow by remember { mutableStateOf(30) }
+
+    LaunchedEffect(teacherReportWindow) {
+        AppTelemetry.logEvent(
+            name = "stats_report_window_changed",
+            params = mapOf("window_days" to teacherReportWindow.toString())
+        )
+    }
 
     val progress = if (uiState.totalAyahs > 0) {
         uiState.learnedAyahs.toFloat() / uiState.totalAyahs

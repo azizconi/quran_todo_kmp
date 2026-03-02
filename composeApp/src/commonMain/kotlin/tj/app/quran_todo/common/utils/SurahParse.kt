@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.json.surahJson
 import tj.app.quran_todo.domain.model.SurahList
 import tj.app.quran_todo.domain.model.SurahModel
@@ -16,7 +17,7 @@ suspend fun parseSurahList(): List<SurahModel> = withContext(Dispatchers.IO) {
         val result = json.decodeFromString<SurahList>(surahJson)
         result.surahs
     } catch (e: Exception) {
-        println("Ошибка парсинга: ${e.message}")
+        AppTelemetry.logError(e, context = "parse_surah_list_failed")
         emptyList()
     }
 }

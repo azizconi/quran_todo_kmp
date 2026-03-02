@@ -16,6 +16,7 @@ import androidx.compose.material.Icon
 import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
+import androidx.compose.material.Slider
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -48,6 +49,7 @@ import tj.app.quran_todo.common.utils.currentLocalDate
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.presentation.components.LanguagePicker
 import tj.app.quran_todo.presentation.onboarding.featureGuideItems
 
@@ -118,10 +120,30 @@ fun SettingsScreen() {
 
             item {
                 SettingsCard(title = strings.readingFontLabel) {
-                    ReadingFontSelector(
-                        selected = readingFont,
-                        onSelected = setReadingFont
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ReadingFontSelector(
+                            selected = readingFont,
+                            onSelected = setReadingFont
+                        )
+                        Text(
+                            text = "${strings.ayahSizeLabel}: ${settings.readingFontSize}",
+                            style = MaterialTheme.typography.caption,
+                            color = MaterialTheme.colors.mutedText
+                        )
+                        Slider(
+                            value = settings.readingFontSize.toFloat(),
+                            onValueChange = { value ->
+                                setSettings(settings.copy(readingFontSize = value.toInt().coerceIn(18, 34)))
+                            },
+                            onValueChangeFinished = {
+                                AppTelemetry.logEvent(
+                                    name = "settings_reading_size_changed",
+                                    params = mapOf("size" to settings.readingFontSize.toString())
+                                )
+                            },
+                            valueRange = 18f..34f
+                        )
+                    }
                 }
             }
 

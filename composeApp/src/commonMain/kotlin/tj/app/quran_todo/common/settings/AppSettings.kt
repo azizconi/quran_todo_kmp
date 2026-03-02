@@ -9,6 +9,7 @@ data class AppSettings(
     val targetAyahs: Int,
     val targetEpochDay: Int,
     val examModeEnabled: Boolean,
+    val readingFontSize: Int,
 )
 
 val LocalAppSettings = staticCompositionLocalOf {
@@ -18,7 +19,8 @@ val LocalAppSettings = staticCompositionLocalOf {
         remindersEnabled = true,
         targetAyahs = 300,
         targetEpochDay = 0,
-        examModeEnabled = false
+        examModeEnabled = false,
+        readingFontSize = 24,
     )
 }
 val LocalAppSettingsSetter = staticCompositionLocalOf<(AppSettings) -> Unit> { {} }

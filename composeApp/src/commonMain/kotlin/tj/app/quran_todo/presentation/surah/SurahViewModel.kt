@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.utils.parseSurahList
 import tj.app.quran_todo.data.database.dao.AyahNoteDao
 import tj.app.quran_todo.data.database.dao.AyahReviewDao
@@ -106,6 +107,14 @@ class SurahViewModel(
                 language = language,
                 expectedCount = expectedCount
             )
+            AppTelemetry.logEvent(
+                name = "surah_translations_loaded",
+                params = mapOf(
+                    "surah_number" to surahNumber.toString(),
+                    "language" to language.name.lowercase(),
+                    "count" to _ayahTranslations.value.size.toString()
+                )
+            )
         }
     }
 
@@ -123,6 +132,14 @@ class SurahViewModel(
         totalAyahs: Int,
         status: AyahTodoStatus,
     ) {
+        AppTelemetry.logEvent(
+            name = "surah_ayah_status_changed",
+            params = mapOf(
+                "surah_number" to surahNumber.toString(),
+                "ayah_number" to ayahNumber.toString(),
+                "status" to status.name.lowercase()
+            )
+        )
         viewModelScope.launch(Dispatchers.IO) {
             ayahTodoUpsertUseCase(
                 AyahTodoEntity(
@@ -138,6 +155,13 @@ class SurahViewModel(
     }
 
     fun clearAyahStatus(ayahNumber: Int, surahNumber: Int, totalAyahs: Int) {
+        AppTelemetry.logEvent(
+            name = "surah_ayah_status_cleared",
+            params = mapOf(
+                "surah_number" to surahNumber.toString(),
+                "ayah_number" to ayahNumber.toString()
+            )
+        )
         viewModelScope.launch(Dispatchers.IO) {
             ayahTodoDeleteByAyahUseCase(ayahNumber)
             ayahReviewDao.deleteByAyahNumber(ayahNumber)
@@ -147,6 +171,13 @@ class SurahViewModel(
     }
 
     fun upsertNote(ayahNumber: Int, surahNumber: Int, note: String) {
+        AppTelemetry.logEvent(
+            name = if (note.isBlank()) "surah_note_cleared" else "surah_note_saved",
+            params = mapOf(
+                "surah_number" to surahNumber.toString(),
+                "ayah_number" to ayahNumber.toString()
+            )
+        )
         viewModelScope.launch(Dispatchers.IO) {
             if (note.isBlank()) {
                 ayahNoteDao.getByAyahNumber(ayahNumber)?.let { ayahNoteDao.delete(it) }
@@ -168,6 +199,14 @@ class SurahViewModel(
         surahNumber: Int,
         quality: ReviewQuality = ReviewQuality.GOOD,
     ) {
+        AppTelemetry.logEvent(
+            name = "surah_review_completed",
+            params = mapOf(
+                "surah_number" to surahNumber.toString(),
+                "ayah_number" to ayahNumber.toString(),
+                "quality" to quality.name.lowercase()
+            )
+        )
         viewModelScope.launch(Dispatchers.IO) {
             val now = getTimeMillis()
             val currentState = ReviewStateStore.get(ayahNumber)

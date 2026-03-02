@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "488795238299",
+    "project_id": "quran-hifz-c7a81",
+    "storage_bucket": "quran-hifz-c7a81.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:488795238299:android:c0b63f13c57b57d3be3b3e",
+        "android_client_info": {
+          "package_name": "tj.app.quran_todo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBo5blvVFLm3nnZOuzIk0uvM-_dVbEOytA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

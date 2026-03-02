@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.LanguageStorage
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
@@ -59,9 +60,8 @@ import tj.app.quran_todo.common.theme.ThemeStorage
 import tj.app.quran_todo.common.theme.mutedText
 import tj.app.quran_todo.common.utils.currentLocalDate
 import tj.app.quran_todo.navigation.AppNavHost
-import tj.app.quran_todo.presentation.onboarding.CardStyleOnboardingScreen
-import tj.app.quran_todo.presentation.onboarding.FeatureGuideOnboardingScreen
 import tj.app.quran_todo.presentation.onboarding.FontOnboardingScreen
+import tj.app.quran_todo.presentation.onboarding.GoalsOnboardingScreen
 import tj.app.quran_todo.presentation.onboarding.LanguageOnboardingScreen
 
 @Composable
@@ -84,16 +84,18 @@ fun App() {
     var themePalette by remember { mutableStateOf(initialPalette) }
     val savedReadingFontStyle = remember { ThemeStorage.getSavedReadingFontStyle() }
     var readingFontStyle by remember {
-        mutableStateOf(savedReadingFontStyle ?: ReadingFontStyle.MUSHAF_MODERN)
+        mutableStateOf(savedReadingFontStyle ?: ReadingFontStyle.UTHMANI)
     }
     var requireFontOnboarding by remember { mutableStateOf(savedReadingFontStyle == null) }
     val savedAyahCardStyle = remember { ThemeStorage.getSavedAyahCardStyle() }
     var ayahCardStyle by remember {
         mutableStateOf(savedAyahCardStyle ?: AyahCardStyle.CLASSIC)
     }
-    var requireAyahCardStyleOnboarding by remember { mutableStateOf(savedAyahCardStyle == null) }
-    var requireFeatureGuideOnboarding by remember {
-        mutableStateOf(UserSettingsStorage.isFeatureGuideSeen() != true)
+    var requireGoalsOnboarding by remember {
+        mutableStateOf(
+            UserSettingsStorage.getDailyGoal() == null ||
+                UserSettingsStorage.getTargetEpochDay() == null
+        )
     }
 
     val strings = remember(language) { stringsFor(language) }
@@ -107,7 +109,8 @@ fun App() {
             remindersEnabled = UserSettingsStorage.isReminderEnabled() ?: true,
             targetAyahs = UserSettingsStorage.getTargetAyahs() ?: 300,
             targetEpochDay = UserSettingsStorage.getTargetEpochDay() ?: (todayEpochDay + 60),
-            examModeEnabled = UserSettingsStorage.isExamModeEnabled() ?: false
+            examModeEnabled = UserSettingsStorage.isExamModeEnabled() ?: false,
+            readingFontSize = UserSettingsStorage.getReadingFontSize() ?: 24,
         )
     }
     var appSettings by remember { mutableStateOf(initialSettings) }
@@ -120,35 +123,99 @@ fun App() {
         )
     }
 
+    val activeScreen = when {
+        requireLanguageOnboarding -> "onboarding_language"
+        requireFontOnboarding -> "onboarding_font"
+        requireGoalsOnboarding -> "onboarding_goals"
+        current == AppTab.Home -> "home"
+        current == AppTab.Stats -> "stats"
+        else -> "settings"
+    }
+
+    LaunchedEffect(Unit) {
+        AppTelemetry.logEvent("app_opened")
+    }
+
+    LaunchedEffect(activeScreen) {
+        AppTelemetry.logScreen(activeScreen)
+    }
+
     CompositionLocalProvider(
         LocalAppStrings provides strings,
         LocalAppLanguage provides language,
         LocalAppLanguageSetter provides {
+            if (language != it) {
+                AppTelemetry.logEvent(
+                    name = "language_changed",
+                    params = mapOf(
+                        "from" to language.name.lowercase(),
+                        "to" to it.name.lowercase()
+                    )
+                )
+            }
             language = it
             LanguageStorage.saveLanguage(it)
         },
         LocalThemeMode provides themeMode,
         LocalThemeModeSetter provides {
+            if (themeMode != it) {
+                AppTelemetry.logEvent(
+                    name = "theme_mode_changed",
+                    params = mapOf("mode" to it.name.lowercase())
+                )
+            }
             themeMode = it
             ThemeStorage.saveThemeMode(it)
         },
         LocalThemePalette provides themePalette,
         LocalThemePaletteSetter provides {
+            if (themePalette != it) {
+                AppTelemetry.logEvent(
+                    name = "theme_palette_changed",
+                    params = mapOf("palette" to it.name.lowercase())
+                )
+            }
             themePalette = it
             ThemeStorage.saveThemePalette(it)
         },
         LocalReadingFontStyle provides readingFontStyle,
         LocalReadingFontStyleSetter provides {
+            if (readingFontStyle != it) {
+                AppTelemetry.logEvent(
+                    name = "reading_font_changed",
+                    params = mapOf("font" to it.name.lowercase())
+                )
+            }
             readingFontStyle = it
             ThemeStorage.saveReadingFontStyle(it)
         },
         LocalAyahCardStyle provides ayahCardStyle,
         LocalAyahCardStyleSetter provides {
+            if (ayahCardStyle != it) {
+                AppTelemetry.logEvent(
+                    name = "ayah_card_style_changed",
+                    params = mapOf("style" to it.name.lowercase())
+                )
+            }
             ayahCardStyle = it
             ThemeStorage.saveAyahCardStyle(it)
         },
         LocalAppSettings provides appSettings,
         LocalAppSettingsSetter provides {
+            val changedFields = buildList {
+                if (appSettings.dailyGoal != it.dailyGoal) add("daily_goal")
+                if (appSettings.focusMinutes != it.focusMinutes) add("focus_minutes")
+                if (appSettings.remindersEnabled != it.remindersEnabled) add("reminders")
+                if (appSettings.targetAyahs != it.targetAyahs) add("target_ayahs")
+                if (appSettings.targetEpochDay != it.targetEpochDay) add("target_day")
+                if (appSettings.examModeEnabled != it.examModeEnabled) add("exam_mode")
+            }
+            if (changedFields.isNotEmpty()) {
+                AppTelemetry.logEvent(
+                    name = "app_settings_changed",
+                    params = mapOf("fields" to changedFields.joinToString(","))
+                )
+            }
             appSettings = it
             UserSettingsStorage.saveDailyGoal(it.dailyGoal)
             UserSettingsStorage.saveFocusMinutes(it.focusMinutes)
@@ -156,6 +223,7 @@ fun App() {
             UserSettingsStorage.saveTargetAyahs(it.targetAyahs)
             UserSettingsStorage.saveTargetEpochDay(it.targetEpochDay)
             UserSettingsStorage.saveExamModeEnabled(it.examModeEnabled)
+            UserSettingsStorage.saveReadingFontSize(it.readingFontSize)
         },
     ) {
         AppTheme(mode = themeMode, palette = themePalette) {
@@ -165,32 +233,58 @@ fun App() {
                     onSelected = { language = it },
                     onContinue = {
                         LanguageStorage.saveLanguage(language)
+                        AppTelemetry.logEvent(
+                            name = "onboarding_completed",
+                            params = mapOf(
+                                "step" to "language",
+                                "language" to language.name.lowercase()
+                            )
+                        )
                         requireLanguageOnboarding = false
                     }
                 )
             } else if (requireFontOnboarding) {
                 FontOnboardingScreen(
                     selected = readingFontStyle,
+                    fontSize = appSettings.readingFontSize,
                     onSelected = { readingFontStyle = it },
+                    onFontSizeChange = { size ->
+                        appSettings = appSettings.copy(readingFontSize = size.coerceIn(18, 34))
+                    },
                     onContinue = {
                         ThemeStorage.saveReadingFontStyle(readingFontStyle)
+                        UserSettingsStorage.saveReadingFontSize(appSettings.readingFontSize)
+                        AppTelemetry.logEvent(
+                            name = "onboarding_completed",
+                            params = mapOf(
+                                "step" to "font",
+                                "font" to readingFontStyle.name.lowercase()
+                            )
+                        )
                         requireFontOnboarding = false
                     }
                 )
-            } else if (requireAyahCardStyleOnboarding) {
-                CardStyleOnboardingScreen(
-                    selected = ayahCardStyle,
-                    onSelected = { ayahCardStyle = it },
-                    onContinue = {
-                        ThemeStorage.saveAyahCardStyle(ayahCardStyle)
-                        requireAyahCardStyleOnboarding = false
-                    }
-                )
-            } else if (requireFeatureGuideOnboarding) {
-                FeatureGuideOnboardingScreen(
-                    onContinue = {
-                        UserSettingsStorage.saveFeatureGuideSeen(true)
-                        requireFeatureGuideOnboarding = false
+            } else if (requireGoalsOnboarding) {
+                GoalsOnboardingScreen(
+                    initialSettings = appSettings,
+                    onContinue = { next ->
+                        appSettings = next
+                        UserSettingsStorage.saveDailyGoal(next.dailyGoal)
+                        UserSettingsStorage.saveFocusMinutes(next.focusMinutes)
+                        UserSettingsStorage.saveReminderEnabled(next.remindersEnabled)
+                        UserSettingsStorage.saveTargetAyahs(next.targetAyahs)
+                        UserSettingsStorage.saveTargetEpochDay(next.targetEpochDay)
+                        UserSettingsStorage.saveExamModeEnabled(next.examModeEnabled)
+                        UserSettingsStorage.saveReadingFontSize(next.readingFontSize)
+                        AppTelemetry.logEvent(
+                            name = "onboarding_completed",
+                            params = mapOf(
+                                "step" to "goals",
+                                "daily_goal" to next.dailyGoal.toString(),
+                                "focus_minutes" to next.focusMinutes.toString()
+                            )
+                        )
+                        requireGoalsOnboarding = false
                     }
                 )
             } else {
@@ -210,6 +304,10 @@ fun App() {
                                 BottomNavigationItem(
                                     selected = current == AppTab.Home,
                                     onClick = {
+                                        AppTelemetry.logEvent(
+                                            name = "tab_selected",
+                                            params = mapOf("tab" to "home")
+                                        )
                                         switchTab(backStack, AppTab.Home)
                                     },
                                     selectedContentColor = MaterialTheme.colors.primary,
@@ -220,6 +318,10 @@ fun App() {
                                 BottomNavigationItem(
                                     selected = current == AppTab.Stats,
                                     onClick = {
+                                        AppTelemetry.logEvent(
+                                            name = "tab_selected",
+                                            params = mapOf("tab" to "stats")
+                                        )
                                         switchTab(backStack, AppTab.Stats)
                                     },
                                     selectedContentColor = MaterialTheme.colors.primary,
@@ -230,6 +332,10 @@ fun App() {
                                 BottomNavigationItem(
                                     selected = current == AppTab.Settings,
                                     onClick = {
+                                        AppTelemetry.logEvent(
+                                            name = "tab_selected",
+                                            params = mapOf("tab" to "settings")
+                                        )
                                         switchTab(backStack, AppTab.Settings)
                                     },
                                     selectedContentColor = MaterialTheme.colors.primary,

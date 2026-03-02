@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
+import androidx.compose.material.Button
 import androidx.compose.material.DismissDirection
 import androidx.compose.material.DismissValue
 import androidx.compose.material.ExperimentalMaterialApi
@@ -76,6 +77,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.audio.AudioCache
 import tj.app.quran_todo.common.audio.AudioPlayer
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
@@ -95,6 +97,7 @@ import tj.app.quran_todo.common.theme.AyahCardStyle
 import tj.app.quran_todo.common.theme.LocalAyahCardStyle
 import tj.app.quran_todo.common.theme.mutedText
 import tj.app.quran_todo.common.theme.progressTrack
+import tj.app.quran_todo.common.theme.softSurface
 import tj.app.quran_todo.common.theme.tintedSurface
 import tj.app.quran_todo.common.utils.ayahStableId
 import tj.app.quran_todo.common.utils.getQuranFontFamily
@@ -148,9 +151,13 @@ fun SurahScreen(
     var durationMs by remember { mutableStateOf(0L) }
     var noteTarget by remember { mutableStateOf<AyahEntity?>(null) }
     var noteDraft by remember { mutableStateOf("") }
+    var mode by remember { mutableStateOf(SurahMode.LEARN) }
     var examMode by remember { mutableStateOf(appSettings.examModeEnabled) }
     var revealedAyahNumbers by remember { mutableStateOf(setOf<Int>()) }
     var showWeakOnly by remember { mutableStateOf(false) }
+    var reviewWeakOnly by remember { mutableStateOf(false) }
+    var reviewShowTranslation by remember { mutableStateOf(false) }
+    var reviewMarkWeak by remember { mutableStateOf(false) }
     var voiceCheckAyahNumber by remember { mutableStateOf<Int?>(null) }
     var abCompareAyahNumber by remember { mutableStateOf<Int?>(null) }
     var weakAyahKeys by remember {
@@ -187,7 +194,32 @@ fun SurahScreen(
             }
         }
     }
-
+    val dueReviewAyahNumbers = remember(reviews) {
+        reviews.values
+            .filter { it.nextReviewAt <= getTimeMillis() }
+            .map { it.ayahNumber }
+            .toSet()
+    }
+    val modeAyahs = remember(
+        mode,
+        visibleAyahs,
+        audioList,
+        dueReviewAyahNumbers,
+        reviewWeakOnly,
+        weakAyahKeys,
+        currentAyahIndex
+    ) {
+        when (mode) {
+            SurahMode.LEARN -> visibleAyahs
+            SurahMode.REVIEW -> {
+                audioList.filter { ayah ->
+                    dueReviewAyahNumbers.contains(ayah.number) &&
+                        (!reviewWeakOnly || weakAyahKeys.contains("${ayah.surahNumber}:${ayah.number}"))
+                }
+            }
+            SurahMode.RECITE -> recitationFocusedAyahs(audioList, currentAyahIndex, radius = 5)
+        }
+    }
     LaunchedEffect(appSettings.examModeEnabled) {
         examMode = appSettings.examModeEnabled
     }
@@ -217,6 +249,13 @@ fun SurahScreen(
     LaunchedEffect(surahNumber) {
         viewModel.observeNotes(surahNumber)
         viewModel.observeReviews(surahNumber)
+    }
+
+    LaunchedEffect(surahNumber) {
+        AppTelemetry.logScreen(
+            screenName = "surah_detail",
+            params = mapOf("surah_number" to surahNumber.toString())
+        )
     }
 
     LaunchedEffect(surahNumber) {
@@ -435,6 +474,16 @@ fun SurahScreen(
             playbackSpeed = speedOverride
             audioPlayer.setPlaybackSpeed(speedOverride)
         }
+        val ayah = audioList.getOrNull(index)
+        AppTelemetry.logEvent(
+            name = "surah_playback_started",
+            params = mapOf(
+                "surah_number" to surahNumber.toString(),
+                "ayah_number" to (ayah?.number?.toString() ?: "-1"),
+                "mode" to playbackMode.name.lowercase(),
+                "speed" to playbackSpeed.toString()
+            )
+        )
         canResume = false
         val repeats = if (playbackMode == PlaybackMode.IMAM) 1 else repeatCount
         playAyahAt(index, repeats)
@@ -463,6 +512,10 @@ fun SurahScreen(
             recitationHighlightAyahNumber = null
             recitationHighlightWordIndexes = emptySet()
             recitationStatus = strings.recitationStoppedLabel
+            AppTelemetry.logEvent(
+                name = "surah_recitation_stopped",
+                params = mapOf("surah_number" to surahNumber.toString())
+            )
             return
         }
 
@@ -590,9 +643,20 @@ fun SurahScreen(
                 recitationEnabled = false
                 recitationHighlightAyahNumber = null
                 recitationHighlightWordIndexes = emptySet()
+                AppTelemetry.logEvent(
+                    name = "surah_recitation_error",
+                    params = mapOf(
+                        "surah_number" to surahNumber.toString(),
+                        "message" to message
+                    )
+                )
             }
         )
         recitationEnabled = started
+        AppTelemetry.logEvent(
+            name = if (started) "surah_recitation_started" else "surah_recitation_start_failed",
+            params = mapOf("surah_number" to surahNumber.toString())
+        )
         if (!started) {
             recitationStatus = recitationStatus ?: strings.recitationUnavailableLabel
         }
@@ -664,14 +728,34 @@ fun SurahScreen(
                         onPlayPause = {
                             if (isTranslationPause) {
                                 stopPlayback()
+                                AppTelemetry.logEvent(
+                                    name = "surah_playback_stopped",
+                                    params = mapOf("surah_number" to surahNumber.toString())
+                                )
                             } else if (isPlaying) {
                                 audioPlayer.pause()
                                 isPlaying = false
+                                AppTelemetry.logEvent(
+                                    name = "surah_playback_paused",
+                                    params = mapOf("surah_number" to surahNumber.toString())
+                                )
                             } else if (canResume) {
                                 audioPlayer.setPlaybackSpeed(playbackSpeed)
                                 audioPlayer.resume()
                                 isPlaying = true
+                                AppTelemetry.logEvent(
+                                    name = "surah_playback_resumed",
+                                    params = mapOf("surah_number" to surahNumber.toString())
+                                )
                             } else {
+                                AppTelemetry.logEvent(
+                                    name = "surah_playback_started",
+                                    params = mapOf(
+                                        "surah_number" to surahNumber.toString(),
+                                        "ayah_number" to activeAyah.number.toString(),
+                                        "mode" to playbackMode.name.lowercase()
+                                    )
+                                )
                                 playAyahAt(currentAyahIndex, if (playbackMode == PlaybackMode.IMAM) 1 else repeatCount)
                             }
                         }
@@ -708,6 +792,27 @@ fun SurahScreen(
                 )
             }
             item {
+                SurahModeSegmented(
+                    mode = mode,
+                    onModeSelected = { selected ->
+                        mode = selected
+                        AppTelemetry.logEvent(
+                            name = "surah_mode_changed",
+                            params = mapOf(
+                                "surah_number" to surahNumber.toString(),
+                                "mode" to selected.name.lowercase()
+                            )
+                        )
+                        if (selected != SurahMode.REVIEW) {
+                            reviewShowTranslation = false
+                            reviewMarkWeak = false
+                            reviewWeakOnly = false
+                        }
+                    }
+                )
+            }
+            if (mode == SurahMode.LEARN) {
+                item {
                 val loopStartText = loopStartAyahNumber?.let { number ->
                     val index = audioList.indexOfFirst { it.number == number }
                     if (index >= 0) "${strings.ayahsLabel} ${audioList[index].numberInSurah}" else null
@@ -729,21 +834,43 @@ fun SurahScreen(
                     translationDelayMs = translationDelayMs,
                     examMode = examMode,
                     showWeakOnly = showWeakOnly,
+                    showExamAndWeakToggles = false,
                     onPlayPause = {
                         if (isTranslationPause) {
                             stopPlayback()
+                            AppTelemetry.logEvent(
+                                name = "surah_playback_stopped",
+                                params = mapOf("surah_number" to surahNumber.toString())
+                            )
                         } else if (isPlaying) {
                             audioPlayer.pause()
                             isPlaying = false
+                            AppTelemetry.logEvent(
+                                name = "surah_playback_paused",
+                                params = mapOf("surah_number" to surahNumber.toString())
+                            )
                         } else if (canResume) {
                             audioPlayer.setPlaybackSpeed(playbackSpeed)
                             audioPlayer.resume()
                             isPlaying = true
+                            AppTelemetry.logEvent(
+                                name = "surah_playback_resumed",
+                                params = mapOf("surah_number" to surahNumber.toString())
+                            )
                         } else {
                             if (playbackMode == PlaybackMode.RANGE && resolveLoopRangeIndices() == null) {
                                 setLoopStartToCurrent()
                                 setLoopEndToCurrent()
                             }
+                            val ayahNumber = audioList.getOrNull(currentAyahIndex)?.number
+                            AppTelemetry.logEvent(
+                                name = "surah_playback_started",
+                                params = mapOf(
+                                    "surah_number" to surahNumber.toString(),
+                                    "ayah_number" to (ayahNumber?.toString() ?: "-1"),
+                                    "mode" to playbackMode.name.lowercase()
+                                )
+                            )
                             playAyahAt(currentAyahIndex, if (playbackMode == PlaybackMode.IMAM) 1 else repeatCount)
                         }
                     },
@@ -761,6 +888,13 @@ fun SurahScreen(
                             PlaybackMode.RANGE -> PlaybackMode.IMAM
                             PlaybackMode.IMAM -> PlaybackMode.SURAH
                         }
+                        AppTelemetry.logEvent(
+                            name = "surah_playback_mode_changed",
+                            params = mapOf(
+                                "surah_number" to surahNumber.toString(),
+                                "mode" to playbackMode.name.lowercase()
+                            )
+                        )
                     },
                     onSpeedChange = {
                         playbackSpeed = when (playbackSpeed) {
@@ -769,30 +903,57 @@ fun SurahScreen(
                             else -> 0.75f
                         }
                         audioPlayer.setPlaybackSpeed(playbackSpeed)
+                        AppTelemetry.logEvent(
+                            name = "surah_playback_speed_changed",
+                            params = mapOf(
+                                "surah_number" to surahNumber.toString(),
+                                "speed" to playbackSpeed.toString()
+                            )
+                        )
                     },
                     onSetLoopStart = { setLoopStartToCurrent() },
                     onSetLoopEnd = { setLoopEndToCurrent() },
                     onClearLoop = { clearLoopRange() },
-                    onToggleTranslationMode = { translationMode = !translationMode },
+                    onToggleTranslationMode = {
+                        translationMode = !translationMode
+                        AppTelemetry.logEvent(
+                            name = "surah_translation_mode_toggled",
+                            params = mapOf(
+                                "surah_number" to surahNumber.toString(),
+                                "enabled" to translationMode.toString()
+                            )
+                        )
+                    },
                     onTranslationDelayChange = {
                         translationDelayMs = when (translationDelayMs) {
                             2000L -> 3500L
                             3500L -> 5000L
                             else -> 2000L
                         }
+                        AppTelemetry.logEvent(
+                            name = "surah_translation_delay_changed",
+                            params = mapOf(
+                                "surah_number" to surahNumber.toString(),
+                                "delay_ms" to translationDelayMs.toString()
+                            )
+                        )
                     },
-                    onToggleExamMode = {
-                        val next = !examMode
-                        examMode = next
-                        if (!next) revealedAyahNumbers = emptySet()
-                        setAppSettings(appSettings.copy(examModeEnabled = next))
-                    },
+                    onToggleExamMode = {},
                     onToggleWeakOnly = {
                         showWeakOnly = !showWeakOnly
+                        AppTelemetry.logEvent(
+                            name = "surah_weak_filter_toggled",
+                            params = mapOf(
+                                "surah_number" to surahNumber.toString(),
+                                "enabled" to showWeakOnly.toString()
+                            )
+                        )
                     }
                 )
             }
-            item {
+            }
+            if (mode == SurahMode.RECITE) {
+                item {
                 RecitationCoachCard(
                     isListening = recitationEnabled,
                     status = recitationStatus,
@@ -801,7 +962,62 @@ fun SurahScreen(
                     onToggle = { toggleRecitation() }
                 )
             }
-            if (showWeakOnly && visibleAyahs.isEmpty()) {
+            }
+            if (mode == SurahMode.REVIEW) {
+                item {
+                    ReviewHeaderCard(
+                        queueSize = modeAyahs.size,
+                        weakOnly = reviewWeakOnly,
+                        examMode = examMode,
+                        showTranslation = reviewShowTranslation,
+                        markWeak = reviewMarkWeak,
+                        onToggleWeakOnly = {
+                            reviewWeakOnly = !reviewWeakOnly
+                            AppTelemetry.logEvent(
+                                name = "surah_review_weak_only_toggled",
+                                params = mapOf(
+                                    "surah_number" to surahNumber.toString(),
+                                    "enabled" to reviewWeakOnly.toString()
+                                )
+                            )
+                        },
+                        onToggleExamMode = {
+                            val next = !examMode
+                            examMode = next
+                            if (!next) revealedAyahNumbers = emptySet()
+                            setAppSettings(appSettings.copy(examModeEnabled = next))
+                            AppTelemetry.logEvent(
+                                name = "surah_exam_mode_toggled",
+                                params = mapOf(
+                                    "surah_number" to surahNumber.toString(),
+                                    "enabled" to next.toString()
+                                )
+                            )
+                        },
+                        onToggleTranslation = {
+                            reviewShowTranslation = !reviewShowTranslation
+                            AppTelemetry.logEvent(
+                                name = "surah_review_translation_toggled",
+                                params = mapOf(
+                                    "surah_number" to surahNumber.toString(),
+                                    "enabled" to reviewShowTranslation.toString()
+                                )
+                            )
+                        },
+                        onToggleMarkWeak = {
+                            reviewMarkWeak = !reviewMarkWeak
+                            AppTelemetry.logEvent(
+                                name = "surah_review_mark_weak_toggled",
+                                params = mapOf(
+                                    "surah_number" to surahNumber.toString(),
+                                    "enabled" to reviewMarkWeak.toString()
+                                )
+                            )
+                        }
+                    )
+                }
+            }
+            if (mode == SurahMode.LEARN && showWeakOnly && visibleAyahs.isEmpty()) {
                 item {
                     Card(
                         shape = RoundedCornerShape(14.dp),
@@ -819,12 +1035,30 @@ fun SurahScreen(
                     }
                 }
             }
-            items(visibleAyahs, key = { ayahStableId(it.surahNumber, it.numberInSurah) }) { ayah ->
+            if (mode != SurahMode.LEARN && modeAyahs.isEmpty()) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        elevation = 1.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Text(
+                            text = if (mode == SurahMode.REVIEW) strings.reviewEmptyLabel else strings.recitationNoDataLabel,
+                            style = MaterialTheme.typography.body2,
+                            color = MaterialTheme.colors.mutedText,
+                            modifier = Modifier.padding(14.dp)
+                        )
+                    }
+                }
+            }
+            items(modeAyahs, key = { ayahStableId(it.surahNumber, it.numberInSurah) }) { ayah ->
                 val status = todoByAyah[ayah.number]?.status
                 val translation = translations[ayah.number]
                 val note = notes[ayah.number]?.note
                 val review = reviews[ayah.number]
-                val reviewDue = review != null && review.nextReviewAt <= getTimeMillis()
+                val reviewDue = mode == SurahMode.REVIEW && review != null && review.nextReviewAt <= getTimeMillis()
                 val isActive = audioList.getOrNull(currentAyahIndex)?.number == ayah.number
                 val isTranslationFocus = translationFocusAyahNumber == ayah.number
                 val weakKey = "${ayah.surahNumber}:${ayah.number}"
@@ -833,6 +1067,8 @@ fun SurahScreen(
                 AyahCard(
                     ayah = ayah,
                     cardStyle = ayahCardStyle,
+                    baseAyahFontSize = appSettings.readingFontSize,
+                    focusMode = mode == SurahMode.REVIEW,
                     status = status,
                     statusLabel = when (status) {
                         AyahTodoStatus.LEARNED -> strings.learnedLabel
@@ -840,12 +1076,12 @@ fun SurahScreen(
                         null -> null
                     },
                     clearLabel = strings.clearLabel,
-                    translation = translation,
+                    translation = if (mode == SurahMode.REVIEW && !reviewShowTranslation) null else translation,
                     note = note,
                     reviewDue = reviewDue,
                     isActive = isActive,
                     isTranslationFocus = isTranslationFocus,
-                    isExamMode = examMode,
+                    isExamMode = mode != SurahMode.LEARN && examMode,
                     isRevealed = isRevealed,
                     isWeak = isWeak,
                     voiceCheckActive = voiceCheckAyahNumber == ayah.number,
@@ -873,7 +1109,7 @@ fun SurahScreen(
                         noteTarget = ayah
                         noteDraft = note ?: ""
                     },
-                    onToggleReveal = if (examMode) {
+                    onToggleReveal = if (mode != SurahMode.LEARN && examMode) {
                         {
                             revealedAyahNumbers = if (isRevealed) {
                                 revealedAyahNumbers - ayah.number
@@ -887,6 +1123,11 @@ fun SurahScreen(
                     onReviewQuality = if (reviewDue) {
                         { quality ->
                             viewModel.completeReview(ayah.number, surahNumber, quality)
+                            if (reviewMarkWeak) {
+                                val updated = weakAyahKeys + weakKey
+                                weakAyahKeys = updated
+                                UserSettingsStorage.saveWeakAyahKeys(updated)
+                            }
                             refreshWeakAyahs()
                         }
                     } else {
@@ -1008,6 +1249,110 @@ fun SurahScreen(
     }
 }
 
+private enum class SurahMode {
+    LEARN,
+    REVIEW,
+    RECITE,
+}
+
+@Composable
+private fun SurahModeSegmented(
+    mode: SurahMode,
+    onModeSelected: (SurahMode) -> Unit,
+) {
+    val strings = LocalAppStrings.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SurahMode.values().forEach { item ->
+            val selected = item == mode
+            val label = when (item) {
+                SurahMode.LEARN -> strings.surahModeLearnLabel
+                SurahMode.REVIEW -> strings.surahModeReviewLabel
+                SurahMode.RECITE -> strings.surahModeReciteLabel
+            }
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = if (selected) {
+                    MaterialTheme.colors.tintedSurface(MaterialTheme.colors.primary, 0.16f)
+                } else {
+                    MaterialTheme.colors.softSurface
+                },
+                modifier = Modifier.clickable { onModeSelected(item) }
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.caption,
+                    color = if (selected) MaterialTheme.colors.primary else MaterialTheme.colors.onSurface,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewHeaderCard(
+    queueSize: Int,
+    weakOnly: Boolean,
+    examMode: Boolean,
+    showTranslation: Boolean,
+    markWeak: Boolean,
+    onToggleWeakOnly: () -> Unit,
+    onToggleExamMode: () -> Unit,
+    onToggleTranslation: () -> Unit,
+    onToggleMarkWeak: () -> Unit,
+) {
+    val strings = LocalAppStrings.current
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        elevation = 2.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "${strings.reviewSessionTitle} • $queueSize",
+                style = MaterialTheme.typography.subtitle2,
+                fontWeight = FontWeight.SemiBold
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                InlineChip(
+                    label = if (weakOnly) strings.weakOnlyOnLabel else strings.weakOnlyOffLabel,
+                    tint = MaterialTheme.colors.primary,
+                    onClick = onToggleWeakOnly
+                )
+                InlineChip(
+                    label = if (examMode) strings.examModeOnLabel else strings.examModeOffLabel,
+                    tint = MaterialTheme.colors.secondary,
+                    onClick = onToggleExamMode
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                InlineChip(
+                    label = strings.reviewRevealTranslationLabel,
+                    tint = if (showTranslation) MaterialTheme.colors.primary else MaterialTheme.colors.mutedText,
+                    onClick = onToggleTranslation
+                )
+                InlineChip(
+                    label = strings.reviewMarkWeakLabel,
+                    tint = if (markWeak) MaterialTheme.colors.error else MaterialTheme.colors.mutedText,
+                    onClick = onToggleMarkWeak
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun SurahHeader(
     arabicName: String,
@@ -1078,6 +1423,7 @@ private fun AudioControls(
     translationDelayMs: Long,
     examMode: Boolean,
     showWeakOnly: Boolean,
+    showExamAndWeakToggles: Boolean = true,
     onPlayPause: () -> Unit,
     onRepeatChange: () -> Unit,
     onPlaybackModeChange: () -> Unit,
@@ -1224,20 +1570,152 @@ private fun AudioControls(
                 )
             }
 
+            if (showExamAndWeakToggles) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (examMode) LocalAppStrings.current.examModeOnLabel else LocalAppStrings.current.examModeOffLabel,
+                        style = MaterialTheme.typography.caption,
+                        modifier = Modifier.clickable { onToggleExamMode() }
+                    )
+                    Text(
+                        text = if (showWeakOnly) LocalAppStrings.current.weakOnlyOnLabel else LocalAppStrings.current.weakOnlyOffLabel,
+                        style = MaterialTheme.typography.caption,
+                        modifier = Modifier.clickable { onToggleWeakOnly() }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReciteModePanel(
+    strings: tj.app.quran_todo.common.i18n.AppStrings,
+    isListening: Boolean,
+    status: String?,
+    transcript: String,
+    match: RecitationMatch?,
+    examMode: Boolean,
+    onToggleExamMode: () -> Unit,
+    onToggleListen: () -> Unit,
+    onPermissionAction: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        elevation = 2.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (examMode) LocalAppStrings.current.examModeOnLabel else LocalAppStrings.current.examModeOffLabel,
-                    style = MaterialTheme.typography.caption,
-                    modifier = Modifier.clickable { onToggleExamMode() }
+                    text = strings.surahModeReciteLabel,
+                    style = MaterialTheme.typography.subtitle2,
+                    fontWeight = FontWeight.SemiBold
                 )
+                InlineChip(
+                    label = if (examMode) strings.examModeOnLabel else strings.examModeOffLabel,
+                    tint = MaterialTheme.colors.primary,
+                    onClick = onToggleExamMode
+                )
+            }
+
+            Button(
+                onClick = onToggleListen,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (isListening) strings.stopMicLabel else strings.startMicLabel)
+            }
+
+            if (!status.isNullOrBlank()) {
                 Text(
-                    text = if (showWeakOnly) LocalAppStrings.current.weakOnlyOnLabel else LocalAppStrings.current.weakOnlyOffLabel,
+                    text = status,
                     style = MaterialTheme.typography.caption,
-                    modifier = Modifier.clickable { onToggleWeakOnly() }
+                    color = MaterialTheme.colors.mutedText
+                )
+            }
+
+            val needsMicPermission = status == strings.recitationMicPermissionLabel
+            val needsTroubleshoot = status == strings.recitationUnavailableLabel
+            if (needsMicPermission || needsTroubleshoot) {
+                Surface(
+                    color = MaterialTheme.colors.softSurface,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (needsMicPermission) {
+                                strings.permissionMicReason
+                            } else {
+                                strings.recitationUnavailableLabel
+                            },
+                            style = MaterialTheme.typography.caption,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = if (needsMicPermission) {
+                                strings.permissionAllowMicLabel
+                            } else {
+                                strings.permissionTroubleshootLabel
+                            },
+                            style = MaterialTheme.typography.caption,
+                            color = MaterialTheme.colors.primary,
+                            modifier = Modifier.clickable { onPermissionAction() }
+                        )
+                    }
+                }
+            }
+
+            if (match != null) {
+                Text(
+                    text = "${strings.reciteMostLikelyAyahLabel}: ${match.ayahNumberInSurah} • ${(match.confidence * 100).toInt()}%",
+                    style = MaterialTheme.typography.body2,
+                    color = MaterialTheme.colors.primary
+                )
+                if (match.issues.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        match.issues.take(4).forEach { issue ->
+                            val issueLabel = when (issue.type) {
+                                RecitationIssueType.MISSING -> strings.reciteIssuesMissingLabel
+                                RecitationIssueType.EXTRA -> strings.reciteIssuesExtraLabel
+                                RecitationIssueType.REPLACED -> strings.reciteIssuesReplacedLabel
+                            }
+                            Text(
+                                text = "$issueLabel: ${issue.expected ?: issue.actual ?: "?"}",
+                                style = MaterialTheme.typography.caption,
+                                color = MaterialTheme.colors.error
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (transcript.isNotBlank()) {
+                Text(
+                    text = transcript,
+                    style = MaterialTheme.typography.body2,
+                    color = MaterialTheme.colors.onSurface
                 )
             }
         }
@@ -1381,6 +1859,8 @@ private fun RecitationMiniBar(
 private fun AyahCard(
     ayah: AyahEntity,
     cardStyle: AyahCardStyle,
+    baseAyahFontSize: Int,
+    focusMode: Boolean,
     status: AyahTodoStatus?,
     statusLabel: String?,
     clearLabel: String,
@@ -1446,11 +1926,10 @@ private fun AyahCard(
         AyahCardStyle.COMPACT -> 12.dp
         AyahCardStyle.FOCUS -> 18.dp
     }
-    val ayahFontSize = when (cardStyle) {
-        AyahCardStyle.CLASSIC -> 25.sp
-        AyahCardStyle.COMPACT -> 22.sp
-        AyahCardStyle.FOCUS -> 27.sp
-    }
+    val resolvedBase = baseAyahFontSize.coerceIn(18, 34)
+    val resolvedFont = (if (focusMode) resolvedBase + 2 else resolvedBase).coerceAtMost(36)
+    val ayahFontSize = resolvedFont.sp
+    val ayahLineHeight = (resolvedFont * if (focusMode) 1.75f else 1.6f).sp
     val numberBadgeSize = when (cardStyle) {
         AyahCardStyle.CLASSIC -> 32.dp
         AyahCardStyle.COMPACT -> 28.dp
@@ -1569,6 +2048,7 @@ private fun AyahCard(
                                 Text(
                                     text = "••••••••••••••••••••",
                                     fontSize = ayahFontSize,
+                                    lineHeight = ayahLineHeight,
                                     textAlign = TextAlign.End,
                                     modifier = Modifier.fillMaxWidth(),
                                     fontFamily = getQuranFontFamily()
@@ -1591,6 +2071,7 @@ private fun AyahCard(
                                     Text(
                                         text = highlightedText,
                                         fontSize = ayahFontSize,
+                                        lineHeight = ayahLineHeight,
                                         textAlign = TextAlign.End,
                                         modifier = Modifier.fillMaxWidth(),
                                         fontFamily = getQuranFontFamily()
@@ -1599,6 +2080,7 @@ private fun AyahCard(
                                     Text(
                                         text = ayah.text,
                                         fontSize = ayahFontSize,
+                                        lineHeight = ayahLineHeight,
                                         textAlign = TextAlign.End,
                                         modifier = Modifier.fillMaxWidth(),
                                         fontFamily = getQuranFontFamily()
