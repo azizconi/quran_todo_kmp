@@ -40,13 +40,13 @@ actual class RecitationRecognizer {
 
         AVAudioSession.sharedInstance().requestRecordPermission { granted ->
             if (!granted || !isRunning) {
-                reportError(RecitationErrorCode.MICROPHONE_PERMISSION)
+                reportErrorOnMain(RecitationErrorCode.MICROPHONE_PERMISSION)
                 return@requestRecordPermission
             }
             SFSpeechRecognizer.requestAuthorization { status ->
                 if (!isRunning) return@requestAuthorization
                 if (status != SFSpeechRecognizerAuthorizationStatus.SFSpeechRecognizerAuthorizationStatusAuthorized) {
-                    reportError(RecitationErrorCode.SPEECH_PERMISSION)
+                    reportErrorOnMain(RecitationErrorCode.SPEECH_PERMISSION)
                     return@requestAuthorization
                 }
                 dispatch_async(dispatch_get_main_queue()) {
@@ -107,11 +107,15 @@ actual class RecitationRecognizer {
         recognitionTask = recognizer.recognitionTaskWithRequest(request) { result, error ->
             val transcript = result?.bestTranscription?.formattedString
             if (!transcript.isNullOrBlank()) {
-                onResultCallback?.invoke(transcript, result?.isFinal() == true)
+                dispatch_async(dispatch_get_main_queue()) {
+                    if (isRunning) {
+                        onResultCallback?.invoke(transcript, result?.isFinal() == true)
+                    }
+                }
             }
 
             if (error != null) {
-                reportError(mapPlatformError(error.toString()))
+                reportErrorOnMain(mapPlatformError(error.toString()))
                 return@recognitionTaskWithRequest
             }
 
@@ -155,6 +159,12 @@ actual class RecitationRecognizer {
         if (!isRunning) return
         onErrorCallback?.invoke(message)
         stop()
+    }
+
+    private fun reportErrorOnMain(message: String) {
+        dispatch_async(dispatch_get_main_queue()) {
+            reportError(message)
+        }
     }
 
     private fun mapPlatformError(raw: String): String {

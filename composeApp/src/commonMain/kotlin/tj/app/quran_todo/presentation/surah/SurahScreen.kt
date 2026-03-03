@@ -30,6 +30,8 @@ import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.ModalBottomSheetLayout
+import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Surface
@@ -45,6 +47,7 @@ import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.rememberDismissState
+import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -106,6 +109,7 @@ import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
 import tj.app.quran_todo.presentation.review.ReviewQuality
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun SurahScreen(
     surahWithAyahs: SurahWithAyahs,
@@ -130,6 +134,7 @@ fun SurahScreen(
     val audioCache = remember { AudioCache() }
     val audioPlayer = remember { AudioPlayer() }
     val scope = rememberCoroutineScope()
+    val recitationStatusSheetState = rememberModalBottomSheetState(ModalBottomSheetValue.Hidden)
     var isPlaying by remember { mutableStateOf(false) }
     var canResume by remember { mutableStateOf(false) }
     var repeatCount by remember { mutableStateOf(UserSettingsStorage.getRepeatCount() ?: 1) }
@@ -170,6 +175,10 @@ fun SurahScreen(
     var recitationMatch by remember { mutableStateOf<RecitationMatch?>(null) }
     var recitationHighlightAyahNumber by remember { mutableStateOf<Int?>(null) }
     var recitationHighlightWordIndexes by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var recitationProgressiveRevealMode by remember { mutableStateOf(false) }
+    var recitationRevealedWordIndexes by remember {
+        mutableStateOf<Map<Int, Set<Int>>>(emptyMap())
+    }
     var recitationSessionDraft by remember { mutableStateOf(RecitationSessionDraft()) }
     var recitationAyahLevels by remember {
         mutableStateOf<Map<Int, RecitationPassLevel>>(emptyMap())
@@ -222,6 +231,11 @@ fun SurahScreen(
     }
     LaunchedEffect(appSettings.examModeEnabled) {
         examMode = appSettings.examModeEnabled
+    }
+    LaunchedEffect(mode) {
+        if (mode != SurahMode.RECITE) {
+            recitationStatusSheetState.hide()
+        }
     }
 
     DisposableEffect(Unit) {
@@ -511,6 +525,7 @@ fun SurahScreen(
             recitationMatch = null
             recitationHighlightAyahNumber = null
             recitationHighlightWordIndexes = emptySet()
+            recitationRevealedWordIndexes = emptyMap()
             recitationStatus = strings.recitationStoppedLabel
             AppTelemetry.logEvent(
                 name = "surah_recitation_stopped",
@@ -527,29 +542,41 @@ fun SurahScreen(
         recitationTranscript = ""
         recitationHighlightAyahNumber = null
         recitationHighlightWordIndexes = emptySet()
+        recitationRevealedWordIndexes = emptyMap()
         recitationSessionDraft = RecitationSessionDraft()
         recitationCursorIndex = currentAyahIndex.coerceIn(0, audioList.lastIndex.coerceAtLeast(0))
         recitationTokenBuffer = emptyList()
         val started = recitationRecognizer.start(
-            languageCode = "ar-SA",
+            languageCode = "ar",
             onResult = { text, isFinal ->
                 recitationTranscript = text
                 val anchorIndex = recitationCursorIndex.coerceIn(0, audioList.lastIndex.coerceAtLeast(0))
-                val focusedAyahs = recitationFocusedAyahs(audioList, anchorIndex, radius = 14)
-                val match = AyahRecitationMatcher.findBestAyah(text, focusedAyahs)
-                    ?: AyahRecitationMatcher.findBestAyah(text, audioList)
+                val focusedAyahs = recitationFocusedAyahs(
+                    allAyahs = audioList,
+                    anchorIndex = anchorIndex,
+                    radius = if (isFinal) 6 else 3
+                )
+                val nearbyMatch = AyahRecitationMatcher.findBestAyah(text, focusedAyahs)
+                val match = nearbyMatch ?: if (isFinal) {
+                    AyahRecitationMatcher.findBestAyah(text, audioList)
+                } else {
+                    null
+                }
                 recitationMatch = match
                 recitationHighlightWordIndexes = match?.matchedWordIndexes ?: emptySet()
+                val rawMatchIndex = match?.let { matched ->
+                    audioList.indexOfFirst { it.number == matched.ayahNumber }.takeIf { it >= 0 }
+                }
 
                 if (match != null) {
                     recitationHighlightAyahNumber = match.ayahNumber
-                    val index = audioList.indexOfFirst { it.number == match.ayahNumber }
-                    if (index >= 0) {
-                        currentAyahIndex = index
-                        recitationCursorIndex = index
-                    }
-                    if (examMode) {
-                        revealedAyahNumbers = revealedAyahNumbers + match.ayahNumber
+                    if (recitationProgressiveRevealMode) {
+                        val existingIndexes = recitationRevealedWordIndexes[match.ayahNumber].orEmpty()
+                        val mergedIndexes = (existingIndexes + match.matchedWordIndexes)
+                            .filter { it >= 0 }
+                            .toSet()
+                        recitationRevealedWordIndexes =
+                            recitationRevealedWordIndexes + (match.ayahNumber to mergedIndexes)
                     }
                     val issuePreview = match.issues.firstOrNull()?.let { describeIssueLocalized(it, strings) }
                     recitationStatus = if (issuePreview == null) {
@@ -564,6 +591,23 @@ fun SurahScreen(
                 }
 
                 if (!isFinal) return@start
+
+                val cursorBeforeAdvance = recitationCursorIndex.coerceIn(0, audioList.lastIndex.coerceAtLeast(0))
+                val alignedMatchIndex = resolveSequentialMatchIndex(
+                    currentCursor = cursorBeforeAdvance,
+                    matchIndex = rawMatchIndex,
+                    matchConfidence = match?.confidence ?: 0f,
+                    lastIndex = audioList.lastIndex
+                )
+                if (alignedMatchIndex != null) {
+                    recitationCursorIndex = alignedMatchIndex
+                    currentAyahIndex = alignedMatchIndex
+                    if (examMode) {
+                        audioList.getOrNull(alignedMatchIndex)?.let { alignedAyah ->
+                            revealedAyahNumbers = revealedAyahNumbers + alignedAyah.number
+                        }
+                    }
+                }
 
                 recitationSessionDraft = recitationSessionDraft.registerFinalAttempt(match)
                 recitationTokenBuffer = appendRecitationTokens(recitationTokenBuffer, text)
@@ -591,6 +635,10 @@ fun SurahScreen(
 
                     if (examMode) {
                         revealedAyahNumbers = revealedAyahNumbers + ayah.number
+                    }
+                    if (recitationProgressiveRevealMode) {
+                        recitationRevealedWordIndexes = recitationRevealedWordIndexes +
+                            (ayah.number to allWordIndexes(ayah.text))
                     }
 
                     latestAdvance = RecitationAdvanceResult(cursor, completion.passLevel)
@@ -626,12 +674,55 @@ fun SurahScreen(
                     if (previousLevel == null || passLevel.priority > previousLevel.priority) {
                         recitationAyahLevels = recitationAyahLevels + (match.ayahNumber to passLevel)
                     }
-                    voiceCheckAyahNumber = match.ayahNumber
-                    val issuePreview = match.issues.firstOrNull()?.let { describeIssueLocalized(it, strings) }
-                    recitationStatus = if (issuePreview == null) {
-                        "${strings.ayahsLabel} ${match.ayahNumberInSurah} ${strings.recitationAyahMatchedLabel} • ${passLevel.label(strings)}"
+                    val sequentialMatchIndex = alignedMatchIndex ?: rawMatchIndex
+                    val canAdvanceByMatch = passLevel != RecitationPassLevel.HARD &&
+                        sequentialMatchIndex != null &&
+                        sequentialMatchIndex in cursorBeforeAdvance..(cursorBeforeAdvance + 1)
+
+                    if (canAdvanceByMatch) {
+                        val matchedIndex = sequentialMatchIndex
+                            ?.coerceIn(0, audioList.lastIndex.coerceAtLeast(0))
+                            ?: cursorBeforeAdvance
+                        val matchedAyah = audioList[matchedIndex]
+                        viewModel.completeReview(
+                            ayahNumber = matchedAyah.number,
+                            surahNumber = surahNumber,
+                            quality = passLevel.reviewQuality
+                        )
+                        refreshWeakAyahs()
+                        if (examMode) {
+                            revealedAyahNumbers = revealedAyahNumbers + matchedAyah.number
+                        }
+                        if (recitationProgressiveRevealMode) {
+                            recitationRevealedWordIndexes = recitationRevealedWordIndexes +
+                                (matchedAyah.number to allWordIndexes(matchedAyah.text))
+                        }
+                        recitationTokenBuffer = emptyList()
+                        val nextIndex = (matchedIndex + 1).coerceAtMost(audioList.lastIndex)
+                        val baseStatus =
+                            "${strings.ayahsLabel} ${matchedAyah.numberInSurah} ${strings.recitationAyahMatchedLabel} • ${passLevel.label(strings)}"
+                        if (nextIndex > matchedIndex) {
+                            recitationCursorIndex = nextIndex
+                            currentAyahIndex = nextIndex
+                            recitationHighlightAyahNumber = audioList[nextIndex].number
+                            recitationHighlightWordIndexes = emptySet()
+                            recitationStatus = "$baseStatus → ${strings.ayahsLabel} ${audioList[nextIndex].numberInSurah}"
+                        } else {
+                            recitationCursorIndex = matchedIndex
+                            currentAyahIndex = matchedIndex
+                            recitationHighlightAyahNumber = matchedAyah.number
+                            recitationHighlightWordIndexes = emptySet()
+                            recitationStatus = baseStatus
+                        }
+                        voiceCheckAyahNumber = null
                     } else {
-                        "${strings.ayahsLabel} ${match.ayahNumberInSurah}: $issuePreview • ${passLevel.label(strings)}"
+                        voiceCheckAyahNumber = match.ayahNumber
+                        val issuePreview = match.issues.firstOrNull()?.let { describeIssueLocalized(it, strings) }
+                        recitationStatus = if (issuePreview == null) {
+                            "${strings.ayahsLabel} ${match.ayahNumberInSurah} ${strings.recitationAyahMatchedLabel} • ${passLevel.label(strings)}"
+                        } else {
+                            "${strings.ayahsLabel} ${match.ayahNumberInSurah}: $issuePreview • ${passLevel.label(strings)}"
+                        }
                     }
                 } else {
                     voiceCheckAyahNumber = null
@@ -643,6 +734,7 @@ fun SurahScreen(
                 recitationEnabled = false
                 recitationHighlightAyahNumber = null
                 recitationHighlightWordIndexes = emptySet()
+                recitationRevealedWordIndexes = emptyMap()
                 AppTelemetry.logEvent(
                     name = "surah_recitation_error",
                     params = mapOf(
@@ -662,6 +754,28 @@ fun SurahScreen(
         }
     }
 
+    ModalBottomSheetLayout(
+        sheetState = recitationStatusSheetState,
+        sheetBackgroundColor = MaterialTheme.colors.surface,
+        sheetElevation = 4.dp,
+        sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        sheetContent = {
+            RecitationStatusSheet(
+                isListening = recitationEnabled,
+                status = recitationStatus ?: strings.recitationStoppedLabel,
+                ayahLabel = recitationMatch?.let { "${strings.ayahsLabel} ${it.ayahNumberInSurah}" },
+                transcript = recitationTranscript,
+                match = recitationMatch,
+                progressiveRevealMode = recitationProgressiveRevealMode,
+                onToggleListen = { toggleRecitation() },
+                onToggleProgressiveReveal = {
+                    recitationProgressiveRevealMode = !recitationProgressiveRevealMode
+                    recitationRevealedWordIndexes = emptyMap()
+                },
+                onClose = { scope.launch { recitationStatusSheetState.hide() } }
+            )
+        }
+    ) {
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
         backgroundColor = MaterialTheme.colors.background,
@@ -684,82 +798,100 @@ fun SurahScreen(
             )
         },
         bottomBar = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (recitationEnabled) {
-                    RecitationMiniBar(
-                        label = recitationStatus ?: strings.recitationListeningLabel,
-                        ayahLabel = recitationMatch?.let { "${strings.ayahsLabel} ${it.ayahNumberInSurah}" },
-                        onStop = { toggleRecitation() }
-                    )
-                }
-                val activeAyah = audioList.getOrNull(currentAyahIndex)
-                if (activeAyah != null) {
-                    MiniPlayerBar(
-                        isPlaying = isPlaying,
-                        isPausedForTranslation = isTranslationPause,
-                        currentLabel = "${strings.ayahsLabel} ${activeAyah.numberInSurah} / $totalAyahs",
-                        progress = if (durationMs > 0) {
-                            (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
-                        } else {
-                            0f
-                        },
-                        onPrev = {
-                            cancelTranslationPause()
-                            val range = resolveLoopRangeIndices()
-                            val prevIndex = if (playbackMode == PlaybackMode.RANGE && range != null) {
-                                if (currentAyahIndex <= range.first) range.second else currentAyahIndex - 1
+            if (mode == SurahMode.RECITE) {
+                RecitationMiniBar(
+                    label = recitationStatus ?: if (recitationEnabled) {
+                        strings.recitationListeningLabel
+                    } else {
+                        strings.recitationStoppedLabel
+                    },
+                    ayahLabel = recitationMatch?.let { "${strings.ayahsLabel} ${it.ayahNumberInSurah}" },
+                    onStop = if (recitationEnabled) {
+                        { toggleRecitation() }
+                    } else {
+                        null
+                    },
+                    onOpenDetails = { scope.launch { recitationStatusSheetState.show() } }
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (recitationEnabled) {
+                        RecitationMiniBar(
+                            label = recitationStatus ?: strings.recitationListeningLabel,
+                            ayahLabel = recitationMatch?.let { "${strings.ayahsLabel} ${it.ayahNumberInSurah}" },
+                            onStop = { toggleRecitation() },
+                            onOpenDetails = { scope.launch { recitationStatusSheetState.show() } }
+                        )
+                    }
+                    val activeAyah = audioList.getOrNull(currentAyahIndex)
+                    if (activeAyah != null) {
+                        MiniPlayerBar(
+                            isPlaying = isPlaying,
+                            isPausedForTranslation = isTranslationPause,
+                            currentLabel = "${strings.ayahsLabel} ${activeAyah.numberInSurah} / $totalAyahs",
+                            progress = if (durationMs > 0) {
+                                (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
                             } else {
-                                (currentAyahIndex - 1).coerceAtLeast(0)
-                            }
-                            canResume = false
-                            playAyahAt(prevIndex, if (playbackMode == PlaybackMode.IMAM) 1 else repeatCount)
-                        },
-                        onNext = {
-                            cancelTranslationPause()
-                            val range = resolveLoopRangeIndices()
-                            val nextIndex = if (playbackMode == PlaybackMode.RANGE && range != null) {
-                                if (currentAyahIndex >= range.second) range.first else currentAyahIndex + 1
-                            } else {
-                                (currentAyahIndex + 1).coerceAtMost(audioList.lastIndex)
-                            }
-                            canResume = false
-                            playAyahAt(nextIndex, if (playbackMode == PlaybackMode.IMAM) 1 else repeatCount)
-                        },
-                        onPlayPause = {
-                            if (isTranslationPause) {
-                                stopPlayback()
-                                AppTelemetry.logEvent(
-                                    name = "surah_playback_stopped",
-                                    params = mapOf("surah_number" to surahNumber.toString())
-                                )
-                            } else if (isPlaying) {
-                                audioPlayer.pause()
-                                isPlaying = false
-                                AppTelemetry.logEvent(
-                                    name = "surah_playback_paused",
-                                    params = mapOf("surah_number" to surahNumber.toString())
-                                )
-                            } else if (canResume) {
-                                audioPlayer.setPlaybackSpeed(playbackSpeed)
-                                audioPlayer.resume()
-                                isPlaying = true
-                                AppTelemetry.logEvent(
-                                    name = "surah_playback_resumed",
-                                    params = mapOf("surah_number" to surahNumber.toString())
-                                )
-                            } else {
-                                AppTelemetry.logEvent(
-                                    name = "surah_playback_started",
-                                    params = mapOf(
-                                        "surah_number" to surahNumber.toString(),
-                                        "ayah_number" to activeAyah.number.toString(),
-                                        "mode" to playbackMode.name.lowercase()
+                                0f
+                            },
+                            onPrev = {
+                                cancelTranslationPause()
+                                val range = resolveLoopRangeIndices()
+                                val prevIndex = if (playbackMode == PlaybackMode.RANGE && range != null) {
+                                    if (currentAyahIndex <= range.first) range.second else currentAyahIndex - 1
+                                } else {
+                                    (currentAyahIndex - 1).coerceAtLeast(0)
+                                }
+                                canResume = false
+                                playAyahAt(prevIndex, if (playbackMode == PlaybackMode.IMAM) 1 else repeatCount)
+                            },
+                            onNext = {
+                                cancelTranslationPause()
+                                val range = resolveLoopRangeIndices()
+                                val nextIndex = if (playbackMode == PlaybackMode.RANGE && range != null) {
+                                    if (currentAyahIndex >= range.second) range.first else currentAyahIndex + 1
+                                } else {
+                                    (currentAyahIndex + 1).coerceAtMost(audioList.lastIndex)
+                                }
+                                canResume = false
+                                playAyahAt(nextIndex, if (playbackMode == PlaybackMode.IMAM) 1 else repeatCount)
+                            },
+                            onPlayPause = {
+                                if (isTranslationPause) {
+                                    stopPlayback()
+                                    AppTelemetry.logEvent(
+                                        name = "surah_playback_stopped",
+                                        params = mapOf("surah_number" to surahNumber.toString())
                                     )
-                                )
-                                playAyahAt(currentAyahIndex, if (playbackMode == PlaybackMode.IMAM) 1 else repeatCount)
+                                } else if (isPlaying) {
+                                    audioPlayer.pause()
+                                    isPlaying = false
+                                    AppTelemetry.logEvent(
+                                        name = "surah_playback_paused",
+                                        params = mapOf("surah_number" to surahNumber.toString())
+                                    )
+                                } else if (canResume) {
+                                    audioPlayer.setPlaybackSpeed(playbackSpeed)
+                                    audioPlayer.resume()
+                                    isPlaying = true
+                                    AppTelemetry.logEvent(
+                                        name = "surah_playback_resumed",
+                                        params = mapOf("surah_number" to surahNumber.toString())
+                                    )
+                                } else {
+                                    AppTelemetry.logEvent(
+                                        name = "surah_playback_started",
+                                        params = mapOf(
+                                            "surah_number" to surahNumber.toString(),
+                                            "ayah_number" to activeAyah.number.toString(),
+                                            "mode" to playbackMode.name.lowercase()
+                                        )
+                                    )
+                                    playAyahAt(currentAyahIndex, if (playbackMode == PlaybackMode.IMAM) 1 else repeatCount)
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -952,17 +1084,6 @@ fun SurahScreen(
                 )
             }
             }
-            if (mode == SurahMode.RECITE) {
-                item {
-                RecitationCoachCard(
-                    isListening = recitationEnabled,
-                    status = recitationStatus,
-                    transcript = recitationTranscript,
-                    match = recitationMatch,
-                    onToggle = { toggleRecitation() }
-                )
-            }
-            }
             if (mode == SurahMode.REVIEW) {
                 item {
                     ReviewHeaderCard(
@@ -1088,6 +1209,12 @@ fun SurahScreen(
                     abCompareActive = abCompareAyahNumber == ayah.number,
                     recitationHighlighted = recitationHighlightAyahNumber == ayah.number,
                     recitationPassLevel = recitationAyahLevels[ayah.number],
+                    progressiveRevealMode = mode == SurahMode.RECITE && recitationProgressiveRevealMode,
+                    progressiveRevealWordIndexes = if (mode == SurahMode.RECITE && recitationProgressiveRevealMode) {
+                        recitationRevealedWordIndexes[ayah.number].orEmpty()
+                    } else {
+                        emptySet()
+                    },
                     recitationHighlightWordIndexes = if (recitationHighlightAyahNumber == ayah.number) {
                         recitationHighlightWordIndexes
                     } else {
@@ -1191,6 +1318,7 @@ fun SurahScreen(
                 )
             }
         }
+    }
     }
 
     noteTarget?.let { ayah ->
@@ -1728,7 +1856,9 @@ private fun RecitationCoachCard(
     status: String?,
     transcript: String,
     match: RecitationMatch?,
+    progressiveRevealMode: Boolean,
     onToggle: () -> Unit,
+    onToggleProgressiveReveal: () -> Unit,
 ) {
     val strings = LocalAppStrings.current
     Card(
@@ -1780,6 +1910,12 @@ private fun RecitationCoachCard(
                 )
             }
 
+            InlineChip(
+                label = "${strings.revealLabel}: ${if (progressiveRevealMode) strings.enabledLabel else strings.disabledLabel}",
+                tint = if (progressiveRevealMode) MaterialTheme.colors.primary else MaterialTheme.colors.mutedText,
+                onClick = onToggleProgressiveReveal
+            )
+
             if (match != null) {
                 val confidencePercent = (match.confidence * 100).toInt()
                 Text(
@@ -1813,20 +1949,27 @@ private fun RecitationCoachCard(
 private fun RecitationMiniBar(
     label: String,
     ayahLabel: String?,
-    onStop: () -> Unit,
+    onStop: (() -> Unit)? = null,
+    onOpenDetails: (() -> Unit)? = null,
 ) {
     val strings = LocalAppStrings.current
     Card(
         elevation = 8.dp,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp)
+                .let { base ->
+                    if (onOpenDetails != null) {
+                        base.clickable { onOpenDetails() }
+                    } else {
+                        base
+                    }
+                },
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1844,11 +1987,119 @@ private fun RecitationMiniBar(
                     )
                 }
             }
+            if (onStop != null) {
+                Text(
+                    text = strings.stopMicLabel,
+                    style = MaterialTheme.typography.caption,
+                    color = MaterialTheme.colors.error,
+                    modifier = Modifier.clickable { onStop() }
+                )
+            } else if (onOpenDetails != null) {
+                Text(
+                    text = strings.statusLabel,
+                    style = MaterialTheme.typography.caption,
+                    color = MaterialTheme.colors.primary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecitationStatusSheet(
+    isListening: Boolean,
+    status: String,
+    ayahLabel: String?,
+    transcript: String,
+    match: RecitationMatch?,
+    progressiveRevealMode: Boolean,
+    onToggleListen: () -> Unit,
+    onToggleProgressiveReveal: () -> Unit,
+    onClose: () -> Unit,
+) {
+    val strings = LocalAppStrings.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
-                text = strings.stopMicLabel,
-                style = MaterialTheme.typography.caption,
-                color = MaterialTheme.colors.error,
-                modifier = Modifier.clickable { onStop() }
+                text = strings.recitationCoachTitle,
+                style = MaterialTheme.typography.subtitle1,
+                fontWeight = FontWeight.SemiBold
+            )
+            IconButton(onClick = onClose) {
+                Icon(Icons.Default.Close, contentDescription = null)
+            }
+        }
+
+        Text(
+            text = "${strings.statusLabel}: $status",
+            style = MaterialTheme.typography.body2,
+            color = MaterialTheme.colors.mutedText
+        )
+
+        if (!ayahLabel.isNullOrBlank()) {
+            Text(
+                text = ayahLabel,
+                style = MaterialTheme.typography.body2,
+                color = MaterialTheme.colors.primary
+            )
+        }
+
+        Surface(
+            color = if (isListening) {
+                MaterialTheme.colors.tintedSurface(MaterialTheme.colors.error, 0.22f)
+            } else {
+                MaterialTheme.colors.tintedSurface(MaterialTheme.colors.primary, 0.2f)
+            },
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.clickable { onToggleListen() }
+        ) {
+            Text(
+                text = if (isListening) strings.stopMicLabel else strings.startMicLabel,
+                style = MaterialTheme.typography.body2,
+                color = if (isListening) MaterialTheme.colors.error else MaterialTheme.colors.primary,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        }
+
+        InlineChip(
+            label = "${strings.revealLabel}: ${if (progressiveRevealMode) strings.enabledLabel else strings.disabledLabel}",
+            tint = if (progressiveRevealMode) MaterialTheme.colors.primary else MaterialTheme.colors.mutedText,
+            onClick = onToggleProgressiveReveal
+        )
+
+        if (match != null) {
+            Text(
+                text = "${strings.reciteMostLikelyAyahLabel}: ${match.ayahNumberInSurah} • ${(match.confidence * 100).toInt()}%",
+                style = MaterialTheme.typography.body2,
+                color = MaterialTheme.colors.primary
+            )
+            if (match.issues.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    match.issues.take(4).forEach { issue ->
+                        Text(
+                            text = describeIssueLocalized(issue, strings),
+                            style = MaterialTheme.typography.caption,
+                            color = MaterialTheme.colors.error
+                        )
+                    }
+                }
+            }
+        }
+
+        if (transcript.isNotBlank()) {
+            Text(
+                text = transcript,
+                style = MaterialTheme.typography.body2,
+                color = MaterialTheme.colors.onSurface
             )
         }
     }
@@ -1876,6 +2127,8 @@ private fun AyahCard(
     abCompareActive: Boolean,
     recitationHighlighted: Boolean,
     recitationPassLevel: RecitationPassLevel?,
+    progressiveRevealMode: Boolean,
+    progressiveRevealWordIndexes: Set<Int>,
     recitationHighlightWordIndexes: Set<Int>,
     playbackProgress: Float,
     onPlayFromHere: () -> Unit,
@@ -1891,7 +2144,7 @@ private fun AyahCard(
     onSwipeToLearned: () -> Unit,
     onClearStatus: (() -> Unit)?,
 ) {
-    val hiddenByExam = isExamMode && !isRevealed
+    val hiddenByExam = isExamMode && !isRevealed && !progressiveRevealMode
     val strings = LocalAppStrings.current
     val dismissState = rememberDismissState(confirmStateChange = { value ->
         when (value) {
@@ -2044,7 +2297,26 @@ private fun AyahCard(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                            if (hiddenByExam) {
+                            if (progressiveRevealMode) {
+                                val progressiveText = buildProgressiveRevealText(
+                                    ayahText = ayah.text,
+                                    revealedWordIndexes = progressiveRevealWordIndexes,
+                                    highlightWordIndexes = recitationHighlightWordIndexes,
+                                    highlightBackground = MaterialTheme.colors.tintedSurface(
+                                        tint = MaterialTheme.colors.primary,
+                                        emphasis = 0.24f
+                                    ),
+                                    highlightTextColor = MaterialTheme.colors.primary
+                                )
+                                Text(
+                                    text = progressiveText,
+                                    fontSize = ayahFontSize,
+                                    lineHeight = ayahLineHeight,
+                                    textAlign = TextAlign.End,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    fontFamily = getQuranFontFamily()
+                                )
+                            } else if (hiddenByExam) {
                                 Text(
                                     text = "••••••••••••••••••••",
                                     fontSize = ayahFontSize,
@@ -2133,7 +2405,7 @@ private fun AyahCard(
                         )
                     }
 
-                    if (!translation.isNullOrBlank() && !hiddenByExam) {
+                    if (!translation.isNullOrBlank() && !hiddenByExam && !progressiveRevealMode) {
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = translation,
@@ -2305,6 +2577,55 @@ private fun buildAyahHighlightedText(
     }
 }
 
+private fun buildProgressiveRevealText(
+    ayahText: String,
+    revealedWordIndexes: Set<Int>,
+    highlightWordIndexes: Set<Int>,
+    highlightBackground: Color,
+    highlightTextColor: Color,
+): AnnotatedString {
+    val revealedSet = revealedWordIndexes.filter { it >= 0 }.toSet()
+    val highlightSet = highlightWordIndexes.filter { it >= 0 }.toSet()
+    val words = ayahText.split(" ")
+    if (words.isEmpty()) return AnnotatedString(ayahText)
+
+    return buildAnnotatedString {
+        words.forEachIndexed { index, rawWord ->
+            val word = rawWord.trim()
+            val revealed = revealedSet.contains(index)
+            val displayWord = if (revealed) {
+                rawWord
+            } else {
+                maskedWord(word)
+            }
+            val shouldHighlight = revealed && highlightSet.contains(index)
+            if (shouldHighlight) {
+                pushStyle(
+                    SpanStyle(
+                        background = highlightBackground,
+                        color = highlightTextColor
+                    )
+                )
+            }
+            append(displayWord)
+            if (shouldHighlight) {
+                pop()
+            }
+            if (index < words.lastIndex) append(" ")
+        }
+    }
+}
+
+private fun maskedWord(word: String): String {
+    if (word.isBlank()) return "•••"
+    return "•".repeat(word.length.coerceIn(3, 12))
+}
+
+private fun allWordIndexes(ayahText: String): Set<Int> {
+    val words = ayahText.split(" ").map { it.trim() }.filter { it.isNotEmpty() }
+    return words.indices.toSet()
+}
+
 private fun recitationFocusedAyahs(
     allAyahs: List<AyahEntity>,
     anchorIndex: Int,
@@ -2315,6 +2636,27 @@ private fun recitationFocusedAyahs(
     val start = (safeAnchor - radius).coerceAtLeast(0)
     val endExclusive = (safeAnchor + radius + 1).coerceAtMost(allAyahs.size)
     return allAyahs.subList(start, endExclusive)
+}
+
+private fun resolveSequentialMatchIndex(
+    currentCursor: Int,
+    matchIndex: Int?,
+    matchConfidence: Float,
+    lastIndex: Int,
+): Int? {
+    if (lastIndex < 0 || matchIndex == null) return null
+    val safeCursor = currentCursor.coerceIn(0, lastIndex)
+    if (matchIndex < safeCursor || matchIndex > lastIndex) return null
+
+    val strictForwardLimit = (safeCursor + 2).coerceAtMost(lastIndex)
+    if (matchIndex <= strictForwardLimit) return matchIndex
+
+    val relaxedForwardLimit = (safeCursor + 5).coerceAtMost(lastIndex)
+    return if (matchConfidence >= 0.78f && matchIndex <= relaxedForwardLimit) {
+        matchIndex
+    } else {
+        null
+    }
 }
 
 private fun localizeRecitationError(
@@ -2392,7 +2734,7 @@ private fun evaluateAyahCompletion(
         val source = transcriptTokens[tokenIndex]
         val target = ayahTokens[ayahCursor]
         val similarity = tokenSimilarity(source, target)
-        if (similarity >= 0.72f) {
+        if (similarity >= 0.66f) {
             ayahCursor += 1
         }
         if (ayahCursor > bestMatched) {
@@ -2407,8 +2749,8 @@ private fun evaluateAyahCompletion(
 
     val score = bestMatched.toFloat() / ayahTokens.size.toFloat()
     val passLevel = when {
-        score >= 0.93f && bestMatched >= ayahTokens.size - 1 -> RecitationPassLevel.SUCCESS
-        score >= 0.72f && bestMatched >= minOf(ayahTokens.size, 3) -> RecitationPassLevel.GOOD
+        score >= 0.88f && bestMatched >= ayahTokens.size - 1 -> RecitationPassLevel.SUCCESS
+        score >= 0.62f && bestMatched >= minOf(ayahTokens.size, 3) -> RecitationPassLevel.GOOD
         else -> RecitationPassLevel.HARD
     }
     val consumed = bestConsumed.coerceAtMost((ayahTokens.size * 2 + 6).coerceAtLeast(bestMatched))
@@ -2475,8 +2817,8 @@ private fun recitationPassLevelFor(match: RecitationMatch): RecitationPassLevel 
     val issueCount = match.issues.size
     val confidence = match.confidence
     return when {
-        confidence >= 0.86f && issueCount == 0 -> RecitationPassLevel.SUCCESS
-        confidence >= 0.62f && issueCount <= 2 -> RecitationPassLevel.GOOD
+        confidence >= 0.82f && issueCount <= 1 -> RecitationPassLevel.SUCCESS
+        confidence >= 0.58f && issueCount <= 3 -> RecitationPassLevel.GOOD
         else -> RecitationPassLevel.HARD
     }
 }

@@ -412,6 +412,7 @@ private fun TeacherReportCard(
     surahPeriodActivity: List<SurahPeriodActivityUi>,
     weakSurahReport: List<WeakSurahReportUi>,
 ) {
+    val strings = LocalAppStrings.current
     val updates = when (selectedWindow) {
         7 -> ayahUpdates7
         90 -> ayahUpdates90
@@ -439,7 +440,7 @@ private fun TeacherReportCard(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "Teacher / Exam report",
+                text = strings.statsTitle,
                 style = MaterialTheme.typography.subtitle1,
                 fontWeight = FontWeight.SemiBold
             )
@@ -452,18 +453,18 @@ private fun TeacherReportCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                HighlightItem(label = "Ayah checks", value = updates.toString())
-                HighlightItem(label = "Focus min", value = focusMinutes.toString())
-                HighlightItem(label = "Weak ayahs", value = weakSurahReport.sumOf { it.weakCount }.toString())
+                HighlightItem(label = strings.statsAyahs, value = updates.toString())
+                HighlightItem(label = strings.focusMinutesLabel, value = focusMinutes.toString())
+                HighlightItem(label = strings.weakAyahBankTitle, value = weakSurahReport.sumOf { it.weakCount }.toString())
             }
             Text(
-                text = "Most active surahs",
+                text = strings.homeSummaryTitle,
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.mutedText
             )
             if (activeSurahs.isEmpty()) {
                 Text(
-                    text = "No activity in selected period.",
+                    text = strings.reviewEmptyLabel,
                     style = MaterialTheme.typography.caption,
                     color = MaterialTheme.colors.mutedText
                 )
@@ -486,13 +487,13 @@ private fun TeacherReportCard(
                 }
             }
             Text(
-                text = "Weak bank by surah",
+                text = strings.weakAyahBankTitle,
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.mutedText
             )
             if (weakSurahReport.isEmpty()) {
                 Text(
-                    text = "No weak ayahs.",
+                    text = strings.noWeakAyahsLabel,
                     style = MaterialTheme.typography.caption,
                     color = MaterialTheme.colors.mutedText
                 )

@@ -224,13 +224,14 @@ private fun FeaturePreview(
 
 @Composable
 private fun RecitationPreview() {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            PreviewChip("Mic LIVE", MaterialTheme.colors.error)
-            PreviewChip("Ayah 4", MaterialTheme.colors.primary)
+            PreviewChip(strings.startMicLabel, MaterialTheme.colors.error)
+            PreviewChip("${strings.playbackModeAyah} 4", MaterialTheme.colors.primary)
         }
         PreviewPanel(Modifier.weight(1f)) {
             Text(
@@ -240,7 +241,7 @@ private fun RecitationPreview() {
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Issue: missing word",
+                text = "${strings.recitationAyahIssueLabel}: ${strings.reciteIssuesMissingLabel.lowercase()}",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.error
             )
@@ -258,13 +259,14 @@ private fun RecitationPreview() {
 
 @Composable
 private fun ExamModePreview() {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            PreviewChip("Exam ON", MaterialTheme.colors.secondary)
-            PreviewChip("Reveal", MaterialTheme.colors.primary)
+            PreviewChip(strings.examModeOnLabel, MaterialTheme.colors.secondary)
+            PreviewChip(strings.revealLabel, MaterialTheme.colors.primary)
         }
         PreviewPanel(Modifier.weight(1f)) {
             Text(
@@ -274,14 +276,14 @@ private fun ExamModePreview() {
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Text opens after voice match",
+                text = strings.featureGuideExamBody,
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.mutedText
             )
         }
         PreviewPanel {
             Text(
-                text = "Tap reveal or read by microphone",
+                text = strings.featureGuideExamBody,
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface
             )
@@ -291,13 +293,14 @@ private fun ExamModePreview() {
 
 @Composable
 private fun WeakBankPreview() {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            PreviewChip("Weak Ayahs", MaterialTheme.colors.error)
-            PreviewChip("Quick Filter", MaterialTheme.colors.primary)
+            PreviewChip(strings.weakAyahBankTitle, MaterialTheme.colors.error)
+            PreviewChip(strings.mistakesFilterLabel, MaterialTheme.colors.primary)
         }
         PreviewPanel(Modifier.weight(1f)) {
             WeakRow("2:255")
@@ -311,26 +314,27 @@ private fun WeakBankPreview() {
 
 @Composable
 private fun VoiceCheckPreview() {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         PreviewPanel(Modifier.weight(1f)) {
             Text(
-                text = "Voice check rating",
+                text = strings.featureGuideVoiceBody,
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                PreviewChip("Hard", MaterialTheme.colors.error)
-                PreviewChip("Good", MaterialTheme.colors.primary)
-                PreviewChip("Easy", MaterialTheme.colors.secondary)
+                PreviewChip(strings.hardLabel, MaterialTheme.colors.error)
+                PreviewChip(strings.goodLabel, MaterialTheme.colors.primary)
+                PreviewChip(strings.easyLabel, MaterialTheme.colors.secondary)
             }
         }
         PreviewPanel {
             Text(
-                text = "Updates spaced repetition",
+                text = strings.featureGuideVoiceBody,
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.mutedText
             )
@@ -340,17 +344,18 @@ private fun VoiceCheckPreview() {
 
 @Composable
 private fun AbComparePreview() {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            PreviewChip("A 0.8x", MaterialTheme.colors.primary)
-            PreviewChip("B 1.2x", MaterialTheme.colors.secondary)
+            PreviewChip("${strings.abLabel} A 0.8x", MaterialTheme.colors.primary)
+            PreviewChip("${strings.abLabel} B 1.2x", MaterialTheme.colors.secondary)
         }
         PreviewPanel(Modifier.weight(1f)) {
             Text(
-                text = "Compare pronunciation tempo",
+                text = strings.featureGuideAbBody,
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface
             )
@@ -381,17 +386,18 @@ private fun AbComparePreview() {
 
 @Composable
 private fun OfflinePackagePreview() {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            PreviewChip("Offline package", MaterialTheme.colors.primary)
+            PreviewChip(strings.offlinePackageTitle, MaterialTheme.colors.primary)
             PreviewChip("67 / 120", MaterialTheme.colors.secondary)
         }
         PreviewPanel(Modifier.weight(1f)) {
             Text(
-                text = "Downloading audio + translations",
+                text = strings.offlinePackageSubtitle,
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface
             )
@@ -404,7 +410,7 @@ private fun OfflinePackagePreview() {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Ready for low internet mode",
+                text = strings.offlinePackageReadyLabel,
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.mutedText
             )
@@ -414,17 +420,18 @@ private fun OfflinePackagePreview() {
 
 @Composable
 private fun ProjectionPreview() {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            PreviewChip("On track", MaterialTheme.colors.primary)
-            PreviewChip("14 days", MaterialTheme.colors.secondary)
+            PreviewChip(strings.onTrackLabel, MaterialTheme.colors.primary)
+            PreviewChip("14 ${strings.daysLabel}", MaterialTheme.colors.secondary)
         }
         PreviewPanel(Modifier.weight(1f)) {
             Text(
-                text = "Remaining: 120 ayahs",
+                text = "120 ${strings.ayahsLeftLabel}",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface
             )
@@ -456,29 +463,30 @@ private fun ProjectionPreview() {
 
 @Composable
 private fun RecitationReportPreview() {
+    val strings = LocalAppStrings.current
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            PreviewChip("Score 84", MaterialTheme.colors.primary)
-            PreviewChip("Best streak 9", MaterialTheme.colors.secondary)
+            PreviewChip("${strings.recitationScoreLabel} 84", MaterialTheme.colors.primary)
+            PreviewChip("${strings.recitationBestStreakLabel} 9", MaterialTheme.colors.secondary)
         }
         PreviewPanel(Modifier.weight(1f)) {
             Text(
-                text = "Accuracy 88%  Fluency 82%",
+                text = "${strings.recitationAccuracyLabel} 88%  ${strings.recitationFluencyLabel} 82%",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Issue rate 0.18",
+                text = "${strings.recitationIssueRateLabel} 0.18",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.error
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Top: Al-Fatiha, Al-Mulk, Yaseen",
+                text = "${strings.recitationTopSurahsTitle}: Al-Fatiha, Al-Mulk, Yaseen",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.mutedText
             )
@@ -488,13 +496,14 @@ private fun RecitationReportPreview() {
 
 @Composable
 private fun WeakRow(label: String) {
+    val strings = LocalAppStrings.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Ayah $label",
+            text = "${strings.playbackModeAyah} $label",
             style = MaterialTheme.typography.caption,
             color = MaterialTheme.colors.onSurface
         )

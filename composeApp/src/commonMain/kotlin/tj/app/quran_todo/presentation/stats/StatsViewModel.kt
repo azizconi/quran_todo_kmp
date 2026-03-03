@@ -149,7 +149,7 @@ class StatsViewModel(
                             .mapValues { it.value.size }
                         SurahPeriodActivityUi(
                             surahNumber = surahNumber,
-                            surahLabel = surahNameByNumber[surahNumber] ?: "Surah $surahNumber",
+                            surahLabel = surahNameByNumber[surahNumber] ?: surahNumber.toString(),
                             count7 = sumInWindow(countsByDay, today, 7),
                             count30 = sumInWindow(countsByDay, today, 30),
                             count90 = sumInWindow(countsByDay, today, 90)
@@ -163,7 +163,7 @@ class StatsViewModel(
                     .map { (surahNumber, ayahs) ->
                         WeakSurahReportUi(
                             surahNumber = surahNumber,
-                            surahLabel = surahNameByNumber[surahNumber] ?: "Surah $surahNumber",
+                            surahLabel = surahNameByNumber[surahNumber] ?: surahNumber.toString(),
                             weakCount = ayahs.size,
                             sampleAyahNumbers = ayahs.map { it.ayahNumber }.sorted().take(6)
                         )
@@ -204,7 +204,7 @@ class StatsViewModel(
                         }
                         RecitationTopSurahUi(
                             surahNumber = surahNumber,
-                            surahLabel = surahNameByNumber[surahNumber] ?: "Surah $surahNumber",
+                            surahLabel = surahNameByNumber[surahNumber] ?: surahNumber.toString(),
                             attempts = value.attempts,
                             accuracy = accuracy
                         )

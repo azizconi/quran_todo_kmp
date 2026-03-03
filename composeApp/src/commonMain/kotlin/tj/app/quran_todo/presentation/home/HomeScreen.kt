@@ -10,13 +10,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,7 +30,6 @@ import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.ModalBottomSheetLayout
 import androidx.compose.material.ModalBottomSheetValue
-import androidx.compose.material.Scaffold
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
@@ -280,17 +277,11 @@ fun HomeScreen(
             )
         }
     ) {
-        Scaffold(
-            contentWindowInsets = WindowInsets.safeDrawing,
-            backgroundColor = MaterialTheme.colors.background,
-        ) { padding ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
                 item {
                     HomeHeader(
                         strings = strings,
@@ -523,7 +514,6 @@ fun HomeScreen(
                         )
                     }
                 }
-            }
         }
     }
 
@@ -809,7 +799,9 @@ private fun TodayPlanCard(
                 }
             )
             Text(
-                text = "New: ${smartPlan.newAyahs} • Reviews: ${smartPlan.reviewAyahs} • Focus: ${smartPlan.newAyahs * 5}m",
+                text = "${strings.todayProgressLabel}: ${smartPlan.newAyahs} • " +
+                    "${strings.reviewDueTitle}: ${smartPlan.reviewAyahs} • " +
+                    "${strings.focusMinutesLabel}: ${smartPlan.newAyahs * 5}m",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.mutedText
             )

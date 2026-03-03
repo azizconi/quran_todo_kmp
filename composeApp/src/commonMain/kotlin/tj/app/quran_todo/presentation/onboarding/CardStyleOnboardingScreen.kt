@@ -89,6 +89,7 @@ fun CardStyleOnboardingScreen(
 
 @Composable
 private fun CardStylePreview(style: AyahCardStyle) {
+    val strings = LocalAppStrings.current
     val colors = MaterialTheme.colors
     val shape = when (style) {
         AyahCardStyle.CLASSIC -> RoundedCornerShape(16.dp)
@@ -132,7 +133,7 @@ private fun CardStylePreview(style: AyahCardStyle) {
                 modifier = Modifier.fillMaxWidth()
             )
             Text(
-                text = "In the name of Allah, the Most Gracious, the Most Merciful",
+                text = strings.onboardingCardStyleSubtitle,
                 style = translationSize,
                 color = colors.mutedText
             )

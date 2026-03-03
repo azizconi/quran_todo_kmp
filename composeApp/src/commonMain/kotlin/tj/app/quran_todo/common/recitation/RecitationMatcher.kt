@@ -61,9 +61,9 @@ object AyahRecitationMatcher {
 
         val matched = bestMatch ?: return null
         val minScore = when {
-            transcriptTokens.size <= 3 -> 0.50f
-            transcriptTokens.size <= 5 -> 0.42f
-            else -> 0.34f
+            transcriptTokens.size <= 3 -> 0.44f
+            transcriptTokens.size <= 5 -> 0.38f
+            else -> 0.30f
         }
         if (matched.score < minScore) return null
         return RecitationMatch(
@@ -255,7 +255,7 @@ object AyahRecitationMatcher {
     private fun isTokenMatch(expected: String, actual: String): Boolean {
         if (expected == actual) return true
         val similarity = tokenSimilarity(expected, actual)
-        return similarity >= 0.74f
+        return similarity >= 0.70f
     }
 
     private fun tokenSimilarity(left: String, right: String): Float {
