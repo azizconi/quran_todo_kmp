@@ -1,34 +1,17 @@
 package tj.app.quran_todo
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.material.BottomNavigation
-import androidx.compose.material.BottomNavigationItem
-import androidx.compose.material.Card
-import androidx.compose.material.Icon
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Scaffold
-import androidx.compose.material.Text
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import com.arkivanov.decompose.DefaultComponentContext
+import com.arkivanov.essenty.lifecycle.Lifecycle
+import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import tj.app.quran_todo.common.analytics.AppTelemetry
@@ -40,10 +23,12 @@ import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.i18n.stringsFor
 import tj.app.quran_todo.common.reminder.ReminderScheduler
 import tj.app.quran_todo.common.settings.AppSettings
+import tj.app.quran_todo.common.settings.SettingsChangeNotifier
 import tj.app.quran_todo.common.settings.LocalAppSettings
 import tj.app.quran_todo.common.settings.LocalAppSettingsSetter
 import tj.app.quran_todo.common.settings.UserSettingsStorage
 import tj.app.quran_todo.common.theme.AppTheme
+import tj.app.quran_todo.common.theme.AppChromeAppearance
 import tj.app.quran_todo.common.theme.AyahCardStyle
 import tj.app.quran_todo.common.theme.LocalAyahCardStyle
 import tj.app.quran_todo.common.theme.LocalAyahCardStyleSetter
@@ -57,16 +42,24 @@ import tj.app.quran_todo.common.theme.ReadingFontStyle
 import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.common.theme.ThemePalette
 import tj.app.quran_todo.common.theme.ThemeStorage
-import tj.app.quran_todo.common.theme.mutedText
+import tj.app.quran_todo.common.theme.appChromeAppearance
 import tj.app.quran_todo.common.utils.currentLocalDate
-import tj.app.quran_todo.navigation.AppNavHost
+import tj.app.quran_todo.presentation.hifz.HifzAppShell
+import tj.app.quran_todo.presentation.navigation.DefaultHifzRootComponent
 import tj.app.quran_todo.presentation.onboarding.FontOnboardingScreen
 import tj.app.quran_todo.presentation.onboarding.GoalsOnboardingScreen
 import tj.app.quran_todo.presentation.onboarding.LanguageOnboardingScreen
 
 @Composable
 @Preview
-fun App() {
+fun App(
+    onThemeModeChanged: (ThemeMode) -> Unit = {},
+    onChromeChanged: (AppChromeAppearance) -> Unit = {},
+    initialSurahNumber: Int? = null,
+    onNativeSurahRequested: ((Int) -> Unit)? = null,
+    onNativeSettingsRequested: (() -> Unit)? = null,
+    onNativeBack: () -> Unit = {},
+) {
     val savedLanguage = remember { LanguageStorage.getSavedLanguage() }
     val initialLanguage = remember(savedLanguage) {
         savedLanguage ?: LanguageStorage.getDeviceLanguage()
@@ -78,46 +71,71 @@ fun App() {
         ThemeStorage.getSavedThemeMode() ?: if (systemDark) ThemeMode.DARK else ThemeMode.LIGHT
     }
     var themeMode by remember { mutableStateOf(initialTheme) }
+    LaunchedEffect(themeMode) {
+        onThemeModeChanged(themeMode)
+    }
     val initialPalette = remember {
-        ThemeStorage.getSavedThemePalette() ?: ThemePalette.SAND
+        ThemeStorage.getSavedThemePalette() ?: ThemePalette.FOREST
     }
     var themePalette by remember { mutableStateOf(initialPalette) }
+    LaunchedEffect(themeMode, themePalette) {
+        onChromeChanged(appChromeAppearance(themeMode, themePalette))
+    }
     val savedReadingFontStyle = remember { ThemeStorage.getSavedReadingFontStyle() }
     var readingFontStyle by remember {
-        mutableStateOf(savedReadingFontStyle ?: ReadingFontStyle.UTHMANI)
+        mutableStateOf(savedReadingFontStyle ?: ReadingFontStyle.MADINAH_MUSHAF)
     }
     var requireFontOnboarding by remember { mutableStateOf(savedReadingFontStyle == null) }
     val savedAyahCardStyle = remember { ThemeStorage.getSavedAyahCardStyle() }
     var ayahCardStyle by remember {
         mutableStateOf(savedAyahCardStyle ?: AyahCardStyle.CLASSIC)
     }
-    var requireGoalsOnboarding by remember {
-        mutableStateOf(
-            UserSettingsStorage.getDailyGoal() == null ||
-                UserSettingsStorage.getTargetEpochDay() == null
-        )
-    }
+    var requireGoalsOnboarding by remember { mutableStateOf(false) }
 
     val strings = remember(language) { stringsFor(language) }
-    val backStack = remember { mutableStateListOf<AppTab>(AppTab.Home) }
-    val current = backStack.lastOrNull() ?: AppTab.Home
+    val rootComponent = remember {
+        DefaultHifzRootComponent(
+            DefaultComponentContext(LifecycleRegistry(initialState = Lifecycle.State.RESUMED)),
+            initialSurahNumber = initialSurahNumber,
+        )
+    }
+    val savedReadingFontSize = remember { UserSettingsStorage.getReadingFontSize() }
     val initialSettings = remember {
         val todayEpochDay = currentLocalDate().toEpochDays()
         AppSettings(
-            dailyGoal = UserSettingsStorage.getDailyGoal() ?: 5,
-            focusMinutes = UserSettingsStorage.getFocusMinutes() ?: 10,
+            dailyGoal = UserSettingsStorage.getDailyGoal()?.coerceIn(1, 50) ?: 5,
+            focusMinutes = UserSettingsStorage.getFocusMinutes()?.coerceIn(5, 60) ?: 10,
             remindersEnabled = UserSettingsStorage.isReminderEnabled() ?: true,
-            targetAyahs = UserSettingsStorage.getTargetAyahs() ?: 300,
+            targetAyahs = UserSettingsStorage.getTargetAyahs()?.coerceIn(50, 6236) ?: 300,
             targetEpochDay = UserSettingsStorage.getTargetEpochDay() ?: (todayEpochDay + 60),
             examModeEnabled = UserSettingsStorage.isExamModeEnabled() ?: false,
-            readingFontSize = UserSettingsStorage.getReadingFontSize() ?: 24,
+            readingFontSize = savedReadingFontSize?.coerceIn(24, 34) ?: 28,
         )
     }
     var appSettings by remember { mutableStateOf(initialSettings) }
+    val settingsRevision by SettingsChangeNotifier.revision.collectAsState()
 
-    LaunchedEffect(appSettings.remindersEnabled, strings.reminderTitle, strings.reminderBody) {
+    LaunchedEffect(settingsRevision) {
+        if (settingsRevision == 0L) return@LaunchedEffect
+        language = LanguageStorage.getSavedLanguage() ?: LanguageStorage.getDeviceLanguage()
+        themeMode = ThemeStorage.getSavedThemeMode() ?: themeMode
+        readingFontStyle = ThemeStorage.getSavedReadingFontStyle() ?: readingFontStyle
+        UserSettingsStorage.getReadingFontSize()?.coerceIn(24, 34)?.let { size ->
+            appSettings = appSettings.copy(readingFontSize = size)
+        }
+    }
+
+    LaunchedEffect(savedReadingFontSize) {
+        val normalized = savedReadingFontSize?.coerceIn(24, 34) ?: return@LaunchedEffect
+        if (normalized != savedReadingFontSize) {
+            UserSettingsStorage.saveReadingFontSize(normalized)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        UserSettingsStorage.saveReminderEnabled(false)
         ReminderScheduler.syncDailyReminder(
-            enabled = appSettings.remindersEnabled,
+            enabled = false,
             title = strings.reminderTitle,
             body = strings.reminderBody
         )
@@ -127,9 +145,7 @@ fun App() {
         requireLanguageOnboarding -> "onboarding_language"
         requireFontOnboarding -> "onboarding_font"
         requireGoalsOnboarding -> "onboarding_goals"
-        current == AppTab.Home -> "home"
-        current == AppTab.Stats -> "stats"
-        else -> "settings"
+        else -> "hifz"
     }
 
     LaunchedEffect(Unit) {
@@ -249,7 +265,7 @@ fun App() {
                     fontSize = appSettings.readingFontSize,
                     onSelected = { readingFontStyle = it },
                     onFontSizeChange = { size ->
-                        appSettings = appSettings.copy(readingFontSize = size.coerceIn(18, 34))
+                        appSettings = appSettings.copy(readingFontSize = size.coerceIn(24, 34))
                     },
                     onContinue = {
                         ThemeStorage.saveReadingFontStyle(readingFontStyle)
@@ -288,74 +304,18 @@ fun App() {
                     }
                 )
             } else {
-                Scaffold(
-                    contentWindowInsets = WindowInsets.statusBars,
-                    bottomBar = {
-                        Card(
-                            shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
-                            backgroundColor = MaterialTheme.colors.surface,
-                            elevation = 10.dp
-                        ) {
-                            BottomNavigation(
-                                backgroundColor = Color.Transparent,
-                                elevation = 0.dp,
-                                windowInsets = WindowInsets.navigationBars
-                            ) {
-                                BottomNavigationItem(
-                                    selected = current == AppTab.Home,
-                                    onClick = {
-                                        AppTelemetry.logEvent(
-                                            name = "tab_selected",
-                                            params = mapOf("tab" to "home")
-                                        )
-                                        switchTab(backStack, AppTab.Home)
-                                    },
-                                    selectedContentColor = MaterialTheme.colors.primary,
-                                    unselectedContentColor = MaterialTheme.colors.mutedText,
-                                    icon = { Icon(Icons.Default.Home, contentDescription = null) },
-                                    label = { Text(strings.homeTitle) }
-                                )
-                                BottomNavigationItem(
-                                    selected = current == AppTab.Stats,
-                                    onClick = {
-                                        AppTelemetry.logEvent(
-                                            name = "tab_selected",
-                                            params = mapOf("tab" to "stats")
-                                        )
-                                        switchTab(backStack, AppTab.Stats)
-                                    },
-                                    selectedContentColor = MaterialTheme.colors.primary,
-                                    unselectedContentColor = MaterialTheme.colors.mutedText,
-                                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
-                                    label = { Text(strings.statsTitle) }
-                                )
-                                BottomNavigationItem(
-                                    selected = current == AppTab.Settings,
-                                    onClick = {
-                                        AppTelemetry.logEvent(
-                                            name = "tab_selected",
-                                            params = mapOf("tab" to "settings")
-                                        )
-                                        switchTab(backStack, AppTab.Settings)
-                                    },
-                                    selectedContentColor = MaterialTheme.colors.primary,
-                                    unselectedContentColor = MaterialTheme.colors.mutedText,
-                                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                                    label = { Text(strings.settingsTitle) }
-                                )
-                            }
-                        }
-                    }
-                ) { paddingValues ->
-                    Box(modifier = Modifier.padding(paddingValues)) {
-                        AppNavHost(current)
-                    }
-                }
+                HifzAppShell(
+                    root = rootComponent,
+                    onNativeSurahRequested = onNativeSurahRequested,
+                    onNativeSettingsRequested = onNativeSettingsRequested,
+                    onNativeBack = onNativeBack,
+                )
             }
         }
     }
 }
 
+/** Legacy host configuration retained for platform-specific AppNavHost implementations. */
 @Serializable
 sealed interface AppTab {
     @Serializable
@@ -366,10 +326,4 @@ sealed interface AppTab {
 
     @Serializable
     data object Settings : AppTab
-}
-
-private fun switchTab(backStack: MutableList<AppTab>, tab: AppTab) {
-    if (backStack.lastOrNull() == tab) return
-    backStack.clear()
-    backStack.add(tab)
 }

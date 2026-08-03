@@ -15,6 +15,10 @@ private const val KEY_REPEAT_COUNT = "repeat_count"
 private const val KEY_LOOP_START_AYAH = "loop_start_ayah"
 private const val KEY_LOOP_END_AYAH = "loop_end_ayah"
 private const val KEY_TRANSLATION_MODE = "translation_mode"
+private const val KEY_SHOW_AYAH_TRANSLATION = "show_ayah_translation"
+private const val KEY_AUTOPLAY_ON_SURAH_OPEN = "autoplay_on_surah_open"
+private const val KEY_AUTO_ADVANCE_AYAHS = "auto_advance_ayahs"
+private const val KEY_HIGHLIGHT_PLAYING_AYAH = "highlight_playing_ayah"
 private const val KEY_TRANSLATION_DELAY = "translation_delay"
 private const val KEY_EXAM_MODE = "exam_mode"
 private const val KEY_TARGET_AYAHS = "target_ayahs"
@@ -110,6 +114,50 @@ actual object UserSettingsStorage {
 
     actual fun saveTranslationModeEnabled(enabled: Boolean) {
         prefs().edit().putBoolean(KEY_TRANSLATION_MODE, enabled).apply()
+    }
+
+    actual fun isShowAyahTranslationEnabled(): Boolean? =
+        if (prefs().contains(KEY_SHOW_AYAH_TRANSLATION)) {
+            prefs().getBoolean(KEY_SHOW_AYAH_TRANSLATION, false)
+        } else {
+            null
+        }
+
+    actual fun saveShowAyahTranslation(enabled: Boolean) {
+        prefs().edit().putBoolean(KEY_SHOW_AYAH_TRANSLATION, enabled).apply()
+    }
+
+    actual fun isAutoplayOnSurahOpenEnabled(): Boolean? =
+        if (prefs().contains(KEY_AUTOPLAY_ON_SURAH_OPEN)) {
+            prefs().getBoolean(KEY_AUTOPLAY_ON_SURAH_OPEN, false)
+        } else {
+            null
+        }
+
+    actual fun saveAutoplayOnSurahOpen(enabled: Boolean) {
+        prefs().edit().putBoolean(KEY_AUTOPLAY_ON_SURAH_OPEN, enabled).apply()
+    }
+
+    actual fun isAutoAdvanceAyahsEnabled(): Boolean? =
+        if (prefs().contains(KEY_AUTO_ADVANCE_AYAHS)) {
+            prefs().getBoolean(KEY_AUTO_ADVANCE_AYAHS, true)
+        } else {
+            null
+        }
+
+    actual fun saveAutoAdvanceAyahs(enabled: Boolean) {
+        prefs().edit().putBoolean(KEY_AUTO_ADVANCE_AYAHS, enabled).apply()
+    }
+
+    actual fun isHighlightPlayingAyahEnabled(): Boolean? =
+        if (prefs().contains(KEY_HIGHLIGHT_PLAYING_AYAH)) {
+            prefs().getBoolean(KEY_HIGHLIGHT_PLAYING_AYAH, true)
+        } else {
+            null
+        }
+
+    actual fun saveHighlightPlayingAyah(enabled: Boolean) {
+        prefs().edit().putBoolean(KEY_HIGHLIGHT_PLAYING_AYAH, enabled).apply()
     }
 
     actual fun getTranslationDelayMs(): Long? =

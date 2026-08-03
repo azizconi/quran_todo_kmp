@@ -7,6 +7,7 @@ import platform.AVFAudio.setActive
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
 import platform.AVFoundation.AVPlayerItemDidPlayToEndTimeNotification
+import platform.AVFoundation.AVPlayerItemFailedToPlayToEndTimeNotification
 import platform.AVFoundation.currentItem
 import platform.AVFoundation.currentTime
 import platform.AVFoundation.duration
@@ -22,16 +23,26 @@ import platform.CoreMedia.CMTimeGetSeconds
 actual class AudioPlayer {
     private var player: AVPlayer? = null
     private var observer: Any? = null
+    private var failureObserver: Any? = null
     private var playbackRate: Float = 1f
 
     actual fun play(url: String, onComplete: () -> Unit) {
         stop()
         configureAudioSession()
+        var callbackDelivered = false
+        fun completeOnce() {
+            if (callbackDelivered) return
+            callbackDelivered = true
+            onComplete()
+        }
         val nsUrl = if (url.startsWith("http")) {
             NSURL.URLWithString(url)
         } else {
             NSURL.fileURLWithPath(url)
-        } ?: return
+        } ?: run {
+            completeOnce()
+            return
+        }
         val item = AVPlayerItem(uRL = nsUrl)
         val avPlayer = AVPlayer(playerItem = item)
         player = avPlayer
@@ -40,7 +51,14 @@ actual class AudioPlayer {
             `object` = item,
             queue = null
         ) { _ ->
-            onComplete()
+            completeOnce()
+        }
+        failureObserver = NSNotificationCenter.defaultCenter.addObserverForName(
+            name = AVPlayerItemFailedToPlayToEndTimeNotification,
+            `object` = item,
+            queue = null
+        ) { _ ->
+            completeOnce()
         }
         avPlayer.play()
         avPlayer.rate = playbackRate
@@ -79,6 +97,10 @@ actual class AudioPlayer {
             NSNotificationCenter.defaultCenter.removeObserver(it)
         }
         observer = null
+        failureObserver?.let {
+            NSNotificationCenter.defaultCenter.removeObserver(it)
+        }
+        failureObserver = null
     }
 
     private fun configureAudioSession() {

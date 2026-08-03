@@ -21,6 +21,14 @@ expect object UserSettingsStorage {
     fun saveLoopRange(startAyahNumber: Int?, endAyahNumber: Int?)
     fun isTranslationModeEnabled(): Boolean?
     fun saveTranslationModeEnabled(enabled: Boolean)
+    fun isShowAyahTranslationEnabled(): Boolean?
+    fun saveShowAyahTranslation(enabled: Boolean)
+    fun isAutoplayOnSurahOpenEnabled(): Boolean?
+    fun saveAutoplayOnSurahOpen(enabled: Boolean)
+    fun isAutoAdvanceAyahsEnabled(): Boolean?
+    fun saveAutoAdvanceAyahs(enabled: Boolean)
+    fun isHighlightPlayingAyahEnabled(): Boolean?
+    fun saveHighlightPlayingAyah(enabled: Boolean)
     fun getTranslationDelayMs(): Long?
     fun saveTranslationDelayMs(delayMs: Long)
     fun isExamModeEnabled(): Boolean?

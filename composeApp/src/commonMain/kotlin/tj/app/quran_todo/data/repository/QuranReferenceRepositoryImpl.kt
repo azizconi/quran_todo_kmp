@@ -92,12 +92,6 @@ class QuranReferenceRepositoryImpl(
             return cached.associate { it.ayahNumber to it.text }
         }
 
-        val cachedLanguageCount = ayahTranslationDao.countByLanguage(language.code)
-        if (cachedLanguageCount > 0) {
-            val fromDb = ayahTranslationDao.getBySurahAndLanguage(surahNumber, language.code)
-            return fromDb.associate { it.ayahNumber to it.text }
-        }
-
         return try {
             val edition = editionForLanguage(language)
             val response: QuranCompleteResponse = client

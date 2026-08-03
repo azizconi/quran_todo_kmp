@@ -33,6 +33,16 @@
 	<array>
 		<string>armv7</string>
 	</array>
+	<key>UIAppFonts</key>
+	<array>
+		<string>madinah_mushaf.ttf</string>
+		<string>amiri_quran.ttf</string>
+		<string>scheherazade_new.ttf</string>
+		<string>lateef.ttf</string>
+		<string>noto_naskh_arabic.ttf</string>
+		<string>noto_nastaliq_urdu.ttf</string>
+		<string>aref_ruqaa_ink.ttf</string>
+	</array>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Microphone is used to check your Quran recitation.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

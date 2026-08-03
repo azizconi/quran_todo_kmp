@@ -5,45 +5,97 @@ import android.media.MediaPlayer
 actual class AudioPlayer {
     private var mediaPlayer: MediaPlayer? = null
     private var pendingSpeed = 1f
+    private var isPrepared = false
+    private var playWhenReady = false
 
     actual fun play(url: String, onComplete: () -> Unit) {
         stop()
         val player = MediaPlayer()
-        mediaPlayer = player
-        player.setOnCompletionListener {
+        var callbackDelivered = false
+        fun completeOnce() {
+            if (callbackDelivered) return
+            callbackDelivered = true
             onComplete()
+        }
+        mediaPlayer = player
+        playWhenReady = true
+        player.setOnCompletionListener {
+            if (mediaPlayer !== player) return@setOnCompletionListener
+            playWhenReady = false
+            completeOnce()
+        }
+        player.setOnErrorListener { failedPlayer, _, _ ->
+            if (mediaPlayer === failedPlayer) {
+                stop()
+                completeOnce()
+            }
+            true
         }
         try {
             player.setDataSource(url)
-            player.prepareAsync()
             player.setOnPreparedListener {
+                if (mediaPlayer !== it) return@setOnPreparedListener
+                isPrepared = true
                 applySpeed(it)
-                it.start()
+                if (playWhenReady) {
+                    runCatching { it.start() }
+                        .onFailure {
+                            stop()
+                            completeOnce()
+                        }
+                }
             }
+            player.prepareAsync()
         } catch (_: Exception) {
             stop()
-            onComplete()
+            completeOnce()
         }
     }
 
     actual fun pause() {
-        mediaPlayer?.pause()
+        playWhenReady = false
+        if (isPrepared) {
+            mediaPlayer?.let { player ->
+                runCatching { player.pause() }
+            }
+        }
     }
 
     actual fun resume() {
-        mediaPlayer?.start()
+        playWhenReady = true
+        if (isPrepared) {
+            mediaPlayer?.let { player ->
+                runCatching { player.start() }
+            }
+        }
     }
 
     actual fun setPlaybackSpeed(speed: Float) {
         pendingSpeed = speed.coerceIn(0.5f, 2.0f)
-        mediaPlayer?.let { applySpeed(it) }
+        if (isPrepared) {
+            mediaPlayer?.let { applySpeed(it) }
+        }
     }
 
-    actual fun getDurationMs(): Long = mediaPlayer?.duration?.toLong() ?: 0L
+    actual fun getDurationMs(): Long =
+        if (isPrepared) {
+            mediaPlayer?.let { runCatching { it.duration.toLong() }.getOrDefault(0L) } ?: 0L
+        } else {
+            0L
+        }
 
-    actual fun getPositionMs(): Long = mediaPlayer?.currentPosition?.toLong() ?: 0L
+    actual fun getPositionMs(): Long =
+        if (isPrepared) {
+            mediaPlayer?.let {
+                runCatching { it.currentPosition.toLong() }.getOrDefault(0L)
+            } ?: 0L
+        } else {
+            0L
+        }
 
     actual fun stop() {
+        playWhenReady = false
+        isPrepared = false
         mediaPlayer?.let { player ->
             try {
                 player.stop()

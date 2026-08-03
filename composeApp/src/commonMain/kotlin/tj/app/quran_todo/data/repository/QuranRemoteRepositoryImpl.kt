@@ -130,7 +130,16 @@ class QuranRemoteRepositoryImpl(
                     emit(Resource.Error("Unexpected error: ${e.message}"))
                 }
             } else {
-                sendRequest()
+                try {
+                    sendRequest()
+                } catch (e: Exception) {
+                    AppTelemetry.logError(
+                        throwable = e,
+                        context = "quran_remote_load_failed",
+                        params = mapOf("with_local_action" to withLocalAction.toString())
+                    )
+                    emit(Resource.Error("Unexpected error: ${e.message}"))
+                }
             }
 
         }

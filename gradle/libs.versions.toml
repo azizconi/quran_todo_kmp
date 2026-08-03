@@ -12,17 +12,19 @@ androidx-lifecycle = "2.8.4"
 androidx-material = "1.12.0"
 androidx-test-junit = "1.2.1"
 compose-multiplatform = "1.8.0"
+calf = "0.8.0"
 junit = "4.13.2"
-kotlin = "2.1.10"
+kotlin = "2.1.21"
 kotlinxSerializationJson = "1.8.0"
 ktor = "3.1.0"
 kotlinxDatetime = "0.6.1"
 materialIconsCore = "1.7.3"
 navigationCompose = "2.8.0-alpha10"
 navigation3 = "1.0.0-alpha08"
+decompose = "3.5.0"
 sqlite = "2.5.0"
 room = "2.7.0"
-ksp ="2.1.10-1.0.29"
+ksp = "2.1.21-2.0.2"
 
 koin = "3.6.0-Beta4"
 koinComposeMultiplatform = "1.2.0-Beta4"
@@ -51,6 +53,9 @@ material-icons-core = { module = "org.jetbrains.compose.material:material-icons-
 material-icons-extended = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "materialIconsCore" }
 navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
 navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
+decompose = { module = "com.arkivanov.decompose:decompose", version.ref = "decompose" }
+decompose-compose = { module = "com.arkivanov.decompose:extensions-compose", version.ref = "decompose" }
+calf-ui = { module = "com.mohamedrejeb.calf:calf-ui", version.ref = "calf" }
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-runtime-android = { module = "androidx.room:room-runtime-android", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }

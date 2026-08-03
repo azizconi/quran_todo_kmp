@@ -5,11 +5,16 @@ import androidx.lifecycle.viewModelScope
 import io.ktor.util.date.getTimeMillis
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.utils.parseSurahList
 import tj.app.quran_todo.data.database.dao.AyahNoteDao
@@ -25,6 +30,7 @@ import tj.app.quran_todo.domain.use_case.AyahTodoUpsertUseCase
 import tj.app.quran_todo.domain.use_case.GetAyahTranslationsUseCase
 import tj.app.quran_todo.domain.use_case.GetChapterNamesUseCase
 import tj.app.quran_todo.domain.use_case.TodoDeleteSurahByNumberUseCase
+import tj.app.quran_todo.domain.use_case.TodoGetSurahListUseCase
 import tj.app.quran_todo.domain.use_case.TodoUpsertSurahUseCase
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoEntity
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
@@ -45,6 +51,7 @@ class SurahViewModel(
     private val ayahTodoGetBySurahOnceUseCase: AyahTodoGetBySurahOnceUseCase,
     private val todoUpsertSurahUseCase: TodoUpsertSurahUseCase,
     private val todoDeleteSurahByNumberUseCase: TodoDeleteSurahByNumberUseCase,
+    private val todoGetSurahListUseCase: TodoGetSurahListUseCase,
     private val getChapterNamesUseCase: GetChapterNamesUseCase,
     private val getAyahTranslationsUseCase: GetAyahTranslationsUseCase,
 ) : ViewModel() {
@@ -66,6 +73,11 @@ class SurahViewModel(
 
     private var lastLoaded: Pair<Int, AppLanguage>? = null
     private var lastChapterLanguage: AppLanguage? = null
+    private var translationJob: Job? = null
+    private var chapterNamesJob: Job? = null
+    private val surahStatusMutationMutex = Mutex()
+    private val latestSurahStatusRequestIds = mutableMapOf<Int, Long>()
+    private var nextSurahStatusRequestId = 0L
     init {
         viewModelScope.launch(Dispatchers.IO) {
             val list = parseSurahList()
@@ -75,6 +87,61 @@ class SurahViewModel(
 
     fun ayahTodos(surahNumber: Int): Flow<List<AyahTodoEntity>> =
         ayahTodoGetBySurahUseCase(surahNumber)
+
+    fun surahStatus(surahNumber: Int): Flow<SurahTodoStatus?> =
+        todoGetSurahListUseCase().map { list ->
+            list.firstOrNull { it.surahNumber == surahNumber }?.status
+        }
+
+    fun setSurahStatus(
+        surahNumber: Int,
+        status: SurahTodoStatus?,
+        onCompleted: () -> Unit = {},
+        onError: (String) -> Unit = {},
+    ) {
+        AppTelemetry.logEvent(
+            name = "surah_status_changed",
+            params = mapOf(
+                "surah_number" to surahNumber.toString(),
+                "status" to (status?.name?.lowercase() ?: "not_started"),
+            ),
+        )
+        viewModelScope.launch {
+            val requestId = surahStatusMutationMutex.withLock {
+                (++nextSurahStatusRequestId).also { id ->
+                    latestSurahStatusRequestIds[surahNumber] = id
+                }
+            }
+            val result = withContext(Dispatchers.IO) {
+                surahStatusMutationMutex.withLock {
+                    if (latestSurahStatusRequestIds[surahNumber] != requestId) {
+                        null
+                    } else {
+                        runCatching {
+                            if (status == null) {
+                                todoDeleteSurahByNumberUseCase(surahNumber)
+                            } else {
+                                todoUpsertSurahUseCase(SurahTodoEntity(surahNumber, status))
+                            }
+                        }
+                    }
+                }
+            }
+            if (surahStatusMutationMutex.withLock {
+                    latestSurahStatusRequestIds[surahNumber] == requestId
+                }
+            ) {
+                result?.onSuccess { onCompleted() }?.onFailure { throwable ->
+                    AppTelemetry.logError(
+                        throwable = throwable,
+                        context = "surah_status_update_failed",
+                        params = mapOf("surah_number" to surahNumber.toString()),
+                    )
+                    onError(throwable.message ?: "Unable to update surah status")
+                }
+            }
+        }
+    }
 
     fun observeNotes(surahNumber: Int) {
         viewModelScope.launch {
@@ -100,19 +167,23 @@ class SurahViewModel(
             return
         }
         lastLoaded = surahNumber to language
+        _ayahTranslations.value = emptyMap()
+        translationJob?.cancel()
 
-        viewModelScope.launch(Dispatchers.IO) {
-            _ayahTranslations.value = getAyahTranslationsUseCase(
+        translationJob = viewModelScope.launch(Dispatchers.IO) {
+            val translations = getAyahTranslationsUseCase(
                 surahNumber = surahNumber,
                 language = language,
                 expectedCount = expectedCount
             )
+            if (lastLoaded != (surahNumber to language)) return@launch
+            _ayahTranslations.value = translations
             AppTelemetry.logEvent(
                 name = "surah_translations_loaded",
                 params = mapOf(
                     "surah_number" to surahNumber.toString(),
                     "language" to language.name.lowercase(),
-                    "count" to _ayahTranslations.value.size.toString()
+                    "count" to translations.size.toString()
                 )
             )
         }
@@ -121,8 +192,11 @@ class SurahViewModel(
     fun loadChapterNames(language: AppLanguage) {
         if (lastChapterLanguage == language && _chapterNames.value.isNotEmpty()) return
         lastChapterLanguage = language
-        viewModelScope.launch(Dispatchers.IO) {
-            _chapterNames.value = getChapterNamesUseCase(language)
+        chapterNamesJob?.cancel()
+        chapterNamesJob = viewModelScope.launch(Dispatchers.IO) {
+            val names = getChapterNamesUseCase(language)
+            if (lastChapterLanguage != language) return@launch
+            _chapterNames.value = names
         }
     }
 
@@ -131,6 +205,9 @@ class SurahViewModel(
         surahNumber: Int,
         totalAyahs: Int,
         status: AyahTodoStatus,
+        scheduleNextReview: Boolean = true,
+        weakState: Boolean? = null,
+        onCompleted: () -> Unit = {},
     ) {
         AppTelemetry.logEvent(
             name = "surah_ayah_status_changed",
@@ -141,20 +218,35 @@ class SurahViewModel(
             )
         )
         viewModelScope.launch(Dispatchers.IO) {
-            ayahTodoUpsertUseCase(
-                AyahTodoEntity(
-                    ayahNumber = ayahNumber,
-                    surahNumber = surahNumber,
-                    status = status,
-                    updatedAt = getTimeMillis()
+            ReviewStateStore.withExclusiveAccess {
+                ayahTodoUpsertUseCase(
+                    AyahTodoEntity(
+                        ayahNumber = ayahNumber,
+                        surahNumber = surahNumber,
+                        status = status,
+                        updatedAt = getTimeMillis()
+                    )
                 )
-            )
-            scheduleReview(ayahNumber, surahNumber)
-            syncSurahStatusInternal(surahNumber, totalAyahs)
+                if (scheduleNextReview) {
+                    scheduleReview(ayahNumber, surahNumber)
+                }
+                when (weakState) {
+                    true -> addWeakAyah(surahNumber, ayahNumber)
+                    false -> removeWeakAyah(surahNumber, ayahNumber)
+                    null -> Unit
+                }
+                syncSurahStatusInternal(surahNumber, totalAyahs)
+                onCompleted()
+            }
         }
     }
 
-    fun clearAyahStatus(ayahNumber: Int, surahNumber: Int, totalAyahs: Int) {
+    fun clearAyahStatus(
+        ayahNumber: Int,
+        surahNumber: Int,
+        totalAyahs: Int,
+        onCompleted: () -> Unit = {},
+    ) {
         AppTelemetry.logEvent(
             name = "surah_ayah_status_cleared",
             params = mapOf(
@@ -163,10 +255,13 @@ class SurahViewModel(
             )
         )
         viewModelScope.launch(Dispatchers.IO) {
-            ayahTodoDeleteByAyahUseCase(ayahNumber)
-            ayahReviewDao.deleteByAyahNumber(ayahNumber)
-            ReviewStateStore.remove(ayahNumber)
-            syncSurahStatusInternal(surahNumber, totalAyahs)
+            ReviewStateStore.withExclusiveAccess {
+                ayahTodoDeleteByAyahUseCase(ayahNumber)
+                ayahReviewDao.deleteByAyahNumber(ayahNumber)
+                remove(ayahNumber)
+                syncSurahStatusInternal(surahNumber, totalAyahs)
+                onCompleted()
+            }
         }
     }
 
@@ -198,6 +293,7 @@ class SurahViewModel(
         ayahNumber: Int,
         surahNumber: Int,
         quality: ReviewQuality = ReviewQuality.GOOD,
+        forceWeak: Boolean = false,
     ) {
         AppTelemetry.logEvent(
             name = "surah_review_completed",
@@ -208,24 +304,32 @@ class SurahViewModel(
             )
         )
         viewModelScope.launch(Dispatchers.IO) {
-            val now = getTimeMillis()
-            val currentState = ReviewStateStore.get(ayahNumber)
-            val nextState = Sm2Scheduler.nextState(currentState, quality)
-            ReviewStateStore.put(ayahNumber, nextState)
-            val nextAt = now + nextState.intervalDays.toLong() * dayMillis
-            ayahReviewDao.upsert(
-                AyahReviewEntity(
-                    ayahNumber = ayahNumber,
-                    surahNumber = surahNumber,
-                    nextReviewAt = nextAt,
-                    intervalIndex = nextState.repetitions,
-                    lastReviewedAt = now
+            ReviewStateStore.withExclusiveAccess {
+                val now = getTimeMillis()
+                val currentState = get(ayahNumber)
+                val nextState = Sm2Scheduler.nextState(currentState, quality)
+                put(ayahNumber, nextState)
+                val nextAt = now + nextState.intervalDays.toLong() * dayMillis
+                ayahReviewDao.upsert(
+                    AyahReviewEntity(
+                        ayahNumber = ayahNumber,
+                        surahNumber = surahNumber,
+                        nextReviewAt = nextAt,
+                        intervalIndex = nextState.repetitions,
+                        lastReviewedAt = now
+                    )
                 )
-            )
-            when (quality) {
-                ReviewQuality.HARD -> addWeakAyah(surahNumber, ayahNumber)
-                ReviewQuality.EASY -> removeWeakAyah(surahNumber, ayahNumber)
-                ReviewQuality.GOOD -> Unit
+                if (forceWeak) {
+                    addWeakAyah(surahNumber, ayahNumber)
+                } else {
+                    when (quality) {
+                        ReviewQuality.FORGOT,
+                        ReviewQuality.HARD,
+                        -> addWeakAyah(surahNumber, ayahNumber)
+                        ReviewQuality.EASY -> removeWeakAyah(surahNumber, ayahNumber)
+                        ReviewQuality.GOOD -> Unit
+                    }
+                }
             }
         }
     }
@@ -249,10 +353,13 @@ class SurahViewModel(
         todoUpsertSurahUseCase(SurahTodoEntity(surahNumber, status))
     }
 
-    private suspend fun scheduleReview(ayahNumber: Int, surahNumber: Int) {
+    private suspend fun ReviewStateStore.ExclusiveAccess.scheduleReview(
+        ayahNumber: Int,
+        surahNumber: Int,
+    ) {
         val now = getTimeMillis()
-        val state = ReviewStateStore.get(ayahNumber) ?: Sm2Scheduler.initialState().also {
-            ReviewStateStore.put(ayahNumber, it)
+        val state = get(ayahNumber) ?: Sm2Scheduler.initialState().also {
+            put(ayahNumber, it)
         }
         val nextAt = now + state.intervalDays.toLong() * dayMillis
         ayahReviewDao.upsert(

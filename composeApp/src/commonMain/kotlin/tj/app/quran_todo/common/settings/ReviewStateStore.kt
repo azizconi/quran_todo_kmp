@@ -1,5 +1,7 @@
 package tj.app.quran_todo.common.settings
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -23,36 +25,55 @@ object ReviewStateStore {
         encodeDefaults = true
     }
 
+    private val accessMutex = Mutex()
+    private val access = ExclusiveAccess()
     private var cached: MutableMap<Int, ReviewMemoryState>? = null
 
-    fun get(ayahNumber: Int): ReviewMemoryState? = ensureLoaded()[ayahNumber]
+    class ExclusiveAccess internal constructor() {
+        fun get(ayahNumber: Int): ReviewMemoryState? =
+            ReviewStateStore.ensureLoaded()[ayahNumber]
 
-    fun put(ayahNumber: Int, state: ReviewMemoryState) {
-        val map = ensureLoaded()
-        map[ayahNumber] = state
-        persist(map)
-    }
+        fun put(ayahNumber: Int, state: ReviewMemoryState) {
+            val map = ReviewStateStore.ensureLoaded()
+            map[ayahNumber] = state
+            ReviewStateStore.persist(map)
+        }
 
-    fun remove(ayahNumber: Int) {
-        val map = ensureLoaded()
-        if (map.remove(ayahNumber) != null) {
-            persist(map)
+        fun putAll(states: Map<Int, ReviewMemoryState>) {
+            if (states.isEmpty()) return
+            val map = ReviewStateStore.ensureLoaded()
+            map.putAll(states)
+            ReviewStateStore.persist(map)
+        }
+
+        fun remove(ayahNumber: Int) {
+            val map = ReviewStateStore.ensureLoaded()
+            if (map.remove(ayahNumber) != null) {
+                ReviewStateStore.persist(map)
+            }
+        }
+
+        fun removeAll(ayahNumbers: Collection<Int>) {
+            if (ayahNumbers.isEmpty()) return
+            val map = ReviewStateStore.ensureLoaded()
+            var changed = false
+            ayahNumbers.forEach { ayah ->
+                if (map.remove(ayah) != null) changed = true
+            }
+            if (changed) ReviewStateStore.persist(map)
+        }
+
+        fun replaceAll(states: Map<Int, ReviewMemoryState>) {
+            val replacement = states.toMutableMap()
+            ReviewStateStore.cached = replacement
+            ReviewStateStore.persist(replacement)
         }
     }
 
-    fun removeAll(ayahNumbers: Collection<Int>) {
-        if (ayahNumbers.isEmpty()) return
-        val map = ensureLoaded()
-        var changed = false
-        ayahNumbers.forEach { ayah ->
-            if (map.remove(ayah) != null) changed = true
-        }
-        if (changed) persist(map)
-    }
-
-    fun clear() {
-        cached = mutableMapOf()
-        persist(cached!!)
+    suspend fun <T> withExclusiveAccess(
+        block: suspend ExclusiveAccess.() -> T,
+    ): T = accessMutex.withLock {
+        access.block()
     }
 
     private fun ensureLoaded(): MutableMap<Int, ReviewMemoryState> {

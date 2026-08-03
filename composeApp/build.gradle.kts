@@ -31,6 +31,7 @@ kotlin {
             baseName = "ComposeApp"
             isStatic = true
             binaryOption("bundleId", "tj.app.quran_todo.compose")
+            export(libs.calf.ui)
             linkerOpts.add("-lsqlite3")
             linkerOpts.add("-framework")
             linkerOpts.add("Speech")
@@ -44,6 +45,7 @@ kotlin {
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.navigation.compose)
 
             implementation(libs.koin.android)
             implementation(libs.koin.androidx.compose)
@@ -57,6 +59,7 @@ kotlin {
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material)
+            implementation(compose.material3)
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
@@ -66,6 +69,7 @@ kotlin {
             implementation(libs.kotlinx.datetime)
             implementation(libs.room.runtime)
             implementation(libs.sqlite.bundled)
+            api(libs.calf.ui)
 
             api(libs.koin.core)
             implementation(libs.koin.compose)
@@ -73,6 +77,8 @@ kotlin {
             implementation(libs.lifecycle.viewmodel)
 
             implementation(libs.bundles.ktor)
+            implementation(libs.decompose)
+            implementation(libs.decompose.compose)
 
 //            implementation(libs.navigation3.runtime)
 
@@ -84,6 +90,10 @@ kotlin {
 
         nativeMain.dependencies {
             implementation(libs.ktor.client.darwin)
+        }
+
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
         }
     }
 }

@@ -20,7 +20,7 @@ val LocalAppSettings = staticCompositionLocalOf {
         targetAyahs = 300,
         targetEpochDay = 0,
         examModeEnabled = false,
-        readingFontSize = 24,
+        readingFontSize = 28,
     )
 }
 val LocalAppSettingsSetter = staticCompositionLocalOf<(AppSettings) -> Unit> { {} }

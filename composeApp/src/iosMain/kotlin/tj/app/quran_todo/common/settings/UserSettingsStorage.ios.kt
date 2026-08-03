@@ -13,6 +13,10 @@ private const val KEY_REPEAT_COUNT = "repeat_count"
 private const val KEY_LOOP_START_AYAH = "loop_start_ayah"
 private const val KEY_LOOP_END_AYAH = "loop_end_ayah"
 private const val KEY_TRANSLATION_MODE = "translation_mode"
+private const val KEY_SHOW_AYAH_TRANSLATION = "show_ayah_translation"
+private const val KEY_AUTOPLAY_ON_SURAH_OPEN = "autoplay_on_surah_open"
+private const val KEY_AUTO_ADVANCE_AYAHS = "auto_advance_ayahs"
+private const val KEY_HIGHLIGHT_PLAYING_AYAH = "highlight_playing_ayah"
 private const val KEY_TRANSLATION_DELAY = "translation_delay"
 private const val KEY_EXAM_MODE = "exam_mode"
 private const val KEY_TARGET_AYAHS = "target_ayahs"
@@ -107,6 +111,50 @@ actual object UserSettingsStorage {
 
     actual fun saveTranslationModeEnabled(enabled: Boolean) {
         defaults.setBool(enabled, forKey = KEY_TRANSLATION_MODE)
+    }
+
+    actual fun isShowAyahTranslationEnabled(): Boolean? =
+        if (defaults.objectForKey(KEY_SHOW_AYAH_TRANSLATION) != null) {
+            defaults.boolForKey(KEY_SHOW_AYAH_TRANSLATION)
+        } else {
+            null
+        }
+
+    actual fun saveShowAyahTranslation(enabled: Boolean) {
+        defaults.setBool(enabled, forKey = KEY_SHOW_AYAH_TRANSLATION)
+    }
+
+    actual fun isAutoplayOnSurahOpenEnabled(): Boolean? =
+        if (defaults.objectForKey(KEY_AUTOPLAY_ON_SURAH_OPEN) != null) {
+            defaults.boolForKey(KEY_AUTOPLAY_ON_SURAH_OPEN)
+        } else {
+            null
+        }
+
+    actual fun saveAutoplayOnSurahOpen(enabled: Boolean) {
+        defaults.setBool(enabled, forKey = KEY_AUTOPLAY_ON_SURAH_OPEN)
+    }
+
+    actual fun isAutoAdvanceAyahsEnabled(): Boolean? =
+        if (defaults.objectForKey(KEY_AUTO_ADVANCE_AYAHS) != null) {
+            defaults.boolForKey(KEY_AUTO_ADVANCE_AYAHS)
+        } else {
+            null
+        }
+
+    actual fun saveAutoAdvanceAyahs(enabled: Boolean) {
+        defaults.setBool(enabled, forKey = KEY_AUTO_ADVANCE_AYAHS)
+    }
+
+    actual fun isHighlightPlayingAyahEnabled(): Boolean? =
+        if (defaults.objectForKey(KEY_HIGHLIGHT_PLAYING_AYAH) != null) {
+            defaults.boolForKey(KEY_HIGHLIGHT_PLAYING_AYAH)
+        } else {
+            null
+        }
+
+    actual fun saveHighlightPlayingAyah(enabled: Boolean) {
+        defaults.setBool(enabled, forKey = KEY_HIGHLIGHT_PLAYING_AYAH)
     }
 
     actual fun getTranslationDelayMs(): Long? =

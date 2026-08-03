@@ -21,21 +21,16 @@ import androidx.compose.material.Slider
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.jetbrains.compose.resources.Font
-import qurantodo.composeapp.generated.resources.Res
-import qurantodo.composeapp.generated.resources.quran_font
-import qurantodo.composeapp.generated.resources.quran_font_2
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.theme.ReadingFontStyle
 import tj.app.quran_todo.common.theme.mutedText
 import tj.app.quran_todo.common.theme.subtleBorder
 import tj.app.quran_todo.common.theme.tintedSurface
+import tj.app.quran_todo.common.utils.getQuranFontFamily
 
 @Composable
 fun FontOnboardingScreen(
@@ -84,7 +79,7 @@ fun FontOnboardingScreen(
                         style = MaterialTheme.typography.body1.copy(
                             fontSize = fontSize.sp,
                             lineHeight = (fontSize * 1.6f).sp,
-                            fontFamily = previewFontFamily(selected)
+                            fontFamily = getQuranFontFamily(selected)
                         ),
                         textAlign = TextAlign.End,
                         modifier = Modifier.fillMaxWidth()
@@ -94,7 +89,7 @@ fun FontOnboardingScreen(
                         style = MaterialTheme.typography.body1.copy(
                             fontSize = (fontSize - 2).coerceAtLeast(18).sp,
                             lineHeight = ((fontSize - 2).coerceAtLeast(18) * 1.6f).sp,
-                            fontFamily = previewFontFamily(selected)
+                            fontFamily = getQuranFontFamily(selected)
                         ),
                         textAlign = TextAlign.End,
                         modifier = Modifier.fillMaxWidth()
@@ -113,7 +108,7 @@ fun FontOnboardingScreen(
                 Slider(
                     value = fontSize.toFloat(),
                     onValueChange = { onFontSizeChange(it.toInt()) },
-                    valueRange = 18f..34f
+                    valueRange = 24f..34f
                 )
             }
 
@@ -173,20 +168,5 @@ private fun FontOptionCard(
             color = if (selected) colors.primary else colors.onSurface,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
         )
-    }
-}
-
-@Composable
-private fun previewFontFamily(style: ReadingFontStyle): FontFamily {
-    return when (style) {
-        ReadingFontStyle.UTHMANI -> FontFamily(
-            Font(Res.font.quran_font_2, weight = FontWeight.Normal, style = FontStyle.Normal)
-        )
-        ReadingFontStyle.AMIRI_QURAN -> FontFamily(
-            Font(Res.font.quran_font, weight = FontWeight.Normal, style = FontStyle.Normal)
-        )
-        ReadingFontStyle.SCHEHERAZADE_NEW -> FontFamily.Serif
-        ReadingFontStyle.NOTO_NASKH_ARABIC -> FontFamily.Serif
-        ReadingFontStyle.NOTO_NASTALIQ -> FontFamily.Cursive
     }
 }

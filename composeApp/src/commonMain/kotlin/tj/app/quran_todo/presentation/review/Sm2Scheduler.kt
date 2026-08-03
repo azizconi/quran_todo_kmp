@@ -12,6 +12,7 @@ object Sm2Scheduler {
     ): ReviewMemoryState {
         val safeCurrent = current ?: initialState()
         val q = when (quality) {
+            ReviewQuality.FORGOT -> 0
             ReviewQuality.HARD -> 2
             ReviewQuality.GOOD -> 4
             ReviewQuality.EASY -> 5
