@@ -2,7 +2,7 @@ import Combine
 import SwiftUI
 import ComposeApp
 
-private struct ReaderPreferences: Equatable {
+struct ReaderPreferences: Equatable {
     var showTranslation: Bool
     var autoplayOnOpen: Bool
     var autoAdvanceAyahs: Bool
@@ -20,7 +20,7 @@ private struct ReaderPreferences: Equatable {
     }
 }
 
-private extension NativeSurahReaderTheme {
+extension NativeSurahReaderTheme {
     var colorScheme: ColorScheme {
         isDark ? .dark : .light
     }
@@ -67,6 +67,7 @@ private func leadingVisibleAyah(in offsets: [Int32: CGFloat]) -> Int32? {
 @MainActor
 private final class NativeSurahReaderStore: ObservableObject {
     @Published private(set) var state: ReaderLoadState = .loading
+    @Published private(set) var practice: ReaderPracticeSettings?
     @Published private(set) var surahStatus = ""
     @Published private(set) var statusErrorMessage: String?
     @Published private(set) var presentationCopy: NativeSurahReaderCopy?
@@ -115,6 +116,7 @@ private final class NativeSurahReaderStore: ObservableObject {
                 if self.pendingStatusRequestID == nil {
                     self.surahStatus = snapshot.surahStatus
                 }
+                self.practice = snapshot.practice
                 self.state = .content(snapshot, preferences)
                 onLoaded(snapshot)
             },
@@ -164,6 +166,17 @@ private final class NativeSurahReaderStore: ObservableObject {
         )
     }
 
+    func applyPlayerSettings(preferences: ReaderPreferences, practice: ReaderPracticeDraft, snapshot: NativeSurahReaderSnapshot) {
+        self.practice = bridge.savePlayerSettings(
+            surahNumber: snapshot.number, ayahCount: Int32(snapshot.ayahs.count),
+            rangeEnabled: practice.rangeEnabled, startAyah: Int32(practice.startAyah),
+            endAyah: Int32(practice.endAyah), rangeRepeatCount: Int32(practice.repeatCount),
+            pauseSeconds: Int32(practice.pauseSeconds), playbackSpeed: preferences.playbackSpeed,
+            ayahRepeatCount: Int32(preferences.repeatCount)
+        )
+        applyPreferences(preferences)
+    }
+
     func applyPreferences(_ preferences: ReaderPreferences) {
         guard case let .content(snapshot, _) = state else { return }
         state = .content(snapshot, preferences)
@@ -181,172 +194,55 @@ private final class NativeSurahReaderPlayer: ObservableObject {
     @Published private(set) var isPaused = false
     @Published private(set) var positionMs: Int64 = 0
     @Published private(set) var durationMs: Int64 = 0
-
+    @Published private(set) var pauseRemainingSeconds: Int32 = 0
+    @Published private(set) var hasError = false
     private let bridge: NativeSurahReaderBridge
     private var ayahs: [NativeSurahReaderAyah] = []
-    private var preferences: ReaderPreferences?
     private var surahNumber: Int32 = 0
-    private var currentIndex = 0
-    private var repeatsRemaining = 1
-    private var playbackGeneration = 0
-    private var isLoadingAudio = false
-    private var timer: AnyCancellable?
-    private var lastSavedReadingAyahNumber: Int32?
 
     init(bridge: NativeSurahReaderBridge) {
         self.bridge = bridge
-        timer = Timer.publish(every: 0.25, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in self?.readProgress() }
+        bridge.observePlayback { [weak self] state in
+            guard let self else { return }
+            self.selectedAyahNumber = self.ayahs.indices.contains(Int(state.index))
+                ? self.ayahs[Int(state.index)].globalNumber : nil
+            self.isPlaying = state.isPlaying
+            self.isPaused = state.canResume
+            self.positionMs = state.positionMs
+            self.durationMs = state.durationMs
+            self.pauseRemainingSeconds = state.pauseRemainingSeconds
+            self.hasError = state.hasError
+        }
     }
 
     func configure(snapshot: NativeSurahReaderSnapshot) {
         ayahs = snapshot.ayahs
-        if surahNumber != snapshot.number {
-            lastSavedReadingAyahNumber = nil
-        }
         surahNumber = snapshot.number
-        preferences = ReaderPreferences(snapshot.preferences)
-        guard !ayahs.isEmpty else { return }
-        if selectedAyahNumber == nil {
-            currentIndex = ayahs.firstIndex {
-                $0.globalNumber == snapshot.initialAyahGlobalNumber
-            } ?? 0
-            selectedAyahNumber = ayahs[currentIndex].globalNumber
-            if preferences?.autoplayOnOpen == true {
-                start(at: currentIndex)
-            }
-        }
+        if selectedAyahNumber == nil { selectedAyahNumber = snapshot.initialAyahGlobalNumber }
     }
 
     func updatePreferences(_ value: ReaderPreferences) {
-        preferences = value
-        bridge.setAudioPlaybackSpeed(playbackSpeed: value.playbackSpeed)
+        bridge.updatePlayerPreferences(surahNumber: surahNumber, ayahCount: Int32(ayahs.count))
     }
 
     func select(_ ayah: NativeSurahReaderAyah) {
         guard let index = ayahs.firstIndex(where: { $0.globalNumber == ayah.globalNumber }) else { return }
-        playbackGeneration &+= 1
-        isLoadingAudio = false
-        bridge.stopAudio()
-        currentIndex = index
-        selectedAyahNumber = ayah.globalNumber
-        saveReadingPosition(ayah.globalNumber)
-        isPlaying = false
-        isPaused = false
-        positionMs = 0
-        durationMs = 0
+        bridge.selectAyah(index: Int32(index))
     }
-
-    func playOrPause() {
-        guard !ayahs.isEmpty else { return }
-        if isPlaying {
-            if isLoadingAudio {
-                playbackGeneration &+= 1
-                isLoadingAudio = false
-                bridge.stopAudio()
-                isPlaying = false
-                isPaused = false
-                return
-            }
-            bridge.pauseAudio()
-            isPlaying = false
-            isPaused = true
-        } else if isPaused, let preferences {
-            bridge.resumeAudio(playbackSpeed: preferences.playbackSpeed)
-            isPlaying = true
-            isPaused = false
-        } else {
-            start(at: currentIndex)
-        }
+    func saveReadingPosition(_ globalNumber: Int32) {
+        bridge.saveCurrentAyah(surahNumber: surahNumber, ayahGlobalNumber: globalNumber)
     }
+    func playOrPause() { bridge.togglePlayback() }
+    func previous() { bridge.previousAyah() }
+    func next() { bridge.nextAyah() }
+    func stop() { bridge.stopAudio() }
+}
 
-    func saveReadingPosition(_ ayahGlobalNumber: Int32) {
-        guard surahNumber > 0,
-              ayahs.contains(where: { $0.globalNumber == ayahGlobalNumber }),
-              lastSavedReadingAyahNumber != ayahGlobalNumber else {
-            return
-        }
-        lastSavedReadingAyahNumber = ayahGlobalNumber
-        bridge.saveCurrentAyah(surahNumber: surahNumber, ayahGlobalNumber: ayahGlobalNumber)
-    }
-
-    func previous() {
-        start(at: max(currentIndex - 1, 0))
-    }
-
-    func next() {
-        start(at: min(currentIndex + 1, max(ayahs.count - 1, 0)))
-    }
-
-    func stop() {
-        playbackGeneration &+= 1
-        isLoadingAudio = false
-        bridge.stopAudio()
-        isPlaying = false
-        isPaused = false
-        positionMs = 0
-        durationMs = 0
-    }
-
-    private func start(at index: Int, repeatCount: Int? = nil) {
-        guard ayahs.indices.contains(index), let preferences else { return }
-        playbackGeneration &+= 1
-        let generation = playbackGeneration
-        currentIndex = index
-        let ayah = ayahs[index]
-        selectedAyahNumber = ayah.globalNumber
-        saveReadingPosition(ayah.globalNumber)
-        repeatsRemaining = repeatCount ?? preferences.repeatCount
-        isPlaying = true
-        isPaused = false
-        isLoadingAudio = true
-        positionMs = 0
-        durationMs = 0
-        bridge.playAyah(
-            surahNumber: surahNumber,
-            ayahGlobalNumber: ayah.globalNumber,
-            ayahNumberInSurah: ayah.numberInSurah,
-            playbackSpeed: preferences.playbackSpeed,
-            onStarted: { [weak self] in
-                DispatchQueue.main.async {
-                    guard let self, self.playbackGeneration == generation, self.isPlaying else { return }
-                    self.isLoadingAudio = false
-                }
-            },
-            onCompleted: { [weak self] in
-                DispatchQueue.main.async {
-                    guard let self, self.playbackGeneration == generation else { return }
-                    self.isLoadingAudio = false
-                    self.didFinishAyah()
-                }
-            }
-        )
-    }
-
-    private func didFinishAyah() {
-        guard isPlaying, let preferences else { return }
-        if repeatsRemaining == -1 {
-            start(at: currentIndex, repeatCount: -1)
-        } else if repeatsRemaining > 1 {
-            start(at: currentIndex, repeatCount: repeatsRemaining - 1)
-        } else if preferences.autoAdvanceAyahs, currentIndex + 1 < ayahs.count {
-            start(at: currentIndex + 1)
-        } else {
-            isPlaying = false
-            isPaused = false
-            positionMs = durationMs
-        }
-    }
-
-    private func readProgress() {
-        guard isPlaying || isPaused else { return }
-        positionMs = bridge.audioPositionMs()
-        durationMs = bridge.audioDurationMs()
-    }
-
-    deinit {
-        timer?.cancel()
+private enum ReaderSheet: Identifiable {
+    case reading(NativeSurahReaderSnapshot)
+    case player(NativeSurahReaderSnapshot, ReaderPlayerFeature)
+    var id: String {
+        switch self { case .reading: return "reading"; case let .player(_, feature): return feature.rawValue }
     }
 }
 
@@ -354,7 +250,7 @@ struct NativeSurahReaderScreen: View {
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var store: NativeSurahReaderStore
     @StateObject private var player: NativeSurahReaderPlayer
-    @State private var isShowingSettings = false
+    @State private var presentedSheet: ReaderSheet?
     @State private var isRestoringScrollPosition = true
     private let fallbackChrome: AppChrome
 
@@ -416,7 +312,7 @@ struct NativeSurahReaderScreen: View {
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 ReaderSettingsToolbarButton(copy: store.copy) {
-                    isShowingSettings = true
+                    if let snapshot = store.snapshot { presentedSheet = .reading(snapshot) }
                 }
             }
         }
@@ -443,19 +339,36 @@ struct NativeSurahReaderScreen: View {
         } message: {
             Text(store.statusErrorMessage ?? store.copy?.tryAgain ?? "")
         }
-        .sheet(isPresented: $isShowingSettings) {
-            if let preferences = store.preferences,
-               let copy = store.copy,
-               let theme = store.theme {
-                ReaderSettingsSheet(preferences: preferences, copy: copy, theme: theme) { next in
+        .sheet(item: $presentedSheet) { destination in
+            switch destination {
+            case let .reading(snapshot):
+                ReaderSettingsSheet(
+                    preferences: store.preferences ?? ReaderPreferences(snapshot.preferences),
+                    copy: snapshot.strings, theme: snapshot.theme
+                ) { next in
+                    let previous = store.preferences
                     store.save(next)
                     player.updatePreferences(next)
-                    if next.showTranslation != preferences.showTranslation {
-                        store.load(isSystemDark: colorScheme == .dark) { snapshot in
-                            player.configure(snapshot: snapshot)
-                        }
+                    if next.showTranslation != previous?.showTranslation {
+                        store.load(isSystemDark: colorScheme == .dark) { player.configure(snapshot: $0) }
                     } else {
                         store.applyPreferences(next)
+                    }
+                }
+            case let .player(snapshot, feature):
+                ReaderPlayerSheet(
+                    feature: feature, currentAyah: snapshot.ayahs.first(where: { $0.globalNumber == player.selectedAyahNumber }).map { Int($0.numberInSurah) } ?? 1,
+                    preferences: store.preferences ?? ReaderPreferences(snapshot.preferences),
+                    practice: store.practice ?? snapshot.practice,
+                    ayahCount: snapshot.ayahs.count,
+                    copy: snapshot.playerCopy, theme: snapshot.theme,
+                    guideSeen: store.bridge.hasSeenPlayerGuide(feature: feature.storageKey),
+                    onGuideSeen: { store.bridge.markPlayerGuideSeen(feature: feature.storageKey) }
+                ) { preferences, practice, startPlayback in
+                    store.applyPlayerSettings(preferences: preferences, practice: practice, snapshot: snapshot)
+                    if startPlayback {
+                        store.bridge.selectAyah(index: Int32(practice.startAyah - 1))
+                        store.bridge.togglePlayback()
                     }
                 }
             }
@@ -566,7 +479,18 @@ struct NativeSurahReaderScreen: View {
                 theme: theme,
                 onPrevious: player.previous,
                 onNext: player.next,
-                onPlayPause: player.playOrPause
+                onPlayPause: player.playOrPause,
+                onRepeat: { presentedSheet = .player(snapshot, .range) },
+                onPause: { presentedSheet = .player(snapshot, .pause) },
+                onSpeed: { speed in
+                    var next = preferences
+                    next.playbackSpeed = speed
+                    store.applyPlayerSettings(preferences: next, practice: ReaderPracticeDraft(store.practice ?? snapshot.practice), snapshot: snapshot)
+                },
+                playerCopy: snapshot.playerCopy,
+                practice: store.practice ?? snapshot.practice,
+                pauseRemainingSeconds: player.pauseRemainingSeconds,
+                hasError: player.hasError
             )
             // Extend only the player's background through the Home Indicator.
             // The controls remain in the safe area managed by safeAreaInset.
@@ -778,6 +702,13 @@ private struct NativeReaderMiniPlayer: View {
     let onPrevious: () -> Void
     let onNext: () -> Void
     let onPlayPause: () -> Void
+    let onRepeat: () -> Void
+    let onPause: () -> Void
+    let onSpeed: (Float) -> Void
+    let playerCopy: PlayerFeatureCopy
+    let practice: ReaderPracticeSettings
+    let pauseRemainingSeconds: Int32
+    let hasError: Bool
 
     var body: some View {
         VStack(spacing: 9) {
@@ -789,9 +720,14 @@ private struct NativeReaderMiniPlayer: View {
                     .foregroundStyle(theme.onSurface)
                     .lineLimit(1)
                 Spacer()
-                Text("\(speed, specifier: "%g")×")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(theme.textSecondary)
+
+            }
+            if hasError {
+                Text(playerCopy.audioError).font(.caption).foregroundStyle(.red)
+            } else if pauseRemainingSeconds > 0 {
+                Text("\(playerCopy.waiting) · \(pauseRemainingSeconds) \(playerCopy.seconds)")
+                    .font(.caption.weight(.semibold)).foregroundStyle(theme.primary)
+
             }
             HStack(spacing: 8) {
                 Text(durationString(positionMs)).font(.caption2.monospacedDigit()).foregroundStyle(theme.textSecondary)
@@ -818,11 +754,48 @@ private struct NativeReaderMiniPlayer: View {
             .font(.title3)
             .foregroundStyle(theme.onSurface)
             .buttonStyle(.plain)
+            HStack(spacing: 8) {
+                quickButton(
+                    practice.rangeEnabled ? "\(practice.startAyah)–\(practice.endAyah) · \(practice.rangeRepeatCount == -1 ? "∞" : String(practice.rangeRepeatCount) + "×")" : playerCopy.repeatAction,
+                    icon: "repeat", active: practice.rangeEnabled, action: onRepeat
+                )
+                quickButton(practice.pauseSeconds > 0 ? "\(practice.pauseSeconds) \(playerCopy.seconds)" : playerCopy.pauseAction,
+                            icon: "timer", active: practice.pauseSeconds > 0, action: onPause)
+                Menu {
+                    ForEach([Float(0.75), 1, 1.25, 1.5, 2], id: \.self) { value in
+                        Button { onSpeed(value) } label: {
+                            if value == speed { Label(String(format: "%g×", value), systemImage: "checkmark") }
+                            else { Text(String(format: "%g×", value)) }
+                        }
+                    }
+                } label: {
+                    quickLabel(String(format: "%g×", speed), icon: nil, active: speed != 1)
+                }
+                .accessibilityLabel(playerCopy.speed)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 12)
         .background(theme.surface)
+    }
+
+    private func quickButton(_ title: String, icon: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) { quickLabel(title, icon: icon, active: active) }
+            .accessibilityLabel(icon == "repeat" ? playerCopy.repeatAction : playerCopy.pauseAction)
+            .accessibilityValue(title)
+    }
+
+    private func quickLabel(_ title: String, icon: String?, active: Bool) -> some View {
+        HStack(spacing: 5) {
+            if let icon { Image(systemName: icon) }
+            Text(title).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .font(.system(size: 13, weight: .medium))
+        .foregroundStyle(active ? theme.primary : theme.textSecondary)
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .background(active ? theme.primaryWeak : theme.surfaceAlt, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var progress: Double {

@@ -1,0 +1,22 @@
+Player feature verification — 2026-10-15
+
+Builds:
+- Android debug APK assembled successfully and installed on the emulator.
+- Kotlin iOS Simulator arm64 compiled and debug framework linked successfully.
+- Native SwiftUI iOS app built successfully with XcodeBuildMCP and installed on iPhone 17 / iOS 26.5.
+- 22 tests passed: 9 sequence tests, 10 audio session tests, 3 existing theme tests.
+- git diff --check passed.
+
+Manual checks:
+- Android: all three illustrated guide steps, quick settings, range 1–2, repeat 3 times, pause 3 seconds, real audio playback.
+- Android: paused the silent gap for 4 seconds; its countdown stayed frozen, then resumed and advanced to ayah 2. See android-audio-trace.json.
+- Android: reopened the panel and verified the saved range, repeats and pause.
+- Android: dark-mode guide verified after explicit heading contrast adjustment; emulator system theme restored to its original light setting.
+- iOS: all three illustrated guide steps, quick settings, range input validation (ayah 8 rejected for Al-Fatihah), valid 1–2 / 3 repeats / 3-second pause saved; playback control starts playback.
+- iOS: app reinstalled preserving data; stored defaults independently verified range 1–2, 3 repeats, 3-second pause and completed guide flag.
+- iOS: layout verified in the simulator; a later end-to-end playback observation was interrupted by another app becoming foreground, so it is not claimed as a completed iOS playback timing check.
+
+Environment notes:
+- Android emulator DNS could not resolve api.alquran.cloud. For offline verification, its empty reference database and audio cache were populated with the real Quran API response and Alafasy recordings downloaded on the host. No production endpoints or database schema were changed.
+- A local temporary Gradle init script omitted the unresponsive JetBrains Space repository for these checks. Dependencies came from the project's other configured repositories. Repository configuration in the project is unchanged.
+- The iOS MCP build call initially timed out while Gradle resolved repositories. The framework was then built explicitly with Gradle and copied to the normal Xcode framework directory. XcodeBuildMCP completed the native build with OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED=YES using the freshly linked framework.

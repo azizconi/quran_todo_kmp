@@ -1,0 +1,17 @@
+Tool: built-in ImageGen, transparent_background=true.
+Reference: approved three-step bottom-sheet concept from this chat.
+Output: player_guide_art.png, 2172 x 724 RGBA, three equal 724 x 724 cells.
+The atlas is displayed by measured source rectangles on both platforms, without scaling or cropping other cells into view.
+
+Prompt:
+Extract and refine the THREE gorgeous 3D illustrations from the approved onboarding concept into ONE production-ready transparent asset atlas. NOT a UI mockup. No screens, titles, buttons, sheets, backgrounds, labels or scene. Only the three separate isolated hero illustrations.
+Wide 3:1 genuinely transparent RGBA canvas, three equal square cells side by side, same optical scale, centered with transparent padding. Nothing crosses cell boundaries. No frames or divider lines. Preserve soft shadows with alpha.
+Match the reference: sophisticated tactile matte 3D, warm ivory and forest emerald #1F6F5B, pale sage mint, gentle studio lighting, rounded edges.
+LEFT: stacked ivory verse cards, prominent numbers 5 and 10 only, sculptural green looping repeat arrow ribbon. No Quran text or Arabic.
+MIDDLE: two clusters of tactile green audio waveform bars, soft mint circular pause symbol, small ivory capsule with '5 s'.
+RIGHT: slightly tilted ivory miniature player panel, green play button, three green slider controls, small repeat/clock/speed icons. No text or numbers.
+No childish toys, strong glossy plastic or aggressive highlights. Clean sharp silhouettes. Transparent backdrop for light and dark sheets.
+
+Workspace assets:
+/Users/azizjon/projects/quran_todo_kmp/composeApp/src/commonMain/composeResources/drawable/player_guide_art.png
+/Users/azizjon/projects/quran_todo_kmp/iosApp/iosApp/Assets.xcassets/PlayerGuideArt.imageset/player_guide_art.png

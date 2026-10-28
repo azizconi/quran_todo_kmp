@@ -238,4 +238,15 @@ actual object UserSettingsStorage {
     actual fun saveFeatureGuideSeen(seen: Boolean) {
         prefs().edit().putBoolean(KEY_FEATURE_GUIDE_SEEN, seen).apply()
     }
+    actual fun getReaderPracticeJson(): String? = prefs().getString("reader_practice_v1", null)
+
+    actual fun saveReaderPracticeJson(value: String) {
+        prefs().edit().putString("reader_practice_v1", value).apply()
+    }
+
+    actual fun isPlayerGuideSeen(feature: String): Boolean? = prefs().getBoolean("player_guide_v2_$feature", false)
+
+    actual fun savePlayerGuideSeen(seen: Boolean, feature: String) {
+        prefs().edit().putBoolean("player_guide_v2_$feature", seen).apply()
+    }
 }

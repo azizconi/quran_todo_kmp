@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A2F7A8012EAF100100A00001 /* ReaderPlayerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F7A8022EAF100100A00001 /* ReaderPlayerSheet.swift */; };
 		058557BB273AAA24004C7B11 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557BA273AAA24004C7B11 /* Assets.xcassets */; };
 		058557D9273AAEEB004C7B11 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557D8273AAEEB004C7B11 /* Preview Assets.xcassets */; };
 		2152FB042600AC8F00CF470E /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2152FB032600AC8F00CF470E /* iOSApp.swift */; };
@@ -23,6 +24,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A2F7A8022EAF100100A00001 /* ReaderPlayerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderPlayerSheet.swift; sourceTree = "<group>"; };
 		058557BA273AAA24004C7B11 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		058557D8273AAEEB004C7B11 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		2152FB032600AC8F00CF470E /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
@@ -91,6 +93,7 @@
 				058557BA273AAA24004C7B11 /* Assets.xcassets */,
 				A1F7A8132EAF100100A00001 /* Fonts */,
 				7555FF82242A565900829871 /* ContentView.swift */,
+				A2F7A8022EAF100100A00001 /* ReaderPlayerSheet.swift */,
 				A1F7A8022EAF100100A00001 /* NativeSurahReaderScreen.swift */,
 				A1F7A8042EAF100100A00001 /* NativeSettingsScreen.swift */,
 				7555FF8C242A565B00829871 /* Info.plist */,
@@ -228,6 +231,7 @@
 			files = (
 				2152FB042600AC8F00CF470E /* iOSApp.swift in Sources */,
 				7555FF83242A565900829871 /* ContentView.swift in Sources */,
+				A2F7A8012EAF100100A00001 /* ReaderPlayerSheet.swift in Sources */,
 				A1F7A8012EAF100100A00001 /* NativeSurahReaderScreen.swift in Sources */,
 				A1F7A8032EAF100100A00001 /* NativeSettingsScreen.swift in Sources */,
 			);

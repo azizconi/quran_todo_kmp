@@ -26,21 +26,21 @@ actual class AudioPlayer {
     private var failureObserver: Any? = null
     private var playbackRate: Float = 1f
 
-    actual fun play(url: String, onComplete: () -> Unit) {
+    actual fun play(url: String, onError: (() -> Unit)?, onComplete: () -> Unit) {
         stop()
         configureAudioSession()
         var callbackDelivered = false
-        fun completeOnce() {
+        fun completeOnce(failed: Boolean = false) {
             if (callbackDelivered) return
             callbackDelivered = true
-            onComplete()
+            if (failed && onError != null) onError() else onComplete()
         }
         val nsUrl = if (url.startsWith("http")) {
             NSURL.URLWithString(url)
         } else {
             NSURL.fileURLWithPath(url)
         } ?: run {
-            completeOnce()
+            completeOnce(failed = true)
             return
         }
         val item = AVPlayerItem(uRL = nsUrl)
@@ -58,7 +58,7 @@ actual class AudioPlayer {
             `object` = item,
             queue = null
         ) { _ ->
-            completeOnce()
+            completeOnce(failed = true)
         }
         avPlayer.play()
         avPlayer.rate = playbackRate
@@ -76,7 +76,7 @@ actual class AudioPlayer {
 
     actual fun setPlaybackSpeed(speed: Float) {
         playbackRate = speed.coerceIn(0.5f, 2.0f)
-        player?.rate = playbackRate
+        player?.takeIf { it.rate != 0f }?.rate = playbackRate
     }
 
     actual fun getDurationMs(): Long {

@@ -47,4 +47,8 @@ expect object UserSettingsStorage {
     fun saveReviewStateJson(value: String)
     fun isFeatureGuideSeen(): Boolean?
     fun saveFeatureGuideSeen(seen: Boolean)
+    fun getReaderPracticeJson(): String?
+    fun saveReaderPracticeJson(value: String)
+    fun isPlayerGuideSeen(feature: String = "all"): Boolean?
+    fun savePlayerGuideSeen(seen: Boolean, feature: String = "all")
 }

@@ -8,14 +8,14 @@ actual class AudioPlayer {
     private var isPrepared = false
     private var playWhenReady = false
 
-    actual fun play(url: String, onComplete: () -> Unit) {
+    actual fun play(url: String, onError: (() -> Unit)?, onComplete: () -> Unit) {
         stop()
         val player = MediaPlayer()
         var callbackDelivered = false
-        fun completeOnce() {
+        fun completeOnce(failed: Boolean = false) {
             if (callbackDelivered) return
             callbackDelivered = true
-            onComplete()
+            if (failed && onError != null) onError() else onComplete()
         }
         mediaPlayer = player
         playWhenReady = true
@@ -27,7 +27,7 @@ actual class AudioPlayer {
         player.setOnErrorListener { failedPlayer, _, _ ->
             if (mediaPlayer === failedPlayer) {
                 stop()
-                completeOnce()
+                completeOnce(failed = true)
             }
             true
         }
@@ -41,14 +41,14 @@ actual class AudioPlayer {
                     runCatching { it.start() }
                         .onFailure {
                             stop()
-                            completeOnce()
+                            completeOnce(failed = true)
                         }
                 }
             }
             player.prepareAsync()
         } catch (_: Exception) {
             stop()
-            completeOnce()
+            completeOnce(failed = true)
         }
     }
 
