@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import tj.app.quran_todo.ui.components.QhSectionHeader
@@ -97,7 +98,9 @@ private fun RecentChip(
             .heightIn(min = 38.dp)
             .padding(start = if (chip.pinned) 12.dp else 16.dp, end = 16.dp)
             .semantics(mergeDescendants = true) {
-                contentDescription = if (chip.pinned) "${chip.name}, $pinnedLabel" else chip.name
+                contentDescription = chip.name
+                // Spoken after the name, like the status of a switch: "Al-Baqarah, Pinned".
+                if (chip.pinned) stateDescription = pinnedLabel
             },
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,

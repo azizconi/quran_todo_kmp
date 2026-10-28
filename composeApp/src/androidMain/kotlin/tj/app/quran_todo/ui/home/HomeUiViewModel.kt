@@ -27,6 +27,7 @@ import tj.app.quran_todo.common.i18n.LanguageStorage
 import tj.app.quran_todo.common.settings.ReaderPracticeSettings
 import tj.app.quran_todo.common.settings.SurahReaderPreferences
 import tj.app.quran_todo.common.settings.UserSettingsStorage
+import tj.app.quran_todo.common.utils.currentLocalDate
 import tj.app.quran_todo.common.utils.localDateFromEpoch
 import tj.app.quran_todo.data.database.dao.AyahReviewDao
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
@@ -78,7 +79,10 @@ class HomeUiViewModel internal constructor(
         .map { it.toData() }
         .distinctUntilChanged(::sameData)
 
-    /** Ayahs touched today, re-read when the ayah table, the due reviews or the day change. */
+    /**
+     * Ayahs touched today and the ayahs that have a review record (those are never "new"), re-read when
+     * the ayah table, the due reviews or the day change.
+     */
     private val doneStats: Flow<DoneStats?> = home.uiState
         .map { Triple(it.ayahTodos, it.dueReviews, it.currentEpochDay) }
         .distinctUntilChanged { a, b -> a.first === b.first && a.second === b.second && a.third == b.third }
@@ -90,7 +94,7 @@ class HomeUiViewModel internal constructor(
                 doneToday = TodayPlanner.countDoneToday(todos, reviews) { millis ->
                     localDateFromEpoch(millis).toEpochDays() == epochDay
                 },
-                hasReviews = reviews.isNotEmpty(),
+                reviewedAyahs = reviews.mapTo(HashSet()) { it.ayahNumber },
             ) as DoneStats?
         }
         .onStart { emit(null) }
@@ -198,6 +202,17 @@ class HomeUiViewModel internal constructor(
     fun togglePin(surah: Int) = uiPrefs.togglePin(surah)
 
     fun dismissHifzInvite() = localPrefs.dismissHifzInvite()
+
+    /**
+     * Asks whether the burst for the reached goal should play now. True at most once per day: the day is
+     * remembered at the moment the answer is yes.
+     */
+    fun consumeGoalCelebration(done: Int, goal: Int): Boolean {
+        val day = currentLocalDate().toEpochDays()
+        if (!shouldCelebrateGoal(done, goal, localPrefs.goalCelebratedDay, day)) return false
+        localPrefs.markGoalCelebrated(day)
+        return true
+    }
 
     /**
      * "Listen": starts [surah] on the mini player without opening the reader. If the controller already

@@ -32,6 +32,10 @@ data class HomeCopy(
     val today: String,
     val ofGoalPattern: String,
     val todayProgressPattern: String,
+    /** The counter once the goal is met: `{n}` is how many ayahs were worked on today. */
+    val goalReachedPattern: String,
+    /** The spoken form of the same counter: `{a}` done of `{b}`. */
+    val goalReachedDescriptionPattern: String,
     val kindNew: String,
     val kindReview: String,
     val kindWeak: String,
@@ -71,6 +75,8 @@ data class HomeCopy(
     val statusNotStarted: String,
     val statusLearning: String,
     val statusLearned: String,
+    /** Spoken state of a surah row being memorized: `{n}` is the percent already memorized. Turkish puts the sign first. */
+    val learningPercentPattern: String,
     val pin: String,
     val unpin: String,
     val listenSurah: String,
@@ -94,6 +100,12 @@ data class HomeCopy(
     fun ofGoal(goal: Int): String = ofGoalPattern.fill("n" to goal)
 
     fun todayProgress(done: Int, goal: Int): String = todayProgressPattern.fill("a" to done, "b" to goal)
+
+    /** "Goal reached · 7": the counter when the day's goal is met (or passed). */
+    fun goalReached(done: Int): String = goalReachedPattern.fill("n" to done)
+
+    fun goalReachedDescription(done: Int, goal: Int): String =
+        goalReachedDescriptionPattern.fill("a" to done, "b" to goal)
 
     fun smartTitle(name: String, ayah: Int): String = smartTitlePattern.fill("name" to name, "n" to ayah)
 
@@ -178,6 +190,8 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         today = "Сегодня",
         ofGoalPattern = "из {n}",
         todayProgressPattern = "Сегодня выполнено {a} из {b}",
+        goalReachedPattern = "Цель выполнена · {n}",
+        goalReachedDescriptionPattern = "Цель на сегодня выполнена: {a} из {b}",
         kindNew = "Новое",
         kindReview = "Повторить",
         kindWeak = "Слабые места",
@@ -187,7 +201,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         inviteBody = "Нажмите и удерживайте суру в списке, выберите «Заучиваю» — здесь появятся задачи на день.",
         dismiss = "Закрыть",
         recent = "Недавние",
-        pinned = "Закреплена",
+        pinned = "Закреплено",
         searchPlaceholder = "Сура, номер или 2:255",
         clearSearch = "Очистить",
         filterAll = "Все",
@@ -209,6 +223,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         statusNotStarted = "Не начал",
         statusLearning = "Заучиваю",
         statusLearned = "Выучено",
+        learningPercentPattern = "Заучиваю, выучено {n}%",
         pin = "Закрепить",
         unpin = "Открепить",
         listenSurah = "Слушать суру",
@@ -237,6 +252,8 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         today = "Today",
         ofGoalPattern = "of {n}",
         todayProgressPattern = "{a} of {b} done today",
+        goalReachedPattern = "Goal reached · {n}",
+        goalReachedDescriptionPattern = "Today’s goal reached: {a} of {b}",
         kindNew = "New",
         kindReview = "Review",
         kindWeak = "Weak spots",
@@ -268,6 +285,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         statusNotStarted = "Not started",
         statusLearning = "Memorizing",
         statusLearned = "Memorized",
+        learningPercentPattern = "Memorizing, {n}% memorized",
         pin = "Pin",
         unpin = "Unpin",
         listenSurah = "Listen to surah",
@@ -296,6 +314,8 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         today = "Имрӯз",
         ofGoalPattern = "аз {n}",
         todayProgressPattern = "Имрӯз {a} аз {b} иҷро шуд",
+        goalReachedPattern = "Ҳадаф иҷро шуд · {n}",
+        goalReachedDescriptionPattern = "Ҳадафи имрӯза иҷро шуд: {a} аз {b}",
         kindNew = "Нав",
         kindReview = "Такрор",
         kindWeak = "Ҷойҳои заиф",
@@ -328,6 +348,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         statusNotStarted = "Оғоз нашудааст",
         statusLearning = "Аз бар мекунам",
         statusLearned = "Аз бар шуд",
+        learningPercentPattern = "Аз бар мекунам, {n}% аз бар шуд",
         pin = "Пин кардан",
         unpin = "Пинро бардоштан",
         listenSurah = "Гӯш кардани сура",
@@ -356,6 +377,8 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         today = "Bugun",
         ofGoalPattern = "/ {n}",
         todayProgressPattern = "Bugun {b} tadan {a} tasi bajarildi",
+        goalReachedPattern = "Maqsad bajarildi · {n}",
+        goalReachedDescriptionPattern = "Bugungi maqsad bajarildi: {b} tadan {a} tasi",
         kindNew = "Yangi",
         kindReview = "Takrorlash",
         kindWeak = "Zaif joylar",
@@ -387,6 +410,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         statusNotStarted = "Boshlanmagan",
         statusLearning = "Yodlayapman",
         statusLearned = "Yodlangan",
+        learningPercentPattern = "Yodlayapman, {n}% yodlangan",
         pin = "Mahkamlash",
         unpin = "Mahkamlashni olib tashlash",
         listenSurah = "Surani tinglash",
@@ -415,6 +439,8 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         today = "Bugün",
         ofGoalPattern = "/ {n}",
         todayProgressPattern = "Bugün {a} / {b} tamamlandı",
+        goalReachedPattern = "Hedef tamamlandı · {n}",
+        goalReachedDescriptionPattern = "Bugünün hedefi tamamlandı: {a} / {b}",
         kindNew = "Yeni",
         kindReview = "Tekrar et",
         kindWeak = "Zayıf yerler",
@@ -446,6 +472,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         statusNotStarted = "Başlanmadı",
         statusLearning = "Ezberliyorum",
         statusLearned = "Ezberlendi",
+        learningPercentPattern = "Ezberliyorum, %{n} ezberlendi",
         pin = "Sabitle",
         unpin = "Sabitlemeyi kaldır",
         listenSurah = "Sureyi dinle",

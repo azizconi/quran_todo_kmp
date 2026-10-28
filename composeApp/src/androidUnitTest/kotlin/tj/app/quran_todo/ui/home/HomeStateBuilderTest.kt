@@ -47,12 +47,13 @@ class HomeStateBuilderTest {
         recent: List<Int> = emptyList(),
         pinned: Set<Int> = emptySet(),
         goals: Set<String> = emptySet(),
-        done: DoneStats? = DoneStats(0, false),
+        done: DoneStats? = DoneStats(0),
+        goal: Int = 5,
         inviteDismissed: Boolean = false,
         names: Map<Int, ChapterNameModel> = chapterNames,
     ) = HomeSources(
         language = language,
-        dailyGoal = 5,
+        dailyGoal = goal,
         focusMinutes = 15,
         surahList = surahList,
         index = index,
@@ -271,7 +272,7 @@ class HomeStateBuilderTest {
     @Test
     fun aMemorizingSurahProducesNewCards() {
         val today = HomeStateBuilder.buildBase(
-            sources(todoSurahs = listOf(SurahTodoEntity(2, SurahTodoStatus.LEARNING)), done = DoneStats(3, false)),
+            sources(todoSurahs = listOf(SurahTodoEntity(2, SurahTodoStatus.LEARNING)), done = DoneStats(3)),
         ).today!!
         assertEquals(3, today.done)
         assertEquals(5, today.goal)
@@ -282,8 +283,9 @@ class HomeStateBuilderTest {
         assertEquals(2, card.surah)
         assertEquals("Al-Baqarah", card.surahName)
         assertEquals(1, card.startAyah)
-        assertEquals(5, card.endAyah)
-        assertEquals(5, card.totalAyahs)
+        // The goal of five minus the three ayahs already done today leaves two new ones.
+        assertEquals(2, card.endAyah)
+        assertEquals(2, card.totalAyahs)
         assertTrue(card.sharesElements)
     }
 
@@ -329,15 +331,61 @@ class HomeStateBuilderTest {
     fun whenAllWorkIsDoneTodayShowsTheDoneCard() {
         val learning = listOf(SurahTodoEntity(1, SurahTodoStatus.LEARNING))
         val learned = (1..7).map { AyahTodoEntity(it, 1, AyahTodoStatus.LEARNED, 5) }
-        val today = HomeStateBuilder.buildBase(sources(todoSurahs = learning, ayahTodos = learned, done = DoneStats(7, true))).today!!
+        val today = HomeStateBuilder.buildBase(
+            sources(todoSurahs = learning, ayahTodos = learned, done = DoneStats(7, (1..7).toSet())),
+        ).today!!
         assertIs<TodayBody.AllDone>(today.body)
         assertEquals(7, today.done)
     }
 
     @Test
     fun reviewedBeforeButNothingDueShowsTheDoneCard() {
-        val today = HomeStateBuilder.buildBase(sources(done = DoneStats(0, hasReviews = true))).today!!
+        val today = HomeStateBuilder.buildBase(sources(done = DoneStats(0, setOf(1)))).today!!
         assertIs<TodayBody.AllDone>(today.body)
+    }
+
+    @Test
+    fun rightAfterAMemorizeSessionTodayDoesNotOfferTheRatedAyahsAsNewAgain() {
+        // The seven ayahs of Al-Fatihah were rated: each is "memorizing" with a review in the future
+        // (nothing is due), and 7 ayahs against a goal of 5 were done today.
+        val learning = listOf(SurahTodoEntity(1, SurahTodoStatus.LEARNING))
+        val rated = (1..7).map { AyahTodoEntity(it, 1, AyahTodoStatus.LEARNING, 5) }
+        val today = HomeStateBuilder.buildBase(
+            sources(todoSurahs = learning, ayahTodos = rated, done = DoneStats(7, (1..7).toSet())),
+        ).today!!
+        assertIs<TodayBody.AllDone>(today.body)
+        assertEquals(7, today.done)
+        assertEquals(5, today.goal)
+    }
+
+    @Test
+    fun afterASessionWithGoalLeftTodayOffersOnlyAyahsThatWereNeverRepeated() {
+        val learning = listOf(SurahTodoEntity(1, SurahTodoStatus.LEARNING), SurahTodoEntity(2, SurahTodoStatus.LEARNING))
+        val rated = (1..7).map { AyahTodoEntity(it, 1, AyahTodoStatus.LEARNING, 5) }
+        val today = HomeStateBuilder.buildBase(
+            sources(todoSurahs = learning, ayahTodos = rated, done = DoneStats(7, (1..7).toSet()), goal = 10),
+        ).today!!
+        val card = assertIs<TodayBody.Cards>(today.body).cards.single()
+        assertEquals(TodayKind.New, card.kind)
+        assertEquals(2, card.surah)
+        assertEquals(1, card.startAyah)
+        assertEquals(3, card.endAyah)
+    }
+
+    @Test
+    fun aReachedGoalShowsNoNewCardButStillTheDueReviews() {
+        val learning = listOf(SurahTodoEntity(2, SurahTodoStatus.LEARNING))
+        val onlyNew = HomeStateBuilder.buildBase(sources(todoSurahs = learning, done = DoneStats(5))).today!!
+        assertIs<TodayBody.AllDone>(onlyNew.body)
+        val withReview = HomeStateBuilder.buildBase(
+            sources(
+                todoSurahs = learning,
+                dueReviews = listOf(AyahReviewEntity(1, 1, 0, 0, 0)),
+                done = DoneStats(6, setOf(1)),
+            ),
+        ).today!!
+        assertEquals(6, withReview.done)
+        assertEquals(listOf(TodayKind.Review), assertIs<TodayBody.Cards>(withReview.body).cards.map { it.kind })
     }
 
     @Test

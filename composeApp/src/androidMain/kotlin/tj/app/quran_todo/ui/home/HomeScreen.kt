@@ -164,6 +164,7 @@ fun HomeScreen(
             togglePlayback = viewModel::togglePlayback,
             stopPlayback = viewModel::stopPlayback,
             dismissInvite = viewModel::dismissHifzInvite,
+            consumeGoalCelebration = viewModel::consumeGoalCelebration,
         )
     }
     HomeContent(
@@ -191,6 +192,7 @@ internal class HomeActions(
     val togglePlayback: () -> Unit,
     val stopPlayback: () -> Unit,
     val dismissInvite: () -> Unit,
+    val consumeGoalCelebration: (done: Int, goal: Int) -> Boolean,
 )
 
 /** Which row just became memorized; [token] changes every time so the burst fires again. */
@@ -403,6 +405,7 @@ private fun HomeContent(
                                         )
                                     },
                                     onDismissInvite = actions.dismissInvite,
+                                    consumeGoalCelebration = actions.consumeGoalCelebration,
                                     modifier = Modifier.staggeredEnter(1, stagger),
                                 )
                             }
