@@ -2,6 +2,10 @@
 
 Исполнитель: Sonnet. Ветка: твой worktree от `redesign/android`. Параллельно идёт задача 0A (дизайн-система: `ui/theme`, `ui/motion/*` кроме контрактов, `ui/haptics`, `ui/components`, `ui/catalog`) — не создавай и не меняй эти файлы.
 
+## Окружение worktree
+
+`local.properties` не в git: перед первой сборкой выполни `cp /Users/azizjon/projects/quran_todo_kmp/local.properties .` в корне своего worktree. Сборка — только `./gradlew` из корня worktree. Не трогай основной checkout `/Users/azizjon/projects/quran_todo_kmp`.
+
 ## Прочитай сначала
 
 - `docs/redesign/ANDROID_REDESIGN.md` — разделы 0, 3.4, 3.5, 4 (целиком), 6.1, 7, 8.
