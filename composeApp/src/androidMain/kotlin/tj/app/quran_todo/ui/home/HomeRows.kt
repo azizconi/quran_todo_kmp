@@ -5,6 +5,7 @@ import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.domain.model.SurahModel
 import tj.app.quran_todo.presentation.home.PendingSurahStatus
+import tj.app.quran_todo.ui.common.SurahNames
 import tj.app.quran_todo.ui.state.LastReadPosition
 
 internal class RowsInput(
@@ -40,11 +41,7 @@ internal object HomeRows {
                 ?: ru?.name?.let(::cleanRussianName)
                 ?: "Surah $number"
             val latin = chapter?.transliteration?.takeIf { it.isNotBlank() } ?: fallback
-            val name = if (input.language == AppLanguage.RU) {
-                ru?.name?.let(::cleanRussianName) ?: latin
-            } else {
-                latin
-            }
+            val name = SurahNames.displayName(input.language, ru?.name, chapter?.transliteration, fallback)
             val translated = (chapter?.translated?.takeIf { it.isNotBlank() }
                 ?: meta?.englishTranslation?.takeIf { it.isNotBlank() }
                 ?: "")
@@ -77,18 +74,8 @@ internal object HomeRows {
         else -> (learnedAyahs.toFloat() / ayahCount).coerceIn(0f, 1f)
     }
 
-    /**
-     * The bundled Russian names are inconsistent ("Сура Мухаммад", "Сура Аль-Баляд", "Ал - Лайл",
-     * lower-case "аль-Фатиха"). Drops the "Сура" word, closes up spaced hyphens and capitalizes.
-     */
-    fun cleanRussianName(raw: String): String {
-        var name = raw.trim().replace(SpacedHyphen, "-")
-        name = name.replace(SuraPrefix, "")
-        return name.replaceFirstChar { it.uppercase() }
-    }
-
-    private val SpacedHyphen = Regex("""\s*-\s*""")
-    private val SuraPrefix = Regex("""^сура\s+""", RegexOption.IGNORE_CASE)
+    /** Kept for existing callers; the rule lives in [SurahNames]. */
+    fun cleanRussianName(raw: String): String = SurahNames.cleanRussianName(raw)
 
     /** Memorized ayahs of the whole Quran (memorized surahs count in full) as a 0..1 fraction. */
     fun overallProgress(rows: List<SurahRowUi>): Float {

@@ -1,12 +1,16 @@
 package tj.app.quran_todo
 
 import android.os.Bundle
-import android.os.SystemClock
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.android.ext.android.inject
 import tj.app.quran_todo.common.platform.AndroidContextHolder
 import tj.app.quran_todo.presentation.home.HomeViewModel
@@ -29,17 +33,25 @@ class MainActivity : ComponentActivity() {
     /**
      * Keeps the splash until the Quran is read from the database (at most [SPLASH_MAX_MILLIS]) and
      * shrinks and fades it out when the first screen is ready.
+     *
+     * The keep condition is only re-checked when the content view is about to draw. A static first
+     * screen requests no new frame, so the splash would stay until the first touch: when the wait
+     * ends, the content view is invalidated to get that frame.
      */
     private fun configureSplashScreen(splashScreen: SplashScreen) {
-        val startedAt = SystemClock.elapsedRealtime()
         // Onboarding does not need the data, so there is nothing to wait for.
-        val waitsForQuran = !needsOnboarding()
-        splashScreen.setKeepOnScreenCondition {
-            waitsForQuran &&
-                SystemClock.elapsedRealtime() - startedAt < SPLASH_MAX_MILLIS &&
-                homeViewModel.uiState.value.let { state ->
-                    state.quranLoadState is QuranLoadState.Loading && state.completeQuran.isEmpty()
+        var keepSplash = !needsOnboarding()
+        splashScreen.setKeepOnScreenCondition { keepSplash }
+        if (keepSplash) {
+            lifecycleScope.launch {
+                withTimeoutOrNull(SPLASH_MAX_MILLIS) {
+                    homeViewModel.uiState.first { state ->
+                        state.quranLoadState !is QuranLoadState.Loading || state.completeQuran.isNotEmpty()
+                    }
                 }
+                keepSplash = false
+                findViewById<View>(android.R.id.content)?.invalidate()
+            }
         }
         splashScreen.setOnExitAnimationListener { splash ->
             splash.view.animate()
