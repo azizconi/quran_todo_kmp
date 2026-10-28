@@ -88,6 +88,22 @@ internal fun miniPlayerHeight(fontScale: Float): Dp = max(64f, 40f * fontScale +
 /** Gap between the pill and the screen edges (and the navigation bar). */
 internal val MiniPlayerMargin = 12.dp
 
+/** Room kept below the last row of the list, and above the mini player when it is shown. */
+private val ListEndSpace = 24.dp
+
+/**
+ * Bottom padding of the list: the navigation bar, plus the pill with its margins while the mini
+ * player is visible, plus [ListEndSpace]. The last surah can then scroll fully above the pill.
+ */
+internal fun listBottomPadding(navigationInset: Dp, playerVisible: Boolean, fontScale: Float): Dp =
+    navigationInset +
+        (if (playerVisible) miniPlayerHeight(fontScale) + MiniPlayerMargin * 2 else 0.dp) +
+        ListEndSpace
+
+/** Distance from the screen bottom to the top edge of the mini player pill. */
+internal fun miniPlayerTop(navigationInset: Dp, fontScale: Float): Dp =
+    navigationInset + MiniPlayerMargin + miniPlayerHeight(fontScale)
+
 /**
  * The floating mini player: a pill with the play button (ringed by the progress of the ayah), the
  * surah, "Ayah 12 · 1.25×" and a close button. Slides up with a spring when audio starts, down when

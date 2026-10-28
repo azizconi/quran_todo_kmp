@@ -18,6 +18,7 @@ data class HomeCopy(
     val title: String,
     val settings: String,
     val progress: String,
+    val progressPattern: String,
 
     // Hero
     val continueLabel: String,
@@ -85,6 +86,9 @@ data class HomeCopy(
     val learnedToastPattern: String,
     val statusUpdateFailed: String,
 ) {
+    /** "Progress: 3%": the spoken label of the ring in the top bar. */
+    fun progressDescription(percent: Int): String = progressPattern.fill("n" to percent)
+
     fun ayahOf(ayah: Int, total: Int): String = ayahOfPattern.fill("a" to ayah, "b" to total)
 
     fun ofGoal(goal: Int): String = ofGoalPattern.fill("n" to goal)
@@ -164,6 +168,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         title = "Коран",
         settings = "Настройки",
         progress = "Прогресс",
+        progressPattern = "Прогресс: {n}%",
         continueLabel = "Продолжить",
         startWithFatiha = "Начните с Аль-Фатихи",
         read = "Читать",
@@ -222,6 +227,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         title = "Quran",
         settings = "Settings",
         progress = "Progress",
+        progressPattern = "Progress: {n}%",
         continueLabel = "Continue",
         startWithFatiha = "Start with Al-Fatihah",
         read = "Read",
@@ -280,6 +286,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         title = "Қуръон",
         settings = "Танзимот",
         progress = "Пешрафт",
+        progressPattern = "Пешрафт: {n}%",
         continueLabel = "Идома",
         startWithFatiha = "Аз сураи Фотиҳа оғоз кунед",
         read = "Хондан",
@@ -339,6 +346,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         title = "Qur'on",
         settings = "Sozlamalar",
         progress = "Natija",
+        progressPattern = "Natija: {n}%",
         continueLabel = "Davom etish",
         startWithFatiha = "Fotiha surasidan boshlang",
         read = "O‘qish",
@@ -397,6 +405,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         title = "Kur'an",
         settings = "Ayarlar",
         progress = "İlerleme",
+        progressPattern = "İlerleme: {n}%",
         continueLabel = "Devam et",
         startWithFatiha = "Fâtiha Suresi ile başlayın",
         read = "Oku",

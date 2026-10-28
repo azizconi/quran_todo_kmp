@@ -104,10 +104,21 @@ class HomeUiViewModel internal constructor(
         ::PrefsSnapshot,
     )
 
+    /**
+     * Ticks when the old audio position may have moved (a surah started or stopped, the ayah changed,
+     * the screen resumed). It only matters until the reader has saved a reading position.
+     */
+    private val audioPosition: Flow<Int> = combine(
+        resumeTick,
+        playback.nowPlaying.map { it?.surahNumber }.distinctUntilChanged(),
+        playback.state.map { it.index }.distinctUntilChanged(),
+    ) { tick, _, _ -> tick }
+
     private val base: StateFlow<HomeBase> = combine(
         combine(data, inputs, doneStats, ::Triple),
         prefs,
-    ) { (data, inputs, done), prefs -> HomeStateBuilder.buildBase(sourcesOf(data, inputs, done, prefs)) }
+        audioPosition,
+    ) { (data, inputs, done), prefs, _ -> HomeStateBuilder.buildBase(sourcesOf(data, inputs, done, prefs)) }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.Eagerly, initialBase())
 
@@ -259,7 +270,11 @@ class HomeUiViewModel internal constructor(
         chapterNames = data.chapterNames,
         pending = data.pending,
         loadState = data.loadState,
-        lastRead = prefs.lastRead,
+        lastRead = HomeStateBuilder.lastReadWithLegacy(
+            saved = prefs.lastRead,
+            legacySurah = UserSettingsStorage.getLastPlaybackSurah(),
+            legacyAyah = UserSettingsStorage.getLastPlaybackAyahNumber(),
+        ),
         recentSurahs = prefs.recent,
         pinnedSurahs = prefs.pinned,
         onboardingGoals = prefs.goals,
