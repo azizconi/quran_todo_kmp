@@ -8,6 +8,7 @@ import tj.app.quran_todo.ui.home.HomeUiViewModel
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.onboarding.OnboardingViewModel
 import tj.app.quran_todo.ui.playback.PlaybackController
+import tj.app.quran_todo.ui.progress.ProgressViewModel
 import tj.app.quran_todo.ui.reader.ReaderViewModel
 import tj.app.quran_todo.ui.settings.SettingsViewModel
 import tj.app.quran_todo.ui.state.UiPrefs
@@ -48,7 +49,10 @@ val readerUiModule = module {
 
 val hifzUiModule = module { }
 
-val progressUiModule = module { }
+val progressUiModule = module {
+    // The shared HomeViewModel comes in through Koin and is never put into a ViewModelStore.
+    viewModel { ProgressViewModel(home = get(), reviewDao = get()) }
+}
 
 val settingsUiModule = module {
     viewModel { SettingsViewModel(home = get(), uiPrefs = get()) }
