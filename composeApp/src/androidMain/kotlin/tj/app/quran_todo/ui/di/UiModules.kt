@@ -3,6 +3,7 @@ package tj.app.quran_todo.ui.di
 import org.koin.android.ext.koin.androidContext
 import org.koin.compose.viewmodel.dsl.viewModel
 import org.koin.dsl.module
+import tj.app.quran_todo.ui.hifz.HifzViewModel
 import tj.app.quran_todo.ui.home.HomeLocalPrefs
 import tj.app.quran_todo.ui.home.HomeUiViewModel
 import tj.app.quran_todo.ui.navigation.Dest
@@ -46,7 +47,19 @@ val readerUiModule = module {
     }
 }
 
-val hifzUiModule = module { }
+val hifzUiModule = module {
+    // One HifzViewModel per Dest.Reader back stack entry, next to its ReaderViewModel; the shared
+    // SurahViewModel comes in through Koin like in the reader.
+    viewModel { params ->
+        HifzViewModel(
+            route = params.get<Dest.Reader>(),
+            surahViewModel = get(),
+            ayahTodoDao = get(),
+            uiPrefs = get(),
+            playback = get(),
+        )
+    }
+}
 
 val progressUiModule = module { }
 

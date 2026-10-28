@@ -55,6 +55,8 @@ fun ReaderTopBar(
     onTextSettings: () -> Unit,
     onMore: () -> Unit,
     modifier: Modifier = Modifier,
+    /** An extra action between "Aa" and "more" (the eye of the memorize mode); null leaves the bar as it was. */
+    extraAction: (@Composable () -> Unit)? = null,
 ) {
     val colors = QhTheme.colors
     Column(
@@ -114,6 +116,7 @@ fun ReaderTopBar(
                 onClick = onTextSettings,
                 filled = false,
             )
+            extraAction?.invoke()
             QhIconButton(
                 icon = Icons.Rounded.MoreVert,
                 contentDescription = copy.more,
