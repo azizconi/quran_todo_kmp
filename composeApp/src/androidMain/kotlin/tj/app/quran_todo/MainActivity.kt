@@ -31,8 +31,9 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Keeps the splash until the Quran is read from the database (at most [SPLASH_MAX_MILLIS]) and
-     * shrinks and fades it out when the first screen is ready.
+     * Keeps the splash until the Quran is read from the database (at most [SPLASH_MAX_MILLIS]); the
+     * system then plays its own exit. A custom exit animation (`setOnExitAnimationListener`) left the
+     * starting window stuck in its reveal on API 35 until the first touch, so it is not used.
      *
      * The keep condition is only re-checked when the content view is about to draw. A static first
      * screen requests no new frame, so the splash would stay until the first touch: when the wait
@@ -53,15 +54,6 @@ class MainActivity : ComponentActivity() {
                 findViewById<View>(android.R.id.content)?.invalidate()
             }
         }
-        splashScreen.setOnExitAnimationListener { splash ->
-            splash.view.animate()
-                .alpha(0f)
-                .scaleX(SPLASH_EXIT_SCALE)
-                .scaleY(SPLASH_EXIT_SCALE)
-                .setDuration(SPLASH_EXIT_MILLIS)
-                .withEndAction { splash.remove() }
-                .start()
-        }
     }
 
     override fun onResume() {
@@ -78,7 +70,5 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val SPLASH_MAX_MILLIS = 900L
-        const val SPLASH_EXIT_MILLIS = 280L
-        const val SPLASH_EXIT_SCALE = 0.9f
     }
 }
