@@ -16,6 +16,7 @@ import tj.app.quran_todo.data.database.dao.AyahTodoDao
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
 import tj.app.quran_todo.presentation.review.ReviewQuality
+import tj.app.quran_todo.presentation.home.HomeViewModel
 import tj.app.quran_todo.presentation.surah.SurahViewModel
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.playback.PlaybackController
@@ -26,10 +27,11 @@ import tj.app.quran_todo.ui.state.UiPrefs
  * State and commands of the memorize mode of one reader (one `Dest.Reader` back stack entry). The session
  * lives here, so it survives a rotation; [HifzMode] keeps a text copy of it for the case the process dies.
  *
- * The shared [SurahViewModel] (a Koin singleton, injected, never obtained through `koinViewModel`) writes
- * the ratings: [SurahViewModel.completeReview] moves the SM-2 schedule of the ayah, and an ayah that has no
- * status yet becomes "memorizing" first (without scheduling a review: `completeReview` does that with the
- * rating).
+ * The shared view models (Koin singletons, injected, never obtained through `koinViewModel`) write the
+ * ratings: [HomeViewModel.completeReview] moves the SM-2 schedule of the ayah and refreshes the due reviews
+ * and weak ayahs that Home's "Today" reads; an ayah that has no status yet becomes "memorizing" first
+ * through [SurahViewModel.updateAyahStatus] (without scheduling a review: `completeReview` does that with
+ * the rating).
  *
  * Audio belongs to the shared [PlaybackController]. "Listen" plays only the ayah in question, for which the
  * session is configured without auto-advance, repeats and passage; the person's own settings are put back as
@@ -38,6 +40,7 @@ import tj.app.quran_todo.ui.state.UiPrefs
 class HifzViewModel(
     private val route: Dest.Reader,
     private val surahViewModel: SurahViewModel,
+    private val homeViewModel: HomeViewModel,
     ayahTodoDao: AyahTodoDao,
     uiPrefs: UiPrefs,
     private val playback: PlaybackController,
@@ -138,7 +141,7 @@ class HifzViewModel(
                 scheduleNextReview = false,
             )
         }
-        surahViewModel.completeReview(item.number, session.surah, quality)
+        homeViewModel.completeReview(item.number, session.surah, quality)
         _session.value = session.rate(quality)
     }
 

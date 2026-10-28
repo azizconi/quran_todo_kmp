@@ -55,6 +55,7 @@ val hifzUiModule = module {
         HifzViewModel(
             route = params.get<Dest.Reader>(),
             surahViewModel = get(),
+            homeViewModel = get(),
             ayahTodoDao = get(),
             uiPrefs = get(),
             playback = get(),
