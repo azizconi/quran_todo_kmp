@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.settings.UserSettingsStorage
 import tj.app.quran_todo.common.theme.ThemeStorage
 
@@ -193,7 +194,26 @@ class UiPrefs(context: Context) {
         _hifzHintMode.value = value
     }
 
-    private companion object {
+    /**
+     * "Anonymous statistics and crash reports" (Firebase Analytics and Crashlytics). On by default; the
+     * choice is disclosed in onboarding and can be changed in the settings. The telemetry reads the stored
+     * value at app start ([readAnalyticsEnabled]).
+     */
+    private val _analyticsEnabled = MutableStateFlow(prefs.getBoolean(KEY_ANALYTICS_ENABLED, true))
+    val analyticsEnabled: StateFlow<Boolean> = _analyticsEnabled.asStateFlow()
+
+    /** Stores the choice and applies it at once: off stops all collection and clears the SDK's local data. */
+    fun setAnalyticsEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_ANALYTICS_ENABLED, value).apply()
+        _analyticsEnabled.value = value
+        AppTelemetry.setEnabled(value)
+    }
+
+    internal companion object {
+        /** The stored analytics choice for code that runs before Koin starts (telemetry in Application.onCreate). */
+        fun readAnalyticsEnabled(context: Context): Boolean =
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_ANALYTICS_ENABLED, true)
+
         const val PREFS_NAME = "quran_hifz_ui_prefs"
         const val KEY_THEME_FOLLOWS_SYSTEM = "theme_follows_system"
         const val KEY_HAPTICS = "haptics_enabled"
@@ -206,6 +226,7 @@ class UiPrefs(context: Context) {
         const val KEY_LAST_READ_AYAH = "last_read_ayah_in_surah"
         const val KEY_ONBOARDING_GOALS = "onboarding_goals"
         const val KEY_HIFZ_HINT_MODE = "hifz_hint_mode"
+        const val KEY_ANALYTICS_ENABLED = "analytics_enabled"
     }
 }
 

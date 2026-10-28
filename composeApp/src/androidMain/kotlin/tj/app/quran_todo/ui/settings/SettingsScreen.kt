@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Highlight
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Palette
@@ -38,6 +39,7 @@ import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.Source
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.StarRate
 import androidx.compose.material.icons.rounded.TextFields
@@ -102,6 +104,7 @@ import tj.app.quran_todo.ui.haptics.HapticKind
 import tj.app.quran_todo.ui.haptics.rememberHaptics
 import tj.app.quran_todo.ui.i18n.SettingsCopy
 import tj.app.quran_todo.ui.i18n.rememberSettingsCopy
+import tj.app.quran_todo.ui.i18n.rememberTrustCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.SharedKeys
@@ -131,7 +134,7 @@ private const val MaxDailyGoal = 50
  */
 @OptIn(KoinExperimentalAPI::class, ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources: () -> Unit) {
     val viewModel = koinViewModel<SettingsViewModel>()
     val language = LocalAppLanguage.current
     val setLanguage = LocalAppLanguageSetter.current
@@ -215,6 +218,8 @@ fun SettingsScreen(onBack: () -> Unit) {
                 onOpenTypography = { sheet = SettingsSheet.Typography },
                 onOpenLanguage = { sheet = SettingsSheet.Language },
                 onConfirmRestore = { confirmsRestore = true },
+                onOpenPrivacy = onOpenPrivacy,
+                onOpenSources = onOpenSources,
             )
         }
         QhLargeTopBar(
@@ -295,8 +300,11 @@ private fun SettingsContent(
     onOpenTypography: () -> Unit,
     onOpenLanguage: () -> Unit,
     onConfirmRestore: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+    onOpenSources: () -> Unit,
 ) {
     val copy = rememberSettingsCopy(language)
+    val trust = rememberTrustCopy(language)
     val colors = QhTheme.colors
     val context = LocalContext.current
     val toaster = LocalToaster.current
@@ -316,6 +324,7 @@ private fun SettingsContent(
     val hintMode by viewModel.hifzHintMode.collectAsState()
     val followsSystem by viewModel.themeFollowsSystem.collectAsState()
     val offline by viewModel.offline.collectAsState()
+    val analyticsEnabled by viewModel.analyticsEnabled.collectAsState()
 
     val hapticsDemo = rememberHaptics(enabled = true)
     val navigationBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -542,25 +551,42 @@ private fun SettingsContent(
             )
         }
 
-        // 8. About
-        SettingsSection(copy.sectionAbout, Modifier.staggeredEnter(7, stagger)) {
+        // 8. Privacy
+        SettingsSection(trust.sectionPrivacy, Modifier.staggeredEnter(7, stagger)) {
+            QhSwitchRow(
+                title = trust.analyticsTitle,
+                description = trust.analyticsDescription,
+                checked = analyticsEnabled,
+                onCheckedChange = viewModel::setAnalyticsEnabled,
+                icon = Icons.Rounded.Insights,
+                iconTint = colors.learned,
+            )
+            QhRowDivider()
+            QhNavRow(
+                title = copy.privacyPolicy,
+                description = trust.privacyRowDescription,
+                onClick = onOpenPrivacy,
+                icon = Icons.Rounded.PrivacyTip,
+                iconTint = colors.gold,
+            )
+            QhRowDivider()
+            QhNavRow(
+                title = trust.sourcesRowTitle,
+                description = trust.sourcesRowDescription,
+                onClick = onOpenSources,
+                icon = Icons.Rounded.Source,
+                iconTint = colors.primary,
+            )
+        }
+
+        // 9. About
+        SettingsSection(copy.sectionAbout, Modifier.staggeredEnter(8, stagger)) {
             if (versionLabel.isNotEmpty()) {
                 QhValueRow(
                     title = copy.version,
                     value = versionLabel,
                     icon = Icons.Rounded.Info,
                     iconTint = colors.primary,
-                )
-                QhRowDivider()
-            }
-            PrivacyPolicyUrl?.let { url ->
-                QhNavRow(
-                    title = copy.privacyPolicy,
-                    onClick = {
-                        if (!openLink(context, url)) toaster.show(copy.linkUnavailable, ToastKind.Error)
-                    },
-                    icon = Icons.Rounded.PrivacyTip,
-                    iconTint = colors.learned,
                 )
                 QhRowDivider()
             }
