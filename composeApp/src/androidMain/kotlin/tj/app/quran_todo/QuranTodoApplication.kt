@@ -8,6 +8,7 @@ import tj.app.quran_todo.common.platform.AndroidContextHolder
 import tj.app.quran_todo.di.androidModule
 import tj.app.quran_todo.di.commonModule
 import tj.app.quran_todo.di.viewModelModule
+import tj.app.quran_todo.ui.di.uiModules
 
 class QuranTodoApplication: Application() {
     override fun onCreate() {
@@ -18,7 +19,7 @@ class QuranTodoApplication: Application() {
 
         startKoin {
             androidContext(this@QuranTodoApplication)
-            modules(commonModule, androidModule, viewModelModule)
+            modules(listOf(commonModule, androidModule, viewModelModule) + uiModules)
         }
 
     }
