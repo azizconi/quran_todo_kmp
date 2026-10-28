@@ -59,8 +59,9 @@ import tj.app.quran_todo.ui.theme.QhTheme
 
 /**
  * The surah sheet (long press on a row or a chip): three big status cards (outline, half, full star),
- * pin / unpin and "Listen to surah". Choosing something lights up the card, slides the sheet away and
- * then applies the choice. [row] is the live row, so the selected card follows the status.
+ * pin / unpin and "Listen to surah". Choosing a status lights up the card ([onPicked], at the tap),
+ * slides the sheet away and then applies it ([onSetStatus]). [row] is the live row, so the selected
+ * card follows the status.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +69,7 @@ internal fun SurahSheet(
     row: SurahRowUi,
     copy: HomeCopy,
     arabicStyle: TextStyle,
+    onPicked: (SurahTodoStatus?) -> Unit,
     onSetStatus: (SurahTodoStatus?) -> Unit,
     onTogglePin: () -> Unit,
     onListen: () -> Unit,
@@ -93,6 +95,14 @@ internal fun SurahSheet(
             action()
             onDismiss()
         }
+    }
+
+    /** A tap on a status card: lights it up, reports the pick, and applies it after the sheet closed. */
+    fun choose(status: SurahTodoStatus?) {
+        if (closing || shownStatus == status) return
+        picked = Picked(status)
+        onPicked(status)
+        closeThen { onSetStatus(status) }
     }
 
     QhSheet(onDismiss = onDismiss, sheetState = sheetState) {
@@ -125,12 +135,7 @@ internal fun SurahSheet(
                 selected = shownStatus == null,
                 accent = colors.inkSecondary,
                 container = colors.surfaceMuted,
-                onClick = {
-                    if (shownStatus != null) {
-                        picked = Picked(null)
-                        closeThen { onSetStatus(null) }
-                    }
-                },
+                onClick = { choose(null) },
                 modifier = Modifier.weight(1f),
             )
             StatusCard(
@@ -139,12 +144,7 @@ internal fun SurahSheet(
                 selected = shownStatus == SurahTodoStatus.LEARNING,
                 accent = colors.learning,
                 container = colors.learningContainer,
-                onClick = {
-                    if (shownStatus != SurahTodoStatus.LEARNING) {
-                        picked = Picked(SurahTodoStatus.LEARNING)
-                        closeThen { onSetStatus(SurahTodoStatus.LEARNING) }
-                    }
-                },
+                onClick = { choose(SurahTodoStatus.LEARNING) },
                 modifier = Modifier.weight(1f),
             )
             StatusCard(
@@ -153,12 +153,7 @@ internal fun SurahSheet(
                 selected = shownStatus == SurahTodoStatus.LEARNED,
                 accent = colors.learned,
                 container = colors.learnedContainer,
-                onClick = {
-                    if (shownStatus != SurahTodoStatus.LEARNED) {
-                        picked = Picked(SurahTodoStatus.LEARNED)
-                        closeThen { onSetStatus(SurahTodoStatus.LEARNED) }
-                    }
-                },
+                onClick = { choose(SurahTodoStatus.LEARNED) },
                 modifier = Modifier.weight(1f),
             )
         }

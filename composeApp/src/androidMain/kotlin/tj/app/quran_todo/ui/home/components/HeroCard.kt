@@ -118,11 +118,7 @@ internal fun HeroCard(
             }
         }
         Spacer(Modifier.height(QhSpacing.x2))
-        val position = if (item.isFresh) {
-            listOf(item.translatedName, copy.ayahCount(item.ayahCount)).filter { it.isNotBlank() }.joinToString(" · ")
-        } else {
-            copy.ayahOf(item.ayah, item.ayahCount)
-        }
+        val position = heroPositionText(item, copy)
         Text(text = position, style = type.callout, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (!item.isFresh) {
             Spacer(Modifier.height(QhSpacing.x3))
@@ -229,3 +225,14 @@ private fun HeroButton(
         )
     }
 }
+
+/**
+ * The line under the hero title: "Ayah 255 of 286" once a reading position exists; for a person who
+ * never read anything, the meaning of Al-Fatihah's name and its length.
+ */
+internal fun heroPositionText(item: ContinueUi, copy: HomeCopy): String =
+    if (item.isFresh) {
+        listOf(item.translatedName, copy.ayahCount(item.ayahCount)).filter { it.isNotBlank() }.joinToString(" · ")
+    } else {
+        copy.ayahOf(item.ayah, item.ayahCount)
+    }

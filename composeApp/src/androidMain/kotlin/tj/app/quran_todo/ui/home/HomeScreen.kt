@@ -1,5 +1,6 @@
 package tj.app.quran_todo.ui.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -59,6 +60,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -83,6 +85,7 @@ import tj.app.quran_todo.ui.home.components.ListEmptyState
 import tj.app.quran_todo.ui.home.components.MiniPlayerHost
 import tj.app.quran_todo.ui.home.components.MiniPlayerMargin
 import tj.app.quran_todo.ui.home.components.ProgressAction
+import tj.app.quran_todo.ui.home.components.progressPercent
 import tj.app.quran_todo.ui.home.components.RecentSection
 import tj.app.quran_todo.ui.home.components.RowTexts
 import tj.app.quran_todo.ui.home.components.SearchHeader
@@ -91,7 +94,7 @@ import tj.app.quran_todo.ui.home.components.SmartResultCard
 import tj.app.quran_todo.ui.home.components.SurahListRow
 import tj.app.quran_todo.ui.home.components.SurahSheet
 import tj.app.quran_todo.ui.home.components.TodaySection
-import tj.app.quran_todo.ui.home.components.miniPlayerHeight
+import tj.app.quran_todo.ui.home.components.listBottomPadding
 import tj.app.quran_todo.ui.i18n.HomeCopy
 import tj.app.quran_todo.ui.i18n.homeCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
@@ -252,9 +255,8 @@ private fun HomeContent(
     // -- Bottom: navigation bar and the floating mini player ----------------------------------------
     val imeInsets = WindowInsets.ime
     val navigationInset = WindowInsets.navigationBars.exclude(imeInsets).asPaddingValues().calculateBottomPadding()
-    val playerReserve = if (player != null) miniPlayerHeight(density.fontScale) + MiniPlayerMargin * 2 else 0.dp
     val bottomPadding by animateDpAsState(
-        targetValue = navigationInset + playerReserve + QhSpacing.x6,
+        targetValue = listBottomPadding(navigationInset, playerVisible = player != null, fontScale = density.fontScale),
         animationSpec = QhMotion.gentle<Dp>().orSnap(),
         label = "list-bottom-padding",
     )
@@ -300,6 +302,21 @@ private fun HomeContent(
             if (wasVisible && !visible) focusManager.clearFocus()
             wasVisible = visible
         }
+    }
+    // Back leaves search mode first (clears the field and the focus); only then does it leave the app.
+    BackHandler(enabled = searchMode) {
+        query = ""
+        actions.setQuery("")
+        keyboard?.hide()
+        focusManager.clearFocus()
+    }
+    // When search ends and the list is still near the top, bring the hero back into view.
+    val wasSearching = remember { booleanArrayOf(false) }
+    LaunchedEffect(searchMode) {
+        if (!searchMode && wasSearching[0] && listState.firstVisibleItemIndex <= searchHeaderIndex) {
+            listState.animateScrollToItem(0)
+        }
+        wasSearching[0] = searchMode
     }
     // The burst is over after a second; forget it so a row scrolled back into view does not replay it.
     LaunchedEffect(celebration) {
@@ -461,7 +478,11 @@ private fun HomeContent(
                             celebration = if (celebration.surah == row.number) celebration.token else 0,
                             onOpen = { open(Dest.Reader(surah = it, origin = rowOrigin)) },
                             onLongPress = { sheetSurah = it },
-                            modifier = rowAnimation().staggeredEnter(FirstRowStaggerIndex + position, stagger),
+                            modifier = Modifier
+                                // The burst reaches into the neighbouring rows: draw this one on top of them.
+                                .zIndex(if (celebration.surah == row.number && celebration.token != 0) 1f else 0f)
+                                .then(rowAnimation())
+                                .staggeredEnter(FirstRowStaggerIndex + position, stagger),
                         )
                     }
                 }
@@ -473,7 +494,11 @@ private fun HomeContent(
             overline = copy.greeting,
             state = topBarState,
             actions = {
-                ProgressAction(progress = ui.overallProgress, label = copy.progress, onClick = actions.openProgress)
+                ProgressAction(
+                    progress = ui.overallProgress,
+                    description = copy.progressDescription(progressPercent(ui.overallProgress)),
+                    onClick = actions.openProgress,
+                )
                 SettingsAction(label = copy.settings, onClick = actions.openSettings)
             },
             modifier = Modifier.onSizeChanged { expandedBarPx = maxOf(expandedBarPx, it.height) },
@@ -509,13 +534,19 @@ private fun HomeContent(
             row = sheetRow,
             copy = copy,
             arabicStyle = rowArabicStyle,
+            onPicked = { status ->
+                // At the tap, while the sheet slides away: the toast stays up for its full 3 seconds and
+                // the haptic does not depend on the row being on screen.
+                if (status == SurahTodoStatus.LEARNED) {
+                    haptics.perform(HapticKind.Success)
+                    toaster.show(copy.learnedToast(sheetRow.name), ToastKind.Success)
+                }
+            },
             onSetStatus = { status ->
+                // Once the sheet is gone: the badge fills and the burst plays on the visible row.
                 actions.setStatus(sheetRow.number, status)
                 if (status == SurahTodoStatus.LEARNED) {
-                    // The burst runs on the row; the haptic and the toast also work when the row is off screen.
-                    haptics.perform(HapticKind.Success)
                     celebration = Celebration(sheetRow.number, celebration.token + 1)
-                    toaster.show(copy.learnedToast(sheetRow.name), ToastKind.Success)
                 }
             },
             onTogglePin = { actions.togglePin(sheetRow.number) },

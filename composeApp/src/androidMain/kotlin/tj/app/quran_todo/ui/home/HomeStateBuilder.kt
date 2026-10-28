@@ -86,6 +86,17 @@ internal object HomeStateBuilder {
     }
 
     /**
+     * The reading position the hero follows. The reader's saved position wins; until the reader has
+     * saved one, the old audio position ([legacySurah] and the GLOBAL [legacyAyah]) stands in, so
+     * listening from the hero already turns "Start with Al-Fatihah" into "Continue".
+     */
+    fun lastReadWithLegacy(saved: LastReadPosition?, legacySurah: Int?, legacyAyah: Int?): LastReadPosition? {
+        if (saved?.ayahInSurah != null) return saved
+        val surah = legacySurah ?: return saved
+        return LastReadPosition(surah = surah, ayahInSurah = null, legacyGlobalAyah = legacyAyah)
+    }
+
+    /**
      * Today is shown when there is something being memorized, a review scheduled, a weak ayah, or the
      * person chose "memorize" as a goal. Then: the cards of the work left; or "all done" when there
      * was work; or an invitation to mark a surah when memorizing is only a goal.

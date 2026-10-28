@@ -49,6 +49,7 @@ class HomeCopyTest {
                 copy.smartTitle("Al-Baqarah", 255),
                 copy.playerSub(12, 1.25f),
                 copy.learnedToast("Al-Fatihah"),
+                copy.progressDescription(3),
             )
             texts.forEach { text -> assertFalse(text.contains('{') || text.contains('}'), "${language.name}: $text") }
             assertTrue(copy.ayahOf(255, 286).contains("255") && copy.ayahOf(255, 286).contains("286"))

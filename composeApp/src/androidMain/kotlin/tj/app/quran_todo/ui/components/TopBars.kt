@@ -77,8 +77,8 @@ fun rememberQhTopBarState(scrollState: ScrollState, collapseDistance: Dp = 48.dp
  * (see [rememberQhTopBarState]); on the way a hairline and a `bg` @ 96% backdrop appear. Draw it over
  * the list (e.g. in a `Box`) and give the list top content padding for the expanded height.
  *
- * @param overline a line above the large title in the top row (a greeting); it hands over to the
- * compact title while collapsing.
+ * @param overline a line above the large title in the top row (a greeting); it fades out within the
+ * first 40% of the collapse and only then the compact title fades in, so they never overlap.
  * @param navigation leading slot, typically a back [QhIconButton].
  * @param actions trailing slot, typically [QhIconButton]s.
  */
@@ -132,7 +132,8 @@ fun QhLargeTopBar(
                         color = colors.inkSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.graphicsLayer { alpha = 1f - state.collapsedFraction },
+                        // Gone within the first 40% of the collapse, before the compact title shows up.
+                        modifier = Modifier.graphicsLayer { alpha = overlineAlpha(state.collapsedFraction) },
                     )
                 }
                 Text(
@@ -142,7 +143,7 @@ fun QhLargeTopBar(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
-                        .graphicsLayer { alpha = state.collapsedFraction }
+                        .graphicsLayer { alpha = compactTitleAlpha(state.collapsedFraction, hasOverline = overline != null) }
                         // The large title below is the heading; do not announce the title twice.
                         .clearAndSetSemantics { },
                 )
@@ -173,3 +174,20 @@ fun QhLargeTopBar(
         }
     }
 }
+
+/** Collapse fraction at which the overline is fully gone (and the compact title starts to appear). */
+private const val OverlineFadeOutEnd = 0.4f
+
+/** Opacity of the overline at a collapse [fraction]: gone within the first 40%. */
+internal fun overlineAlpha(fraction: Float): Float = (1f - fraction / OverlineFadeOutEnd).coerceIn(0f, 1f)
+
+/**
+ * Opacity of the compact title at a collapse [fraction]. With an overline the title waits until the
+ * overline is gone, so the two never overlap; without one it fades in with the collapse.
+ */
+internal fun compactTitleAlpha(fraction: Float, hasOverline: Boolean): Float =
+    if (hasOverline) {
+        ((fraction - OverlineFadeOutEnd) / (1f - OverlineFadeOutEnd)).coerceIn(0f, 1f)
+    } else {
+        fraction.coerceIn(0f, 1f)
+    }
