@@ -54,6 +54,7 @@ class ReaderAudioSession internal constructor(
     private var sequenceCompleted = false
     private var pendingStep: ReaderPlaybackStep? = null
     private var gapRemainingMs = 0L
+    private var stopAfterIndex: Int? = null
     private val ticker = scope.launch {
         state.map { it.isPlaying }.distinctUntilChanged().collectLatest { playing ->
             if (playing) {
@@ -120,6 +121,14 @@ class ReaderAudioSession internal constructor(
         start(ReaderPlaybackStep(index, if (practice.rangeEnabled) practice.rangeRepeatCount else preferences.repeatCount))
     }
 
+    /**
+     * Makes playback end for good once the ayah at [index] has finished, instead of repeating it or moving
+     * on (the sleep timer's "end of surah"). `null` removes the limit. Does nothing until set.
+     */
+    fun stopAfterAyah(index: Int?) {
+        stopAfterIndex = index
+    }
+
     fun previous() = skip(-1)
     fun next() = skip(1)
 
@@ -182,7 +191,11 @@ class ReaderAudioSession internal constructor(
     }
 
     private fun finishedAyah() {
-        val step = nextReaderPlaybackStep(state.value.index, repeatsRemaining, ayahs.size, preferences, practice)
+        val step = if (state.value.index == stopAfterIndex) {
+            null
+        } else {
+            nextReaderPlaybackStep(state.value.index, repeatsRemaining, ayahs.size, preferences, practice)
+        }
         if (step == null) {
             sequenceCompleted = true
             mutableState.value = state.value.copy(isPlaying = false, canResume = false, positionMs = state.value.durationMs)

@@ -2,10 +2,15 @@ package tj.app.quran_todo.ui.playback
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import tj.app.quran_todo.common.audio.ReaderAudioAyah
 import tj.app.quran_todo.common.audio.ReaderAudioSession
 import tj.app.quran_todo.common.audio.ReaderAudioState
@@ -15,6 +20,17 @@ import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
 
 /** What the mini player and the reader dock show: the surah that currently owns the audio session. */
 data class NowPlaying(val surahNumber: Int, val ayahs: List<ReaderAudioAyah>)
+
+/** When playback should pause by itself. */
+sealed interface SleepTimer {
+    data object Off : SleepTimer
+
+    /** Pause once the last ayah of the playing surah has finished, even when it is set to repeat. */
+    data object EndOfSurah : SleepTimer
+
+    /** Pause after [minutes] minutes. */
+    data class Minutes(val minutes: Int) : SleepTimer
+}
 
 /**
  * Audio that lives above the screens (docs/redesign/ANDROID_REDESIGN.md, 4.4). Owns the single
@@ -28,9 +44,13 @@ data class NowPlaying(val surahNumber: Int, val ayahs: List<ReaderAudioAyah>)
  */
 class PlaybackController internal constructor(
     private val session: ReaderAudioSession,
+    timerScope: CoroutineScope? = null,
 ) {
     /** Production constructor: one session bound to an application-wide scope. */
-    constructor(scope: CoroutineScope = applicationScope()) : this(ReaderAudioSession(scope))
+    constructor(scope: CoroutineScope = applicationScope()) : this(ReaderAudioSession(scope), scope)
+
+    // Created on first use: tests that never arm a timer must not touch Dispatchers.Main.
+    private val scope: CoroutineScope by lazy { timerScope ?: applicationScope() }
 
     private val _nowPlaying = MutableStateFlow<NowPlaying?>(null)
 
@@ -39,6 +59,18 @@ class PlaybackController internal constructor(
 
     /** Proxies the session state. Meaningful only while [nowPlaying] is not null. */
     val state: StateFlow<ReaderAudioState> = session.state
+
+    private val _sleepTimer = MutableStateFlow<SleepTimer>(SleepTimer.Off)
+
+    /** The armed sleep timer; it goes back to [SleepTimer.Off] once it has paused playback. */
+    val sleepTimer: StateFlow<SleepTimer> = _sleepTimer.asStateFlow()
+
+    private val _sleepRemainingSeconds = MutableStateFlow(0)
+
+    /** Seconds left of a [SleepTimer.Minutes] timer, 0 for the other timers. */
+    val sleepRemainingSeconds: StateFlow<Int> = _sleepRemainingSeconds.asStateFlow()
+
+    private var sleepJob: Job? = null
 
     fun isActiveFor(surah: Int): Boolean = _nowPlaying.value?.surahNumber == surah
 
@@ -69,6 +101,7 @@ class PlaybackController internal constructor(
             initialAyahGlobalNumber = ayahs[index].globalNumber,
         )
         _nowPlaying.value = NowPlaying(surah.surah.number, ayahs)
+        applyEndOfSurahLimit()
         session.select(index)
         if (autoplay) session.toggle()
     }
@@ -95,10 +128,67 @@ class PlaybackController internal constructor(
         }
     }
 
-    /** Stops the audio and hides the mini player. */
+    /**
+     * Arms, replaces or (with [SleepTimer.Off]) cancels the sleep timer. When it fires, playback pauses
+     * and the timer returns to [SleepTimer.Off]. A [SleepTimer.EndOfSurah] timer set while nothing plays
+     * applies to the next surah that is started.
+     */
+    fun setSleepTimer(timer: SleepTimer) {
+        sleepJob?.cancel()
+        sleepJob = null
+        _sleepRemainingSeconds.value = 0
+        val normalized = if (timer is SleepTimer.Minutes && timer.minutes <= 0) SleepTimer.Off else timer
+        _sleepTimer.value = normalized
+        when (normalized) {
+            SleepTimer.Off -> Unit
+            SleepTimer.EndOfSurah -> sleepJob = scope.launch { waitForEndOfSurah() }
+            is SleepTimer.Minutes -> sleepJob = scope.launch { countDown(normalized.minutes * 60) }
+        }
+        applyEndOfSurahLimit()
+    }
+
+    /** Stops the audio, cancels the sleep timer and hides the mini player. */
     fun stop() {
         session.stop()
         _nowPlaying.value = null
+        if (_sleepTimer.value != SleepTimer.Off) setSleepTimer(SleepTimer.Off)
+    }
+
+    private suspend fun countDown(seconds: Int) {
+        var left = seconds
+        while (left > 0) {
+            _sleepRemainingSeconds.value = left
+            delay(1_000)
+            left--
+        }
+        fireSleepTimer()
+    }
+
+    /**
+     * Returns once the session has played the last ayah of the surah to its end. A state that is already
+     * there when the timer is armed (for example the end of an earlier run) does not count.
+     */
+    private suspend fun waitForEndOfSurah() {
+        session.state.drop(1).first { s ->
+            val last = _nowPlaying.value?.ayahs?.lastIndex
+            last != null && !s.isPlaying && !s.canResume && s.index == last &&
+                s.durationMs > 0 && s.positionMs >= s.durationMs
+        }
+        fireSleepTimer()
+    }
+
+    private fun fireSleepTimer() {
+        _sleepTimer.value = SleepTimer.Off
+        _sleepRemainingSeconds.value = 0
+        sleepJob = null
+        session.stopAfterAyah(null)
+        if (session.state.value.isPlaying) session.toggle()
+    }
+
+    /** Tells the session where a [SleepTimer.EndOfSurah] timer has to cut playback, or removes the limit. */
+    private fun applyEndOfSurahLimit() {
+        val limit = if (_sleepTimer.value == SleepTimer.EndOfSurah) _nowPlaying.value?.ayahs?.lastIndex else null
+        session.stopAfterAyah(limit)
     }
 }
 
