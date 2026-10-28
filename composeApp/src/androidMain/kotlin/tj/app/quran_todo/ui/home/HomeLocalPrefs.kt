@@ -22,8 +22,22 @@ class HomeLocalPrefs(context: Context) {
         _hifzInviteDismissed.value = true
     }
 
-    private companion object {
-        const val PREFS_NAME = "quran_hifz_home_prefs"
-        const val KEY_HIFZ_INVITE_DISMISSED = "hifz_invite_dismissed"
+    /**
+     * The day (epoch day) on which the burst for reaching the daily goal was last played; [NoDay]
+     * if it never was. The burst is played once per day, the first time the goal is seen reached.
+     */
+    var goalCelebratedDay: Int = prefs.getInt(KEY_GOAL_CELEBRATED_DAY, NoDay)
+        private set
+
+    fun markGoalCelebrated(epochDay: Int) {
+        goalCelebratedDay = epochDay
+        prefs.edit().putInt(KEY_GOAL_CELEBRATED_DAY, epochDay).apply()
+    }
+
+    companion object {
+        const val NoDay = Int.MIN_VALUE
+        private const val PREFS_NAME = "quran_hifz_home_prefs"
+        private const val KEY_HIFZ_INVITE_DISMISSED = "hifz_invite_dismissed"
+        private const val KEY_GOAL_CELEBRATED_DAY = "goal_celebrated_day"
     }
 }

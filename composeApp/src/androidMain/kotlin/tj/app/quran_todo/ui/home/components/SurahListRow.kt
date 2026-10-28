@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -57,8 +58,22 @@ internal class RowTexts(
     val notStarted: String,
     val learning: String,
     val learned: String,
+    val learningPercentPattern: String,
     val pinned: String,
 ) {
+    /**
+     * What a screen reader says about the status of a row: "Not started", "Memorizing, 40% memorized"
+     * (just "Memorizing" while nothing is memorized yet) or "Memorized".
+     */
+    fun stateOf(status: SurahTodoStatus?, learnedFraction: Float): String = when (status) {
+        null -> notStarted
+        SurahTodoStatus.LEARNED -> learned
+        SurahTodoStatus.LEARNING -> {
+            val percent = progressPercent(learnedFraction)
+            if (percent <= 0) learning else learningPercentPattern.replace("{n}", percent.toString())
+        }
+    }
+
     companion object {
         fun of(copy: HomeCopy) = RowTexts(
             language = copy.language,
@@ -66,10 +81,17 @@ internal class RowTexts(
             notStarted = copy.statusNotStarted,
             learning = copy.statusLearning,
             learned = copy.statusLearned,
+            learningPercentPattern = copy.learningPercentPattern,
             pinned = copy.pinned,
         )
     }
 }
+
+/** Above this font scale the line under a surah name may take a second line instead of being cut off. */
+internal const val LargeFontScale = 1.15f
+
+/** One line with an ellipsis at the usual size, two lines for large text ("Opening · 7 ayahs" must stay readable). */
+internal fun subtitleMaxLines(fontScale: Float): Int = if (fontScale > LargeFontScale) 2 else 1
 
 /**
  * A surah row: the numbered star (its shape and fill carry the status, its arc the progress), the
@@ -95,11 +117,8 @@ internal fun SurahListRow(
             .filter { it.isNotBlank() }
             .joinToString(" · ")
     }
-    val statusLabel = when (row.status) {
-        SurahTodoStatus.LEARNED -> texts.learned
-        SurahTodoStatus.LEARNING -> texts.learning
-        null -> texts.notStarted
-    }
+    val statusLabel = texts.stateOf(row.status, row.learnedFraction)
+    val subtitleLines = subtitleMaxLines(LocalDensity.current.fontScale)
     Column(modifier.fillMaxWidth()) {
         Row(
             Modifier
@@ -155,7 +174,7 @@ internal fun SurahListRow(
                         text = subtitle,
                         style = type.callout,
                         color = colors.inkSecondary,
-                        maxLines = 1,
+                        maxLines = subtitleLines,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }

@@ -47,13 +47,21 @@ internal class PlannerInput(
     val dueReviews: List<AyahReviewEntity>,
     /** Keys `"surah:globalAyah"` of ayahs marked weak. */
     val weakAyahKeys: Set<String>,
+    /**
+     * Global numbers of every ayah that has a review record, due or not. Such an ayah was repeated
+     * at least once, so it is never "new" again; only its schedule ([dueReviews]) or the weak list can
+     * bring it back.
+     */
+    val reviewedAyahs: Set<Int>,
     val dailyGoal: Int,
+    /** Distinct ayahs already worked on today ([TodayPlanner.countDoneToday]); they use up the goal. */
+    val doneToday: Int,
     val focusMinutes: Int,
 )
 
 /**
- * Plans the day (port of `buildTodayTasks` from the old Hifz home): a few new ayahs from the surahs
- * being memorized, the reviews that are due, and the weak ayahs. Pure: no storage, no clock.
+ * Plans the day (port of `buildTodayTasks` from the old Hifz home): a few new ayahs (never repeated
+ * ones), the reviews that are due, and the weak ayahs. Pure: no storage, no clock.
  */
 internal object TodayPlanner {
     /** A session never takes more reviews than this from one surah. */
@@ -65,39 +73,50 @@ internal object TodayPlanner {
         val weakKeys = input.weakAyahKeys
         val result = mutableListOf<TodayTask>()
 
-        // New ayahs: first the ones already being learned (the least recently touched first), then
-        // the next unlearned ayahs of the surahs marked "memorizing".
-        val newAyahLimit = minOf(input.dailyGoal.coerceIn(1, 50), (input.focusMinutes / 3).coerceAtLeast(1))
-        val selectedLearning = input.ayahTodos
-            .filter {
-                val key = key(it.surahNumber, it.ayahNumber)
-                it.status == AyahTodoStatus.LEARNING && key !in dueKeys && key !in weakKeys
-            }
-            .sortedWith(
-                compareBy(
-                    { it.updatedAt },
-                    { it.surahNumber },
-                    { index.localAyah(it.ayahNumber) },
-                ),
-            )
-            .take(newAyahLimit)
-            .map { it.surahNumber to it.ayahNumber }
-        val alreadySelected = selectedLearning.mapTo(HashSet()) { (surah, ayah) -> key(surah, ayah) }
+        // New ayahs, never repeated yet: first the ones marked "memorizing" that have no review record
+        // (the least recently touched first), then the next ayahs without any status of the surahs marked
+        // "memorizing". An ayah with a review record is not new any more: it belongs to the schedule
+        // (Review when due) or to the weak list. The goal minus what was done today is the budget, so
+        // nothing new is offered once the goal is reached.
+        val reviewed = input.reviewedAyahs + input.dueReviews.map { it.ayahNumber }
+        val budget = (input.dailyGoal.coerceIn(1, 50) - input.doneToday).coerceAtLeast(0)
+        val newAyahLimit = minOf(budget, (input.focusMinutes / 3).coerceAtLeast(1))
+        val selectedLearning = if (newAyahLimit == 0) {
+            emptyList()
+        } else {
+            input.ayahTodos
+                .filter {
+                    it.status == AyahTodoStatus.LEARNING &&
+                        it.ayahNumber !in reviewed &&
+                        key(it.surahNumber, it.ayahNumber) !in weakKeys
+                }
+                .sortedWith(
+                    compareBy(
+                        { it.updatedAt },
+                        { it.surahNumber },
+                        { index.localAyah(it.ayahNumber) },
+                    ),
+                )
+                .take(newAyahLimit)
+                .map { it.surahNumber to it.ayahNumber }
+        }
         val todoByAyah = input.ayahTodos.associateBy { it.ayahNumber }
         // A sequence: stops as soon as the session is full instead of listing every ayah of every surah.
-        val nextPlanned = input.learningSurahs
-            .sorted()
-            .asSequence()
-            .flatMap { surah -> index.globalAyahs(surah).asSequence().map { surah to it } }
-            .filter { (surah, ayah) ->
-                val key = key(surah, ayah)
-                key !in dueKeys &&
-                    key !in weakKeys &&
-                    key !in alreadySelected &&
-                    todoByAyah[ayah]?.status != AyahTodoStatus.LEARNED
-            }
-            .take((newAyahLimit - selectedLearning.size).coerceAtLeast(0))
-            .toList()
+        val nextPlanned = if (newAyahLimit == 0) {
+            emptyList()
+        } else {
+            input.learningSurahs
+                .sorted()
+                .asSequence()
+                .flatMap { surah -> index.globalAyahs(surah).asSequence().map { surah to it } }
+                .filter { (surah, ayah) ->
+                    val key = key(surah, ayah)
+                    // No status at all: an ayah with one is either already in the first list or past it.
+                    todoByAyah[ayah] == null && ayah !in reviewed && key !in weakKeys
+                }
+                .take((newAyahLimit - selectedLearning.size).coerceAtLeast(0))
+                .toList()
+        }
 
         (selectedLearning + nextPlanned)
             .groupBy({ it.first }, { it.second })

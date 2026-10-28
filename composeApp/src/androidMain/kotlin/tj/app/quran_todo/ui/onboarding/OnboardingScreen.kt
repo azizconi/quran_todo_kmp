@@ -68,7 +68,6 @@ import tj.app.quran_todo.common.settings.LocalAppSettingsSetter
 import tj.app.quran_todo.common.theme.LocalReadingFontStyle
 import tj.app.quran_todo.common.theme.LocalReadingFontStyleSetter
 import tj.app.quran_todo.common.theme.LocalThemeMode
-import tj.app.quran_todo.common.theme.LocalThemeModeSetter
 import tj.app.quran_todo.common.theme.LocalThemePalette
 import tj.app.quran_todo.common.theme.LocalThemePaletteSetter
 import tj.app.quran_todo.common.theme.ThemeMode
@@ -83,6 +82,7 @@ import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.orSnap
 import tj.app.quran_todo.ui.motion.pressable
+import tj.app.quran_todo.ui.motion.rememberThemeSwitcher
 import tj.app.quran_todo.ui.settings.MaxReadingFontSize
 import tj.app.quran_todo.ui.settings.MinReadingFontSize
 import tj.app.quran_todo.ui.state.OnboardingGoal
@@ -109,9 +109,10 @@ fun OnboardingScreen(onFinished: () -> Unit) {
     val settings = LocalAppSettings.current
     val setSettings = LocalAppSettingsSetter.current
     val themeMode = LocalThemeMode.current
-    val setThemeMode = LocalThemeModeSetter.current
     val palette = LocalThemePalette.current
     val setPalette = LocalThemePaletteSetter.current
+    // Theme and palette changes ripple out from the finger (circular reveal), as in the settings.
+    val themeSwitcher = rememberThemeSwitcher()
     val reduced = LocalReducedMotion.current
     val colors = QhTheme.colors
 
@@ -244,13 +245,13 @@ fun OnboardingScreen(onFinished: () -> Unit) {
                         themeIndex = themeSegment(followsSystem, themeMode),
                         onSelectTheme = { index ->
                             when (index) {
-                                0 -> setThemeMode(ThemeMode.LIGHT)
-                                1 -> setThemeMode(ThemeMode.DARK)
-                                else -> viewModel.setThemeFollowsSystem(true)
+                                0 -> themeSwitcher.switch(ThemeMode.LIGHT)
+                                1 -> themeSwitcher.switch(ThemeMode.DARK)
+                                else -> themeSwitcher.reveal { viewModel.setThemeFollowsSystem(true) }
                             }
                         },
                         palette = palette,
-                        onSelectPalette = setPalette,
+                        onSelectPalette = themeSwitcher::switchPalette,
                     )
 
                     else -> GoalsStep(

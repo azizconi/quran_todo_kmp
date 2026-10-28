@@ -13,8 +13,14 @@ import tj.app.quran_todo.presentation.home.QuranLoadState
 import tj.app.quran_todo.ui.state.LastReadPosition
 import tj.app.quran_todo.ui.state.OnboardingGoal
 
-/** What the day looks like in storage: how much was done today, and whether anything was ever reviewed. */
-internal data class DoneStats(val doneToday: Int, val hasReviews: Boolean)
+/**
+ * What the day looks like in storage: how much was done today, and which ayahs (global numbers) have a
+ * review record, due or not.
+ */
+internal data class DoneStats(val doneToday: Int, val reviewedAyahs: Set<Int> = emptySet()) {
+    /** Something was reviewed at some point: "all done" is a fair thing to say when nothing is left. */
+    val hasReviews: Boolean get() = reviewedAyahs.isNotEmpty()
+}
 
 /** Every input of the screen state, flattened. The ViewModel gathers it; [HomeStateBuilder] is pure. */
 internal class HomeSources(
@@ -111,7 +117,9 @@ internal object HomeStateBuilder {
                 ayahTodos = s.ayahTodos,
                 dueReviews = s.dueReviews,
                 weakAyahKeys = s.weakAyahKeys,
+                reviewedAyahs = stats.reviewedAyahs,
                 dailyGoal = s.dailyGoal,
+                doneToday = stats.doneToday,
                 focusMinutes = s.focusMinutes,
             ),
         )
