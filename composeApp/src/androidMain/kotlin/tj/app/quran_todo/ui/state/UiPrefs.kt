@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import tj.app.quran_todo.common.audio.Reciter
+import tj.app.quran_todo.common.audio.Reciters
 import tj.app.quran_todo.common.settings.UserSettingsStorage
 import tj.app.quran_todo.common.theme.ThemeStorage
 
@@ -193,6 +195,15 @@ class UiPrefs(context: Context) {
         _hifzHintMode.value = value
     }
 
+    /** The reciter of the ayah audio. An unknown or missing saved id means the default reciter (Alafasy). */
+    private val _reciter = MutableStateFlow(Reciters.byId(prefs.getString(KEY_RECITER, null)))
+    val reciter: StateFlow<Reciter> = _reciter.asStateFlow()
+
+    fun setReciter(value: Reciter) {
+        prefs.edit().putString(KEY_RECITER, value.id).apply()
+        _reciter.value = value
+    }
+
     private companion object {
         const val PREFS_NAME = "quran_hifz_ui_prefs"
         const val KEY_THEME_FOLLOWS_SYSTEM = "theme_follows_system"
@@ -206,6 +217,7 @@ class UiPrefs(context: Context) {
         const val KEY_LAST_READ_AYAH = "last_read_ayah_in_surah"
         const val KEY_ONBOARDING_GOALS = "onboarding_goals"
         const val KEY_HIFZ_HINT_MODE = "hifz_hint_mode"
+        const val KEY_RECITER = "reciter"
     }
 }
 

@@ -57,6 +57,64 @@
 - Сеттеры корня (использовать их, а не прямую запись в storage): `LocalAppLanguageSetter`, `LocalThemeModeSetter` (выключает «как в системе»), `LocalThemePaletteSetter`, `LocalReadingFontStyleSetter`, `LocalAyahCardStyleSetter`, `LocalAppSettingsSetter`.
 - Навигация: экраны получают колбэки (`onOpenReader(Dest.Reader(...))`, `onBack`…). Повторные нажатия во время перехода корень игнорирует сам. `LocalNavAnimatedVisibilityScope` уже провайдится в каждой записи.
 - **ViewModel-и.** Общие `HomeViewModel`, `SurahViewModel`, `StatsViewModel` — Koin-синглтоны. **Не получай их через `koinViewModel<HomeViewModel>()`** — это кладёт синглтон в ViewModelStore записи навигации, и при её закрытии `onCleared()` убивает его `viewModelScope` для всего приложения. Правильно: свой Android-VM (`viewModel { ReaderViewModel(get(), get(), …) }` в своём модуле `ui/di/UiModules.kt`), внутри которого общие VM приходят через конструктор (`get()`), а на экране — `koinViewModel<ReaderViewModel>()`. Вне VM (редко) — `koinInject<HomeViewModel>()`. `ProvideProcessViewModelStore { }` (`ui/di/ProcessViewModelStore.kt`) — временный костыль для заглушек со старыми экранами; новым экранам он не нужен, убери его из своей заглушки.
-- `UiPrefs` (Koin single, `koinInject()` / `get()`): `themeFollowsSystem`, `hapticsEnabled`, `reduceMotion`, `keepScreenOn`, `readerLayout: ReaderLayout (LIST, MUSHAF)`, `hifzHintMode: HifzHintMode (NONE, FIRST_WORD)`, `onboardingGoals: Set<String>` (`OnboardingGoal.READ/LISTEN/MEMORIZE`), `recentSurahs: List<Int>` + `recordRecentSurah(n)`, `pinnedSurahs: Set<Int>` + `togglePin(n)`, `lastReadPosition: StateFlow<LastReadPosition?>` (`surah`, `ayahInSurah?`, `legacyGlobalAyah?` — если есть только старый ключ, номер аята глобальный, переводи через `completeQuran`: `AyahEntity.number` глобальный, `numberInSurah` — в суре), `saveLastRead(surah, ayahInSurah)` (debounce на стороне вызывающего). У каждого значения — `StateFlow` + `setX(...)`.
-- `PlaybackController` (Koin single): `nowPlaying: StateFlow<NowPlaying?>` (`surahNumber`, `ayahs: List<ReaderAudioAyah>`), `state: StateFlow<ReaderAudioState>` (`index`, `isPlaying`, `canResume`, `isPreparing`, `pauseRemainingSeconds`, `positionMs`, `durationMs`, `hasError`), `isActiveFor(surah)`, `start(surah: SurahWithAyahs, prefs, practice, fromIndex, autoplay = true)`, `toggle()`, `next()`, `previous()`, `select(index)`, `updateSettings(prefs, practice)`, `stop()`. `start` всегда конфигурирует сессию без автозапуска при открытии, затем `select(fromIndex)` и `toggle()`, если `autoplay`.
+- `UiPrefs` (Koin single, `koinInject()` / `get()`): `reciter: StateFlow<Reciter>` + `setReciter(reciter)` (см. «Звук»), `themeFollowsSystem`, `hapticsEnabled`, `reduceMotion`, `keepScreenOn`, `readerLayout: ReaderLayout (LIST, MUSHAF)`, `hifzHintMode: HifzHintMode (NONE, FIRST_WORD)`, `onboardingGoals: Set<String>` (`OnboardingGoal.READ/LISTEN/MEMORIZE`), `recentSurahs: List<Int>` + `recordRecentSurah(n)`, `pinnedSurahs: Set<Int>` + `togglePin(n)`, `lastReadPosition: StateFlow<LastReadPosition?>` (`surah`, `ayahInSurah?`, `legacyGlobalAyah?` — если есть только старый ключ, номер аята глобальный, переводи через `completeQuran`: `AyahEntity.number` глобальный, `numberInSurah` — в суре), `saveLastRead(surah, ayahInSurah)` (debounce на стороне вызывающего). У каждого значения — `StateFlow` + `setX(...)`.
+- `PlaybackController` (Koin single): `nowPlaying: StateFlow<NowPlaying?>` (`surahNumber`, `ayahs: List<ReaderAudioAyah>`), `state: StateFlow<ReaderAudioState>` (`index`, `isPlaying`, `canResume`, `isPreparing`, `pauseRemainingSeconds`, `positionMs`, `durationMs`, `hasError`), `isActiveFor(surah)`, `start(surah: SurahWithAyahs, prefs, practice, fromIndex, autoplay = true)`, `toggle()`, `next()`, `previous()`, `select(index)`, `updateSettings(prefs, practice)`, `stop()`. `start` всегда конфигурирует сессию без автозапуска при открытии, затем `select(fromIndex)` и `toggle()`, если `autoplay`. Таймер сна, чтецы, фоновый сервис, образец чтеца, фокус и ошибки — см. раздел «Звук» ниже (`setSleepTimer`, `pauseBySystem()`, `playSample(source, onFinished)`, `stopSample()`).
 - Тесты для androidMain-кода — `composeApp/src/androidUnitTest/kotlin/...` (kotlin.test доступен), запуск `./gradlew :composeApp:testDebugUnitTest`.
+
+## Звук (`ui/playback`, `common/audio`)
+
+Фоновое воспроизведение на Media3 и выбор чтеца (задача A2). Секвенсор повторов/пауз/диапазона — прежний `ReaderAudioSession` из `commonMain` (общий с iOS, поведение iOS не менялось); на Android под ним теперь ExoPlayer.
+
+### Схема
+
+```
+UI ──► PlaybackController ──► ReaderAudioSession ──► ExoReaderAudioOutput ──► Media3Engine (ОДИН ExoPlayer на приложение)
+            ▲   │                     │ source: AyahAudioSource (файл из кэша / URL, предзагрузка 2 следующих)
+            │   └─ nowPlaying/state ──┴──► PlaybackSessionPlayer (SimpleBasePlayer) ──► MediaSession в PlaybackService
+            └──────── команды (play/pause, ⏮ ⏭, стоп) из уведомления, экрана блокировки, гарнитуры, Bluetooth
+```
+
+- Всё создаётся в `createPlaybackController(context, uiPrefs)` (`PlaybackWiring.kt`), Koin single в `appUiModule`. Конструктор `PlaybackController` — `internal`: в тестах подставляются `ReaderAudioSession` с фейковым `ReaderAudioOutput`, `reciter` (`StateFlow`), `serviceLink`, `extras`.
+- **`PlaybackService : MediaSessionService`** (`foregroundServiceType="mediaPlayback"`, разрешения `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `WAKE_LOCK`). Создаётся, когда первый `start()` привязывает к нему `MediaController` (`MediaControllerLink`); дальше Media3 сам держит foreground и уведомление, пока играет (на паузе уведомление можно смахнуть). Сессия зеркалит контроллер: плейлист — аяты суры, текущий элемент — текущий аят, «играет» = последовательность идёт (в паузе между аятами тоже), «буферизация» = аят подготавливается, остановка/ошибка показываются как «пауза» (кнопка ▶ в уведомлении повторяет). Метаданные: заголовок «Ан-Наба · 5» (`SurahNames.displayName` по языку интерфейса), исполнитель — чтец, обложка — иконка приложения. Позиция экстраполируется системой, а не обновляется 5 раз в секунду. Малая иконка — `res/drawable/ic_stat_quran.xml` (восьмиконечная звезда; её же берут напоминания), канал `quran_playback`, нажатие открывает приложение (`setSessionActivity`).
+- **Команды в сторону контроллера:** play/pause → `toggle()`, ⏮/⏭ → `previous()`/`next()` (⏮ после 3 секунд аята — повтор аята), переход к аяту → `select(i)` + `toggle()`, стоп → `stop()`. Внешние `PlaybackController.pauseBySystem()` вызывает вывод при потере фокуса насовсем и отключении наушников.
+- **Смахнули приложение из недавних** (`onTaskRemoved`): `stop()`, отвязка, `stopSelf`; уведомления и звука нет. «Назад» из приложения во время звука — звук продолжается с уведомлением.
+- **Wake lock.** ExoPlayer держит `WAKE_MODE_NETWORK`, пока играет; пауза между аятами — это корутинная задержка, поэтому пока `state.isPlaying`, сервис держит `PARTIAL_WAKE_LOCK` (снимается на паузе/остановке/`onDestroy`).
+
+### Фокус и наушники
+
+`AudioAttributes(USAGE_MEDIA, AUDIO_CONTENT_TYPE_SPEECH)`, `handleAudioFocus = true`, `setHandleAudioBecomingNoisy(true)`.
+
+| Событие | Что происходит |
+|---|---|
+| Короткая потеря фокуса (звонок, навигатор) | ExoPlayer сам встаёт на паузу и сам возвращает звук; `state.isPlaying` остаётся `true` (позиция стоит), UI не «застревает» |
+| Фокус потерян насовсем (запустили музыку) | `onPlayWhenReadyChanged(AUDIO_FOCUS_LOSS)` → `pauseBySystem()` → `canResume = true`, кнопки показывают ▶ |
+| Отключили наушники | то же, причина `AUDIO_BECOMING_NOISY` |
+| Последний аят закончился | `releaseFocus()` (плеер `stop()`), чтобы чужая музыка могла продолжить; на паузе и между аятами фокус держится |
+| Образец чтеца в настройках | берёт тот же плеер: звук ридера останавливается на месте (`nowPlaying` остаётся, аят тот же, не «пауза»); после образца сам не продолжается |
+
+### Ошибки сети
+
+Аят, который не удалось сыграть (нет сети, битый файл), `ExoReaderAudioOutput` повторяет **2 раза: через 1 с и через 2 с**, и только потом сессия получает `hasError = true` (повторы — только на Android; в `ReaderAudioSession` ничего не менялось). Файл кэша, который не проигрался после повторов, удаляется (повтор вручную скачает заново). В доке и мини-плеере при `hasError` — «Нет связи · Повторить» (5 языков; в мини-плеере кнопка play превращается в ↻); «Повторить» = `toggle()` — играет тот же аят с начала. Без сети на нескачанном аяте `AyahAudioSource` отдаёт удалённый URL, ExoPlayer пробует его стримить, ошибка попадает в те же повторы.
+
+### Чтецы
+
+- `common/audio/Reciter.kt` (общий код): `Reciter(id, edition, bitrate, имена)`; `reciter.audioUrl(globalAyah)` — **единственное** место, где строится URL (`https://cdn.islamic.network/quran/audio/{bitrate}/{edition}/{n}.mp3`), `reciter.cacheKey(surah, ayahInSurah)`, `name(language)` (полное), `shortName(language)` (для строки в доке и строки настроек). `Reciters.all`, `Reciters.default` (Аль-Афаси), `Reciters.byId(id)` (неизвестный id → по умолчанию).
+- Проверено на CDN (`curl -I`, 200, и скачано 112:1 для каждого): `ar.alafasy` **128**, `ar.husary` **128** (муратталь; `ar.husarymujawwad` — муджаввад, не берём), `ar.minshawi` **128** (муратталь; `ar.minshawimujawwad` — муджаввад), `ar.abdulbasitmurattal` **192** (на 128 — 403; издание «Abdul Basit … murattal»; `ar.abdulbasitmujawwad` — муджаввад, не берём). 64 kbit/s есть у аль-Афаси, аль-Хусари и Абдуль-Басита, у аль-Минышави — нет.
+- **Ключ кэша:** у Аль-Афаси прежний `ayah_{s}_{a}` (уже скачанное не пропадает), у остальных `{id}_{s}_{a}` (`husary_78_5`).
+- Вшитые URL в `HomeViewModel` (оффлайн-пакет, качает Аль-Афаси, его переделает «Загрузки») и в старом `HifzSessionScreen` (общий код) не менялись; `cachedAudioSource()` в `ReaderAudioSession` берёт `Reciters.default.audioUrl(...)` — тот же URL и ключ, что были.
+- `UiPrefs.reciter: StateFlow<Reciter>` + `setReciter(reciter)` (SharedPreferences, хранится `id`). Смена чтеца во время звука: аят, который играет (или стоит на паузе посередине), начинается заново новым голосом; без звука — новый голос на следующем `play`.
+- Предзагрузка: когда аят готов, `AyahAudioSource` качает в кэш два следующих (`prefetch`), чтобы переход был без щелчка; воспроизведение идёт из файла кэша.
+- Настройки → «Звук» → «Чтец» (`ui/settings/SoundSettings.kt`): лист на 4 чтеца со стилем/темпом, «▶ образец» (112:1) и галочкой. Образец играет `PlaybackController.playSample(source, onFinished)`; в самом листе — `rememberReciterPreview()`.
+
+### Кэш аудио
+
+`common/audio/AudioCacheStorage` (Android): файлы `*.mp3` в `noBackupFilesDir/offline_audio`, **лимит 1 ГБ**; когда новый файл выводит общий размер за лимит, удаляются самые давно использованные (время — `lastModified`, обновляется при каждом попадании в кэш) до 90 % лимита; только что записанный файл не удаляется. Файлы оффлайн-пакета вытесняются как все. Размер — `AudioCacheStorage.shared.totalBytes()`, очистка — `clear()` (в настройках «Аудио на устройстве · 230 МБ» с «Очистить» и подтверждением). Правило вытеснения — чистая функция `selectEvictions(...)`, у неё юнит-тесты.
+
+### Таймер сна
+
+`PlaybackController.setSleepTimer(SleepTimer)`; `sleepTimer: StateFlow<SleepTimer>`, `sleepRemainingSeconds: StateFlow<Int>`.
+
+- `SleepTimer.Off`, `SleepTimer.EndOfSurah` (пауза, когда доиграет **последний аят суры**, даже если он повторяется; поставленный без звука действует на следующую запущенную суру), `SleepTimer.Minutes(n)` (обратный отсчёт; `sleepRemainingSeconds` — остаток).
+- Сработав, таймер ставит звук на паузу (`canResume`) и сам возвращается в `Off`; `stop()` тоже сбрасывает таймер.
+- Отсчёт идёт в `applicationScope` контроллера, поэтому работает при выключенном экране (пока держится wake lock сервиса).
+

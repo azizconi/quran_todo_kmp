@@ -81,10 +81,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
+import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.settings.ReaderPracticeSettings
 import tj.app.quran_todo.common.settings.SurahReaderPreferences
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
@@ -105,6 +108,7 @@ import tj.app.quran_todo.ui.navigation.Origin
 import tj.app.quran_todo.ui.playback.SleepTimer
 import tj.app.quran_todo.ui.reader.PlayerUi
 import tj.app.quran_todo.ui.reader.ReaderViewModel
+import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /** Height of the collapsed dock without the navigation bar inset. */
@@ -413,6 +417,8 @@ private fun DockStatusLine(
     val colors = QhTheme.colors
     val style = QhTheme.type.callout
     val waiting = pauseRemaining.value
+    val reciter by koinInject<UiPrefs>().reciter.collectAsState()
+    val reciterName = reciter.shortName(LocalAppLanguage.current)
     when {
         ui.hasError -> Row(
             Modifier
@@ -425,12 +431,20 @@ private fun DockStatusLine(
                 )
                 .clip(QhTheme.shapes.full)
                 .background(colors.dueContainer)
-                .padding(horizontal = 10.dp, vertical = 3.dp),
+                .padding(horizontal = 8.dp, vertical = 3.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Icon(Icons.Rounded.Refresh, contentDescription = null, tint = colors.due, modifier = Modifier.size(14.dp))
-            Text(copy.noConnectionRetry, style = style, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Icon(Icons.Rounded.Refresh, contentDescription = null, tint = colors.due, modifier = Modifier.size(12.dp))
+            // "No connection · Retry" has to fit next to the controls in every language: a notch smaller than
+            // the caption, and smaller still for the long Uzbek and Turkish phrases.
+            Text(
+                text = copy.noConnectionRetry,
+                style = QhTheme.type.label.copy(fontSize = if (copy.noConnectionRetry.length > 22) 12.sp else 13.sp),
+                color = colors.ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         ui.active && waiting > 0 -> Text(
             text = "${copy.yourTurn} · $waiting ${copy.secondsShort}",
@@ -441,7 +455,7 @@ private fun DockStatusLine(
         )
         else -> Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = statusSummary(prefs, practice, copy),
+                text = statusSummary(prefs, practice, copy, reciterName),
                 style = style,
                 color = colors.inkSecondary,
                 maxLines = 1,
@@ -474,9 +488,14 @@ private fun SleepBadge(viewModel: ReaderViewModel) {
     }
 }
 
-private fun statusSummary(prefs: SurahReaderPreferences, practice: ReaderPracticeSettings, copy: ReaderCopy): String =
+private fun statusSummary(
+    prefs: SurahReaderPreferences,
+    practice: ReaderPracticeSettings,
+    copy: ReaderCopy,
+    reciterName: String,
+): String =
     buildString {
-        append(copy.reciter)
+        append(reciterName)
         if (prefs.playbackSpeed != 1f) append(" · ").append(speedLabel(prefs.playbackSpeed))
         if (practice.rangeEnabled) {
             append(" · ").append(copy.repeatLabel("${practice.startAyah}–${practice.endAyah}", repeatLabel(practice.rangeRepeatCount)))
