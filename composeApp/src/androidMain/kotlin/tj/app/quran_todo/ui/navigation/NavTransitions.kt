@@ -3,7 +3,6 @@ package tj.app.quran_todo.ui.navigation
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -12,6 +11,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.navigation.NavBackStackEntry
+import tj.app.quran_todo.ui.motion.QhMotion
 
 private typealias EnterSpec = AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition
 private typealias ExitSpec = AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition
@@ -24,9 +24,8 @@ private typealias ExitSpec = AnimatedContentTransitionScope<NavBackStackEntry>.(
  * Shared elements are layered on top of these by the screens.
  */
 object NavTransitions {
-    // TODO(0A-merge): take these from QhMotion once the design system is merged.
-    private val Emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)
-    private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+    private val Emphasized = QhMotion.Emphasized
+    private val EmphasizedDecelerate = QhMotion.EmphasizedDecelerate
     private const val MoveMillis = 380
     private const val FadeInMillis = 220
     private const val FadeInDelayMillis = 60

@@ -14,18 +14,8 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -41,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination
@@ -66,7 +55,6 @@ import tj.app.quran_todo.common.settings.LocalAppSettings
 import tj.app.quran_todo.common.settings.LocalAppSettingsSetter
 import tj.app.quran_todo.common.settings.SettingsChangeNotifier
 import tj.app.quran_todo.common.settings.UserSettingsStorage
-import tj.app.quran_todo.common.theme.AppTheme
 import tj.app.quran_todo.common.theme.AyahCardStyle
 import tj.app.quran_todo.common.theme.LocalAyahCardStyle
 import tj.app.quran_todo.common.theme.LocalAyahCardStyleSetter
@@ -80,8 +68,11 @@ import tj.app.quran_todo.common.theme.ReadingFontStyle
 import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.common.theme.ThemePalette
 import tj.app.quran_todo.common.theme.ThemeStorage
-import tj.app.quran_todo.common.theme.nativeReaderThemeColors
 import tj.app.quran_todo.common.utils.currentLocalDate
+import tj.app.quran_todo.ui.catalog.CatalogScreen
+import tj.app.quran_todo.ui.components.LocalToaster
+import tj.app.quran_todo.ui.components.ToastHost
+import tj.app.quran_todo.ui.components.rememberToaster
 import tj.app.quran_todo.ui.home.HomeScreen
 import tj.app.quran_todo.ui.motion.LocalNavAnimatedVisibilityScope
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
@@ -94,6 +85,7 @@ import tj.app.quran_todo.ui.progress.ProgressScreen
 import tj.app.quran_todo.ui.reader.ReaderScreen
 import tj.app.quran_todo.ui.settings.SettingsScreen
 import tj.app.quran_todo.ui.state.UiPrefs
+import tj.app.quran_todo.ui.theme.QhTheme
 
 /** Reading font size range of the redesign (docs/redesign/ANDROID_REDESIGN.md, 2.2). */
 private const val MinReadingFontSize = 22
@@ -174,6 +166,8 @@ fun QuranHifzApp() {
 
     val systemReducedMotion = rememberSystemReducedMotion()
     val userReducedMotion by uiPrefs.reduceMotion.collectAsState()
+    val hapticsEnabled by uiPrefs.hapticsEnabled.collectAsState()
+    val toaster = rememberToaster()
 
     CompositionLocalProvider(
         LocalAppStrings provides strings,
@@ -261,9 +255,15 @@ fun QuranHifzApp() {
             UserSettingsStorage.saveReadingFontSize(next.readingFontSize)
         },
         LocalReducedMotion provides (systemReducedMotion || userReducedMotion),
+        LocalToaster provides toaster,
     ) {
-        AppThemeHost(mode = themeMode, palette = themePalette) {
-            val background = MaterialTheme.colorScheme.background
+        QhTheme(
+            mode = themeMode,
+            palette = themePalette,
+            reducedMotion = userReducedMotion,
+            hapticsEnabled = hapticsEnabled,
+        ) {
+            val background = QhTheme.colors.bg
             SystemBarsEffect(isDark = themeMode == ThemeMode.DARK, background = background)
 
             Box(
@@ -272,62 +272,9 @@ fun QuranHifzApp() {
                     .background(background),
             ) {
                 AppNavigation()
-                // TODO(0A-merge): ToastHost
+                ToastHost(Modifier.align(Alignment.TopCenter))
             }
         }
-    }
-}
-
-/**
- * Theme of the whole UI.
- *
- * TODO(0A-merge): QhTheme. Replace the body with `QhTheme(mode, palette, content)`.
- */
-@Composable
-private fun AppThemeHost(
-    mode: ThemeMode,
-    palette: ThemePalette,
-    content: @Composable () -> Unit,
-) {
-    AppTheme(mode = mode, palette = palette) {
-        MaterialTheme(
-            colorScheme = interimColorScheme(mode, palette),
-            content = content,
-        )
-    }
-}
-
-/** Same mapping the old native settings screen used, until the design system provides the real one. */
-private fun interimColorScheme(mode: ThemeMode, palette: ThemePalette): ColorScheme {
-    val colors = nativeReaderThemeColors(mode, palette)
-    return if (mode == ThemeMode.DARK) {
-        darkColorScheme(
-            primary = colors.primary,
-            onPrimary = Color(0xFF101513),
-            primaryContainer = colors.primaryWeak,
-            onPrimaryContainer = colors.onSurface,
-            background = colors.background,
-            onBackground = colors.onSurface,
-            surface = colors.surface,
-            onSurface = colors.onSurface,
-            surfaceVariant = colors.surfaceAlt,
-            onSurfaceVariant = colors.textSecondary,
-            outline = colors.border,
-        )
-    } else {
-        lightColorScheme(
-            primary = colors.primary,
-            onPrimary = Color.White,
-            primaryContainer = colors.primaryWeak,
-            onPrimaryContainer = colors.onSurface,
-            background = colors.background,
-            onBackground = colors.onSurface,
-            surface = colors.surface,
-            onSurface = colors.onSurface,
-            surfaceVariant = colors.surfaceAlt,
-            onSurfaceVariant = colors.textSecondary,
-            outline = colors.border,
-        )
     }
 }
 
@@ -442,8 +389,7 @@ private fun AppNavigation() {
                 if (isDebuggable) {
                     composable<Dest.Catalog> {
                         ProvideNavScope {
-                            // TODO(0A-merge): CatalogScreen(onBack = { navController.popOnce() })
-                            CatalogPlaceholder(onBack = { navController.popOnce() })
+                            CatalogScreen(onBack = { navController.popOnce() })
                         }
                     }
                 }
@@ -495,25 +441,4 @@ private fun loadAppSettings(): AppSettings {
         readingFontSize = UserSettingsStorage.getReadingFontSize()
             ?.coerceIn(MinReadingFontSize, MaxReadingFontSize) ?: 28,
     )
-}
-
-/** Debug-only stand-in for the component catalog until the design system is merged. */
-@Composable
-private fun CatalogPlaceholder(onBack: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = "Catalog",
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        TextButton(onClick = onBack) {
-            Text(text = "Back")
-        }
-    }
 }
