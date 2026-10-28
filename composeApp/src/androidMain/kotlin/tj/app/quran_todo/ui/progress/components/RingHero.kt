@@ -29,7 +29,8 @@ import tj.app.quran_todo.ui.components.QhCardStyle
 import tj.app.quran_todo.ui.i18n.ProgressCopy
 import tj.app.quran_todo.ui.motion.AnimatedCounter
 import tj.app.quran_todo.ui.motion.SharedKeys
-import tj.app.quran_todo.ui.motion.sharedElementKey
+import tj.app.quran_todo.ui.motion.SharedResize
+import tj.app.quran_todo.ui.motion.sharedBoundsKey
 import tj.app.quran_todo.ui.progress.HeroUi
 import tj.app.quran_todo.ui.progress.rememberRollingValue
 import tj.app.quran_todo.ui.theme.QhSpacing
@@ -84,7 +85,7 @@ internal fun BigRing(
         strokeWidth = BigRingStroke,
         trackColor = colors.primary.copy(alpha = 0.12f),
         modifier = modifier
-            .sharedElementKey(SharedKeys.ProgressRing)
+            .sharedBoundsKey(SharedKeys.ProgressRing, SharedResize.Scale, zIndexInOverlay = 1f)
             .clearAndSetSemantics {
                 contentDescription = description
                 progressBarRangeInfo = ProgressBarRangeInfo(hero.fraction, 0f..1f)

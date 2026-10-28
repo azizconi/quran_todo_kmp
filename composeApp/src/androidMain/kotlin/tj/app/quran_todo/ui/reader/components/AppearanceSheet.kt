@@ -51,7 +51,6 @@ import tj.app.quran_todo.common.settings.SurahReaderPreferences
 import tj.app.quran_todo.common.theme.LocalReadingFontStyle
 import tj.app.quran_todo.common.theme.LocalReadingFontStyleSetter
 import tj.app.quran_todo.common.theme.LocalThemeMode
-import tj.app.quran_todo.common.theme.LocalThemeModeSetter
 import tj.app.quran_todo.common.theme.ReadingFontStyle
 import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.common.utils.getQuranFontFamily
@@ -68,6 +67,8 @@ import tj.app.quran_todo.ui.motion.AnimatedCounter
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.orSnap
 import tj.app.quran_todo.ui.motion.pressable
+import tj.app.quran_todo.ui.motion.rememberThemeSwitcher
+import tj.app.quran_todo.ui.motion.themeRevealOriginTracker
 import tj.app.quran_todo.ui.reader.BismillahText
 import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.theme.QhSpacing
@@ -95,7 +96,7 @@ fun AppearanceSheet(
     val settings = LocalAppSettings.current
     val setSettings = LocalAppSettingsSetter.current
     val themeMode = LocalThemeMode.current
-    val setThemeMode = LocalThemeModeSetter.current
+    val themeSwitcher = rememberThemeSwitcher()
     val uiPrefs = koinInject<UiPrefs>()
     val keepScreenOn by uiPrefs.keepScreenOn.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -107,6 +108,8 @@ fun AppearanceSheet(
     QhSheet(onDismiss = onDismiss, sheetState = sheetState) {
         Column(
             Modifier
+                // The sheet is its own window: the root never sees the finger that hits the theme control.
+                .themeRevealOriginTracker()
                 .padding(top = QhSpacing.x1)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(QhSpacing.x5),
@@ -178,7 +181,7 @@ fun AppearanceSheet(
                 QhSegmentedControl(
                     options = listOf(strings.themeLight, strings.themeDark),
                     selectedIndex = if (themeMode == ThemeMode.DARK) 1 else 0,
-                    onSelect = { setThemeMode(if (it == 1) ThemeMode.DARK else ThemeMode.LIGHT) },
+                    onSelect = { themeSwitcher.switch(if (it == 1) ThemeMode.DARK else ThemeMode.LIGHT) },
                     icons = listOf(Icons.Rounded.LightMode, Icons.Rounded.DarkMode),
                 )
             }

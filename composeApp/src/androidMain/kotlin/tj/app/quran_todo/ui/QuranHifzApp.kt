@@ -22,9 +22,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,7 +79,10 @@ import tj.app.quran_todo.ui.home.HomeScreen
 import tj.app.quran_todo.ui.motion.LocalNavAnimatedVisibilityScope
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.LocalSharedTransitionScope
+import tj.app.quran_todo.ui.motion.ThemeReveal
+import tj.app.quran_todo.ui.motion.ThemeRevealHost
 import tj.app.quran_todo.ui.motion.rememberSystemReducedMotion
+import tj.app.quran_todo.ui.motion.rememberThemeReveal
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.navigation.NavTransitions
 import tj.app.quran_todo.ui.onboarding.OnboardingScreen
@@ -264,12 +269,15 @@ fun QuranHifzApp() {
             hapticsEnabled = hapticsEnabled,
         ) {
             val background = QhTheme.colors.bg
-            SystemBarsEffect(isDark = themeMode == ThemeMode.DARK, background = background)
+            val reveal = rememberThemeReveal()
+            val isDark = themeMode == ThemeMode.DARK
+            SideEffect { reveal.currentDark = isDark }
+            SystemBarsEffect(reveal = reveal, isDark = isDark, background = background)
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(background),
+            ThemeRevealHost(
+                reveal = reveal,
+                modifier = Modifier.fillMaxSize(),
+                background = background,
             ) {
                 AppNavigation()
                 ToastHost(Modifier.align(Alignment.TopCenter))
@@ -284,15 +292,20 @@ fun QuranHifzApp() {
  * background so no frame (rotation, first frame, overscroll) shows a foreign colour.
  */
 @Composable
-private fun SystemBarsEffect(isDark: Boolean, background: Color) {
+private fun SystemBarsEffect(reveal: ThemeReveal, isDark: Boolean, background: Color) {
     val activity = LocalContext.current.findComponentActivity() ?: return
-    DisposableEffect(activity, isDark) {
-        val style = if (isDark) {
+    // While the circular theme reveal runs each bar switches icon style when the circle reaches it, so the
+    // icons always sit on the colour they were drawn for (outside a reveal both follow the theme at once).
+    val latestDark by rememberUpdatedState(isDark)
+    val statusDark by remember(reveal) { derivedStateOf { reveal.barIsDark(latestDark, top = true) } }
+    val navigationDark by remember(reveal) { derivedStateOf { reveal.barIsDark(latestDark, top = false) } }
+    DisposableEffect(activity, statusDark, navigationDark) {
+        fun styleFor(dark: Boolean) = if (dark) {
             SystemBarStyle.dark(AndroidColor.TRANSPARENT)
         } else {
             SystemBarStyle.light(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT)
         }
-        activity.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+        activity.enableEdgeToEdge(statusBarStyle = styleFor(statusDark), navigationBarStyle = styleFor(navigationDark))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             // Otherwise 3-button navigation gets a grey contrast scrim outside the app palette.
             activity.window.isNavigationBarContrastEnforced = false

@@ -33,8 +33,10 @@ import tj.app.quran_todo.ui.components.ProgressRing
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.SharedKeys
+import tj.app.quran_todo.ui.motion.SharedResize
 import tj.app.quran_todo.ui.motion.orSnap
 import tj.app.quran_todo.ui.motion.pressable
+import tj.app.quran_todo.ui.motion.sharedBoundsKey
 import tj.app.quran_todo.ui.motion.sharedElementKey
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
@@ -67,7 +69,9 @@ internal fun ProgressAction(
             size = 36.dp,
             strokeWidth = 3.5.dp,
             modifier = Modifier
-                .sharedElementKey(SharedKeys.ProgressRing)
+                // Scale, not remeasure: the stroke and the percentage are fixed in dp, so the ring has to grow
+                // as a picture (cross-fading with the big ring) instead of being squeezed into smaller bounds.
+                .sharedBoundsKey(SharedKeys.ProgressRing, SharedResize.Scale, zIndexInOverlay = 1f)
                 .semantics { contentDescription = description },
         ) {
             if (percent > 0) {
