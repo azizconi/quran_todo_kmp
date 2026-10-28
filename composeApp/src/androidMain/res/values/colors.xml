@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- "bg" token of the redesign: warm paper by day, ink by night. Used behind the splash and the window. -->
+    <color name="qh_bg">#F6F3EC</color>
+</resources>
