@@ -12,7 +12,12 @@
 
 1. `docs/redesign/ANDROID_REDESIGN.md` — разделы 1, 3, **6.5** (это твоя задача), 6.4 (ридер, в который ты встраиваешься), 8, 10.
 2. `docs/redesign/API.md`.
-3. Код ридера: `ui/reader/**` — разберись, как устроены `ReaderViewModel`, список аятов, строка аята, шапка, док плеера. <!-- ORCHESTRATOR: точки встраивания уточнить после слияния 1B -->
+3. Код ридера: `ui/reader/**`. Точки встраивания:
+   - `ReaderScreen.kt` → `ReaderScreen` (входная точка, `route.hifz`/`rangeStart`/`rangeEnd`), `ReaderContent` (состояние экрана, листы, док), `ReaderList` (элементы списка, `onSelect`/`onMore`, `markedIndex`, `passage`);
+   - `components/AyahRow.kt` → `AyahRow(model: AyahRowModel, …)` — сюда передаётся состояние скрытия/раскрытия и слот под кнопки режима (добавь один параметр-модель режима, например `hifz: HifzRowState?`, и слот `hifzControls: @Composable (() -> Unit)?`; при `null` строка ведёт себя как сейчас);
+   - `components/ReaderTopBar.kt` → `ReaderTopBar(...)` — добавь параметр-слот для кнопки «👁» и вариант заголовка/фона режима (или отдельный `HifzTopBar` в `ui/hifz`, который ридер показывает вместо обычной шапки);
+   - `components/PlayerDock.kt` / `PlayerDockState.kt` — запрет раскрытия дока в режиме;
+   - `ReaderViewModel.kt` — уже даёт аяты, статусы, ревью, `PlaybackController`; состояние сессии держи в своём `HifzViewModel` (`ui/hifz`), а не в `ReaderViewModel`.
 4. Логика, которую переносишь: `commonMain/.../presentation/hifz/HifzSessionScreen.kt` (раскрытие, оценки, переход к следующему), `presentation/surah/SurahViewModel.kt` (`completeReview`, `updateAyahStatus`), `presentation/review/Sm2Scheduler.kt`, `ReviewQuality.kt`.
 
 ## Зона
