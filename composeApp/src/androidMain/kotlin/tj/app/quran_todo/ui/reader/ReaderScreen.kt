@@ -75,14 +75,13 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.core.parameter.parametersOf
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
-import tj.app.quran_todo.common.i18n.LocalAppStrings
-import tj.app.quran_todo.common.i18n.localizeRevelationPlace
 import tj.app.quran_todo.common.settings.LocalAppSettings
 import tj.app.quran_todo.common.utils.getQuranFontFamily
 import tj.app.quran_todo.data.database.entity.quran.AyahEntity
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
+import tj.app.quran_todo.ui.common.SurahNames
 import tj.app.quran_todo.ui.components.EmptyState
 import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.QhIconButton
@@ -236,7 +235,6 @@ private fun ReaderContent(
 ) {
     val colors = QhTheme.colors
     val density = LocalDensity.current
-    val strings = LocalAppStrings.current
     val settings = LocalAppSettings.current
     val toaster = LocalToaster.current
     val haptics = LocalHaptics.current
@@ -253,6 +251,8 @@ private fun ReaderContent(
     val player by viewModel.player.collectAsState()
     val status by viewModel.surahStatus.collectAsState()
     val chapterNames by viewModel.chapterNames.collectAsState()
+    val russianNames by viewModel.russianNames.collectAsState()
+    val language = LocalAppLanguage.current
     val statuses by viewModel.ayahStatuses.collectAsState()
     val notes by viewModel.notes.collectAsState()
     val weak by viewModel.weakAyahs.collectAsState()
@@ -272,7 +272,12 @@ private fun ReaderContent(
     val translationStyle = type.body
 
     val names = chapterNames[surahNumber]
-    val title = names?.transliteration ?: surah.surah.englishName
+    val title = SurahNames.displayName(
+        language = language,
+        russianName = russianNames[surahNumber],
+        transliteration = names?.transliteration,
+        fallback = surah.surah.englishName,
+    )
     val meaning = names?.translated ?: surah.surah.englishNameTranslation
     val arabicName = names?.arabic ?: surah.surah.name
     val headerData = remember(surahNumber, route.origin, arabicName, title, meaning, copy, total) {
@@ -282,7 +287,7 @@ private fun ReaderContent(
             arabicName = arabicName,
             title = title,
             meaning = meaning,
-            meta = "${localizeRevelationPlace(surah.surah.revelationType, strings)} · ${copy.ayahCount(total)}",
+            meta = "${copy.revelationPlace(surah.surah.revelationType)} · ${copy.ayahCount(total)}",
             showBismillah = hasBismillahLine(surahNumber),
         )
     }
@@ -436,7 +441,7 @@ private fun ReaderContent(
             markedIndex = player.highlightIndex(prefs.highlightPlayingAyah),
             flashIndex = flashIndex,
             passage = if (practice.rangeEnabled) (practice.startAyah - 1)..(practice.endAyah - 1) else null,
-            nextSurah = if (surahNumber < 114) viewModel.nextSurahDisplay(surahNumber + 1, chapterNames) else null,
+            nextSurah = if (surahNumber < 114) viewModel.nextSurahDisplay(surahNumber + 1, language, chapterNames, russianNames) else null,
             onSelect = { index ->
                 following = true
                 viewModel.selectAyah(index)
@@ -476,7 +481,7 @@ private fun ReaderContent(
             ) {
                 val elsewhere = player.elsewhereSurah
                 if (elsewhere != null) {
-                    val name = viewModel.surahDisplayName(elsewhere, chapterNames)
+                    val name = viewModel.surahDisplayName(elsewhere, language, chapterNames, russianNames)
                     PlayingElsewhereChip(
                         label = copy.playingElsewhere(name),
                         onClick = { viewModel.routeToPlayingSurah()?.let(onOpenReader) },
@@ -559,7 +564,7 @@ private fun ReaderContent(
                         note = notes[ayah.number]?.note.orEmpty(),
                         review = reviews[ayah.number],
                     )
-                    val shareText = ayahShareText(arabic, translation, copy.quranRef, surahNumber, ayah.numberInSurah)
+                    val shareText = ayahShareText(arabic, translation, copy.quranRef, surahNumber, ayah.numberInSurah, surahName = title)
                     AyahSheet(
                         model = sheetModel,
                         arabicStyle = remember(type, quranFamily) { type.quranBody(quranFamily, 24.sp) },

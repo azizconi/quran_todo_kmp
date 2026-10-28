@@ -36,6 +36,7 @@ import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.presentation.home.HomeViewModel
 import tj.app.quran_todo.presentation.home.QuranLoadState
 import tj.app.quran_todo.presentation.surah.SurahViewModel
+import tj.app.quran_todo.ui.common.SurahNames
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.navigation.Origin
 import tj.app.quran_todo.ui.playback.NowPlaying
@@ -296,6 +297,7 @@ class ReaderViewModel(
     /** [NotMeasured] until the list was laid out, [HeaderOnTop] while the header covers the top, else an ayah index. */
     private val visibleAyah = MutableStateFlow(NotMeasured)
     private var lastSavedAyah = -1
+    private var initialPositionSaved = false
 
     init {
         uiPrefs.recordRecentSurah(surahNumber)
@@ -397,6 +399,12 @@ class ReaderViewModel(
     /** Index of the first ayah on screen, [HeaderOnTop] while the header covers the top of the list. */
     fun onVisibleAyah(index: Int) {
         visibleAyah.value = index
+        if (!initialPositionSaved && index != NotMeasured) {
+            // The list has just been positioned: the place the reader opened on is already the reading
+            // position (Home's "Continue" must not wait for a scroll).
+            initialPositionSaved = true
+            commitVisibleAyah(index)
+        }
     }
 
     /** Writes the pending reading position right away (the screen is being left). */
@@ -407,12 +415,10 @@ class ReaderViewModel(
     private fun commitVisibleAyah(index: Int) {
         val ayahs = _surah.value?.ayahs ?: return
         if (index == NotMeasured) return
-        if (index == HeaderOnTop) {
-            if (!selected.value && !isActive()) readyIndex.value = 0
-            return
-        }
-        val ayah = ayahs.getOrNull(index) ?: return
-        if (!selected.value && !isActive()) readyIndex.value = index
+        // While the header covers the top the person is at the start of the surah: ayah 1.
+        val ayahIndex = if (index == HeaderOnTop) 0 else index
+        val ayah = ayahs.getOrNull(ayahIndex) ?: return
+        if (!selected.value && !isActive()) readyIndex.value = ayahIndex
         if (ayah.numberInSurah != lastSavedAyah) {
             lastSavedAyah = ayah.numberInSurah
             uiPrefs.saveLastRead(surahNumber, ayah.numberInSurah)
@@ -608,20 +614,45 @@ class ReaderViewModel(
     fun surahInfo(number: Int): SurahEntity? =
         homeViewModel.uiState.value.completeQuran.firstOrNull { it.surah.number == number }?.surah
 
+    /** Bundled Russian surah names by number (`SurahModel.name`), the source of the RU surah title. */
+    val russianNames: StateFlow<Map<Int, String>> = homeViewModel.uiState
+        .map { it.surahList }
+        .distinctUntilChanged()
+        .map { list -> list.associate { it.surahNumber to it.name } }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            homeViewModel.uiState.value.surahList.associate { it.surahNumber to it.name },
+        )
+
+    /** Name of a surah by the one rule of the Android UI ([SurahNames]): the same as on the home screen. */
+    fun surahDisplayName(
+        number: Int,
+        language: AppLanguage,
+        names: Map<Int, ChapterNameModel>,
+        russian: Map<Int, String>,
+    ): String = SurahNames.displayName(
+        language = language,
+        russianName = russian[number],
+        transliteration = names[number]?.transliteration,
+        fallback = surahInfo(number)?.englishName?.takeIf { it.isNotBlank() } ?: "№ $number",
+    )
+
     /** Names for the "next surah" card. */
-    fun nextSurahDisplay(number: Int, names: Map<Int, ChapterNameModel>): NextSurahDisplay {
+    fun nextSurahDisplay(
+        number: Int,
+        language: AppLanguage,
+        names: Map<Int, ChapterNameModel>,
+        russian: Map<Int, String>,
+    ): NextSurahDisplay {
         val chapter = names[number]
         val info = surahInfo(number)
         return NextSurahDisplay(
-            title = chapter?.transliteration ?: info?.englishName ?: "№ $number",
+            title = surahDisplayName(number, language, names, russian),
             meaning = chapter?.translated ?: info?.englishNameTranslation.orEmpty(),
             arabicName = chapter?.arabic ?: info?.name.orEmpty(),
         )
     }
-
-    /** Short name of a surah for the "Playing: ..." chip. */
-    fun surahDisplayName(number: Int, names: Map<Int, ChapterNameModel>): String =
-        names[number]?.transliteration ?: surahInfo(number)?.englishName ?: "№ $number"
 
     /** Opens the player of the surah that currently plays (the chip above the dock). */
     fun routeToPlayingSurah(): Dest.Reader? {

@@ -88,6 +88,18 @@ class ReaderPositionTest {
     }
 
     @Test
+    fun theShareTextNamesTheSurah() {
+        assertEquals(
+            "الٓمٓ\n\n— Al-Baqarah, Quran 2:1",
+            ayahShareText("الٓمٓ", null, "Quran", 2, 1, surahName = "Al-Baqarah"),
+        )
+        assertEquals(
+            "الٓمٓ\n\n— Quran 2:1",
+            ayahShareText("الٓمٓ", null, "Quran", 2, 1, surahName = " "),
+        )
+    }
+
+    @Test
     fun audioTimeIsFormattedAsMinutesAndSeconds() {
         assertEquals("0:00", formatAudioTime(0))
         assertEquals("0:07", formatAudioTime(7))

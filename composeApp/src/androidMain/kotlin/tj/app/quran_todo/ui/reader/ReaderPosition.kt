@@ -33,8 +33,8 @@ fun resolveInitialAyahIndex(
 }
 
 /**
- * Text that [copy and share][ayahShareText] put out for one ayah: Arabic, translation (when there is one) and
- * the reference "Quran 2:255".
+ * Text that copy and share put out for one ayah: Arabic, translation (when there is one) and the reference
+ * "Al-Baqarah, Quran 2:255" ([surahName] is left out when null).
  */
 fun ayahShareText(
     arabic: String,
@@ -42,6 +42,7 @@ fun ayahShareText(
     quranLabel: String,
     surahNumber: Int,
     ayahNumberInSurah: Int,
+    surahName: String? = null,
 ): String = buildString {
     append(arabic.trim())
     translation?.trim()?.takeIf { it.isNotEmpty() }?.let {
@@ -49,6 +50,10 @@ fun ayahShareText(
         append(it)
     }
     append("\n\n— ")
+    surahName?.trim()?.takeIf { it.isNotEmpty() }?.let {
+        append(it)
+        append(", ")
+    }
     append(quranLabel)
     append(' ')
     append(surahNumber)
