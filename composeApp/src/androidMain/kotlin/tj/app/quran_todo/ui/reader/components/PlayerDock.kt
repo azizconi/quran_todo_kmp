@@ -138,6 +138,8 @@ fun PlayerDock(
     screenHeight: Dp,
     onPlay: () -> Unit,
     modifier: Modifier = Modifier,
+    /** False in the memorize mode: the dock stays a collapsed bar and can neither be dragged nor tapped open. */
+    expandable: Boolean = true,
 ) {
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
@@ -167,6 +169,7 @@ fun PlayerDock(
     val connection = remember(state, flingBehavior) { state.nestedScrollConnection(flingBehavior) }
 
     BackHandler(enabled = state.isExpanding) { scope.launch { state.collapse() } }
+    LaunchedEffect(expandable) { if (!expandable && state.isExpanding) state.collapse() }
 
     // A small tick when the dock lands on the other anchor, so dragging it feels like moving a real thing.
     val haptics = LocalHaptics.current
@@ -195,10 +198,11 @@ fun PlayerDock(
                 val px = if (offset.isNaN()) (containerPx - collapsedPx).coerceAtLeast(0).toFloat() else offset
                 IntOffset(0, px.roundToInt())
             }
-            .nestedScroll(connection)
+            .then(if (expandable) Modifier.nestedScroll(connection) else Modifier)
             .anchoredDraggable(
                 state = state.draggable,
                 orientation = Orientation.Vertical,
+                enabled = expandable,
                 flingBehavior = flingBehavior,
             ),
     ) {
@@ -212,6 +216,7 @@ fun PlayerDock(
             copy = copy,
             origin = origin,
             onPlay = onPlay,
+            expandable = expandable,
             onToggleExpanded = {
                 scope.launch { if (state.isExpanding) state.collapse() else state.expand() }
             },
@@ -254,6 +259,7 @@ private fun DockHeader(
     copy: ReaderCopy,
     origin: String,
     onPlay: () -> Unit,
+    expandable: Boolean,
     onToggleExpanded: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -296,14 +302,16 @@ private fun DockHeader(
                 drawPath(outline, colors.hairline, style = Stroke(1.dp.toPx()))
             },
     ) {
-        Box(
-            Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 7.dp)
-                .size(width = 32.dp, height = 4.dp)
-                .clip(CircleShape)
-                .background(colors.hairline),
-        )
+        if (expandable) {
+            Box(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 7.dp)
+                    .size(width = 32.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(colors.hairline),
+            )
+        }
         Row(
             Modifier
                 .fillMaxWidth()
@@ -315,6 +323,7 @@ private fun DockHeader(
                     .weight(1f)
                     .pressable(
                         onClick = onToggleExpanded,
+                        enabled = expandable,
                         scale = 0.99f,
                         shape = QhTheme.shapes.md,
                         onClickLabel = if (state.isExpanding) copy.collapsePlayer else copy.expandPlayer,

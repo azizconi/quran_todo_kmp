@@ -88,6 +88,11 @@ import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.Skeleton
 import tj.app.quran_todo.ui.components.ToastKind
 import tj.app.quran_todo.ui.haptics.HapticKind
+import tj.app.quran_todo.ui.hifz.HifzEyeButton
+import tj.app.quran_todo.ui.hifz.HifzMode
+import tj.app.quran_todo.ui.hifz.HifzOverlays
+import tj.app.quran_todo.ui.hifz.HifzTopBar
+import tj.app.quran_todo.ui.hifz.rememberHifzMode
 import tj.app.quran_todo.ui.haptics.LocalHaptics
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.i18n.readerCopy
@@ -411,6 +416,20 @@ private fun ReaderContent(
         scope.launch { listState.bringAyahTo(index + HeaderItems, fraction = FollowFraction, animate = !reduced, onlyIfHidden = false) }
     }
 
+    // The memorize mode (ui/hifz) owns all of its logic; the reader hands it the list and gives it its hooks.
+    val hifz = rememberHifzMode(
+        route = route,
+        surah = surah,
+        surahName = title,
+        listState = listState,
+        headerItems = HeaderItems,
+        bringToFocus = { ayahIndex ->
+            listState.bringAyahTo(ayahIndex + HeaderItems, fraction = FollowFraction, animate = !reduced, onlyIfHidden = false)
+        },
+        startIndex = { player.highlightIndex(prefs.highlightPlayingAyah) ?: firstVisibleAyah.value.coerceAtLeast(0) },
+        rangeEndIndex = { if (practice.rangeEnabled) practice.endAyah - 1 else null },
+    )
+
     Box(
         Modifier
             .fillMaxSize()
@@ -438,7 +457,8 @@ private fun ReaderContent(
             notes = notes.keys,
             weak = weak,
             translations = if (prefs.showTranslation) translations else emptyMap(),
-            markedIndex = player.highlightIndex(prefs.highlightPlayingAyah),
+            markedIndex = if (hifz.active) hifz.currentIndex else player.highlightIndex(prefs.highlightPlayingAyah),
+            hifz = hifz,
             flashIndex = flashIndex,
             passage = if (practice.rangeEnabled) (practice.startAyah - 1)..(practice.endAyah - 1) else null,
             nextSurah = if (surahNumber < 114) viewModel.nextSurahDisplay(surahNumber + 1, language, chapterNames, russianNames) else null,
@@ -463,7 +483,9 @@ private fun ReaderContent(
             onTextSettings = { sheet = ReaderSheet.Appearance },
             onMore = { sheet = ReaderSheet.Surah(SurahSheetPage.Menu) },
             modifier = Modifier.align(Alignment.TopCenter),
+            extraAction = { HifzEyeButton(hifz) },
         )
+        HifzTopBar(hifz, Modifier.align(Alignment.TopCenter))
 
         // Chips above the dock; they fade as the dock is pulled up.
         Column(
@@ -524,6 +546,7 @@ private fun ReaderContent(
                 viewModel.togglePlayback()
             },
             modifier = Modifier.align(Alignment.BottomCenter),
+            expandable = !hifz.active,
         )
 
         when (val open = sheet) {
@@ -603,6 +626,8 @@ private fun ReaderContent(
                 onDismiss = { sheet = null },
             )
         }
+
+        HifzOverlays(hifz)
     }
 }
 
@@ -654,6 +679,7 @@ private fun ReaderList(
     weak: Set<Int>,
     translations: Map<Int, String>,
     markedIndex: Int?,
+    hifz: HifzMode,
     flashIndex: Int?,
     passage: IntRange?,
     nextSurah: NextSurahDisplay?,
@@ -685,6 +711,7 @@ private fun ReaderList(
             )
         }
         itemsIndexed(ayahs, key = { _, ayah -> ayah.number }, contentType = { _, _ -> "ayah" }) { index, ayah ->
+            val hifzRow = hifz.rowState(index)
             val model = AyahRowModel(
                 ayah = ayah,
                 index = index,
@@ -706,6 +733,8 @@ private fun ReaderList(
                 enter = enter,
                 onSelect = onSelect,
                 onMore = onMore,
+                hifz = hifzRow,
+                hifzControls = if (hifzRow != null) hifz.controlsFor(index) else null,
             )
         }
         item(key = "end", contentType = "end") {

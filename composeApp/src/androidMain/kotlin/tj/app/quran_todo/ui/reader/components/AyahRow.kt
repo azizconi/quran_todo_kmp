@@ -43,6 +43,10 @@ import tj.app.quran_todo.data.database.entity.quran.AyahEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
 import tj.app.quran_todo.ui.components.AyahRosette
 import tj.app.quran_todo.ui.components.QhIconButton
+import tj.app.quran_todo.ui.hifz.HifzAyahContent
+import tj.app.quran_todo.ui.hifz.HifzRosette
+import tj.app.quran_todo.ui.hifz.HifzRowState
+import tj.app.quran_todo.ui.hifz.hifzRow
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
@@ -96,6 +100,10 @@ fun AyahRow(
     onSelect: (Int) -> Unit,
     onMore: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    /** Memorize mode: how this ayah is drawn in it. Null outside the mode, and the row is then as it always was. */
+    hifz: HifzRowState? = null,
+    /** Memorize mode: what sits under the text of the ayah (listen, reveal, ratings). */
+    hifzControls: (@Composable () -> Unit)? = null,
 ) {
     val colors = QhTheme.colors
     val reduced = LocalReducedMotion.current
@@ -112,15 +120,23 @@ fun AyahRow(
         modifier
             .fillMaxWidth()
             .readerEnter(enter)
-            .pressable(
-                onClick = { onSelect(index) },
-                onLongClick = { onMore(index) },
-                scale = 0.995f,
-                onClickLabel = copy.selectAyah(number),
+            .hifzRow(hifz)
+            .then(
+                if (hifz == null) {
+                    Modifier.pressable(
+                        onClick = { onSelect(index) },
+                        onLongClick = { onMore(index) },
+                        scale = 0.995f,
+                        onClickLabel = copy.selectAyah(number),
+                    )
+                } else {
+                    // In the memorize mode only the controls under the current ayah and its text (hold to peek) react.
+                    Modifier
+                },
             )
             .semantics {
                 selected = model.current
-                customActions = listOf(CustomAccessibilityAction(copy.ayahActions) { onMore(index); true })
+                if (hifz == null) customActions = listOf(CustomAccessibilityAction(copy.ayahActions) { onMore(index); true })
             }
             .drawBehind { drawAyahDecoration(highlight, model.range, colors.readerHighlight, colors.gold) },
     ) {
@@ -136,7 +152,11 @@ fun AyahRow(
                     .height(QhSpacing.minTouch),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                AyahRosette(number = number, status = model.status, weak = model.weak)
+                if (hifz == null) {
+                    AyahRosette(number = number, status = model.status, weak = model.weak)
+                } else {
+                    HifzRosette(number = number, status = model.status, weak = model.weak, state = hifz)
+                }
                 if (model.hasNote) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.StickyNote2,
@@ -149,7 +169,7 @@ fun AyahRow(
                 }
                 Spacer(Modifier.weight(1f))
                 AnimatedVisibility(
-                    visible = model.current,
+                    visible = model.current && hifz == null,
                     enter = if (reduced) fadeIn(tween(0)) else fadeIn(tween(QhMotion.Short)) + scaleIn(QhMotion.snappy(), initialScale = 0.6f),
                     exit = if (reduced) fadeOut(tween(0)) else fadeOut(tween(QhMotion.Instant)) + scaleOut(tween(QhMotion.Instant), targetScale = 0.6f),
                 ) {
@@ -161,22 +181,33 @@ fun AyahRow(
                     )
                 }
             }
-            Text(
-                text = model.arabic,
-                style = arabicStyle,
-                color = colors.ink,
-                textAlign = TextAlign.Start,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (!model.translation.isNullOrBlank()) {
+            if (hifz == null) {
                 Text(
-                    text = model.translation,
-                    style = translationStyle,
-                    color = colors.inkSecondary,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = QhSpacing.x3),
+                    text = model.arabic,
+                    style = arabicStyle,
+                    color = colors.ink,
+                    textAlign = TextAlign.Start,
+                    modifier = Modifier.fillMaxWidth(),
                 )
+                if (!model.translation.isNullOrBlank()) {
+                    Text(
+                        text = model.translation,
+                        style = translationStyle,
+                        color = colors.inkSecondary,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = QhSpacing.x3),
+                    )
+                }
+            } else {
+                HifzAyahContent(
+                    state = hifz,
+                    arabic = model.arabic,
+                    arabicStyle = arabicStyle,
+                    translation = model.translation,
+                    translationStyle = translationStyle,
+                )
+                hifzControls?.invoke()
             }
         }
         if (showDivider) {
