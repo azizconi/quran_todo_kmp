@@ -2,6 +2,7 @@ package tj.app.quran_todo.ui.settings
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.settings.SurahReaderPreferences
@@ -37,6 +38,25 @@ class SettingsLogicTest {
         assertEquals(OfflineUi.Ready, OfflineProgress(false, 10, 10, "READY").toUi())
         assertEquals(OfflineUi.Partial, OfflineProgress(false, 7, 10, "PARTIAL").toUi())
         assertEquals(OfflineUi.Idle, OfflineProgress(false, 0, 0, null).toUi())
+    }
+
+    @Test
+    fun segmentIconsAreKeptOnlyWhenEveryLabelFitsNextToThem() {
+        // 300px control, 4px insets: 97.3px per segment; padding 16 + icon 18 + gap 6 + margin 2 = 42px.
+        assertTrue(segmentsFitWithIcons(listOf(50f, 40f, 55f), controlWidthPx = 300f, density = 1f))
+        assertFalse(segmentsFitWithIcons(listOf(50f, 40f, 56f), controlWidthPx = 300f, density = 1f))
+        // The same labels at 2x density and a proportionally wider control give the same answer.
+        assertFalse(segmentsFitWithIcons(listOf(100f, 80f, 112f), controlWidthPx = 600f, density = 2f))
+        assertTrue(segmentsFitWithIcons(listOf(100f, 80f, 110f), controlWidthPx = 600f, density = 2f))
+    }
+
+    @Test
+    fun systemThemeLabelIsShortInEveryLanguage() {
+        assertEquals("Система", settingsCopy(AppLanguage.RU).themeSystem)
+        assertEquals("Система", settingsCopy(AppLanguage.TG).themeSystem)
+        assertEquals("Tizim", settingsCopy(AppLanguage.UZ).themeSystem)
+        assertEquals("Sistem", settingsCopy(AppLanguage.TR).themeSystem)
+        assertEquals("System", settingsCopy(AppLanguage.EN).themeSystem)
     }
 
     @Test

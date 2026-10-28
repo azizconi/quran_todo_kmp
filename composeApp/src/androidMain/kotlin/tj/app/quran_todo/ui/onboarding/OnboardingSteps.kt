@@ -31,12 +31,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Headphones
-import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Psychology
-import androidx.compose.material.icons.rounded.SettingsBrightness
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -64,7 +61,6 @@ import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.components.QhCardStyle
 import tj.app.quran_todo.ui.components.QhLinearProgress
 import tj.app.quran_todo.ui.components.QhSectionHeader
-import tj.app.quran_todo.ui.components.QhSegmentedControl
 import tj.app.quran_todo.ui.components.QhSlider
 import tj.app.quran_todo.ui.components.StarLattice
 import tj.app.quran_todo.ui.haptics.HapticKind
@@ -83,6 +79,7 @@ import tj.app.quran_todo.ui.settings.MinReadingFontSize
 import tj.app.quran_todo.ui.settings.PaletteSwatches
 import tj.app.quran_todo.ui.settings.PreviewAyah
 import tj.app.quran_todo.ui.settings.ReaderPreviewCard
+import tj.app.quran_todo.ui.settings.ThemeSegments
 import tj.app.quran_todo.ui.settings.ValueStepper
 import tj.app.quran_todo.ui.settings.bleed
 import tj.app.quran_todo.ui.theme.QhSpacing
@@ -307,12 +304,7 @@ internal fun LookStep(
     StepColumn {
         StepHeader(copy.lookTitle, copy.lookSubtitle)
         HeroPreviewCard(copy, fontStyle)
-        QhSegmentedControl(
-            options = listOf(settingsCopy.themeLight, settingsCopy.themeDark, settingsCopy.themeSystem),
-            selectedIndex = themeIndex,
-            onSelect = onSelectTheme,
-            icons = listOf(Icons.Rounded.LightMode, Icons.Rounded.DarkMode, Icons.Rounded.SettingsBrightness),
-        )
+        ThemeSegments(copy = settingsCopy, selectedIndex = themeIndex, onSelect = onSelectTheme)
         QhSectionHeader(settingsCopy.palette)
         PaletteSwatches(
             selected = palette,

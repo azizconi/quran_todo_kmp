@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -40,6 +41,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -117,8 +120,7 @@ internal fun FontCarousel(
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = (selectedIndex - 1).coerceAtLeast(0))
     val scope = rememberCoroutineScope()
     val reduced = LocalReducedMotion.current
-    // The cards hold text that grows with the system font size: so does their height.
-    val cardHeight = (CardBaseHeight * LocalDensity.current.fontScale.coerceIn(1f, 1.4f)).dp
+    val cardHeight = rememberCardHeight(descriptions)
 
     LazyRow(
         state = listState,
@@ -142,7 +144,46 @@ internal fun FontCarousel(
     }
 }
 
-private const val CardBaseHeight = 166f
+/** Height of the Arabic sample area of a card. */
+private val SampleHeight = 64.dp
+
+/** Lines the description may take before it is ellipsized. */
+private const val DescriptionLines = 3
+
+/**
+ * One height for every card: the tallest one wins. Each card holds the sample, the name and a
+ * description of up to [DescriptionLines] lines; the description is measured for every font in the
+ * current language at the current font size, so nothing is cut at 1.0x and only a very long text
+ * at a large font scale loses its last line to an ellipsis.
+ */
+@Composable
+private fun rememberCardHeight(descriptions: NativeSettingsCopy): Dp {
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    val nameStyle = QhTheme.type.label
+    val descriptionStyle = QhTheme.type.callout
+    return remember(descriptions, density, measurer, nameStyle, descriptionStyle) {
+        val textWidth = with(density) { (CardWidth - CardPadding * 2).roundToPx() }
+        val constraints = Constraints(maxWidth = textWidth)
+        val fonts = ReadingFontStyle.entries
+        val nameHeight = fonts.maxOf { font ->
+            measurer.measure(font.displayName(), nameStyle, TextOverflow.Ellipsis, false, 1, constraints = constraints).size.height
+        }
+        val descriptionHeight = fonts.maxOf { font ->
+            measurer.measure(
+                font.description(descriptions),
+                descriptionStyle,
+                TextOverflow.Ellipsis,
+                true,
+                DescriptionLines,
+                constraints = constraints,
+            ).size.height
+        }
+        with(density) {
+            (CardPadding * 2 + SampleHeight + QhSpacing.x1).toPx() + nameHeight + descriptionHeight
+        }.let { totalPx -> with(density) { totalPx.toDp() } + 1.dp }
+    }
+}
 
 /** Scrolls so the card at [index] is fully on screen; does nothing when it already is. */
 private suspend fun LazyListState.bringIntoView(index: Int, animate: Boolean) {
@@ -199,13 +240,13 @@ private fun FontCard(
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(horizontal = QhSpacing.x3, vertical = QhSpacing.x3),
+                .padding(CardPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(64.dp),
+                    .height(SampleHeight),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -235,7 +276,7 @@ private fun FontCard(
                 text = style.description(descriptions),
                 style = QhTheme.type.callout,
                 color = if (selected) colors.onPrimaryContainer else colors.inkSecondary,
-                maxLines = 2,
+                maxLines = DescriptionLines,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
@@ -263,3 +304,4 @@ private fun FontCard(
 }
 
 private val CardWidth = 168.dp
+private val CardPadding = QhSpacing.x3

@@ -18,19 +18,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Animation
 import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.Contrast
-import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Highlight
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.PlayCircle
@@ -39,7 +36,6 @@ import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.SettingsBrightness
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.StarRate
@@ -48,7 +44,6 @@ import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -63,8 +58,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
@@ -95,7 +90,7 @@ import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.QhLargeTopBar
 import tj.app.quran_todo.ui.components.QhNavRow
 import tj.app.quran_todo.ui.components.QhRowDivider
-import tj.app.quran_todo.ui.components.QhSegmentedControl
+import tj.app.quran_todo.ui.components.QhIconTile
 import tj.app.quran_todo.ui.components.QhSwitchRow
 import tj.app.quran_todo.ui.components.QhValueRow
 import tj.app.quran_todo.ui.components.ToastKind
@@ -337,8 +332,8 @@ private fun SettingsContent(
         // 1. Appearance
         SettingsSection(copy.sectionAppearance, Modifier.staggeredEnter(0, stagger)) {
             SettingsBlock(title = copy.theme, icon = Icons.Rounded.Contrast, tint = colors.gold) {
-                QhSegmentedControl(
-                    options = listOf(copy.themeLight, copy.themeDark, copy.themeSystem),
+                ThemeSegments(
+                    copy = copy,
                     selectedIndex = themeIndex,
                     onSelect = { index ->
                         when (index) {
@@ -347,7 +342,6 @@ private fun SettingsContent(
                             else -> viewModel.setThemeFollowsSystem(true)
                         }
                     },
-                    icons = listOf(Icons.Rounded.LightMode, Icons.Rounded.DarkMode, Icons.Rounded.SettingsBrightness),
                 )
             }
             QhRowDivider()
@@ -580,31 +574,22 @@ private fun SettingsContent(
     }
 }
 
-/** The settings gear in the header: the landing point of the home screen's shared gear. */
+/**
+ * The settings icon in the header: the landing point of the home screen's shared gear. It is a pure
+ * decoration, so it is drawn as a soft icon tile like the ones in the rows (not as a round button),
+ * has no press behavior and is hidden from accessibility services.
+ */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun HeaderGear() {
-    val colors = QhTheme.colors
     Box(
         Modifier
             .size(QhSpacing.minTouch)
-            .sharedElementKey(SharedKeys.SettingsIcon),
+            .sharedElementKey(SharedKeys.SettingsIcon)
+            .clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(colors.surfaceMuted),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Rounded.Settings,
-                contentDescription = null,
-                tint = colors.ink,
-                modifier = Modifier.size(QhSpacing.iconBar),
-            )
-        }
+        QhIconTile(Icons.Rounded.Settings, tint = QhTheme.colors.primary)
     }
 }
 
