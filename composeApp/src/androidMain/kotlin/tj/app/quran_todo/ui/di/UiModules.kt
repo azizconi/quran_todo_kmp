@@ -1,8 +1,11 @@
 package tj.app.quran_todo.ui.di
 
 import org.koin.android.ext.koin.androidContext
+import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
+import tj.app.quran_todo.ui.onboarding.OnboardingViewModel
 import tj.app.quran_todo.ui.playback.PlaybackController
+import tj.app.quran_todo.ui.settings.SettingsViewModel
 import tj.app.quran_todo.ui.state.UiPrefs
 
 /**
@@ -18,9 +21,13 @@ val hifzUiModule = module { }
 
 val progressUiModule = module { }
 
-val settingsUiModule = module { }
+val settingsUiModule = module {
+    viewModel { SettingsViewModel(home = get(), uiPrefs = get()) }
+}
 
-val onboardingUiModule = module { }
+val onboardingUiModule = module {
+    viewModel { OnboardingViewModel(home = get(), uiPrefs = get()) }
+}
 
 /** App-wide singletons shared by all screens. */
 val appUiModule = module {
