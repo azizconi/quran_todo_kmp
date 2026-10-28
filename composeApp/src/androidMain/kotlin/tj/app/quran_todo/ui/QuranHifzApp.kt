@@ -71,6 +71,8 @@ import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.common.theme.ThemePalette
 import tj.app.quran_todo.common.theme.ThemeStorage
 import tj.app.quran_todo.common.utils.currentLocalDate
+import tj.app.quran_todo.ui.about.PrivacyScreen
+import tj.app.quran_todo.ui.about.SourcesScreen
 import tj.app.quran_todo.ui.catalog.CatalogScreen
 import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.ToastHost
@@ -396,7 +398,21 @@ private fun AppNavigation() {
                 }
                 composable<Dest.Settings> {
                     ProvideNavScope {
-                        SettingsScreen(onBack = { navController.popOnce() })
+                        SettingsScreen(
+                            onBack = { navController.popOnce() },
+                            onOpenPrivacy = { navController.navigateOnce(Dest.Privacy) },
+                            onOpenSources = { navController.navigateOnce(Dest.Sources) },
+                        )
+                    }
+                }
+                composable<Dest.Privacy> {
+                    ProvideNavScope {
+                        PrivacyScreen(onBack = { navController.popOnce() })
+                    }
+                }
+                composable<Dest.Sources> {
+                    ProvideNavScope {
+                        SourcesScreen(onBack = { navController.popOnce() })
                     }
                 }
                 if (isDebuggable) {
@@ -438,6 +454,8 @@ private fun NavDestination.screenName(): String? = when {
     hasRoute<Dest.Reader>() -> "reader"
     hasRoute<Dest.Progress>() -> "progress"
     hasRoute<Dest.Settings>() -> "settings"
+    hasRoute<Dest.Privacy>() -> "privacy"
+    hasRoute<Dest.Sources>() -> "sources"
     hasRoute<Dest.Catalog>() -> "catalog"
     else -> null
 }

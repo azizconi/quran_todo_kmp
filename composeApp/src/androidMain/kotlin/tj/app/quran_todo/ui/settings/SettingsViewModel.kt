@@ -89,6 +89,7 @@ internal class SettingsViewModel(
     val reduceMotion: StateFlow<Boolean> = uiPrefs.reduceMotion
     val hifzHintMode: StateFlow<HifzHintMode> = uiPrefs.hifzHintMode
     val themeFollowsSystem: StateFlow<Boolean> = uiPrefs.themeFollowsSystem
+    val analyticsEnabled: StateFlow<Boolean> = uiPrefs.analyticsEnabled
 
     val offline: StateFlow<OfflineProgress> = home.uiState
         .map { it.offlineProgress() }
@@ -149,6 +150,9 @@ internal class SettingsViewModel(
 
     /** "System" in the theme control; picking light or dark goes through the root's mode setter. */
     fun setThemeFollowsSystem(value: Boolean) = uiPrefs.setThemeFollowsSystem(value)
+
+    /** Stores the choice and applies it to Firebase right away (see [UiPrefs.setAnalyticsEnabled]). */
+    fun setAnalyticsEnabled(value: Boolean) = uiPrefs.setAnalyticsEnabled(value)
 
     fun startOfflineDownload(language: AppLanguage) {
         if (home.uiState.value.completeQuran.isEmpty()) {

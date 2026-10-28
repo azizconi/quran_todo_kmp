@@ -29,6 +29,14 @@ sealed interface Dest {
     @Serializable
     data object Settings : Dest
 
+    /** Short privacy summary, opened from the settings. */
+    @Serializable
+    data object Privacy : Dest
+
+    /** Sources and licenses of the text, translations, audio, fonts and libraries; opened from the settings. */
+    @Serializable
+    data object Sources : Dest
+
     /** Debug-only component catalog. */
     @Serializable
     data object Catalog : Dest
