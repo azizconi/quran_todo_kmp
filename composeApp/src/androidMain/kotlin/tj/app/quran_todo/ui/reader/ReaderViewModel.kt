@@ -205,6 +205,24 @@ class ReaderViewModel(
     /** Repeat/pause settings of this surah. */
     val practice: StateFlow<ReaderPracticeSettings> = _practice
 
+    /**
+     * The translation is switched on but could not be loaded (offline, server error): the first ayah then shows
+     * "Translation not loaded · Retry" in place of the translation.
+     */
+    val translationMissing: StateFlow<Boolean> =
+        combine(surahViewModel.translationFailedSurah, _prefs, _translations) { failedSurah, prefs, translations ->
+            failedSurah == surahNumber && prefs.showTranslation && translations.isEmpty()
+        }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** "Retry" of the placeholder: loads the translation again, past the memory of failed requests. */
+    fun retryTranslation() {
+        val language = language ?: return
+        val surah = _surah.value ?: return
+        surahViewModel.loadTranslations(surahNumber, language, surah.ayahs.size, force = true)
+    }
+
     // -- Player -------------------------------------------------------------------------------------------
 
     private val readyIndex = MutableStateFlow(0)
@@ -317,6 +335,13 @@ class ReaderViewModel(
                 if (map.isEmpty()) return@collect
                 val own = ayahs.mapNotNull { ayah -> map[ayah.number]?.let { ayah.number to it } }.toMap()
                 if (own.isNotEmpty()) _translations.value = own
+            }
+        }
+        viewModelScope.launch {
+            // The translation of this surah could not be loaded: the one of the previous language (kept while the
+            // new one is on its way) must not stay on screen, the retry hint takes its place.
+            surahViewModel.translationFailedSurah.collect { failedSurah ->
+                if (failedSurah == surahNumber) _translations.value = emptyMap()
             }
         }
         viewModelScope.launch {

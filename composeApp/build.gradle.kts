@@ -97,6 +97,16 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1")
+            implementation("io.ktor:ktor-client-mock:${libs.versions.ktor.get()}")
+        }
+
+        // Instrumented tests (need a device or an emulator): ./gradlew :composeApp:connectedDebugAndroidTest
+        // The migration test lives here: Room's MigrationTestHelper reads the exported schemas from the assets.
+        androidInstrumentedTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.androidx.test.junit)
+            implementation("androidx.test:runner:1.6.2")
+            implementation("androidx.room:room-testing:${libs.versions.room.get()}")
         }
     }
 }
@@ -136,6 +146,11 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 7
         versionName = "1.0.2"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+    testOptions {
+        // android.util.Log and friends return defaults in local unit tests instead of throwing.
+        unitTests.isReturnDefaultValues = true
     }
     packaging {
         resources {

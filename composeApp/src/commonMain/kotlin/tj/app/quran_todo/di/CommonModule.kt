@@ -3,6 +3,7 @@ package tj.app.quran_todo.di
 import org.koin.core.module.Module
 import org.koin.dsl.module
 import tj.app.quran_todo.data.database.QuranTodoDatabase
+import tj.app.quran_todo.data.remote.DataDebug
 import tj.app.quran_todo.data.repository.AyahTodoRepositoryImpl
 import tj.app.quran_todo.data.repository.QuranReferenceRepositoryImpl
 import tj.app.quran_todo.data.repository.QuranRemoteRepositoryImpl
@@ -35,12 +36,22 @@ val commonModule = module {
     single { get<QuranTodoDatabase>().getChapterNameCacheDao() }
     single { get<QuranTodoDatabase>().getAyahTranslationDao() }
     single { get<QuranTodoDatabase>().getQuranDao() }
+    single { get<QuranTodoDatabase>().getProgressRestoreDao() }
 
     // Repositories
     single<QuranTodoRepository> { QuranTodoRepositoryImpl(get()) }
-    single<QuranRemoteRepository> { QuranRemoteRepositoryImpl(get(), get()) }
+    // The Quran text is bundled with the app: no HTTP client needed.
+    single<QuranRemoteRepository> { QuranRemoteRepositoryImpl(dao = get(), debug = getOrNull<DataDebug>() ?: DataDebug.Off) }
     single<AyahTodoRepository> { AyahTodoRepositoryImpl(get()) }
-    single<QuranReferenceRepository> { QuranReferenceRepositoryImpl(get(), get(), get(), get()) }
+    single<QuranReferenceRepository> {
+        QuranReferenceRepositoryImpl(
+            client = get(),
+            chapterNameDao = get(),
+            chapterNameCacheDao = get(),
+            ayahTranslationDao = get(),
+            debug = getOrNull<DataDebug>() ?: DataDebug.Off,
+        )
+    }
 
 
     // Use Cases
