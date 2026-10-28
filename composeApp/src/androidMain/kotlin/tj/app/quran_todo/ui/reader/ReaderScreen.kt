@@ -285,6 +285,9 @@ private fun ReaderContent(
     )
     val meaning = names?.translated ?: surah.surah.englishNameTranslation
     val arabicName = names?.arabic ?: surah.surah.name
+    // Audio already playing here: the list follows the ayah at once and carries the header away, so the
+    // header must not be a shared-element target (the origin card would chase it off the screen).
+    val headerShares = remember { !(player.active && (player.isPlaying || player.isPreparing)) }
     val headerData = remember(surahNumber, route.origin, arabicName, title, meaning, copy, total) {
         ReaderHeaderData(
             surahNumber = surahNumber,
@@ -294,6 +297,7 @@ private fun ReaderContent(
             meaning = meaning,
             meta = "${copy.revelationPlace(surah.surah.revelationType)} · ${copy.ayahCount(total)}",
             showBismillah = hasBismillahLine(surahNumber),
+            sharesElements = headerShares,
         )
     }
 

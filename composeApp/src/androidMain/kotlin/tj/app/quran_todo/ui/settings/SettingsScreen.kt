@@ -2,6 +2,7 @@ package tj.app.quran_todo.ui.settings
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ScrollState
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -58,6 +60,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.LocalContext
@@ -79,9 +84,7 @@ import tj.app.quran_todo.common.sync.SettingsSnapshot
 import tj.app.quran_todo.common.theme.LocalReadingFontStyle
 import tj.app.quran_todo.common.theme.LocalReadingFontStyleSetter
 import tj.app.quran_todo.common.theme.LocalThemeMode
-import tj.app.quran_todo.common.theme.LocalThemeModeSetter
 import tj.app.quran_todo.common.theme.LocalThemePalette
-import tj.app.quran_todo.common.theme.LocalThemePaletteSetter
 import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.common.theme.ThemePalette
 import tj.app.quran_todo.ui.components.LocalToaster
@@ -103,7 +106,9 @@ import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.SharedKeys
 import tj.app.quran_todo.ui.motion.StaggerState
+import tj.app.quran_todo.ui.motion.rememberSharedSettled
 import tj.app.quran_todo.ui.motion.rememberStaggerState
+import tj.app.quran_todo.ui.motion.rememberThemeSwitcher
 import tj.app.quran_todo.ui.motion.sharedElementKey
 import tj.app.quran_todo.ui.motion.staggeredEnter
 import tj.app.quran_todo.ui.state.HifzHintMode
@@ -297,9 +302,9 @@ private fun SettingsContent(
     val toaster = LocalToaster.current
 
     val themeMode = LocalThemeMode.current
-    val setThemeMode = LocalThemeModeSetter.current
     val palette = LocalThemePalette.current
-    val setPalette = LocalThemePaletteSetter.current
+    // Theme and palette changes ripple out from the finger (circular reveal).
+    val themeSwitcher = rememberThemeSwitcher()
     val fontStyle = LocalReadingFontStyle.current
     val settings = LocalAppSettings.current
     val setSettings = LocalAppSettingsSetter.current
@@ -337,9 +342,9 @@ private fun SettingsContent(
                     selectedIndex = themeIndex,
                     onSelect = { index ->
                         when (index) {
-                            0 -> setThemeMode(ThemeMode.LIGHT)
-                            1 -> setThemeMode(ThemeMode.DARK)
-                            else -> viewModel.setThemeFollowsSystem(true)
+                            0 -> themeSwitcher.switch(ThemeMode.LIGHT)
+                            1 -> themeSwitcher.switch(ThemeMode.DARK)
+                            else -> themeSwitcher.reveal { viewModel.setThemeFollowsSystem(true) }
                         }
                     },
                 )
@@ -348,7 +353,7 @@ private fun SettingsContent(
             SettingsBlock(title = copy.palette, icon = Icons.Rounded.Palette, tint = colors.primary) {
                 PaletteSwatches(
                     selected = palette,
-                    onSelect = setPalette,
+                    onSelect = themeSwitcher::switchPalette,
                     labelOf = { copy.paletteLabel(it) },
                 )
             }
@@ -578,18 +583,42 @@ private fun SettingsContent(
  * The settings icon in the header: the landing point of the home screen's shared gear. It is a pure
  * decoration, so it is drawn as a soft icon tile like the ones in the rows (not as a round button),
  * has no press behavior and is hidden from accessibility services.
+ *
+ * Only the gear flies (`SharedKeys.SettingsIcon`). The tile behind it is not shared: it fades in once the
+ * gear has landed and fades out as soon as the way back starts, so no shape jumps in flight. The gear
+ * leaves in ink and turns emerald together with the tile.
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun HeaderGear() {
+    val colors = QhTheme.colors
+    val settled = rememberSharedSettled()
+    val tile by animateFloatAsState(
+        targetValue = if (settled) 1f else 0f,
+        animationSpec = tween(QhMotion.Medium, delayMillis = if (settled) 40 else 0, easing = QhMotion.Emphasized),
+        label = "settings-gear-tile",
+    )
     Box(
         Modifier
             .size(QhSpacing.minTouch)
-            .sharedElementKey(SharedKeys.SettingsIcon)
             .clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
     ) {
-        QhIconTile(Icons.Rounded.Settings, tint = QhTheme.colors.primary)
+        Box(
+            Modifier
+                .size(32.dp)
+                .graphicsLayer { alpha = tile }
+                .clip(QhTheme.shapes.sm)
+                .background(colors.primary.copy(alpha = 0.14f)),
+        )
+        Icon(
+            Icons.Rounded.Settings,
+            contentDescription = null,
+            tint = lerp(colors.ink, colors.primary, tile),
+            modifier = Modifier
+                .size(18.dp)
+                .sharedElementKey(SharedKeys.SettingsIcon),
+        )
     }
 }
 

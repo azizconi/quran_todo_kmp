@@ -43,6 +43,8 @@ class ReaderHeaderData(
     val meaning: String,
     val meta: String,
     val showBismillah: Boolean,
+    /** False when the header scrolls away at once (audio is playing here); it then takes no part in shared transitions. */
+    val sharesElements: Boolean = true,
 )
 
 /**
@@ -79,22 +81,37 @@ fun ReaderHeader(
             status = status,
             learnedFraction = learnedFraction,
             size = 44.dp,
-            modifier = Modifier.sharedElementKey(SharedKeys.surahBadge(data.origin, data.surahNumber)),
+            modifier = if (data.sharesElements) {
+                Modifier.sharedElementKey(SharedKeys.surahBadge(data.origin, data.surahNumber))
+            } else {
+                Modifier
+            },
         )
         Spacer(Modifier.height(QhSpacing.x3))
         SurahCartouche(
             modifier = Modifier
                 .fillMaxWidth()
-                .sharedBoundsKey(SharedKeys.surahContainer(data.origin, data.surahNumber), SharedResize.Remeasure),
+                .then(
+                    if (data.sharesElements) {
+                        Modifier.sharedBoundsKey(SharedKeys.surahContainer(data.origin, data.surahNumber), SharedResize.Remeasure)
+                    } else {
+                        Modifier
+                    },
+                ),
         ) {
+            // Wrap-content bounds on purpose: the row's Arabic name is as wide as its letters, and a text that
+            // fills the cartouche would make the Scale transition blow the small name up to that width.
+            // The cartouche centers it.
             Text(
                 text = data.arabicName,
                 style = headerStyle,
                 color = colors.ink,
                 textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .sharedBoundsKey(SharedKeys.surahArabic(data.origin, data.surahNumber), SharedResize.Scale),
+                modifier = if (data.sharesElements) {
+                    Modifier.sharedBoundsKey(SharedKeys.surahArabic(data.origin, data.surahNumber), SharedResize.Scale)
+                } else {
+                    Modifier
+                },
             )
         }
         Spacer(Modifier.height(QhSpacing.x4))
@@ -104,7 +121,13 @@ fun ReaderHeader(
             color = colors.ink,
             textAlign = TextAlign.Center,
             modifier = Modifier
-                .sharedBoundsKey(SharedKeys.surahTitle(data.origin, data.surahNumber), SharedResize.Scale)
+                .then(
+                    if (data.sharesElements) {
+                        Modifier.sharedBoundsKey(SharedKeys.surahTitle(data.origin, data.surahNumber), SharedResize.Scale)
+                    } else {
+                        Modifier
+                    },
+                )
                 .semantics { heading() },
         )
         Column(
