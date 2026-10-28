@@ -15,6 +15,7 @@ import tj.app.quran_todo.data.database.dao.AyahTranslationDao
 import tj.app.quran_todo.data.database.dao.ChapterNameCacheDao
 import tj.app.quran_todo.data.database.dao.ChapterNameDao
 import tj.app.quran_todo.data.database.dao.FocusSessionDao
+import tj.app.quran_todo.data.database.dao.ProgressRestoreDao
 import tj.app.quran_todo.data.database.dao.QuranDao
 import tj.app.quran_todo.data.database.dao.SurahTodoDao
 import tj.app.quran_todo.data.database.entity.quran.AyahEntity
@@ -44,7 +45,7 @@ import tj.app.quran_todo.data.database.entity.translation.AyahTranslationEntity
         AyahEntity::class
     ],
     version = 10,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(SajdaConverter::class)
 @ConstructedBy(QuranTodoDatabaseConstructor::class)
@@ -58,6 +59,7 @@ abstract class QuranTodoDatabase : RoomDatabase() {
     abstract fun getChapterNameCacheDao(): ChapterNameCacheDao
     abstract fun getAyahTranslationDao(): AyahTranslationDao
     abstract fun getQuranDao(): QuranDao
+    abstract fun getProgressRestoreDao(): ProgressRestoreDao
 }
 
 @Suppress("KotlinNoActualForExpect")
@@ -65,10 +67,15 @@ expect object QuranTodoDatabaseConstructor : RoomDatabaseConstructor<QuranTodoDa
     override fun initialize(): QuranTodoDatabase
 }
 
+/**
+ * The one way both platforms build the database: bundled SQLite driver, all explicit migrations
+ * ([AllMigrations]) and no destructive fallback.
+ */
 fun getRoomDatabase(
     builder: RoomDatabase.Builder<QuranTodoDatabase>
 ): QuranTodoDatabase =
     builder
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
+        .addMigrations(*AllMigrations)
         .build()

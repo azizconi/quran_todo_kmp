@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -104,6 +105,9 @@ fun AyahRow(
     hifz: HifzRowState? = null,
     /** Memorize mode: what sits under the text of the ayah (listen, reveal, ratings). */
     hifzControls: (@Composable () -> Unit)? = null,
+    /** The translation could not be loaded: "Translation not loaded · Retry" takes its place (first ayah only). */
+    translationMissing: Boolean = false,
+    onRetryTranslation: () -> Unit = {},
 ) {
     val colors = QhTheme.colors
     val reduced = LocalReducedMotion.current
@@ -198,6 +202,8 @@ fun AyahRow(
                             .fillMaxWidth()
                             .padding(top = QhSpacing.x3),
                     )
+                } else if (translationMissing) {
+                    TranslationMissingNote(copy = copy, onRetry = onRetryTranslation)
                 }
             } else {
                 HifzAyahContent(
@@ -217,6 +223,42 @@ fun AyahRow(
                     .padding(horizontal = QhSpacing.screen)
                     .height(1.dp)
                     .drawBehind { drawRect(colors.hairline) },
+            )
+        }
+    }
+}
+
+/** "Translation not loaded · Retry": the retry part is a button (a 48 dp touch target without a visible box). */
+@Composable
+private fun TranslationMissingNote(
+    copy: ReaderCopy,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = QhTheme.colors
+    val type = QhTheme.type
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(top = QhSpacing.x1),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "${copy.translationNotLoaded} · ",
+            style = type.callout,
+            color = colors.inkSecondary,
+        )
+        Box(
+            Modifier
+                .heightIn(min = QhSpacing.minTouch)
+                .pressable(onClick = onRetry, shape = QhTheme.shapes.sm, onClickLabel = copy.retry)
+                .padding(horizontal = QhSpacing.x1),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = copy.retry,
+                style = type.callout,
+                color = colors.primary,
             )
         }
     }

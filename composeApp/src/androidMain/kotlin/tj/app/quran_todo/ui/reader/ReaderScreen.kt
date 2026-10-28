@@ -262,6 +262,7 @@ private fun ReaderContent(
     val notes by viewModel.notes.collectAsState()
     val weak by viewModel.weakAyahs.collectAsState()
     val translations by viewModel.translations.collectAsState()
+    val translationMissing by viewModel.translationMissing.collectAsState()
 
     // -- Text ------------------------------------------------------------------------------------------
     val quranFamily = getQuranFontFamily()
@@ -461,6 +462,8 @@ private fun ReaderContent(
             notes = notes.keys,
             weak = weak,
             translations = if (prefs.showTranslation) translations else emptyMap(),
+            translationMissing = translationMissing,
+            onRetryTranslation = viewModel::retryTranslation,
             markedIndex = if (hifz.active) hifz.currentIndex else player.highlightIndex(prefs.highlightPlayingAyah),
             hifz = hifz,
             flashIndex = flashIndex,
@@ -682,6 +685,8 @@ private fun ReaderList(
     notes: Set<Int>,
     weak: Set<Int>,
     translations: Map<Int, String>,
+    translationMissing: Boolean,
+    onRetryTranslation: () -> Unit,
     markedIndex: Int?,
     hifz: HifzMode,
     flashIndex: Int?,
@@ -739,6 +744,8 @@ private fun ReaderList(
                 onMore = onMore,
                 hifz = hifzRow,
                 hifzControls = if (hifzRow != null) hifz.controlsFor(index) else null,
+                translationMissing = translationMissing && index == 0,
+                onRetryTranslation = onRetryTranslation,
             )
         }
         item(key = "end", contentType = "end") {

@@ -1,148 +1,88 @@
 package tj.app.quran_todo.data.repository
 
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.request.get
+import io.ktor.util.date.getTimeMillis
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import tj.app.quran_todo.common.analytics.AppTelemetry
-import tj.app.quran_todo.common.utils.Constants
 import tj.app.quran_todo.common.utils.Resource
+import tj.app.quran_todo.data.bundled.BundledQuranSource
+import tj.app.quran_todo.data.bundled.QuranFacts
 import tj.app.quran_todo.data.database.dao.QuranDao
-import tj.app.quran_todo.data.database.entity.quran.AyahEntity
-import tj.app.quran_todo.data.database.entity.quran.EditionEntity
-import tj.app.quran_todo.data.database.entity.quran.Sajda
-import tj.app.quran_todo.data.database.entity.quran.SurahEntity
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
-import tj.app.quran_todo.data.model.QuranCompleteResponse
+import tj.app.quran_todo.data.remote.DataDebug
 import tj.app.quran_todo.domain.repository.QuranRemoteRepository
 
+/**
+ * The Quran text comes with the app (see [BundledQuranSource]): it is written to the database once, in one
+ * transaction, and read back from there. No network is involved, so the very first start works offline.
+ *
+ * The bundled text is (re)written when the database has no Quran, has an incomplete one (not 114 surahs and
+ * 6236 ayahs) or still holds the old download whose first ayah starts with a byte order mark (U+FEFF).
+ */
 class QuranRemoteRepositoryImpl(
-    private val client: HttpClient,
     private val dao: QuranDao,
+    private val source: BundledQuranSource = BundledQuranSource(),
+    private val debug: DataDebug = DataDebug.Off,
 ) : QuranRemoteRepository {
+    private val installMutex = Mutex()
+
+    /**
+     * [withLocalAction] true: use what is in the database when it is complete. false: the person asked to
+     * reload (the "Retry" buttons), so the bundled text is written again.
+     */
     override fun getCompleteQuran(withLocalAction: Boolean): Flow<Resource<List<SurahWithAyahs>>> =
         flow {
-            // делаем запрос и сразу эмитим тело
-            emit(Resource.Loading())  // Resource<Nothing> подойдёт из-за ковариантности
-
-            suspend fun sendRequest() {
-                val response: QuranCompleteResponse =
-                    client.get(Constants.QURAN_API_BASE_URL + "quran/quran-uthmani").body()
-
-                val data = response.data
-                val edition = data.edition.run {
-                    EditionEntity(
-                        identifier = identifier,
-                        englishName = englishName,
-                        format = format,
-                        language = language,
-                        name = name,
-                        type = type
-                    )
-                }
-                val surahs = data.surahs.map { s ->
-                    SurahEntity(
-                        number = s.number,
-                        name = s.name,
-                        englishName = s.englishName,
-                        englishNameTranslation = s.englishNameTranslation,
-                        revelationType = s.revelationType,
-                        editionId = edition.identifier
-                    )
-                }
-                val ayahs = data.surahs.flatMap { s ->
-                    s.ayahs.map { a ->
-                        AyahEntity(
-                            number = a.number,
-                            numberInSurah = a.numberInSurah,
-                            juz = a.juz,
-                            hizbQuarter = a.hizbQuarter,
-                            manzil = a.manzil,
-                            page = a.page,
-                            ruku = a.ruku,
-                            sajda = a.sajda.let {
-                                when (it) {
-                                    is JsonObject -> {
-                                        val obj = it.jsonObject
-                                        val id = obj["id"]?.jsonPrimitive?.intOrNull
-                                            ?: return@let null
-                                        val recommended =
-                                            obj["recommended"]?.jsonPrimitive?.booleanOrNull == true
-                                        val obligatory =
-                                            obj["obligatory"]?.jsonPrimitive?.booleanOrNull == true
-                                        Sajda(
-                                            id = id,
-                                            recommended = recommended,
-                                            obligatory = obligatory
-                                        )
-                                    }
-
-                                    is JsonPrimitive -> {
-                                        val bool = (((it.booleanOrNull
-                                            ?: it.content.toBooleanStrictOrNull()) == true))
-                                        null
-                                    }
-
-                                    else -> null
-                                }
-                            },
-                            text = a.text,
-                            surahNumber = s.number
-                        )
-                    }
-                }
-
-                dao.insertEdition(edition)
-                dao.insertSurahs(surahs)
-                dao.insertAyahs(ayahs)
-
-                emit(Resource.Success(dao.getSurahsWithAyahs(edition.identifier)))
-
+            emit(Resource.Loading())
+            try {
+                ensureInstalled(force = !withLocalAction)
+                emit(Resource.Success(dao.getSurahsWithAyahs(BundledQuranSource.EDITION_ID)))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                AppTelemetry.logError(
+                    throwable = e,
+                    context = "quran_remote_load_failed",
+                    params = mapOf("with_local_action" to withLocalAction.toString())
+                )
+                emit(Resource.Error("Unexpected error: ${e.message}"))
             }
-
-            if (withLocalAction) {
-                try {
-                    val editionIds = dao.getEditionIds()
-                    val editionId = editionIds.firstOrNull()
-                    if (editionId == null) {
-                        sendRequest()
-                    } else {
-                        val surahWithAyahs = dao.getSurahsWithAyahs(editionId)
-                        if (surahWithAyahs.isEmpty()) {
-                            sendRequest()
-                        } else {
-                            emit(Resource.Success(surahWithAyahs))
-                        }
-                    }
-                } catch (e: Exception) {
-                    AppTelemetry.logError(
-                        throwable = e,
-                        context = "quran_remote_load_failed",
-                        params = mapOf("with_local_action" to withLocalAction.toString())
-                    )
-                    emit(Resource.Error("Unexpected error: ${e.message}"))
-                }
-            } else {
-                try {
-                    sendRequest()
-                } catch (e: Exception) {
-                    AppTelemetry.logError(
-                        throwable = e,
-                        context = "quran_remote_load_failed",
-                        params = mapOf("with_local_action" to withLocalAction.toString())
-                    )
-                    emit(Resource.Error("Unexpected error: ${e.message}"))
-                }
-            }
-
         }
 
+    private suspend fun ensureInstalled(force: Boolean) {
+        installMutex.withLock {
+            // Checked under the lock: a second collector waits here and then finds the text already written.
+            val reason = if (force) "forced" else missingReason()
+            if (reason == null) return
+            val started = getTimeMillis()
+            val (quran, timing) = source.loadTimed()
+            val parsed = getTimeMillis()
+            dao.replaceQuran(quran.edition, quran.surahs, quran.ayahs)
+            val finished = getTimeMillis()
+            debug.log {
+                "Quran text written to the database ($reason): read ${timing.readMs} ms, parse ${timing.parseMs} ms " +
+                    "(on Dispatchers.Default), write ${finished - parsed} ms in one transaction, " +
+                    "total ${finished - started} ms, ${quran.surahs.size} surahs, ${quran.ayahs.size} ayahs"
+            }
+        }
+    }
 
+    /** Why the bundled text has to be written, or null when the database already has the complete Quran. */
+    private suspend fun missingReason(): String? {
+        if (BundledQuranSource.EDITION_ID !in dao.getEditionIds()) return "no edition"
+        val surahs = dao.countSurahs()
+        if (surahs != QuranFacts.SURAH_COUNT) return "$surahs surahs"
+        val ayahs = dao.countAyahs()
+        if (ayahs != QuranFacts.AYAH_COUNT) return "$ayahs ayahs"
+        val firstAyah = dao.getFirstAyahText()
+        if (firstAyah == null) return "no first ayah"
+        if (firstAyah.startsWith(BOM)) return "BOM in 1:1"
+        return null
+    }
+
+    private companion object {
+        val BOM: Char = 0xFEFF.toChar() // byte order mark
+    }
 }
