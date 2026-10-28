@@ -37,8 +37,8 @@ val ReaderTopBarRowHeight = 56.dp
 
 /**
  * The reader's top bar. Over the surah header it is only the back button and the two actions; once the
- * header cartouche has scrolled under it, [collapsed] reaches 1 and the paper-colored backdrop, a hairline,
- * the surah name with "Ayah N / M" and the 2dp reading progress appear.
+ * header cartouche has scrolled under it, [collapsed] reaches 1 and a hairline, the surah name with
+ * "Ayah N / M" and the 2dp reading progress appear. The bar itself is always opaque paper, status bar included.
  *
  * [collapsed], [ayahNumber] and [progress] are read inside draw/graphics blocks or leaf composables, so
  * scrolling does not recompose the bar.
@@ -63,9 +63,11 @@ fun ReaderTopBar(
             // The bar sits over the list: taps on its empty part must not reach the ayahs behind it.
             .pointerInput(Unit) { }
             .drawBehind {
+                // Opaque paper over the whole bar including the status bar inset: the header scrolls
+                // under it and must not show through. Only the hairline and the title fade in.
+                drawRect(colors.readerBg)
                 val fraction = collapsed.value
                 if (fraction > 0f) {
-                    drawRect(colors.readerBg.copy(alpha = 0.96f * fraction))
                     drawLine(
                         color = colors.hairline.copy(alpha = fraction),
                         start = Offset(0f, size.height - 0.5.dp.toPx()),

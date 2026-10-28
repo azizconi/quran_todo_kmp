@@ -15,6 +15,8 @@ data class ReaderCopy(
     val more: String,
     val readingProgress: String,
     val ayah: String,
+    val meccan: String,
+    val medinan: String,
     /** Between the ayah number and the ayah count in the player ("12 of 286"). */
     val ofWord: String,
     val ayahWord: String,
@@ -110,6 +112,18 @@ data class ReaderCopy(
         return "$count $word"
     }
 
+    /** "Meccan" / "Medinan" for the place the surah was revealed in (any spelling the data uses). */
+    fun revelationPlace(value: String): String {
+        val normalized = value.lowercase()
+        return when {
+            normalized.contains("meccan") || normalized.contains("makka") || normalized.contains("mekka") ||
+                normalized.contains("мекка") || normalized.contains("макка") -> meccan
+            normalized.contains("medinan") || normalized.contains("madina") || normalized.contains("medina") ||
+                normalized.contains("медина") || normalized.contains("мадина") -> medinan
+            else -> value
+        }
+    }
+
     /** "Ayah 12 / 286" for the compact bar. */
     fun ayahOf(index: Int, total: Int): String = "$ayah $index / $total"
 
@@ -132,7 +146,7 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
     AppLanguage.RU -> ReaderCopy(
         language = language,
         back = "Назад", textSettings = "Вид текста", more = "Ещё", readingProgress = "Прогресс чтения",
-        ayah = "Аят", ofWord = "из", ayahWord = "аят", ayahWordFew = "аята", ayahWordMany = "аятов",
+        ayah = "Аят", meccan = "Мекканская", medinan = "Мединская", ofWord = "из", ayahWord = "аят", ayahWordFew = "аята", ayahWordMany = "аятов",
         goToAyah = "Перейти к аяту…", goToTitle = "Перейти к аяту", goTo = "Перейти",
         surahStatusTitle = "Статус суры", surahStatusHint = "Выберите, на каком этапе вы сейчас.",
         notStarted = "Не начал", learning = "Заучиваю", learned = "Выучено",
@@ -161,7 +175,7 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
     AppLanguage.EN -> ReaderCopy(
         language = language,
         back = "Back", textSettings = "Text appearance", more = "More", readingProgress = "Reading progress",
-        ayah = "Ayah", ofWord = "of", ayahWord = "ayah", ayahWordFew = "ayahs", ayahWordMany = "ayahs",
+        ayah = "Ayah", meccan = "Meccan", medinan = "Medinan", ofWord = "of", ayahWord = "ayah", ayahWordFew = "ayahs", ayahWordMany = "ayahs",
         goToAyah = "Go to ayah…", goToTitle = "Go to ayah", goTo = "Go",
         surahStatusTitle = "Surah status", surahStatusHint = "Choose where you are with this surah.",
         notStarted = "Not started", learning = "Memorizing", learned = "Memorized",
@@ -190,7 +204,7 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
     AppLanguage.TG -> ReaderCopy(
         language = language,
         back = "Бозгашт", textSettings = "Намуди матн", more = "Бештар", readingProgress = "Пешрафти хониш",
-        ayah = "Оят", ofWord = "аз", ayahWord = "оят", ayahWordFew = "оят", ayahWordMany = "оят",
+        ayah = "Оят", meccan = "Маккӣ", medinan = "Маданӣ", ofWord = "аз", ayahWord = "оят", ayahWordFew = "оят", ayahWordMany = "оят",
         goToAyah = "Гузаштан ба оят…", goToTitle = "Гузаштан ба оят", goTo = "Гузаштан",
         surahStatusTitle = "Ҳолати сура", surahStatusHint = "Интихоб кунед, ки дар кадом марҳила ҳастед.",
         notStarted = "Оғоз нашудааст", learning = "Аз бар мекунам", learned = "Аз бар шуд",
@@ -219,7 +233,7 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
     AppLanguage.UZ -> ReaderCopy(
         language = language,
         back = "Orqaga", textSettings = "Matn ko‘rinishi", more = "Yana", readingProgress = "O‘qish jarayoni",
-        ayah = "Oyat", ofWord = "/", ayahWord = "oyat", ayahWordFew = "oyat", ayahWordMany = "oyat",
+        ayah = "Oyat", meccan = "Makkiy", medinan = "Madaniy", ofWord = "/", ayahWord = "oyat", ayahWordFew = "oyat", ayahWordMany = "oyat",
         goToAyah = "Oyatga o‘tish…", goToTitle = "Oyatga o‘tish", goTo = "O‘tish",
         surahStatusTitle = "Sura holati", surahStatusHint = "Ushbu sura bo‘yicha bosqichingizni tanlang.",
         notStarted = "Boshlanmagan", learning = "Yodlayapman", learned = "Yodlangan",
@@ -248,7 +262,7 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
     AppLanguage.TR -> ReaderCopy(
         language = language,
         back = "Geri", textSettings = "Metin görünümü", more = "Daha fazla", readingProgress = "Okuma ilerlemesi",
-        ayah = "Ayet", ofWord = "/", ayahWord = "ayet", ayahWordFew = "ayet", ayahWordMany = "ayet",
+        ayah = "Ayet", meccan = "Mekki", medinan = "Medeni", ofWord = "/", ayahWord = "ayet", ayahWordFew = "ayet", ayahWordMany = "ayet",
         goToAyah = "Ayete git…", goToTitle = "Ayete git", goTo = "Git",
         surahStatusTitle = "Sure durumu", surahStatusHint = "Bu surede hangi aşamada olduğunuzu seçin.",
         notStarted = "Başlanmadı", learning = "Ezberliyorum", learned = "Ezberlendi",

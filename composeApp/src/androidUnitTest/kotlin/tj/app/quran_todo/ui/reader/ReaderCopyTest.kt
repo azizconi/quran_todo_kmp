@@ -87,4 +87,22 @@ class ReaderCopyTest {
         assertEquals("Ezberliyorum", readerCopy(AppLanguage.TR).learning)
         assertNotEquals(readerCopy(AppLanguage.RU).learning, readerCopy(AppLanguage.RU).learned)
     }
+
+    @Test
+    fun revelationPlacesFollowTheGlossary() {
+        val expected = mapOf(
+            AppLanguage.RU to ("Мекканская" to "Мединская"),
+            AppLanguage.EN to ("Meccan" to "Medinan"),
+            AppLanguage.TG to ("Маккӣ" to "Маданӣ"),
+            AppLanguage.UZ to ("Makkiy" to "Madaniy"),
+            AppLanguage.TR to ("Mekki" to "Medeni"),
+        )
+        expected.forEach { (language, places) ->
+            val copy = readerCopy(language)
+            assertEquals(places.first, copy.revelationPlace("Meccan"), "$language meccan")
+            assertEquals(places.second, copy.revelationPlace("Medinan"), "$language medinan")
+            assertEquals(places.first, copy.revelationPlace("meccan"), "$language lower case")
+        }
+        assertEquals("Unknown", readerCopy(AppLanguage.EN).revelationPlace("Unknown"))
+    }
 }
