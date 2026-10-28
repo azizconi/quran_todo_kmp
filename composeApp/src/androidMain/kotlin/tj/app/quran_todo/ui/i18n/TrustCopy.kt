@@ -70,7 +70,7 @@ fun trustCopy(language: AppLanguage): TrustCopy = when (language) {
             ),
             PrivacyPoint(
                 "Internet use",
-                "To load the Quran text, translations and audio the app contacts api.alquran.cloud, api.quran.com and cdn.islamic.network. They can see your IP address. Your progress and notes are never sent.",
+                "The Quran text comes with the app. To load translations and audio it contacts api.alquran.cloud, api.quran.com and cdn.islamic.network. They can see your IP address. Your progress and notes are never sent.",
             ),
             PrivacyPoint(
                 "Anonymous statistics",
@@ -128,7 +128,7 @@ fun trustCopy(language: AppLanguage): TrustCopy = when (language) {
             ),
             PrivacyPoint(
                 "Обращения к интернету",
-                "Чтобы загрузить текст Корана, переводы и аудио, приложение обращается к api.alquran.cloud, api.quran.com и cdn.islamic.network. Они видят ваш IP-адрес. Прогресс и заметки не отправляются.",
+                "Текст Корана встроен в приложение. Чтобы загрузить переводы и аудио, приложение обращается к api.alquran.cloud, api.quran.com и cdn.islamic.network. Они видят ваш IP-адрес. Прогресс и заметки не отправляются.",
             ),
             PrivacyPoint(
                 "Анонимная статистика",
@@ -186,7 +186,7 @@ fun trustCopy(language: AppLanguage): TrustCopy = when (language) {
             ),
             PrivacyPoint(
                 "Истифодаи интернет",
-                "Барои боркунии матни Қуръон, тарҷумаҳо ва аудио барнома ба api.alquran.cloud, api.quran.com ва cdn.islamic.network муроҷиат мекунад. Онҳо суроғаи IP-и шуморо мебинанд. Пешрафт ва ёддоштҳо фиристода намешаванд.",
+                "Матни Қуръон дар худи барнома ҳаст. Барои боркунии тарҷумаҳо ва аудио барнома ба api.alquran.cloud, api.quran.com ва cdn.islamic.network муроҷиат мекунад. Онҳо суроғаи IP-и шуморо мебинанд. Пешрафт ва ёддоштҳо фиристода намешаванд.",
             ),
             PrivacyPoint(
                 "Омори беном",
@@ -244,7 +244,7 @@ fun trustCopy(language: AppLanguage): TrustCopy = when (language) {
             ),
             PrivacyPoint(
                 "Internetdan foydalanish",
-                "Qur’on matni, tarjimalar va audioni yuklash uchun ilova api.alquran.cloud, api.quran.com va cdn.islamic.network manzillariga murojaat qiladi. Ular IP-manzilingizni ko‘radi. Jarayon va qaydlar yuborilmaydi.",
+                "Qur’on matni ilovaning o‘zida bor. Tarjimalar va audioni yuklash uchun ilova api.alquran.cloud, api.quran.com va cdn.islamic.network manzillariga murojaat qiladi. Ular IP-manzilingizni ko‘radi. Jarayon va qaydlar yuborilmaydi.",
             ),
             PrivacyPoint(
                 "Anonim statistika",
@@ -302,7 +302,7 @@ fun trustCopy(language: AppLanguage): TrustCopy = when (language) {
             ),
             PrivacyPoint(
                 "İnternet kullanımı",
-                "Kur’an metnini, mealleri ve sesi yüklemek için uygulama api.alquran.cloud, api.quran.com ve cdn.islamic.network adreslerine bağlanır. Bunlar IP adresinizi görür. İlerlemeniz ve notlarınız gönderilmez.",
+                "Kur’an metni uygulamanın içinde gelir. Mealleri ve sesi yüklemek için uygulama api.alquran.cloud, api.quran.com ve cdn.islamic.network adreslerine bağlanır. Bunlar IP adresinizi görür. İlerlemeniz ve notlarınız gönderilmez.",
             ),
             PrivacyPoint(
                 "Anonim istatistikler",

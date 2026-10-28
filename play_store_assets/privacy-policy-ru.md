@@ -28,7 +28,7 @@
 
 Чтобы загрузить текст Корана, переводы, названия сур и аудио чтения, Приложение обращается к следующим серверам:
 
-- `api.alquran.cloud` (текст Корана и переводы, Islamic Network);
+- `api.alquran.cloud` (переводы, Islamic Network; сам текст Корана встроен в приложение);
 - `api.quran.com` (названия сур и часть переводов, Quran.com);
 - `cdn.islamic.network` (аудио чтения, Islamic Network).
 

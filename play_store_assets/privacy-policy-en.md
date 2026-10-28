@@ -28,7 +28,7 @@ The App **does not use the Android advertising ID** (the `AD_ID` permission is r
 
 To download the Quran text, translations, surah names and recitation audio, the App contacts the following servers:
 
-- `api.alquran.cloud` (Quran text and translations, Islamic Network);
+- `api.alquran.cloud` (translations, Islamic Network; the Quran text itself is bundled with the app);
 - `api.quran.com` (surah names and some translations, Quran.com);
 - `cdn.islamic.network` (recitation audio, Islamic Network).
 
