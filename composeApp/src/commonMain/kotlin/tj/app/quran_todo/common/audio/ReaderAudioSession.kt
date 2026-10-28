@@ -287,12 +287,12 @@ private class PlatformReaderAudioOutput : ReaderAudioOutput {
 private fun cachedAudioSource(): suspend (ReaderAudioAyah, Int) -> String {
     val cache = AudioCache()
     return { ayah, surah ->
-        val remote = "https://cdn.islamic.network/quran/audio/128/ar.alafasy/${ayah.globalNumber}.mp3"
+        val remote = Reciters.default.audioUrl(ayah.globalNumber)
         cache.getOrFetch(remote, ayahAudioCacheKey(surah, ayah.numberInSurah)) ?: remote
     }
 }
 
-private fun monotonicClock(): () -> Long {
+internal fun monotonicClock(): () -> Long {
     val origin = TimeSource.Monotonic.markNow()
     return { origin.elapsedNow().inWholeMilliseconds }
 }

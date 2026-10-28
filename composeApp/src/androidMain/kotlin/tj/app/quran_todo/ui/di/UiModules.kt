@@ -8,7 +8,7 @@ import tj.app.quran_todo.ui.home.HomeLocalPrefs
 import tj.app.quran_todo.ui.home.HomeUiViewModel
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.onboarding.OnboardingViewModel
-import tj.app.quran_todo.ui.playback.PlaybackController
+import tj.app.quran_todo.ui.playback.createPlaybackController
 import tj.app.quran_todo.ui.progress.ProgressViewModel
 import tj.app.quran_todo.ui.reader.ReaderViewModel
 import tj.app.quran_todo.ui.settings.SettingsViewModel
@@ -79,7 +79,7 @@ val onboardingUiModule = module {
 /** App-wide singletons shared by all screens. */
 val appUiModule = module {
     single { UiPrefs(androidContext()) }
-    single { PlaybackController() }
+    single { createPlaybackController(androidContext(), get<UiPrefs>()) }
 }
 
 val uiModules = listOf(

@@ -446,12 +446,7 @@ private fun SettingsContent(
                 onSelect = { count -> viewModel.updateReaderPreferences { it.copy(repeatCount = count) } },
             )
             QhRowDivider()
-            QhValueRow(
-                title = copy.reciter,
-                value = copy.reciterName,
-                icon = Icons.Rounded.RecordVoiceOver,
-                iconTint = colors.gold,
-            )
+            SoundVoiceRows(language = language, reciterTitle = copy.reciter)
         }
 
         // 4. Memorization

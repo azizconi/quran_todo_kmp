@@ -8,11 +8,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import tj.app.quran_todo.common.audio.ReaderAudioAyah
 import tj.app.quran_todo.common.audio.ReaderAudioSession
+import tj.app.quran_todo.common.audio.Reciter
 import tj.app.quran_todo.common.audio.ReaderAudioState
 import tj.app.quran_todo.common.settings.ReaderPracticeSettings
 import tj.app.quran_todo.common.settings.SurahReaderPreferences
@@ -32,9 +35,22 @@ sealed interface SleepTimer {
     data class Minutes(val minutes: Int) : SleepTimer
 }
 
+/** Connects the controller to the background playback service (the media session); a fake in tests. */
+internal interface PlaybackServiceLink {
+    /** Makes sure the service exists and is bound; cheap when it already is. */
+    fun ensureConnected()
+
+    /** Unbinds from the service, which then stops itself. */
+    fun release()
+}
+
 /**
  * Audio that lives above the screens (docs/redesign/ANDROID_REDESIGN.md, 4.4). Owns the single
  * [ReaderAudioSession] of the app; leaving a reader does not stop it.
+ *
+ * The audio is played by one ExoPlayer ([ExoReaderAudioOutput]) and shown to the system by
+ * `PlaybackService` (a Media3 media session: notification, lock screen, headset buttons), which mirrors
+ * [nowPlaying] and [state] and sends its commands back through this class.
  *
  * Opening surah Y while X plays does not take the session over: the Y reader shows its dock in the
  * "ready" state and calls [start] only when the person presses play there. Use [isActiveFor] to tell
@@ -45,10 +61,10 @@ sealed interface SleepTimer {
 class PlaybackController internal constructor(
     private val session: ReaderAudioSession,
     timerScope: CoroutineScope? = null,
+    private val reciter: StateFlow<Reciter>? = null,
+    private val serviceLink: PlaybackServiceLink? = null,
+    private val extras: OutputExtras? = null,
 ) {
-    /** Production constructor: one session bound to an application-wide scope. */
-    constructor(scope: CoroutineScope = applicationScope()) : this(ReaderAudioSession(scope), scope)
-
     // Created on first use: tests that never arm a timer must not touch Dispatchers.Main.
     private val scope: CoroutineScope by lazy { timerScope ?: applicationScope() }
 
@@ -71,6 +87,8 @@ class PlaybackController internal constructor(
     val sleepRemainingSeconds: StateFlow<Int> = _sleepRemainingSeconds.asStateFlow()
 
     private var sleepJob: Job? = null
+    private var reciterJob: Job? = null
+    private var idleJob: Job? = null
 
     fun isActiveFor(surah: Int): Boolean = _nowPlaying.value?.surahNumber == surah
 
@@ -90,6 +108,9 @@ class PlaybackController internal constructor(
             .sortedBy { it.numberInSurah }
             .map { ReaderAudioAyah(globalNumber = it.number, numberInSurah = it.numberInSurah) }
         if (ayahs.isEmpty()) return
+        serviceLink?.ensureConnected()
+        watchReciter()
+        watchIdle()
         val index = fromIndex.coerceIn(ayahs.indices)
         // Starting is always explicit here, so the "autoplay when a reader opens" preference must not
         // make configure() begin playback before the position is chosen.
@@ -147,11 +168,78 @@ class PlaybackController internal constructor(
         applyEndOfSurahLimit()
     }
 
+    /**
+     * The system paused the audio (audio focus lost for good, headphones unplugged, a headset or
+     * notification pause): shows the paused state and keeps the position so that play resumes it.
+     */
+    fun pauseBySystem() {
+        if (_nowPlaying.value != null && session.state.value.isPlaying) session.toggle()
+    }
+
+    /**
+     * Plays the sample of a reciter ([source] is a file or URL) on the same player. Audio of the reader
+     * stops where it is (the mini player and the dock show the same ayah, stopped); [onFinished] is told
+     * when the sample ended or failed, but not when [stopSample] or other audio cuts it.
+     */
+    fun playSample(source: String, onFinished: (failed: Boolean) -> Unit) {
+        val output = extras
+        if (output == null) {
+            onFinished(true)
+            return
+        }
+        if (_nowPlaying.value != null) session.select(session.state.value.index)
+        output.playSample(source, onFinished)
+    }
+
+    fun stopSample() {
+        extras?.stopSample()
+    }
+
+    /** The service was dismissed by the system or the person (the app was swiped away): lets go of it. */
+    internal fun disconnectService() {
+        serviceLink?.release()
+    }
+
     /** Stops the audio, cancels the sleep timer and hides the mini player. */
     fun stop() {
         session.stop()
         _nowPlaying.value = null
         if (_sleepTimer.value != SleepTimer.Off) setSleepTimer(SleepTimer.Off)
+    }
+
+    /**
+     * A changed reciter takes effect at once: the ayah that is playing (or paused halfway) starts over
+     * with the new voice. Nothing happens while the player is idle: the next play uses the new reciter.
+     */
+    private fun watchReciter() {
+        val source = reciter ?: return
+        if (reciterJob != null) return
+        reciterJob = scope.launch {
+            var last = source.value
+            source.collect { next ->
+                if (next == last) return@collect
+                last = next
+                if (_nowPlaying.value == null) return@collect
+                val current = session.state.value
+                session.select(current.index)
+                if (current.isPlaying) session.toggle()
+            }
+        }
+    }
+
+    /**
+     * When the ayah sequence is over (the last ayah has ended; nothing is playing or paused halfway) the
+     * player lets go of the audio focus, so that music or a podcast of another app can go on.
+     */
+    private fun watchIdle() {
+        val output = extras ?: return
+        if (idleJob != null) return
+        idleJob = scope.launch {
+            session.state
+                .map { it.isPlaying || it.canResume }
+                .distinctUntilChanged()
+                .collect { active -> if (!active) output.releaseFocus() }
+        }
     }
 
     private suspend fun countDown(seconds: Int) {

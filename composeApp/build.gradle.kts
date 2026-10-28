@@ -48,6 +48,8 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.splashscreen)
             implementation(libs.navigation.compose)
+            implementation(libs.androidx.media3.exoplayer)
+            implementation(libs.androidx.media3.session)
 
             implementation(libs.koin.android)
             implementation(libs.koin.androidx.compose)

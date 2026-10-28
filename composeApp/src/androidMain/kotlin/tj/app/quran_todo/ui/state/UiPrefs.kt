@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import tj.app.quran_todo.common.analytics.AppTelemetry
+import tj.app.quran_todo.common.audio.Reciter
+import tj.app.quran_todo.common.audio.Reciters
 import tj.app.quran_todo.common.settings.UserSettingsStorage
 import tj.app.quran_todo.common.theme.ThemeStorage
 
@@ -194,6 +196,15 @@ class UiPrefs(context: Context) {
         _hifzHintMode.value = value
     }
 
+    /** The reciter of the ayah audio. An unknown or missing saved id means the default reciter (Alafasy). */
+    private val _reciter = MutableStateFlow(Reciters.byId(prefs.getString(KEY_RECITER, null)))
+    val reciter: StateFlow<Reciter> = _reciter.asStateFlow()
+
+    fun setReciter(value: Reciter) {
+        prefs.edit().putString(KEY_RECITER, value.id).apply()
+        _reciter.value = value
+    }
+
     /**
      * "Anonymous statistics and crash reports" (Firebase Analytics and Crashlytics). On by default; the
      * choice is disclosed in onboarding and can be changed in the settings. The telemetry reads the stored
@@ -227,6 +238,7 @@ class UiPrefs(context: Context) {
         const val KEY_ONBOARDING_GOALS = "onboarding_goals"
         const val KEY_HIFZ_HINT_MODE = "hifz_hint_mode"
         const val KEY_ANALYTICS_ENABLED = "analytics_enabled"
+        const val KEY_RECITER = "reciter"
     }
 }
 
