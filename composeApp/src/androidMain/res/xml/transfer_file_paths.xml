@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The only folder the FileProvider of "Send a copy" can hand out: cache/transfer/ (TransferIo.SHARE_DIR). The backup file is
+  written there for an export and deleted at the next one. The cache is not part of Auto Backup.
+-->
+<paths>
+    <cache-path name="transfer" path="transfer/" />
+</paths>

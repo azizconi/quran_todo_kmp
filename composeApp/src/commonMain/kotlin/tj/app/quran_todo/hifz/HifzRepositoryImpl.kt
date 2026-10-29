@@ -17,6 +17,9 @@ import tj.app.quran_todo.data.database.QuranTodoDatabase
 import tj.app.quran_todo.data.database.entity.hifz.HifzMetaEntity
 import tj.app.quran_todo.data.database.entity.hifz.ReviewLogEntity
 import tj.app.quran_todo.domain.repository.QuranRemoteRepository
+import tj.app.quran_todo.hifz.backup.BackupData
+import tj.app.quran_todo.hifz.backup.BackupMapping
+import tj.app.quran_todo.hifz.backup.VerifiedBackup
 import tj.app.quran_todo.hifz.legacy.LegacyImport
 import tj.app.quran_todo.hifz.legacy.LegacyInput
 import tj.app.quran_todo.hifz.model.HifzPlan
@@ -367,6 +370,42 @@ class HifzRepositoryImpl(
         }
         // After the commit: if this fails the weak ayahs stay in the preferences, which is harmless.
         if (imported) legacySettings.clearWeakAyahKeys()
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Backup file
+    // ------------------------------------------------------------------------------------------------------------
+
+    override suspend fun exportBackupData(): BackupData = read {
+        BackupMapping.toBackupData(
+            plan = dao.getPlan(),
+            passages = dao.getPassages(),
+            log = dao.getAllLog(),
+            meta = dao.getAllMeta(),
+            notes = dao.getAllNotes(),
+        )
+    }
+
+    override suspend fun replaceWithBackup(backup: VerifiedBackup) {
+        val metrics = metrics()
+        val rows = BackupMapping.toRows(backup.file)
+        write {
+            // The children first (passage_hard has a foreign key to the passages), then the rest.
+            dao.deleteAllHard()
+            dao.deleteAllPassages()
+            dao.deleteAllLog()
+            dao.deletePlan()
+            dao.deleteAllMeta()
+            dao.deleteAllNotes()
+            if (rows.passages.isNotEmpty()) dao.insertPassages(rows.passages)
+            if (rows.hard.isNotEmpty()) dao.insertHard(rows.hard)
+            if (rows.log.isNotEmpty()) dao.insertLogs(rows.log)
+            rows.plan?.let { dao.upsertPlan(it) }
+            dao.upsertMetas(rows.meta)
+            if (rows.notes.isNotEmpty()) dao.insertNotes(rows.notes)
+            // The old screens read surah_todo / ayah_todo: rebuild them for every surah from what was just written.
+            mirror((1..QuranFacts.SURAH_COUNT).toSet(), loadPassages(), loadPlan(), metrics)
+        }
     }
 
     // ------------------------------------------------------------------------------------------------------------

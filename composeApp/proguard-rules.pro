@@ -15,3 +15,9 @@
 
 # Exception class names go into the anonymous "non_fatal_error" analytics event (AppTelemetry): keep them readable.
 -keepnames class * extends java.lang.Throwable
+
+# The backup file (hifz/backup/BackupFormat.kt): its @Serializable classes are written and read with kotlinx.serialization, whose
+# consumer rules keep their serializers. Kept explicitly as well (members and the generated $$serializer classes), so that a
+# change of those rules cannot turn every import into "the file is damaged" in a release build only.
+-keep @kotlinx.serialization.Serializable class tj.app.quran_todo.hifz.backup.** { *; }
+-keep class tj.app.quran_todo.hifz.backup.**$$serializer { *; }

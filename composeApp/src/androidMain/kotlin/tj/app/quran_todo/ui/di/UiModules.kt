@@ -12,6 +12,7 @@ import tj.app.quran_todo.ui.playback.createPlaybackController
 import tj.app.quran_todo.ui.progress.ProgressViewModel
 import tj.app.quran_todo.ui.reader.ReaderViewModel
 import tj.app.quran_todo.ui.settings.SettingsViewModel
+import tj.app.quran_todo.ui.settings.TransferIo
 import tj.app.quran_todo.ui.state.UiPrefs
 
 /**
@@ -69,7 +70,8 @@ val progressUiModule = module {
 }
 
 val settingsUiModule = module {
-    viewModel { SettingsViewModel(home = get(), uiPrefs = get()) }
+    // The shared HomeViewModel and HifzRepository come in through Koin; the files of "Transfer and backup" through TransferIo.
+    viewModel { SettingsViewModel(home = get(), uiPrefs = get(), hifz = get(), io = TransferIo(androidContext())) }
 }
 
 val onboardingUiModule = module {

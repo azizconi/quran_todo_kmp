@@ -13,6 +13,7 @@ import tj.app.quran_todo.data.database.entity.hifz.HifzPlanEntity
 import tj.app.quran_todo.data.database.entity.hifz.PassageHardEntity
 import tj.app.quran_todo.data.database.entity.hifz.PassageWithHard
 import tj.app.quran_todo.data.database.entity.hifz.ReviewLogEntity
+import tj.app.quran_todo.data.database.entity.todo.AyahNoteEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahReviewEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoEntity
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoEntity
@@ -78,6 +79,45 @@ interface HifzDao {
 
     @Upsert
     suspend fun upsertMeta(meta: HifzMetaEntity)
+
+    // Backup file (task B5): the whole content of the hifz tables and the notes, read for an export and replaced for an import.
+    // The repository runs them in one transaction; the order matters (passage_hard has a foreign key to hifz_passage).
+    @Query("SELECT * FROM review_log ORDER BY id")
+    suspend fun getAllLog(): List<ReviewLogEntity>
+
+    @Query("SELECT * FROM hifz_meta")
+    suspend fun getAllMeta(): List<HifzMetaEntity>
+
+    @Query("SELECT * FROM ayah_note")
+    suspend fun getAllNotes(): List<AyahNoteEntity>
+
+    @Query("DELETE FROM passage_hard")
+    suspend fun deleteAllHard()
+
+    @Query("DELETE FROM hifz_passage")
+    suspend fun deleteAllPassages()
+
+    @Query("DELETE FROM review_log")
+    suspend fun deleteAllLog()
+
+    @Query("DELETE FROM hifz_meta")
+    suspend fun deleteAllMeta()
+
+    @Query("DELETE FROM ayah_note")
+    suspend fun deleteAllNotes()
+
+    /** Inserts with the ids they have (a row with a non-zero id keeps it). */
+    @Insert
+    suspend fun insertPassages(rows: List<HifzPassageEntity>)
+
+    @Insert
+    suspend fun insertLogs(rows: List<ReviewLogEntity>)
+
+    @Upsert
+    suspend fun upsertMetas(rows: List<HifzMetaEntity>)
+
+    @Insert
+    suspend fun insertNotes(rows: List<AyahNoteEntity>)
 
     // Text metrics: one projection of the Arabic text (the table `ayahs` holds only the bundled edition)
     @Query(

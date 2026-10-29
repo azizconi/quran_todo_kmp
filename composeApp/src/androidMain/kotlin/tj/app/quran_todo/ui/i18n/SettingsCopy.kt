@@ -14,6 +14,8 @@ import tj.app.quran_todo.common.i18n.nativeSettingsCopy
  */
 data class SettingsCopy(
     val native: NativeSettingsCopy,
+    /** "Transfer and backup": the section, the import confirmation, the toasts. */
+    val transfer: TransferCopy,
     val sectionAppearance: String,
     val sectionReading: String,
     val sectionSound: String,
@@ -61,13 +63,6 @@ data class SettingsCopy(
     val offlinePartial: String,
     val offlineGet: String,
     val offlineQuranNotReady: String,
-    val backupTitle: String,
-    val backupDone: String,
-    val restoreDone: String,
-    val noBackup: String,
-    val backupFailed: String,
-    val restoreFailed: String,
-    val dataFootnote: String,
     val haptics: String,
     val hapticsDescription: String,
     val reduceMotion: String,
@@ -89,9 +84,11 @@ fun rememberSettingsCopy(language: AppLanguage = LocalAppLanguage.current): Sett
 
 fun settingsCopy(language: AppLanguage): SettingsCopy {
     val native = nativeSettingsCopy(language)
+    val transfer = transferCopy(language)
     return when (language) {
         AppLanguage.EN -> SettingsCopy(
             native = native,
+            transfer = transfer,
             sectionAppearance = "Appearance", sectionReading = "Reading", sectionSound = "Sound",
             sectionMemorization = "Memorization", sectionLanguage = "Language", sectionData = "Data",
             sectionComfort = "Comfort", sectionAbout = "About",
@@ -114,9 +111,6 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             offlineProgress = "Downloading {done} of {total}", offlineReady = "Ready — works without a connection",
             offlinePartial = "Not everything downloaded — tap to retry", offlineGet = "Download",
             offlineQuranNotReady = "The Quran is still loading. Try again in a moment.",
-            backupTitle = "Backup", backupDone = "Backup saved", restoreDone = "Progress restored",
-            noBackup = "No backup found", backupFailed = "Could not save the backup", restoreFailed = "Could not restore",
-            dataFootnote = "The backup stays on this device; restoring replaces your current progress.",
             haptics = "Haptic feedback", hapticsDescription = "A light vibration on taps.",
             reduceMotion = "Reduce motion", reduceMotionDescription = "No springs, particles or parallax.",
             version = "Version", privacyPolicy = "Privacy policy", rateApp = "Rate the app",
@@ -126,6 +120,7 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
 
         AppLanguage.RU -> SettingsCopy(
             native = native,
+            transfer = transfer,
             sectionAppearance = "Внешний вид", sectionReading = "Чтение", sectionSound = "Звук",
             sectionMemorization = "Заучивание", sectionLanguage = "Язык", sectionData = "Данные",
             sectionComfort = "Удобство", sectionAbout = "О приложении",
@@ -148,9 +143,6 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             offlineProgress = "Скачиваем {done} из {total}", offlineReady = "Готово — работает без сети",
             offlinePartial = "Скачано не всё — нажмите, чтобы повторить", offlineGet = "Скачать",
             offlineQuranNotReady = "Коран ещё загружается. Попробуйте чуть позже.",
-            backupTitle = "Резервная копия", backupDone = "Резервная копия сохранена", restoreDone = "Прогресс восстановлен",
-            noBackup = "Резервная копия не найдена", backupFailed = "Не удалось сохранить копию", restoreFailed = "Не удалось восстановить",
-            dataFootnote = "Копия хранится на этом устройстве; восстановление заменяет текущий прогресс.",
             haptics = "Тактильный отклик", hapticsDescription = "Лёгкая вибрация при нажатиях.",
             reduceMotion = "Меньше анимаций", reduceMotionDescription = "Без пружин, частиц и параллакса.",
             version = "Версия", privacyPolicy = "Политика конфиденциальности", rateApp = "Оценить приложение",
@@ -160,6 +152,7 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
 
         AppLanguage.TG -> SettingsCopy(
             native = native,
+            transfer = transfer,
             sectionAppearance = "Намуди зоҳирӣ", sectionReading = "Хондан", sectionSound = "Садо",
             sectionMemorization = "Ҳифз", sectionLanguage = "Забон", sectionData = "Маълумот",
             sectionComfort = "Қулайӣ", sectionAbout = "Дар бораи барнома",
@@ -182,9 +175,6 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             offlineProgress = "Боргирӣ: {done} аз {total}", offlineReady = "Омода — бе интернет кор мекунад",
             offlinePartial = "На ҳама боргирӣ шуд — барои такрор зер кунед", offlineGet = "Боргирӣ",
             offlineQuranNotReady = "Қуръон ҳоло бор мешавад. Баъдтар кӯшиш кунед.",
-            backupTitle = "Нусхаи эҳтиётӣ", backupDone = "Нусхаи эҳтиётӣ нигоҳ дошта шуд", restoreDone = "Пешрафт барқарор шуд",
-            noBackup = "Нусхаи эҳтиётӣ ёфт нашуд", backupFailed = "Нусха сохта нашуд", restoreFailed = "Барқарор карда нашуд",
-            dataFootnote = "Нусха дар ҳамин дастгоҳ нигоҳ дошта мешавад; барқарорсозӣ пешрафти ҷориро иваз мекунад.",
             haptics = "Вокуниши ламсӣ", hapticsDescription = "Ларзиши сабук ҳангоми зер кардан.",
             reduceMotion = "Анимацияи камтар", reduceMotionDescription = "Бе пружина, зарраҳо ва параллакс.",
             version = "Версия", privacyPolicy = "Сиёсати махфият", rateApp = "Баҳо додан ба барнома",
@@ -194,6 +184,7 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
 
         AppLanguage.UZ -> SettingsCopy(
             native = native,
+            transfer = transfer,
             sectionAppearance = "Ko‘rinish", sectionReading = "O‘qish", sectionSound = "Ovoz",
             sectionMemorization = "Yodlash", sectionLanguage = "Til", sectionData = "Ma’lumotlar",
             sectionComfort = "Qulaylik", sectionAbout = "Ilova haqida",
@@ -216,9 +207,6 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             offlineProgress = "Yuklanmoqda: {done} / {total}", offlineReady = "Tayyor — internetsiz ishlaydi",
             offlinePartial = "Hammasi yuklanmadi — qayta urinish uchun bosing", offlineGet = "Yuklash",
             offlineQuranNotReady = "Qur’on hali yuklanmoqda. Birozdan so‘ng urinib ko‘ring.",
-            backupTitle = "Zaxira nusxa", backupDone = "Zaxira nusxa saqlandi", restoreDone = "Jarayon tiklandi",
-            noBackup = "Zaxira nusxa topilmadi", backupFailed = "Nusxani saqlab bo‘lmadi", restoreFailed = "Tiklab bo‘lmadi",
-            dataFootnote = "Nusxa shu qurilmada saqlanadi; tiklash joriy jarayonni almashtiradi.",
             haptics = "Tebranish javobi", hapticsDescription = "Bosganda yengil tebranish.",
             reduceMotion = "Kamroq animatsiya", reduceMotionDescription = "Prujinasiz, zarrachalarsiz va parallakssiz.",
             version = "Versiya", privacyPolicy = "Maxfiylik siyosati", rateApp = "Ilovani baholash",
@@ -228,6 +216,7 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
 
         AppLanguage.TR -> SettingsCopy(
             native = native,
+            transfer = transfer,
             sectionAppearance = "Görünüm", sectionReading = "Okuma", sectionSound = "Ses",
             sectionMemorization = "Ezber", sectionLanguage = "Dil", sectionData = "Veriler",
             sectionComfort = "Kolaylık", sectionAbout = "Hakkında",
@@ -250,9 +239,6 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             offlineProgress = "İndiriliyor: {done} / {total}", offlineReady = "Hazır — internetsiz çalışır",
             offlinePartial = "Hepsi inmedi — tekrar denemek için dokunun", offlineGet = "İndir",
             offlineQuranNotReady = "Kur’an hâlâ yükleniyor. Biraz sonra tekrar deneyin.",
-            backupTitle = "Yedek", backupDone = "Yedek kaydedildi", restoreDone = "İlerleme geri yüklendi",
-            noBackup = "Yedek bulunamadı", backupFailed = "Yedek oluşturulamadı", restoreFailed = "Geri yüklenemedi",
-            dataFootnote = "Yedek bu cihazda saklanır; geri yükleme mevcut ilerlemeyi değiştirir.",
             haptics = "Dokunsal geri bildirim", hapticsDescription = "Dokunuşlarda hafif titreşim.",
             reduceMotion = "Daha az animasyon", reduceMotionDescription = "Yay efekti, parçacık ve paralaks olmadan.",
             version = "Sürüm", privacyPolicy = "Gizlilik politikası", rateApp = "Uygulamayı değerlendir",

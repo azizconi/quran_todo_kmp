@@ -1,6 +1,8 @@
 package tj.app.quran_todo.hifz
 
 import kotlinx.coroutines.flow.Flow
+import tj.app.quran_todo.hifz.backup.BackupData
+import tj.app.quran_todo.hifz.backup.VerifiedBackup
 import tj.app.quran_todo.hifz.model.HifzPlan
 import tj.app.quran_todo.hifz.model.HifzScope
 import tj.app.quran_todo.hifz.model.NewPassageResult
@@ -171,6 +173,23 @@ interface HifzRepository {
 
     /** The one-time conversion of the old data (see `LegacyImport`); does nothing when it has run already. */
     suspend fun importLegacyIfNeeded()
+
+    // ---- Backup file (see `hifz/backup/BackupFormat.kt`) ----
+
+    /**
+     * Everything a backup file holds from the database - the plan, passages, difficult ayahs, the review log, the service
+     * values and the notes - read in ONE read transaction, so the tables agree with each other.
+     */
+    suspend fun exportBackupData(): BackupData
+
+    /**
+     * Replaces ALL the hifz data and the notes with those of [backup] in ONE transaction: the tables are emptied, the file is
+     * written into them, `surah_todo` and `ayah_todo` are rebuilt from the passages for every surah (the mirror) and
+     * `hifz_meta.legacy_import = done` is set, so that the one-time conversion of the old tables never runs over the imported
+     * data. An error at any point rolls everything back: the previous data stays as it was. The settings of the file are not
+     * touched here (they are not in the database).
+     */
+    suspend fun replaceWithBackup(backup: VerifiedBackup)
 
     companion object {
         /** "To the last ayah of the surah" for the `endAyah` of [markKnown] and [forget]. */
