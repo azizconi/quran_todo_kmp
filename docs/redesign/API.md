@@ -279,6 +279,26 @@ LessonItem(passageId, surah, startAyah, endAyah, stage, hardAyahs: Set<Int>, don
 - Старый `expect ReminderScheduler` на Android только зовёт `ReminderSync.sync` (аргументы не используются).
 - **Аналитика**: `reminder_enabled` (`hour`), `reminder_shown` / `reminder_opened` (`kind`=lesson|reading), `reminder_snoozed`, `reminder_timeout`.
 
+### Онбординг v2 и «Новое» (C1, Android)
+
+- **Кто видит онбординг**: `needsOnboarding()` → `OnboardingGate.resolve()`. Чистое решение `OnboardingGate.decide(completed, languageSaved, fontSaved, v2Started)`:
+  - пройден → нет;
+  - язык и шрифт сохранены прошлой версией, а v2 не начинался → существующий пользователь: нет, и сразу помечается пройденным;
+  - иначе → да.
+
+  Флаги в `UiPrefs`: `onboarding_completed`, `onboarding_v2_started` (ставит `OnboardingViewModel` при создании), `whats_new_shown`. Читаются без Koin: `UiPrefs.readOnboarding(context)` / `writeOnboardingCompleted(context)`. Их зовут сплэш и `MainActivity`.
+- **Шаги**: `OnboardingFlow` — чистая машина шагов. Путь «Заучивать»: язык → 3 слайда (один сегмент) → цель → что знаю → что учу → темп → напоминание → чтение → «План готов». Путь «Читать»: язык → слайды → цель → чтение → итог. Состояние (шаг и выбор) — в `SavedStateHandle`: `OnboardingViewModelFactory` создаёт его из extras записи навигации и передаёт в Koin как параметр.
+- **Запись**:
+  - язык, шрифт, тема и палитра — сразу, через сеттеры корня;
+  - цель → `UiPrefs.onboardingGoals` при уходе с шага цели;
+  - напоминание — на своём шаге, через `ReminderController`;
+  - прогресс — только по последней кнопке: `OnboardingFinisher.finish` — `markKnown` по каждой отмеченной суре, затем `setPlan`, затем флаг. Повторное нажатие ничего не дублирует.
+
+  Первый урок и прогноз на шагах считаются без записи (`OnboardingPlanMath` поверх `NewPassagePlanner`, `Forecast`, `PlanMath`).
+- **Выход**: `OnboardingExit.Lesson | Reader | Later` → главный, поверх него урок или ридер Аль-Фатихи (назад — на главный).
+- **«Новое: Урок дня»** (`ui/whatsnew/`): `WhatsNewHost` после NavHost. `WhatsNewGate.pending` = `completed && !v2Started && !whatsNewShown`. Лист показывается один раз над главным; если план есть — кнопка «Открыть урок», иначе «Составить план». Ссылка из напоминания откладывает лист до следующего запуска.
+- **Аналитика**: `onboarding_step` (`step`), `onboarding_story_skipped`, `onboarding_completed` (`goal`, `preset`, `pace`, `known`, `reminder`, `action`), `whats_new_shown`, `whats_new_action`.
+
 ### Что известно и ещё не сделано
 
 - `ProgressRestoreDao.replaceUserProgress` (восстановление старой копии из prefs) пишет только старые таблицы и не знает об отрывках: на Android его больше никто не вызывает (экран настроек работает через `replaceWithBackup`), на iOS он остаётся.
