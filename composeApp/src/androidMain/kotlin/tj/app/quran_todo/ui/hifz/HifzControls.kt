@@ -44,6 +44,9 @@ import kotlinx.coroutines.flow.StateFlow
 import tj.app.quran_todo.ui.components.QhButton
 import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
+import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
+import tj.app.quran_todo.ui.components.spotlight.SpotlightTargets
+import tj.app.quran_todo.ui.components.spotlight.spotlightTarget
 import tj.app.quran_todo.ui.haptics.HapticKind
 import tj.app.quran_todo.ui.i18n.HifzCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
@@ -251,15 +254,17 @@ private fun ListenIconButton(copy: HifzCopy, listening: Boolean, host: RecallHos
 private fun MarkControls(copy: HifzCopy, onMark: (AyahMark) -> Unit) {
     val colors = QhTheme.colors
     val fontScale = LocalDensity.current.fontScale
+    // The tip "An honest rating" (lesson tour) points at the two answers.
+    val answers = Modifier.spotlightTarget(SpotlightTargets.LessonGrade, SpotlightShape.Rounded(28.dp))
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = copy.markTitle, style = QhTheme.type.callout, color = colors.inkSecondary)
         if (fontScale > LargeFontScale) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(answers, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 RememberedPill(copy, onMark, Modifier.fillMaxWidth())
                 HardPill(copy, onMark, Modifier.fillMaxWidth())
             }
         } else {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(answers.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RememberedPill(copy, onMark, Modifier.weight(1f))
                 HardPill(copy, onMark, Modifier.weight(1f))
             }

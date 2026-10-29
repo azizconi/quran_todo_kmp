@@ -76,6 +76,11 @@ import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.QhLargeTopBar
 import tj.app.quran_todo.ui.components.ToastKind
 import tj.app.quran_todo.ui.components.rememberQhTopBarState
+import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
+import tj.app.quran_todo.ui.components.spotlight.SpotlightTargets
+import tj.app.quran_todo.ui.components.spotlight.SpotlightTourEffect
+import tj.app.quran_todo.ui.components.spotlight.SpotlightTours
+import tj.app.quran_todo.ui.components.spotlight.spotlightTarget
 import tj.app.quran_todo.ui.haptics.HapticKind
 import tj.app.quran_todo.ui.haptics.LocalHaptics
 import tj.app.quran_todo.ui.home.components.HeroCard
@@ -236,6 +241,12 @@ private fun HomeContent(
     // While the person searches, the hero / today / recent fold away and the field rises to the top.
     val searchMode = searchFocused || query.isNotBlank()
 
+    // The tips of the home screen (C2): once the lesson is known (no skeleton on screen) and the person is not searching. The data
+    // being re-read later must not take the tour away, so "ready" stays on once it was on.
+    var tourDataReady by remember { mutableStateOf(false) }
+    if (ui.phase == HomePhase.Content && ui.lesson != null) tourDataReady = true
+    SpotlightTourEffect(SpotlightTours.Home, ready = tourDataReady && !searchMode)
+
     val listState = rememberLazyListState()
     val lessonHolder = remember { LessonHolder() }
     val stagger = rememberStaggerState(ready = ui.phase == HomePhase.Content)
@@ -394,7 +405,8 @@ private fun HomeContent(
                                         compact = lessonFirst,
                                         modifier = Modifier
                                             .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x3)
-                                            .staggeredEnter(heroIndex, stagger),
+                                            .staggeredEnter(heroIndex, stagger)
+                                            .spotlightTarget(SpotlightTargets.HomeContinue, SpotlightShape.Rounded(22.dp)),
                                     )
                                 }
                             }
@@ -410,6 +422,7 @@ private fun HomeContent(
                                     val cardModifier = Modifier
                                         .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x3)
                                         .staggeredEnter(lessonIndex, stagger)
+                                        .spotlightTarget(SpotlightTargets.HomeLesson, SpotlightShape.Rounded(22.dp))
                                     if (lessonFirst) {
                                         LessonCard(
                                             card = card,
@@ -512,7 +525,15 @@ private fun HomeContent(
                                 // The burst reaches into the neighbouring rows: draw this one on top of them.
                                 .zIndex(if (celebration.surah == row.number && celebration.token != 0) 1f else 0f)
                                 .then(rowAnimation())
-                                .staggeredEnter(FirstRowStaggerIndex + position, stagger),
+                                .staggeredEnter(FirstRowStaggerIndex + position, stagger)
+                                // The first row of the list is what the tour points at ("hold a surah").
+                                .then(
+                                    if (position == 0) {
+                                        Modifier.spotlightTarget(SpotlightTargets.HomeSurahRow, SpotlightShape.Rounded(14.dp), inset = 10.dp)
+                                    } else {
+                                        Modifier
+                                    },
+                                ),
                         )
                     }
                 }

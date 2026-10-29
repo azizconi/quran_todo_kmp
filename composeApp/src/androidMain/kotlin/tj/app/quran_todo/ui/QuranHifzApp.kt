@@ -46,6 +46,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.compose.koinInject
@@ -84,6 +85,9 @@ import tj.app.quran_todo.ui.catalog.CatalogScreen
 import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.ToastHost
 import tj.app.quran_todo.ui.components.rememberToaster
+import tj.app.quran_todo.ui.components.spotlight.LocalSpotlight
+import tj.app.quran_todo.ui.components.spotlight.SpotlightHost
+import tj.app.quran_todo.ui.components.spotlight.rememberSpotlightController
 import tj.app.quran_todo.ui.home.HomeScreen
 import tj.app.quran_todo.ui.lesson.LessonScreen
 import tj.app.quran_todo.ui.motion.LocalNavAnimatedVisibilityScope
@@ -193,6 +197,7 @@ fun QuranHifzApp() {
     val userReducedMotion by uiPrefs.reduceMotion.collectAsState()
     val hapticsEnabled by uiPrefs.hapticsEnabled.collectAsState()
     val toaster = rememberToaster()
+    val spotlight = rememberSpotlightController()
 
     CompositionLocalProvider(
         LocalAppStrings provides strings,
@@ -297,7 +302,8 @@ fun QuranHifzApp() {
                 modifier = Modifier.fillMaxSize(),
                 background = background,
             ) {
-                AppNavigation()
+                // The tips (C2): a layer over the navigation and the mini player, in the same window.
+                SpotlightHost(spotlight, Modifier.fillMaxSize()) { AppNavigation() }
                 ToastHost(Modifier.align(Alignment.TopCenter))
             }
         }
@@ -357,6 +363,12 @@ private fun AppNavigation() {
     LaunchedEffect(screenName) {
         if (screenName != null) AppTelemetry.logScreen(screenName)
     }
+
+    // The tips start only on a screen that is fully shown (its entry is RESUMED once the transition into it is over).
+    val spotlight = LocalSpotlight.current
+    val entryStates = remember(currentEntry) { currentEntry?.lifecycle?.currentStateFlow ?: MutableStateFlow(Lifecycle.State.DESTROYED) }
+    val entryState by entryStates.collectAsState()
+    SideEffect { spotlight.onNavigation(screenName, entryState == Lifecycle.State.RESUMED) }
 
     // A tap on the daily reminder: the lesson or the reader opens over Home, and back goes to Home.
     val openRequest by ReminderOpenRequests.pending.collectAsState()

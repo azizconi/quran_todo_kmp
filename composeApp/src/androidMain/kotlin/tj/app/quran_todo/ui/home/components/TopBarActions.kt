@@ -30,6 +30,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import tj.app.quran_todo.ui.components.Medallion
 import tj.app.quran_todo.ui.components.ProgressRing
+import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
+import tj.app.quran_todo.ui.components.spotlight.SpotlightTargets
+import tj.app.quran_todo.ui.components.spotlight.spotlightTarget
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.SharedKeys
@@ -72,7 +75,8 @@ internal fun ProgressAction(
                 // Scale, not remeasure: the stroke and the percentage are fixed in dp, so the ring has to grow
                 // as a picture (cross-fading with the big ring) instead of being squeezed into smaller bounds.
                 .sharedBoundsKey(SharedKeys.ProgressRing, SharedResize.Scale, zIndexInOverlay = 1f)
-                .semantics { contentDescription = description },
+                .semantics { contentDescription = description }
+                .spotlightTarget(SpotlightTargets.HomeProgress, SpotlightShape.Circle),
         ) {
             if (percent > 0) {
                 Text(
