@@ -14,4 +14,7 @@ object SharedKeys {
     const val PlayButton = "player-play"
     const val ProgressRing = "progress-ring"
     const val SettingsIcon = "settings-icon"
+
+    /** The "Today's lesson" card on Home and the frame of the lesson screen. */
+    const val LessonCard = "lesson-card"
 }

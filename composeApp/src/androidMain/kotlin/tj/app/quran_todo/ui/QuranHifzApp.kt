@@ -78,6 +78,7 @@ import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.ToastHost
 import tj.app.quran_todo.ui.components.rememberToaster
 import tj.app.quran_todo.ui.home.HomeScreen
+import tj.app.quran_todo.ui.lesson.LessonScreen
 import tj.app.quran_todo.ui.motion.LocalNavAnimatedVisibilityScope
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.LocalSharedTransitionScope
@@ -88,6 +89,7 @@ import tj.app.quran_todo.ui.motion.rememberThemeReveal
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.navigation.NavTransitions
 import tj.app.quran_todo.ui.onboarding.OnboardingScreen
+import tj.app.quran_todo.ui.plan.PlanScreen
 import tj.app.quran_todo.ui.progress.ProgressScreen
 import tj.app.quran_todo.ui.reader.ReaderScreen
 import tj.app.quran_todo.ui.settings.SettingsScreen
@@ -388,6 +390,19 @@ private fun AppNavigation() {
                         )
                     }
                 }
+                composable<Dest.Lesson> {
+                    ProvideNavScope {
+                        LessonScreen(
+                            onBack = { navController.popOnce() },
+                            onOpenReader = { navController.navigateOnce(it) },
+                        )
+                    }
+                }
+                composable<Dest.Plan> {
+                    ProvideNavScope {
+                        PlanScreen(onBack = { navController.popOnce() })
+                    }
+                }
                 composable<Dest.Progress> {
                     ProvideNavScope {
                         ProgressScreen(
@@ -452,6 +467,8 @@ private fun NavDestination.screenName(): String? = when {
     hasRoute<Dest.Onboarding>() -> "onboarding"
     hasRoute<Dest.Home>() -> "home"
     hasRoute<Dest.Reader>() -> "reader"
+    hasRoute<Dest.Lesson>() -> "lesson"
+    hasRoute<Dest.Plan>() -> "plan"
     hasRoute<Dest.Progress>() -> "progress"
     hasRoute<Dest.Settings>() -> "settings"
     hasRoute<Dest.Privacy>() -> "privacy"

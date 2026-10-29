@@ -23,6 +23,14 @@ sealed interface Dest {
         val rangeEnd: Int? = null,
     ) : Dest
 
+    /** Today's lesson: new, recent and old passages, then the summary (task B2). */
+    @Serializable
+    data object Lesson : Dest
+
+    /** "My plan": what is memorized, in which order and at what pace (task B3). */
+    @Serializable
+    data object Plan : Dest
+
     @Serializable
     data object Progress : Dest
 
