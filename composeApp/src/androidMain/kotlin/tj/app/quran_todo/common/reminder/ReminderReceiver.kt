@@ -29,12 +29,15 @@ class ReminderReceiver : BroadcastReceiver() {
         val app = context.applicationContext
         when (intent?.action) {
             ReminderAlarms.ACTION_DAILY -> {
+                // Each alarm is set twice (see ReminderAlarms); the second copy of the same moment is dropped.
+                if (!ReminderAlarms.claim(app, intent)) return
                 val settings = UiPrefs.readReminder(app)
                 if (!settings.enabled) return
                 ReminderAlarms.scheduleDaily(app, settings.minuteOfDay)
                 showInBackground(app)
             }
             ReminderAlarms.ACTION_SNOOZE_FIRE -> {
+                if (!ReminderAlarms.claim(app, intent)) return
                 if (UiPrefs.readReminder(app).enabled) showInBackground(app)
             }
             ACTION_SNOOZE -> {
