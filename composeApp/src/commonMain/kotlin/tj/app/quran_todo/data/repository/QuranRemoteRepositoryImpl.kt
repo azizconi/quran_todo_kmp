@@ -37,7 +37,7 @@ class QuranRemoteRepositoryImpl(
         flow {
             emit(Resource.Loading())
             try {
-                ensureInstalled(force = !withLocalAction)
+                ensureQuranInstalled(force = !withLocalAction)
                 emit(Resource.Success(dao.getSurahsWithAyahs(BundledQuranSource.EDITION_ID)))
             } catch (e: CancellationException) {
                 throw e
@@ -51,7 +51,7 @@ class QuranRemoteRepositoryImpl(
             }
         }
 
-    private suspend fun ensureInstalled(force: Boolean) {
+    override suspend fun ensureQuranInstalled(force: Boolean) {
         installMutex.withLock {
             // Checked under the lock: a second collector waits here and then finds the text already written.
             val reason = if (force) "forced" else missingReason()

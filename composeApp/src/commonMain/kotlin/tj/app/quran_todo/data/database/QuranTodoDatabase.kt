@@ -15,9 +15,15 @@ import tj.app.quran_todo.data.database.dao.AyahTranslationDao
 import tj.app.quran_todo.data.database.dao.ChapterNameCacheDao
 import tj.app.quran_todo.data.database.dao.ChapterNameDao
 import tj.app.quran_todo.data.database.dao.FocusSessionDao
+import tj.app.quran_todo.data.database.dao.HifzDao
 import tj.app.quran_todo.data.database.dao.ProgressRestoreDao
 import tj.app.quran_todo.data.database.dao.QuranDao
 import tj.app.quran_todo.data.database.dao.SurahTodoDao
+import tj.app.quran_todo.data.database.entity.hifz.HifzMetaEntity
+import tj.app.quran_todo.data.database.entity.hifz.HifzPassageEntity
+import tj.app.quran_todo.data.database.entity.hifz.HifzPlanEntity
+import tj.app.quran_todo.data.database.entity.hifz.PassageHardEntity
+import tj.app.quran_todo.data.database.entity.hifz.ReviewLogEntity
 import tj.app.quran_todo.data.database.entity.quran.AyahEntity
 import tj.app.quran_todo.data.database.entity.quran.ChapterNameCacheEntity
 import tj.app.quran_todo.data.database.entity.quran.ChapterNameEntity
@@ -42,9 +48,14 @@ import tj.app.quran_todo.data.database.entity.translation.AyahTranslationEntity
         AyahTranslationEntity::class,
         EditionEntity::class,
         SurahEntity::class,
-        AyahEntity::class
+        AyahEntity::class,
+        HifzPlanEntity::class,
+        HifzPassageEntity::class,
+        PassageHardEntity::class,
+        ReviewLogEntity::class,
+        HifzMetaEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 @TypeConverters(SajdaConverter::class)
@@ -60,6 +71,7 @@ abstract class QuranTodoDatabase : RoomDatabase() {
     abstract fun getAyahTranslationDao(): AyahTranslationDao
     abstract fun getQuranDao(): QuranDao
     abstract fun getProgressRestoreDao(): ProgressRestoreDao
+    abstract fun getHifzDao(): HifzDao
 }
 
 @Suppress("KotlinNoActualForExpect")

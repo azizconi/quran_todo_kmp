@@ -29,11 +29,10 @@ import kotlin.test.assertTrue
  * Run: `./gradlew :composeApp:connectedDebugAndroidTest`
  * (only this class: `-Pandroid.testInstrumentationRunnerArguments.class=tj.app.quran_todo.data.database.MigrationTest`).
  *
- * Today the schema is at version 10, which is what every Play release up to 1.0.2 has, and [AllMigrations] is
- * empty. These tests therefore check that a database created from the exported version 10 schema is opened by
- * the app's own database builder without losing data. Task B1 adds `MIGRATION_10_11`: copy
- * [userDataSurvivesOpeningAVersion10DatabaseWithTheAppsBuilder] into a `migrate10To11` test that calls
- * `helper.runMigrationsAndValidate(11, AllMigrations.toList())` and checks the same rows afterwards.
+ * Version 10 is what every Play release up to 1.0.2 has; version 11 (task B1) adds the tables of the passage
+ * model and [MIGRATION_10_11] only creates them. These tests check that the migration passes Room's validation
+ * against `11.json` (columns, keys, indices, foreign keys), that the rows of a person who used version 10 survive,
+ * and that the new tables are usable afterwards - also when the database is opened by the app's own builder.
  */
 @RunWith(AndroidJUnit4::class)
 class MigrationTest {
@@ -76,16 +75,81 @@ class MigrationTest {
     }
 
     @Test
+    fun theExportedVersion11SchemaCanBeCreated() {
+        helper.createDatabase(11).close()
+    }
+
+    private fun SQLiteConnection.count(table: String): Long =
+        prepare("SELECT COUNT(*) FROM $table").use { statement ->
+            assertTrue(statement.step())
+            statement.getLong(0)
+        }
+
+    @Test
+    fun migrate10To11() {
+        helper.createDatabase(10).use { it.insertUserData() }
+
+        // Room compares the migrated database with schemas/.../11.json: a wrong column, key or index fails here.
+        val migrated = helper.runMigrationsAndValidate(11, AllMigrations.toList())
+        migrated.use { connection ->
+            // The rows of version 10 are all there.
+            assertEquals(2L, connection.count("surah_todo"))
+            assertEquals(1L, connection.count("ayah_todo"))
+            assertEquals(1L, connection.count("ayah_note"))
+            assertEquals(1L, connection.count("ayah_review"))
+            assertEquals(1L, connection.count("focus_session"))
+            assertEquals(1L, connection.count("ayah_translation"))
+            connection.prepare("SELECT status FROM surah_todo WHERE surahNumber = 112").use { statement ->
+                assertTrue(statement.step())
+                assertEquals("LEARNED", statement.getText(0))
+            }
+            connection.prepare("SELECT intervalIndex, nextReviewAt FROM ayah_review WHERE ayahNumber = 6222").use { statement ->
+                assertTrue(statement.step())
+                assertEquals(2L, statement.getLong(0))
+                assertEquals(1700086400000L, statement.getLong(1))
+            }
+
+            // The new tables exist, are empty and accept rows (a passage, a difficult ayah of it, a log record, a plan, a mark).
+            for (table in listOf("hifz_plan", "hifz_passage", "passage_hard", "review_log", "hifz_meta")) {
+                assertEquals(0L, connection.count(table), table)
+            }
+            connection.execSQL("PRAGMA foreign_keys = ON")
+            connection.execSQL(
+                "INSERT INTO hifz_passage (surah, startAyah, endAyah, learnedEpochDay, stage, nextDueEpochDay, lastReviewedEpochDay, lapses) " +
+                    "VALUES (112, 1, 4, 20000, 'R1', 20001, NULL, 0)",
+            )
+            connection.execSQL("INSERT INTO passage_hard (passageId, ayahInSurah, clearsAfter) VALUES (1, 2, 2)")
+            connection.execSQL(
+                "INSERT INTO review_log (passageId, surah, startAyah, endAyah, kind, grade, epochDay, timestamp) " +
+                    "VALUES (1, 112, 1, 4, 'NEW', 'GOOD', 20000, 1700000000000)",
+            )
+            connection.execSQL(
+                "INSERT INTO hifz_plan (id, scope, surahOrder, dailyNewAyahs, targetEpochDay, startedEpochDay, manzilDays) " +
+                    "VALUES (1, 'CUSTOM', '114,113', 5, NULL, 20000, 7)",
+            )
+            connection.execSQL("INSERT INTO hifz_meta (`key`, value) VALUES ('legacy_import', 'done')")
+            // Deleting a passage takes its difficult ayahs along (foreign key), but the history stays (no foreign key on purpose).
+            connection.execSQL("DELETE FROM hifz_passage WHERE id = 1")
+            assertEquals(0L, connection.count("passage_hard"))
+            assertEquals(1L, connection.count("review_log"))
+        }
+    }
+
+    @Test
+    fun migrate10To11OfAnEmptyDatabase() {
+        helper.createDatabase(10).close()
+        helper.runMigrationsAndValidate(11, AllMigrations.toList()).use { connection ->
+            assertEquals(0L, connection.count("hifz_passage"))
+            assertEquals(0L, connection.count("surah_todo"))
+        }
+    }
+
+    @Test
     fun opensVersion10WithTheMigrationsOfTheApp() {
         helper.createDatabase(10).use { it.insertUserData() }
 
-        val migrated = helper.runMigrationsAndValidate(10, AllMigrations.toList())
-        migrated.use { connection ->
-            connection.prepare("SELECT COUNT(*) FROM surah_todo").use { statement ->
-                assertTrue(statement.step())
-                assertEquals(2L, statement.getLong(0))
-            }
-        }
+        val migrated = helper.runMigrationsAndValidate(11, AllMigrations.toList())
+        migrated.use { connection -> assertEquals(2L, connection.count("surah_todo")) }
     }
 
     @Test
@@ -113,6 +177,12 @@ class MigrationTest {
                 "Say, He is Allah, One",
                 database.getAyahTranslationDao().getBySurahAndLanguage(112, "en").single().text,
             )
+
+            // The builder of the app migrated the database to 11: the hifz tables are there and empty.
+            val hifz = database.getHifzDao()
+            assertTrue(hifz.getPassages().isEmpty())
+            assertEquals(null, hifz.getPlan())
+            assertEquals(null, hifz.getMeta("legacy_import"))
         } finally {
             database.close()
         }
