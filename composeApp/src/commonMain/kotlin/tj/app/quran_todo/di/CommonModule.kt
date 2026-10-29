@@ -12,6 +12,9 @@ import tj.app.quran_todo.domain.repository.AyahTodoRepository
 import tj.app.quran_todo.domain.repository.QuranReferenceRepository
 import tj.app.quran_todo.domain.repository.QuranRemoteRepository
 import tj.app.quran_todo.domain.repository.QuranTodoRepository
+import tj.app.quran_todo.hifz.EpochDayTicker
+import tj.app.quran_todo.hifz.HifzRepository
+import tj.app.quran_todo.hifz.HifzRepositoryImpl
 import tj.app.quran_todo.domain.use_case.AyahTodoDeleteByAyahUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoDeleteBySurahUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoGetAllUseCase
@@ -37,6 +40,7 @@ val commonModule = module {
     single { get<QuranTodoDatabase>().getAyahTranslationDao() }
     single { get<QuranTodoDatabase>().getQuranDao() }
     single { get<QuranTodoDatabase>().getProgressRestoreDao() }
+    single { get<QuranTodoDatabase>().getHifzDao() }
 
     // Repositories
     single<QuranTodoRepository> { QuranTodoRepositoryImpl(get()) }
@@ -53,6 +57,9 @@ val commonModule = module {
         )
     }
 
+    // The passage-based memorization model (plan, lesson, review log). The only writer of its tables; the UI goes through it.
+    single { EpochDayTicker() }
+    single<HifzRepository> { HifzRepositoryImpl(db = get(), quran = get()) }
 
     // Use Cases
     single<TodoDeleteSurahUseCase> { TodoDeleteSurahUseCase(get()) }
