@@ -1,5 +1,8 @@
 package tj.app.quran_todo.ui.settings
 
+import android.content.ActivityNotFoundException
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.animateFloatAsState
@@ -23,8 +26,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Animation
-import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.Contrast
+import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Highlight
 import androidx.compose.material.icons.rounded.Info
@@ -36,8 +39,9 @@ import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material.icons.rounded.Repeat
-import androidx.compose.material.icons.rounded.Restore
+import androidx.compose.material.icons.rounded.SaveAlt
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.Source
 import androidx.compose.material.icons.rounded.Speed
@@ -76,19 +80,23 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
+import tj.app.quran_todo.common.audio.Reciter
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppLanguageSetter
 import tj.app.quran_todo.common.settings.LocalAppSettings
 import tj.app.quran_todo.common.settings.LocalAppSettingsSetter
 import tj.app.quran_todo.common.settings.SurahReaderPreferences
-import tj.app.quran_todo.common.sync.SettingsSnapshot
 import tj.app.quran_todo.common.theme.LocalReadingFontStyle
 import tj.app.quran_todo.common.theme.LocalReadingFontStyleSetter
 import tj.app.quran_todo.common.theme.LocalThemeMode
+import tj.app.quran_todo.common.theme.LocalThemeModeSetter
 import tj.app.quran_todo.common.theme.LocalThemePalette
+import tj.app.quran_todo.common.theme.LocalThemePaletteSetter
+import tj.app.quran_todo.common.theme.ReadingFontStyle
 import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.common.theme.ThemePalette
+import tj.app.quran_todo.hifz.backup.BackupFormat
 import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.OrnamentDivider
 import tj.app.quran_todo.ui.components.QhIconButton
@@ -115,6 +123,7 @@ import tj.app.quran_todo.ui.motion.rememberThemeSwitcher
 import tj.app.quran_todo.ui.motion.sharedElementKey
 import tj.app.quran_todo.ui.motion.staggeredEnter
 import tj.app.quran_todo.ui.state.HifzHintMode
+import tj.app.quran_todo.ui.state.ReaderLayout
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -143,6 +152,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources:
     val settings = LocalAppSettings.current
     val setSettings = LocalAppSettingsSetter.current
     val toaster = LocalToaster.current
+    val context = LocalContext.current
     val reduced = LocalReducedMotion.current
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -152,14 +162,52 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources:
     val latestSettings by rememberUpdatedState(settings)
 
     var sheet by remember { mutableStateOf<SettingsSheet?>(null) }
-    var confirmsRestore by remember { mutableStateOf(false) }
 
-    // Settings that a restored backup carried come back into the root state, then are consumed.
-    val restored by viewModel.restoredSettings.collectAsState()
-    LaunchedEffect(restored) {
-        val snapshot = restored ?: return@LaunchedEffect
-        setSettings(latestSettings.mergedWith(snapshot))
-        viewModel.consumeRestoredSettings()
+    // "Transfer and backup": the system pickers. The result goes to the ViewModel, which reads, checks and writes off the main thread.
+    val saveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(BackupFormat.MIME_TYPE),
+    ) { uri -> viewModel.exportToFile(uri) }
+    val openLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri -> viewModel.importFrom(uri) }
+
+    val importPrompt by viewModel.importPrompt.collectAsState()
+
+    // Settings of an imported file come into the root state through its setters (the whole UI follows at once), then are consumed.
+    val latestSetLanguage by rememberUpdatedState(setLanguage)
+    val latestSetFontStyle by rememberUpdatedState(setFontStyle)
+    val latestSetSettings by rememberUpdatedState(setSettings)
+    val latestThemeModeSetter by rememberUpdatedState(LocalThemeModeSetter.current)
+    val latestPaletteSetter by rememberUpdatedState(LocalThemePaletteSetter.current)
+    val pendingSettings by viewModel.pendingSettings.collectAsState()
+    LaunchedEffect(pendingSettings) {
+        val imported = pendingSettings ?: return@LaunchedEffect
+        imported.applyTo(
+            object : TransferSettingsTarget {
+                override fun setLanguage(language: AppLanguage) = latestSetLanguage(language)
+                override fun setThemeMode(mode: ThemeMode) = latestThemeModeSetter(mode)
+                override fun setThemeFollowsSystem(value: Boolean) = viewModel.setThemeFollowsSystem(value)
+                override fun setPalette(palette: ThemePalette) = latestPaletteSetter(palette)
+                override fun setReadingFont(style: ReadingFontStyle) = latestSetFontStyle(style)
+                override fun setAppSettings(dailyGoal: Int?, readingFontSize: Int?) {
+                    latestSetSettings(
+                        latestSettings.copy(
+                            dailyGoal = dailyGoal ?: latestSettings.dailyGoal,
+                            readingFontSize = readingFontSize ?: latestSettings.readingFontSize,
+                        ),
+                    )
+                }
+                override fun updateReader(change: (SurahReaderPreferences) -> SurahReaderPreferences) =
+                    viewModel.updateReaderPreferences(change)
+                override fun setReaderLayout(layout: ReaderLayout) = viewModel.setReaderLayout(layout)
+                override fun setKeepScreenOn(value: Boolean) = viewModel.setKeepScreenOn(value)
+                override fun setReciter(reciter: Reciter) = viewModel.setReciter(reciter)
+                override fun setHifzHintMode(mode: HifzHintMode) = viewModel.setHifzHintMode(mode)
+                override fun setHapticsEnabled(value: Boolean) = viewModel.setHapticsEnabled(value)
+                override fun setReduceMotion(value: Boolean) = viewModel.setReduceMotion(value)
+            },
+        )
+        viewModel.consumePendingSettings()
     }
 
     LaunchedEffect(viewModel) {
@@ -168,12 +216,28 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources:
             when (event) {
                 SettingsEvent.OfflineStarted -> toaster.show(text.native.downloadStarted, ToastKind.Info)
                 SettingsEvent.QuranNotReady -> toaster.show(text.offlineQuranNotReady, ToastKind.Error)
-                SettingsEvent.BackupDone -> toaster.show(text.backupDone, ToastKind.Success)
-                SettingsEvent.RestoreDone -> toaster.show(text.restoreDone, ToastKind.Success)
-                SettingsEvent.NoBackup -> toaster.show(text.noBackup, ToastKind.Info)
-                SettingsEvent.BackupFailed -> toaster.show(text.backupFailed, ToastKind.Error)
-                SettingsEvent.RestoreFailed -> toaster.show(text.restoreFailed, ToastKind.Error)
-                is SettingsEvent.Raw -> toaster.show(event.message, ToastKind.Info)
+                SettingsEvent.ExportSaved -> toaster.show(text.transfer.exportSaved, ToastKind.Success)
+                SettingsEvent.ExportFailed -> toaster.show(text.transfer.exportFailed, ToastKind.Error)
+                is SettingsEvent.ShareReady -> {
+                    val chooser = TransferIo.shareIntent(event.uri, event.fileName, text.transfer.shareChooserTitle)
+                    try {
+                        context.startActivity(chooser)
+                    } catch (_: ActivityNotFoundException) {
+                        toaster.show(text.transfer.exportFailed, ToastKind.Error)
+                    }
+                }
+                is SettingsEvent.ImportRejected -> toaster.show(
+                    when (event.problem) {
+                        ImportProblem.NotABackup -> text.transfer.importNotBackup
+                        ImportProblem.NewerVersion -> text.transfer.importNewer
+                        ImportProblem.Corrupted -> text.transfer.importCorrupt
+                        ImportProblem.OutOfRange -> text.transfer.importOutOfRange
+                        ImportProblem.Unreadable -> text.transfer.importUnreadable
+                    },
+                    ToastKind.Error,
+                )
+                SettingsEvent.ImportDone -> toaster.show(text.transfer.importDone, ToastKind.Success)
+                SettingsEvent.ImportFailed -> toaster.show(text.transfer.importFailed, ToastKind.Error)
             }
         }
     }
@@ -217,7 +281,9 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources:
                 stagger = stagger,
                 onOpenTypography = { sheet = SettingsSheet.Typography },
                 onOpenLanguage = { sheet = SettingsSheet.Language },
-                onConfirmRestore = { confirmsRestore = true },
+                onSaveCopy = { saveLauncher.launch(BackupFormat.fileName(System.currentTimeMillis())) },
+                onShareCopy = viewModel::exportForShare,
+                onRestoreFromFile = { openLauncher.launch(arrayOf(BackupFormat.MIME_TYPE, "*/*")) },
                 onOpenPrivacy = onOpenPrivacy,
                 onOpenSources = onOpenSources,
             )
@@ -276,14 +342,12 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources:
         null -> Unit
     }
 
-    if (confirmsRestore) {
-        RestoreDialog(
+    importPrompt?.let { prompt ->
+        ImportDialog(
             copy = copy,
-            onConfirm = {
-                confirmsRestore = false
-                viewModel.restore()
-            },
-            onDismiss = { confirmsRestore = false },
+            prompt = prompt,
+            onConfirm = viewModel::confirmReplace,
+            onDismiss = viewModel::dismissImportPrompt,
         )
     }
 }
@@ -299,11 +363,14 @@ private fun SettingsContent(
     stagger: StaggerState,
     onOpenTypography: () -> Unit,
     onOpenLanguage: () -> Unit,
-    onConfirmRestore: () -> Unit,
+    onSaveCopy: () -> Unit,
+    onShareCopy: () -> Unit,
+    onRestoreFromFile: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenSources: () -> Unit,
 ) {
     val copy = rememberSettingsCopy(language)
+    val transfer = copy.transfer
     val trust = rememberTrustCopy(language)
     val colors = QhTheme.colors
     val context = LocalContext.current
@@ -325,6 +392,8 @@ private fun SettingsContent(
     val followsSystem by viewModel.themeFollowsSystem.collectAsState()
     val offline by viewModel.offline.collectAsState()
     val analyticsEnabled by viewModel.analyticsEnabled.collectAsState()
+    val lastExportAt by viewModel.lastExportAt.collectAsState()
+    val transferBusy by viewModel.transferBusy.collectAsState()
 
     val hapticsDemo = rememberHaptics(enabled = true)
     val navigationBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -496,33 +565,51 @@ private fun SettingsContent(
         SettingsSection(
             title = copy.sectionData,
             modifier = Modifier.staggeredEnter(5, stagger),
-            footnote = copy.dataFootnote,
         ) {
             OfflineDownloadRow(
                 state = offline.toUi(),
                 copy = copy,
                 onClick = { viewModel.startOfflineDownload(language) },
             )
-            QhRowDivider()
+        }
+
+        // 7. Transfer and backup: the copy is a file the person keeps or sends, not a hidden copy on this phone.
+        SettingsSection(
+            title = transfer.sectionTitle,
+            modifier = Modifier.staggeredEnter(6, stagger),
+            footnote = transfer.footnote,
+        ) {
             QhNavRow(
-                title = copy.backupTitle,
-                description = copy.native.syncDescription,
-                onClick = { viewModel.backup(settings) },
-                icon = Icons.Rounded.CloudUpload,
-                iconTint = colors.gold,
+                title = transfer.saveTitle,
+                description = lastExportAt?.let { transfer.lastBackupLabel(it, System.currentTimeMillis()) }
+                    ?: transfer.saveDescription,
+                onClick = onSaveCopy,
+                icon = Icons.Rounded.SaveAlt,
+                iconTint = colors.primary,
+                enabled = !transferBusy,
             )
             QhRowDivider()
             QhNavRow(
-                title = copy.native.restoreData,
-                description = copy.native.restoreDescription,
-                onClick = onConfirmRestore,
-                icon = Icons.Rounded.Restore,
+                title = transfer.shareTitle,
+                description = transfer.shareDescription,
+                onClick = onShareCopy,
+                icon = Icons.Rounded.Share,
+                iconTint = colors.gold,
+                enabled = !transferBusy,
+            )
+            QhRowDivider()
+            QhNavRow(
+                title = transfer.restoreTitle,
+                description = transfer.restoreDescription,
+                onClick = onRestoreFromFile,
+                icon = Icons.Rounded.FileOpen,
                 iconTint = colors.danger,
+                enabled = !transferBusy,
             )
         }
 
-        // 7. Comfort
-        SettingsSection(copy.sectionComfort, Modifier.staggeredEnter(6, stagger)) {
+        // 8. Comfort
+        SettingsSection(copy.sectionComfort, Modifier.staggeredEnter(7, stagger)) {
             QhSwitchRow(
                 title = copy.haptics,
                 description = copy.hapticsDescription,
@@ -546,8 +633,8 @@ private fun SettingsContent(
             )
         }
 
-        // 8. Privacy
-        SettingsSection(trust.sectionPrivacy, Modifier.staggeredEnter(7, stagger)) {
+        // 9. Privacy
+        SettingsSection(trust.sectionPrivacy, Modifier.staggeredEnter(8, stagger)) {
             QhSwitchRow(
                 title = trust.analyticsTitle,
                 description = trust.analyticsDescription,
@@ -574,8 +661,8 @@ private fun SettingsContent(
             )
         }
 
-        // 9. About
-        SettingsSection(copy.sectionAbout, Modifier.staggeredEnter(8, stagger)) {
+        // 10. About
+        SettingsSection(copy.sectionAbout, Modifier.staggeredEnter(9, stagger)) {
             if (versionLabel.isNotEmpty()) {
                 QhValueRow(
                     title = copy.version,
@@ -673,14 +760,3 @@ internal fun speedLabel(speed: Float): String {
 
 internal fun repeatLabel(count: Int): String =
     if (count == SurahReaderPreferences.RepeatForever) "∞" else "$count×"
-
-/** The app settings after a restore: everything the backup carries replaces the current value. */
-private fun tj.app.quran_todo.common.settings.AppSettings.mergedWith(restored: SettingsSnapshot) = copy(
-    dailyGoal = restored.dailyGoal.coerceIn(MinDailyGoal, MaxDailyGoal),
-    focusMinutes = restored.focusMinutes,
-    remindersEnabled = restored.remindersEnabled,
-    targetAyahs = restored.targetAyahs,
-    targetEpochDay = restored.targetEpochDay,
-    examModeEnabled = restored.examModeEnabled,
-    readingFontSize = restored.readingFontSize.coerceIn(MinReadingFontSize, MaxReadingFontSize),
-)

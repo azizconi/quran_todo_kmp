@@ -23,16 +23,6 @@ class SettingsLogicTest {
     }
 
     @Test
-    fun syncStatusLinesOfTheSharedViewModelAreRecognised() {
-        assertEquals(SettingsEvent.BackupDone, classifySyncMessage("Synced to Google backup."))
-        assertEquals(SettingsEvent.RestoreDone, classifySyncMessage("Restored from Google backup."))
-        assertEquals(SettingsEvent.NoBackup, classifySyncMessage("No cloud snapshot found."))
-        assertEquals(SettingsEvent.BackupFailed, classifySyncMessage("Cloud sync failed."))
-        assertEquals(SettingsEvent.RestoreFailed, classifySyncMessage("Cloud restore failed."))
-        assertEquals(SettingsEvent.Raw("Something else"), classifySyncMessage("Something else"))
-    }
-
-    @Test
     fun offlineProgressMapsToTheRowState() {
         assertEquals(OfflineUi.Running(3, 10), OfflineProgress(true, 3, 10, "DOWNLOADING").toUi())
         assertEquals(OfflineUi.Ready, OfflineProgress(false, 10, 10, "READY").toUi())

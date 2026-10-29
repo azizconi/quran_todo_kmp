@@ -49,6 +49,17 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
+        <!-- "Send a copy" (settings, Transfer and backup): the backup file is written to cache/transfer/ and handed to the
+             chosen app by a read-only content uri; nothing else of the app is reachable through this provider. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.transferprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/transfer_file_paths" />
+        </provider>
         <receiver
             android:name=".common.reminder.ReminderReceiver"
             android:enabled="true"

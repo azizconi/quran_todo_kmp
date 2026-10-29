@@ -220,6 +220,18 @@ class UiPrefs(context: Context) {
         AppTelemetry.setEnabled(value)
     }
 
+    /**
+     * When the person last saved or sent a backup file ("Transfer and backup" in the settings), epoch milliseconds; null while
+     * they never did.
+     */
+    private val _lastExportAt = MutableStateFlow(prefs.getLong(KEY_LAST_EXPORT_AT, 0L).takeIf { it > 0L })
+    val lastExportAt: StateFlow<Long?> = _lastExportAt.asStateFlow()
+
+    fun setLastExportAt(value: Long) {
+        prefs.edit().putLong(KEY_LAST_EXPORT_AT, value).apply()
+        _lastExportAt.value = value
+    }
+
     internal companion object {
         /** The stored analytics choice for code that runs before Koin starts (telemetry in Application.onCreate). */
         fun readAnalyticsEnabled(context: Context): Boolean =
@@ -239,6 +251,7 @@ class UiPrefs(context: Context) {
         const val KEY_HIFZ_HINT_MODE = "hifz_hint_mode"
         const val KEY_ANALYTICS_ENABLED = "analytics_enabled"
         const val KEY_RECITER = "reciter"
+        const val KEY_LAST_EXPORT_AT = "last_export_at"
     }
 }
 

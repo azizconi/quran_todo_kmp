@@ -25,6 +25,7 @@ import tj.app.quran_todo.data.database.entity.quran.AyahEntity
 import tj.app.quran_todo.data.database.entity.quran.EditionEntity
 import tj.app.quran_todo.data.database.entity.quran.SurahEntity
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
+import tj.app.quran_todo.data.database.entity.todo.AyahNoteEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahReviewEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
@@ -32,6 +33,13 @@ import tj.app.quran_todo.data.database.entity.todo.SurahTodoEntity
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.data.database.getRoomDatabase
 import tj.app.quran_todo.domain.repository.QuranRemoteRepository
+import tj.app.quran_todo.hifz.backup.BackupCodec
+import tj.app.quran_todo.hifz.backup.BackupData
+import tj.app.quran_todo.hifz.backup.BackupFile
+import tj.app.quran_todo.hifz.backup.BackupFormat
+import tj.app.quran_todo.hifz.backup.BackupHifz
+import tj.app.quran_todo.hifz.backup.BackupParse
+import tj.app.quran_todo.hifz.backup.VerifiedBackup
 import tj.app.quran_todo.hifz.model.HifzScope
 import tj.app.quran_todo.hifz.model.NewPassageResult
 import tj.app.quran_todo.hifz.model.PassageStage
@@ -40,8 +48,10 @@ import tj.app.quran_todo.hifz.model.ReviewKind
 import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.hifz.schedule.LessonNewState
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -510,5 +520,92 @@ class HifzRepositoryTest {
         assertEquals(day, seen.first())
         // On the next day the repetition of the passage learned yesterday is due.
         assertEquals(1, repository.lesson(day + 1).first().recent.size)
+    }
+
+    // ---- the backup file (task B5) ----
+
+    private fun fileOf(data: BackupData) = BackupFile(
+        format = BackupFormat.NAME,
+        formatVersion = BackupFormat.VERSION,
+        appVersion = "test",
+        exportedAt = day * dayMillis,
+        dbVersion = BackupFormat.DB_VERSION,
+        hifz = data.hifz,
+        notes = data.notes,
+    )
+
+    private fun verifiedOf(data: BackupData): VerifiedBackup = assertIs<BackupParse.Ok>(BackupCodec.verify(fileOf(data))).backup
+
+    /** A plan, a new passage with a difficult ayah that moved up the ladder, a known surah, a check, a note. */
+    private suspend fun seedProgress() {
+        repository.importLegacyIfNeeded()
+        repository.setPlan(HifzScope.JUZ_30, emptyList(), 5, null, 7, day)
+        repository.completeNew(114, 1, 4, ReviewGrade.GOOD, setOf(3), day)
+        repository.markKnown(112, today = day)
+        val id = repository.surahCoverage(114).first().passages.single().id
+        repository.review(id, ReviewGrade.GOOD, emptySet(), day + 1)
+        repository.logCheck(112, 1, 4, ReviewGrade.HARD, setOf(2), day + 1)
+        db.getAyahNoteDao().upsert(AyahNoteEntity(global(2, 255), 2, "Ayat al-Kursi", 5))
+    }
+
+    /** The mirror as the old screens see it (without the clock-made `updatedAt`). */
+    private suspend fun mirrorState() =
+        db.getHifzDao().getAllAyahTodos().map { it.ayahNumber to it.status }.sortedBy { it.first } to surahRows()
+
+    @Test
+    fun aBackupRestoresTheLadderTheLogTheNotesAndTheMirror() = runBlocking {
+        seedProgress()
+        val exported = repository.exportBackupData()
+        val text = BackupCodec.encode(verifiedOf(exported))
+        val mirrorBefore = mirrorState()
+        assertTrue(exported.hifz.passages.size >= 2 && exported.hifz.hard.isNotEmpty() && exported.hifz.reviewLog.size >= 4)
+
+        // The phone changes afterwards: no plan, the new passage forgotten, another surah known, the note gone.
+        repository.clearPlan()
+        repository.forget(114)
+        repository.markKnown(1, today = day + 2)
+        db.getAyahNoteDao().clear()
+        assertNotEquals(exported, repository.exportBackupData())
+
+        repository.replaceWithBackup(assertIs<BackupParse.Ok>(BackupCodec.decode(text)).backup)
+
+        assertEquals(exported, repository.exportBackupData(), "the passages, the ladder, the log, the plan, the notes")
+        assertEquals(mirrorBefore, mirrorState(), "surah_todo and ayah_todo are rebuilt from the passages")
+        assertEquals("done", db.getHifzDao().getMeta("legacy_import"))
+        // The passage that was forgotten is back, with its stage and its difficult ayah.
+        val s114 = repository.surahCoverage(114).first()
+        assertEquals(PassageStage.R3, s114.passages.single().stage)
+        assertEquals(setOf(3), s114.hardAyahs)
+    }
+
+    @Test
+    fun aReplaceThatFailsInTheMiddleLeavesThePreviousDataAsItWas() = runBlocking {
+        seedProgress()
+        val before = repository.exportBackupData()
+        val mirrorBefore = mirrorState()
+        // Two passages with one id pass no check of the file, but they cannot be written: the transaction fails after the tables are emptied.
+        val good = fileOf(before)
+        val doubled = good.hifz.passages + good.hifz.passages.first()
+        val broken = VerifiedBackup(good.copy(hifz = good.hifz.copy(passages = doubled)))
+
+        assertFails { repository.replaceWithBackup(broken) }
+
+        assertEquals(before, repository.exportBackupData())
+        assertEquals(mirrorBefore, mirrorState())
+        assertEquals("done", db.getHifzDao().getMeta("legacy_import"))
+    }
+
+    @Test
+    fun anImportedBackupStopsTheLegacyConversionFromRunningOverIt() = runBlocking {
+        seedLegacy()
+        val empty = BackupData(BackupHifz(plan = null, passages = emptyList(), hard = emptyList(), reviewLog = emptyList(), meta = emptyMap()), emptyList())
+        repository.replaceWithBackup(verifiedOf(empty))
+
+        repository.importLegacyIfNeeded()
+
+        assertTrue(db.getHifzDao().getPassages().isEmpty(), "no passage came from the old rows")
+        assertNull(repository.plan().first())
+        assertTrue(surahRows().isEmpty() && db.getHifzDao().getAllAyahTodos().isEmpty(), "the mirror cleared the old rows")
+        assertEquals(1, db.getAyahReviewDao().getAll().size, "ayah_review is not touched")
     }
 }

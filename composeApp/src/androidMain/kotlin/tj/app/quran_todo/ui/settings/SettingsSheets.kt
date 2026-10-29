@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import tj.app.quran_todo.common.i18n.AppLanguage
@@ -147,16 +148,24 @@ internal fun LanguageSheet(
     }
 }
 
-/** Confirms the destructive "restore from backup": the danger action on top, a quiet cancel under it. */
+/**
+ * Confirms the destructive "restore from a file": what the file holds (the numbers of the preview) and that the data of the
+ * phone is replaced, the danger action on top, a quiet cancel under it. While the replacement runs the dialog cannot be left.
+ */
 @Composable
-internal fun RestoreDialog(
+internal fun ImportDialog(
     copy: SettingsCopy,
+    prompt: ImportPrompt,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val colors = QhTheme.colors
     val shape = QhTheme.shapes.xl
-    Dialog(onDismissRequest = onDismiss) {
+    val locked = prompt.replacing
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(dismissOnBackPress = !locked, dismissOnClickOutside = !locked),
+    ) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -169,31 +178,33 @@ internal fun RestoreDialog(
         ) {
             QhIconTile(Icons.Rounded.Restore, tint = colors.danger)
             Text(
-                text = copy.native.restoreTitle,
+                text = copy.transfer.importDialogTitle,
                 style = QhTheme.type.title1,
                 color = colors.ink,
                 textAlign = TextAlign.Center,
             )
             Text(
-                text = copy.native.restoreMessage,
+                text = copy.transfer.importMessage(prompt.preview),
                 style = QhTheme.type.body,
                 color = colors.inkSecondary,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(QhSpacing.x1))
             QhButton(
-                text = copy.native.restore,
+                text = copy.transfer.replace,
                 onClick = onConfirm,
                 modifier = Modifier.fillMaxWidth(),
                 variant = QhButtonVariant.Danger,
                 size = QhButtonSize.M,
+                loading = locked,
             )
             QhButton(
-                text = copy.native.cancel,
+                text = copy.transfer.cancel,
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth(),
                 variant = QhButtonVariant.Ghost,
                 size = QhButtonSize.M,
+                enabled = !locked,
             )
         }
     }
