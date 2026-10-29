@@ -73,6 +73,12 @@ interface HifzRepository {
 
     fun forecast(today: Flow<Int>): Flow<PlanForecast?>
 
+    /**
+     * The forecast of [plan] as if it were the active plan, for the plan screen to preview a draft that is not saved. Nothing is
+     * stored; the covered ayahs and the review log are the real ones, [HifzPlan.startedEpochDay] is the one of the draft.
+     */
+    fun forecast(plan: HifzPlan, today: Int): Flow<PlanForecast>
+
     /** Days in a row with a record in the review log, ending today or yesterday. */
     fun streak(today: Int): Flow<Int>
 
@@ -80,6 +86,12 @@ interface HifzRepository {
 
     /** The derived statuses of the surahs that have one (a surah that is not in the map is not started). */
     fun surahStatuses(): Flow<Map<Int, SurahHifzStatus>>
+
+    /**
+     * How many ayahs of each surah are covered by passages: only the surahs with at least one covered ayah are in the map.
+     * One subscription for the whole list of surahs (the list shows "23 of 40" in a row without 114 subscriptions).
+     */
+    fun coveredCounts(): Flow<Map<Int, Int>>
 
     /** Covered and difficult ayahs and the passages of a surah. */
     fun surahCoverage(surah: Int): Flow<SurahCoverage>

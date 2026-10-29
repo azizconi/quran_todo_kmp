@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -37,6 +38,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -67,9 +69,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
-import tj.app.quran_todo.common.settings.LocalAppSettings
 import tj.app.quran_todo.common.utils.getQuranFontFamily
-import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
+import tj.app.quran_todo.hifz.model.SurahCoverage
 import tj.app.quran_todo.ui.components.EmptyState
 import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.QhLargeTopBar
@@ -81,6 +82,8 @@ import tj.app.quran_todo.ui.home.components.HeroCard
 import tj.app.quran_todo.ui.home.components.HeroListenState
 import tj.app.quran_todo.ui.home.components.HomeSkeletonRow
 import tj.app.quran_todo.ui.home.components.HomeSkeletonTop
+import tj.app.quran_todo.ui.home.components.LessonCard
+import tj.app.quran_todo.ui.home.components.LessonInviteRow
 import tj.app.quran_todo.ui.home.components.ListEmptyState
 import tj.app.quran_todo.ui.home.components.MiniPlayerHost
 import tj.app.quran_todo.ui.home.components.MiniPlayerMargin
@@ -93,7 +96,6 @@ import tj.app.quran_todo.ui.home.components.SettingsAction
 import tj.app.quran_todo.ui.home.components.SmartResultCard
 import tj.app.quran_todo.ui.home.components.SurahListRow
 import tj.app.quran_todo.ui.home.components.SurahSheet
-import tj.app.quran_todo.ui.home.components.TodaySection
 import tj.app.quran_todo.ui.home.components.listBottomPadding
 import tj.app.quran_todo.ui.i18n.HomeCopy
 import tj.app.quran_todo.ui.i18n.homeCopy
@@ -108,11 +110,13 @@ import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 import kotlin.math.abs
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 
 /**
- * The home screen (docs/redesign/ANDROID_REDESIGN.md, 6.3): a large "Quran" title with the progress
- * ring and the settings gear, the "Continue" hero, Today, Recent, a sticky search field with the
- * status segments, the 114 surahs, and the floating mini player.
+ * The home screen (docs/redesign/ANDROID_REDESIGN.md, 6.3, docs/redesign/PRODUCT_PLAN.md, 3.4): a large
+ * "Quran" title with the progress ring and the settings gear, "Today's lesson" and the "Continue" hero
+ * (the lesson first for the goal "memorize", the hero first for "read" / "listen"), Recent, a sticky search
+ * field with the status segments, the 114 surahs, and the floating mini player.
  *
  * [onOpenCatalog] is non-null in debug builds only: a long press on the title area opens the
  * component catalog.
@@ -123,17 +127,16 @@ fun HomeScreen(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenProgress: () -> Unit,
+    onOpenLesson: () -> Unit,
+    onOpenPlan: () -> Unit,
     onOpenCatalog: (() -> Unit)? = null,
 ) {
     val viewModel = koinViewModel<HomeUiViewModel>()
     val language = LocalAppLanguage.current
-    val settings = LocalAppSettings.current
     val copy = remember(language) { homeCopy(language) }
     val toaster = LocalToaster.current
 
-    LaunchedEffect(language, settings.dailyGoal, settings.focusMinutes) {
-        viewModel.setInputs(language, settings.dailyGoal, settings.focusMinutes)
-    }
+    LaunchedEffect(language) { viewModel.setLanguage(language) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResume() }
     LaunchedEffect(viewModel, copy) {
         viewModel.events.collect { event ->
@@ -150,21 +153,22 @@ fun HomeScreen(
     // Not read here: only the mini player ring reads it.
     val playbackProgress = viewModel.playbackProgress.collectAsState()
 
-    val actions = remember(viewModel, onOpenReader, onOpenSettings, onOpenProgress) {
+    val actions = remember(viewModel, onOpenReader, onOpenSettings, onOpenProgress, onOpenLesson, onOpenPlan) {
         HomeActions(
             openReader = onOpenReader,
             openSettings = onOpenSettings,
             openProgress = onOpenProgress,
+            openLesson = onOpenLesson,
+            openPlan = onOpenPlan,
             setQuery = viewModel::setQuery,
             setFilter = viewModel::setFilter,
             retry = viewModel::retry,
-            setStatus = viewModel::setSurahStatus,
+            applyStatus = viewModel::applyStatus,
+            coverage = viewModel::coverage,
             togglePin = viewModel::togglePin,
             listen = viewModel::listen,
             togglePlayback = viewModel::togglePlayback,
             stopPlayback = viewModel::stopPlayback,
-            dismissInvite = viewModel::dismissHifzInvite,
-            consumeGoalCelebration = viewModel::consumeGoalCelebration,
         )
     }
     HomeContent(
@@ -183,16 +187,17 @@ internal class HomeActions(
     val openReader: (Dest.Reader) -> Unit,
     val openSettings: () -> Unit,
     val openProgress: () -> Unit,
+    val openLesson: () -> Unit,
+    val openPlan: () -> Unit,
     val setQuery: (String) -> Unit,
     val setFilter: (SurahFilter) -> Unit,
     val retry: () -> Unit,
-    val setStatus: (surah: Int, status: SurahTodoStatus?) -> Unit,
+    val applyStatus: (surah: Int, target: SurahTarget) -> Unit,
+    val coverage: (surah: Int) -> Flow<SurahCoverage>,
     val togglePin: (surah: Int) -> Unit,
     val listen: (surah: Int, readAyah: Int) -> Unit,
     val togglePlayback: () -> Unit,
     val stopPlayback: () -> Unit,
-    val dismissInvite: () -> Unit,
-    val consumeGoalCelebration: (done: Int, goal: Int) -> Boolean,
 )
 
 /** Which row just became memorized; [token] changes every time so the burst fires again. */
@@ -232,6 +237,7 @@ private fun HomeContent(
     val searchMode = searchFocused || query.isNotBlank()
 
     val listState = rememberLazyListState()
+    val lessonHolder = remember { LessonHolder() }
     val stagger = rememberStaggerState(ready = ui.phase == HomePhase.Content)
     val focusRequester = remember { FocusRequester() }
 
@@ -284,9 +290,9 @@ private fun HomeContent(
     } else {
         HeroListenState.Idle
     }
-    // Index of the sticky header: the title space and whatever sections exist above it.
-    val searchHeaderIndex = 1 + (if (hero != null) 1 else 0) + (if (ui.today != null) 1 else 0) +
-        (if (ui.recent.isNotEmpty()) 1 else 0)
+    // Index of the sticky header: the title space and whatever sections exist above it (the lesson card
+    // item is always there in the content phase; it folds to nothing until the lesson is known).
+    val searchHeaderIndex = 1 + (if (hero != null) 1 else 0) + 1 + (if (ui.recent.isNotEmpty()) 1 else 0)
     val searchStuck = remember(listState, searchHeaderIndex) { { listState.firstVisibleItemIndex >= searchHeaderIndex } }
 
     // Focusing the field lifts it under the top bar. Only when the sections above it are still on
@@ -361,55 +367,76 @@ private fun HomeContent(
                 }
 
                 HomePhase.Content -> {
-                    if (hero != null) {
-                        item(key = "hero", contentType = "hero") {
-                            FoldableSection(visible = !searchMode) {
-                                HeroCard(
-                                    item = hero,
-                                    copy = copy,
-                                    arabicStyle = heroArabicStyle,
-                                    listenState = heroListen,
-                                    onRead = {
-                                        open(
-                                            Dest.Reader(
-                                                surah = hero.surah,
-                                                ayah = if (hero.isFresh) null else hero.ayah,
-                                                origin = Origin.HERO,
-                                            ),
-                                        )
-                                    },
-                                    onListen = { actions.listen(hero.surah, hero.ayah) },
-                                    modifier = Modifier
-                                        .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x3)
-                                        .staggeredEnter(0, stagger),
-                                )
+                    // "Today's lesson" and "Continue" swap places with the goal; the lesson is a calm line when
+                    // the goal is only reading and listening.
+                    val lessonFirst = ui.lessonFirst
+                    val lessonIndex = if (lessonFirst) 0 else 1
+                    val heroIndex = if (lessonFirst) 1 else 0
+                    val heroItem: LazyListScope.() -> Unit = {
+                        if (hero != null) {
+                            item(key = "hero", contentType = "hero") {
+                                FoldableSection(visible = !searchMode) {
+                                    HeroCard(
+                                        item = hero,
+                                        copy = copy,
+                                        arabicStyle = heroArabicStyle,
+                                        listenState = heroListen,
+                                        onRead = {
+                                            open(
+                                                Dest.Reader(
+                                                    surah = hero.surah,
+                                                    ayah = if (hero.isFresh) null else hero.ayah,
+                                                    origin = Origin.HERO,
+                                                ),
+                                            )
+                                        },
+                                        onListen = { actions.listen(hero.surah, hero.ayah) },
+                                        compact = lessonFirst,
+                                        modifier = Modifier
+                                            .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x3)
+                                            .staggeredEnter(heroIndex, stagger),
+                                    )
+                                }
                             }
                         }
                     }
-                    ui.today?.let { today ->
-                        item(key = "today", contentType = "today") {
-                            FoldableSection(visible = !searchMode) {
-                                TodaySection(
-                                    today = today,
-                                    copy = copy,
-                                    onOpenCard = { card ->
-                                        open(
-                                            Dest.Reader(
-                                                surah = card.surah,
-                                                ayah = card.startAyah,
-                                                origin = Origin.TODAY,
-                                                hifz = true,
-                                                rangeStart = card.startAyah,
-                                                rangeEnd = card.endAyah,
-                                            ),
+                    val lessonItem: LazyListScope.() -> Unit = {
+                        item(key = "lesson", contentType = "lesson") {
+                            FoldableSection(visible = !searchMode && ui.lesson != null) {
+                                // The last card is kept while the section folds (search, or the lesson being re-read).
+                                val card = ui.lesson ?: lessonHolder.card
+                                if (card != null) {
+                                    lessonHolder.card = card
+                                    val cardModifier = Modifier
+                                        .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x3)
+                                        .staggeredEnter(lessonIndex, stagger)
+                                    if (lessonFirst) {
+                                        LessonCard(
+                                            card = card,
+                                            copy = copy,
+                                            onOpenLesson = actions.openLesson,
+                                            onOpenPlan = actions.openPlan,
+                                            modifier = cardModifier,
                                         )
-                                    },
-                                    onDismissInvite = actions.dismissInvite,
-                                    consumeGoalCelebration = actions.consumeGoalCelebration,
-                                    modifier = Modifier.staggeredEnter(1, stagger),
-                                )
+                                    } else {
+                                        LessonInviteRow(
+                                            card = card,
+                                            copy = copy,
+                                            onOpenLesson = actions.openLesson,
+                                            onOpenPlan = actions.openPlan,
+                                            modifier = cardModifier,
+                                        )
+                                    }
+                                }
                             }
                         }
+                    }
+                    if (lessonFirst) {
+                        lessonItem()
+                        heroItem()
+                    } else {
+                        heroItem()
+                        lessonItem()
                     }
                     if (ui.recent.isNotEmpty()) {
                         item(key = "recent", contentType = "recent") {
@@ -533,22 +560,32 @@ private fun HomeContent(
 
     val sheetRow = sheetSurah?.let { number -> ui.rows.firstOrNull { it.number == number } }
     if (sheetRow != null) {
+        // One subscription, only while the sheet is open.
+        val coverage by produceState<SurahCoverage?>(initialValue = null, sheetRow.number) {
+            actions.coverage(sheetRow.number).collect { value = it }
+        }
         SurahSheet(
             row = sheetRow,
+            coverage = coverage,
             copy = copy,
             arabicStyle = rowArabicStyle,
-            onPicked = { status ->
+            onPicked = { target ->
                 // At the tap, while the sheet slides away: the toast stays up for its full 3 seconds and
                 // the haptic does not depend on the row being on screen.
-                if (status == SurahTodoStatus.LEARNED) {
-                    haptics.perform(HapticKind.Success)
-                    toaster.show(copy.learnedToast(sheetRow.name), ToastKind.Success)
+                when (target) {
+                    SurahTarget.Known -> {
+                        haptics.perform(HapticKind.Success)
+                        toaster.show(copy.learnedToast(sheetRow.name), ToastKind.Success)
+                    }
+
+                    SurahTarget.Learning -> toaster.show(copy.learningToast(sheetRow.name), ToastKind.Info)
+                    SurahTarget.NotStarted -> Unit
                 }
             },
-            onSetStatus = { status ->
+            onApply = { target ->
                 // Once the sheet is gone: the badge fills and the burst plays on the visible row.
-                actions.setStatus(sheetRow.number, status)
-                if (status == SurahTodoStatus.LEARNED) {
+                actions.applyStatus(sheetRow.number, target)
+                if (target == SurahTarget.Known) {
                     celebration = Celebration(sheetRow.number, celebration.token + 1)
                 }
             },
@@ -601,3 +638,6 @@ private val TopBarRowHeight = 56.dp
 private const val SkeletonRowCount = 9
 private const val FirstRowStaggerIndex = 4
 private const val CelebrationMillis = 1_100L
+
+/** Remembers the last lesson card between compositions (not state: it only feeds the fold-away animation). */
+private class LessonHolder { var card: LessonCardUi? = null }

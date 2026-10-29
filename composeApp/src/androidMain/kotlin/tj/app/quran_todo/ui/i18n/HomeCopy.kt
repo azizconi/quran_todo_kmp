@@ -28,22 +28,34 @@ data class HomeCopy(
     val pause: String,
     val ayahOfPattern: String,
 
-    // Today
-    val today: String,
-    val ofGoalPattern: String,
-    val todayProgressPattern: String,
-    /** The counter once the goal is met: `{n}` is how many ayahs were worked on today. */
-    val goalReachedPattern: String,
-    /** The spoken form of the same counter: `{a}` done of `{b}`. */
-    val goalReachedDescriptionPattern: String,
-    val kindNew: String,
-    val kindReview: String,
-    val kindWeak: String,
-    val allDoneTitle: String,
-    val allDoneBody: String,
-    val inviteTitle: String,
-    val inviteBody: String,
-    val dismiss: String,
+    // Today's lesson card
+    val lessonTitle: String,
+    /** `{range}` is "Surah 1–5". */
+    val lessonNewPattern: String,
+    /** `{passages}` is "3 passages". */
+    val lessonRecentPattern: String,
+    /** Some of the recent passages are done: `{a}` of `{b}`. */
+    val lessonRecentProgressPattern: String,
+    val lessonOldPattern: String,
+    val lessonMinutesPattern: String,
+    val lessonMinutesLeftPattern: String,
+    val lessonStart: String,
+    val lessonContinue: String,
+    val lessonDone: String,
+    /** `{what}` is the new passage and/or the repetitions of tomorrow. */
+    val lessonTomorrowPattern: String,
+    val lessonTomorrowDuePattern: String,
+    val lessonTomorrowNothing: String,
+    val lessonCatchingUp: String,
+    val lessonInviteTitle: String,
+    val lessonInviteBody: String,
+    val lessonMakePlan: String,
+    val lessonPlanFinished: String,
+    val lessonPlanFinishedBody: String,
+    val lessonNewPlan: String,
+    val myPlan: String,
+    /** The label of the "..." button of the card. */
+    val lessonMore: String,
 
     // Recent
     val recent: String,
@@ -75,11 +87,19 @@ data class HomeCopy(
     val statusNotStarted: String,
     val statusLearning: String,
     val statusLearned: String,
+    /** The three choices of the surah sheet: "Not started" is [statusNotStarted]. */
+    val sheetLearning: String,
+    val sheetKnown: String,
     /** Spoken state of a surah row being memorized: `{n}` is the percent already memorized. Turkish puts the sign first. */
     val learningPercentPattern: String,
     val pin: String,
     val unpin: String,
     val listenSurah: String,
+    /** The surah the plan is learning now: a small label in the list. */
+    val inPlan: String,
+    val forgetBody: String,
+    val forgetConfirm: String,
+    val cancel: String,
 
     // Mini player
     val play: String,
@@ -90,6 +110,7 @@ data class HomeCopy(
 
     // Toasts
     val learnedToastPattern: String,
+    val learningToastPattern: String,
     val statusUpdateFailed: String,
 ) {
     /** "Progress: 3%": the spoken label of the ring in the top bar. */
@@ -97,22 +118,68 @@ data class HomeCopy(
 
     fun ayahOf(ayah: Int, total: Int): String = ayahOfPattern.fill("a" to ayah, "b" to total)
 
-    fun ofGoal(goal: Int): String = ofGoalPattern.fill("n" to goal)
-
-    fun todayProgress(done: Int, goal: Int): String = todayProgressPattern.fill("a" to done, "b" to goal)
-
-    /** "Goal reached · 7": the counter when the day's goal is met (or passed). */
-    fun goalReached(done: Int): String = goalReachedPattern.fill("n" to done)
-
-    fun goalReachedDescription(done: Int, goal: Int): String =
-        goalReachedDescriptionPattern.fill("a" to done, "b" to goal)
-
     fun smartTitle(name: String, ayah: Int): String = smartTitlePattern.fill("name" to name, "n" to ayah)
 
     /** "Ayah 12 · 1.25×": the line under the surah name in the mini player. */
     fun playerSub(ayah: Int, speed: Float): String = playerSubPattern.fill("a" to ayah, "s" to speedLabel(speed))
 
     fun learnedToast(name: String): String = learnedToastPattern.fill("name" to name)
+
+    fun learningToast(name: String): String = learningToastPattern.fill("name" to name)
+
+    fun lessonNew(range: String): String = lessonNewPattern.fill("range" to range)
+
+    /** "Recent: 3 passages", or "Recent: 1 of 3" once some of them are done. */
+    fun lessonRecent(count: Int, doneCount: Int): String =
+        if (doneCount in 1 until count) {
+            lessonRecentProgressPattern.fill("a" to doneCount, "b" to count)
+        } else {
+            lessonRecentPattern.fill("passages" to passageCountLabel(count, language))
+        }
+
+    fun lessonOld(range: String): String = lessonOldPattern.fill("range" to range)
+
+    fun lessonMinutes(n: Int): String = lessonMinutesPattern.fill("n" to n)
+
+    fun lessonMinutesLeft(n: Int): String = lessonMinutesLeftPattern.fill("n" to n)
+
+    /** "Tomorrow: Surah 6–10 · 2 to review". */
+    fun lessonTomorrow(newRange: String?, dueCount: Int): String {
+        val parts = listOfNotNull(
+            newRange,
+            lessonTomorrowDuePattern.fill("n" to dueCount).takeIf { dueCount > 0 },
+        )
+        return if (parts.isEmpty()) lessonTomorrowNothing else lessonTomorrowPattern.fill("what" to parts.joinToString(" · "))
+    }
+
+    /** "Memorized 23 of 40 ayahs", with " · 2 hard" when some ayahs are marked difficult. */
+    fun coverageLine(covered: Int, total: Int, hard: Int): String {
+        val main = when (language) {
+            AppLanguage.RU -> "Выучено $covered из $total аятов"
+            AppLanguage.EN -> "Memorized $covered of $total ayahs"
+            AppLanguage.TG -> "$covered аз $total оят аз бар шудааст"
+            AppLanguage.UZ -> "$total ta oyatdan $covered tasi yodlangan"
+            AppLanguage.TR -> "$total ayetten $covered ayet ezberlendi"
+        }
+        if (hard <= 0) return main
+        val hardText = when (language) {
+            AppLanguage.RU -> "$hard ${if (hard % 10 == 1 && hard % 100 != 11) "трудный" else "трудных"}"
+            AppLanguage.EN -> "$hard hard"
+            AppLanguage.TG -> "$hard душвор"
+            AppLanguage.UZ -> "$hard ta qiyin"
+            AppLanguage.TR -> "$hard zor"
+        }
+        return "$main · $hardText"
+    }
+
+    /** The question before memorized ayahs leave the repetitions. */
+    fun forgetTitle(n: Int): String = when (language) {
+        AppLanguage.RU -> "Убрать $n ${russianPlural(n, "выученный аят", "выученных аята", "выученных аятов")} из повторений?"
+        AppLanguage.EN -> "Remove $n memorized ${if (n == 1) "ayah" else "ayahs"} from your reviews?"
+        AppLanguage.TG -> "$n оят аз такрорҳо хориҷ карда шавад?"
+        AppLanguage.UZ -> "$n ta yodlangan oyat takrorlardan olib tashlansinmi?"
+        AppLanguage.TR -> "$n ezberlenmiş ayet tekrarlardan kaldırılsın mı?"
+    }
 
     fun ayahCount(n: Int): String = ayahCountLabel(n, language)
 
@@ -151,6 +218,19 @@ fun surahCountLabel(n: Int, language: AppLanguage): String = when (language) {
     AppLanguage.TR -> "$n sure"
 }
 
+/** "1 passage", "3 passages"; Russian 1 отрывок / 2 отрывка / 5 отрывков. */
+fun passageCountLabel(n: Int, language: AppLanguage): String = when (language) {
+    AppLanguage.RU -> "$n ${russianPlural(n, "отрывок", "отрывка", "отрывков")}"
+    AppLanguage.EN -> "$n ${if (n == 1) "passage" else "passages"}"
+    AppLanguage.TG -> "$n қисм"
+    AppLanguage.UZ -> "$n ta parcha"
+    AppLanguage.TR -> "$n bölüm"
+}
+
+/** "Surah 1–5" for a range, "Surah 5" for one ayah: the line of a passage in the lesson card and the plan. */
+fun passageRangeLabel(surahName: String, start: Int, end: Int): String =
+    if (start >= end) "$surahName $start" else "$surahName $start–$end"
+
 /** "Ayah 5" for a single ayah, "Ayahs 1–5" for a range. */
 fun ayahRangeLabel(start: Int, end: Int, language: AppLanguage): String {
     val single = start >= end
@@ -163,7 +243,7 @@ fun ayahRangeLabel(start: Int, end: Int, language: AppLanguage): String {
     }
 }
 
-private fun russianPlural(n: Int, one: String, few: String, many: String): String {
+internal fun russianPlural(n: Int, one: String, few: String, many: String): String {
     val abs = kotlin.math.abs(n)
     return when {
         abs % 100 in 11..14 -> many
@@ -187,32 +267,41 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         listen = "Слушать",
         pause = "Пауза",
         ayahOfPattern = "Аят {a} из {b}",
-        today = "Сегодня",
-        ofGoalPattern = "из {n}",
-        todayProgressPattern = "Сегодня выполнено {a} из {b}",
-        goalReachedPattern = "Цель выполнена · {n}",
-        goalReachedDescriptionPattern = "Цель на сегодня выполнена: {a} из {b}",
-        kindNew = "Новое",
-        kindReview = "Повторить",
-        kindWeak = "Слабые места",
-        allDoneTitle = "На сегодня всё повторено",
-        allDoneBody = "Возвращайтесь завтра: новые повторения появятся по плану.",
-        inviteTitle = "Отметьте суру как «Заучиваю»",
-        inviteBody = "Нажмите и удерживайте суру в списке, выберите «Заучиваю» — здесь появятся задачи на день.",
-        dismiss = "Закрыть",
+        lessonTitle = "Урок дня",
+        lessonNewPattern = "Новое: {range}",
+        lessonRecentPattern = "Недавнее: {passages}",
+        lessonRecentProgressPattern = "Недавнее: {a} из {b}",
+        lessonOldPattern = "Старое: {range}",
+        lessonMinutesPattern = "~{n} мин",
+        lessonMinutesLeftPattern = "ещё ~{n} мин",
+        lessonStart = "Начать урок",
+        lessonContinue = "Продолжить урок",
+        lessonDone = "Урок выполнен",
+        lessonTomorrowPattern = "Завтра: {what}",
+        lessonTomorrowDuePattern = "повторить: {n}",
+        lessonTomorrowNothing = "Завтра: повторений нет",
+        lessonCatchingUp = "Догоняем: часть урока перенесена на следующие дни",
+        lessonInviteTitle = "Составьте план",
+        lessonInviteBody = "Каждый день будет готовый урок: новое, недавнее и старое.",
+        lessonMakePlan = "Составить план",
+        lessonPlanFinished = "План выполнен",
+        lessonPlanFinishedBody = "Все суры плана выучены. Составьте следующий.",
+        lessonNewPlan = "Новый план",
+        myPlan = "Мой план",
+        lessonMore = "Ещё",
         recent = "Недавние",
         pinned = "Закреплено",
         searchPlaceholder = "Сура, номер или 2:255",
         clearSearch = "Очистить",
         filterAll = "Все",
-        filterLearning = "Заучиваю",
+        filterLearning = "Учу",
         filterLearned = "Выучено",
         smartOpen = "Открыть",
         smartTitlePattern = "{name} · аят {n}",
         noResultsTitle = "Ничего не нашлось",
         noResultsBody = "Попробуйте название суры, её номер или аят в виде 2:255.",
         emptyLearningTitle = "Пока ничего не заучивается",
-        emptyLearningBody = "Нажмите и удерживайте суру, чтобы отметить её как «Заучиваю».",
+        emptyLearningBody = "Нажмите и удерживайте суру, чтобы отметить её как «Учу».",
         emptyLearnedTitle = "Выученных сур пока нет",
         emptyLearnedBody = "Когда выучите суру, отметьте её — она появится здесь.",
         open = "Открыть",
@@ -223,16 +312,23 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         statusNotStarted = "Не начал",
         statusLearning = "Заучиваю",
         statusLearned = "Выучено",
+        sheetLearning = "Учу",
+        sheetKnown = "Знаю наизусть",
         learningPercentPattern = "Заучиваю, выучено {n}%",
         pin = "Закрепить",
         unpin = "Открепить",
         listenSurah = "Слушать суру",
+        inPlan = "в плане",
+        forgetBody = "Расписание повторений этих аятов будет удалено.",
+        forgetConfirm = "Убрать",
+        cancel = "Отмена",
         play = "Играть",
         stop = "Остановить",
         openPlayer = "Открыть плеер",
         audioError = "Нет связи · Повторить",
         playerSubPattern = "Аят {a} · {s}",
         learnedToastPattern = "{name} — выучено",
+        learningToastPattern = "{name} — в плане",
         statusUpdateFailed = "Не удалось изменить статус суры",
     )
 
@@ -249,19 +345,28 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         listen = "Listen",
         pause = "Pause",
         ayahOfPattern = "Ayah {a} of {b}",
-        today = "Today",
-        ofGoalPattern = "of {n}",
-        todayProgressPattern = "{a} of {b} done today",
-        goalReachedPattern = "Goal reached · {n}",
-        goalReachedDescriptionPattern = "Today’s goal reached: {a} of {b}",
-        kindNew = "New",
-        kindReview = "Review",
-        kindWeak = "Weak spots",
-        allDoneTitle = "All reviewed for today",
-        allDoneBody = "Come back tomorrow: the next reviews arrive on schedule.",
-        inviteTitle = "Mark a surah as “Memorizing”",
-        inviteBody = "Press and hold a surah in the list and choose “Memorizing” to get your daily tasks here.",
-        dismiss = "Dismiss",
+        lessonTitle = "Today’s lesson",
+        lessonNewPattern = "New: {range}",
+        lessonRecentPattern = "Recent: {passages}",
+        lessonRecentProgressPattern = "Recent: {a} of {b}",
+        lessonOldPattern = "Old: {range}",
+        lessonMinutesPattern = "~{n} min",
+        lessonMinutesLeftPattern = "~{n} min left",
+        lessonStart = "Start lesson",
+        lessonContinue = "Continue lesson",
+        lessonDone = "Lesson done",
+        lessonTomorrowPattern = "Tomorrow: {what}",
+        lessonTomorrowDuePattern = "{n} to review",
+        lessonTomorrowNothing = "Tomorrow: nothing to review",
+        lessonCatchingUp = "Catching up: part of the lesson moved to the coming days",
+        lessonInviteTitle = "Make a plan",
+        lessonInviteBody = "Every day you get a ready lesson: new, recent and old.",
+        lessonMakePlan = "Create a plan",
+        lessonPlanFinished = "Plan complete",
+        lessonPlanFinishedBody = "All the surahs of the plan are memorized. Make the next one.",
+        lessonNewPlan = "New plan",
+        myPlan = "My plan",
+        lessonMore = "More",
         recent = "Recent",
         pinned = "Pinned",
         searchPlaceholder = "Surah, number or 2:255",
@@ -285,16 +390,23 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         statusNotStarted = "Not started",
         statusLearning = "Memorizing",
         statusLearned = "Memorized",
+        sheetLearning = "Memorizing",
+        sheetKnown = "Know by heart",
         learningPercentPattern = "Memorizing, {n}% memorized",
         pin = "Pin",
         unpin = "Unpin",
         listenSurah = "Listen to surah",
+        inPlan = "in plan",
+        forgetBody = "The review schedule of these ayahs will be deleted.",
+        forgetConfirm = "Remove",
+        cancel = "Cancel",
         play = "Play",
         stop = "Stop",
         openPlayer = "Open player",
         audioError = "No connection · Retry",
         playerSubPattern = "Ayah {a} · {s}",
         learnedToastPattern = "{name} — memorized",
+        learningToastPattern = "{name} — in your plan",
         statusUpdateFailed = "Couldn’t change the surah status",
     )
 
@@ -311,19 +423,28 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         listen = "Гӯш кардан",
         pause = "Таваққуф",
         ayahOfPattern = "Оят {a} аз {b}",
-        today = "Имрӯз",
-        ofGoalPattern = "аз {n}",
-        todayProgressPattern = "Имрӯз {a} аз {b} иҷро шуд",
-        goalReachedPattern = "Ҳадаф иҷро шуд · {n}",
-        goalReachedDescriptionPattern = "Ҳадафи имрӯза иҷро шуд: {a} аз {b}",
-        kindNew = "Нав",
-        kindReview = "Такрор",
-        kindWeak = "Ҷойҳои заиф",
-        allDoneTitle = "Барои имрӯз ҳама такрор шуд",
-        allDoneBody = "Фардо баргардед: такрорҳои нав аз рӯи ҷадвал пайдо мешаванд.",
-        inviteTitle = "Сураро «Аз бар мекунам» ишора кунед",
-        inviteBody = "Сураро дар рӯйхат дароз пахш кунед ва «Аз бар мекунам»-ро интихоб намоед — вазифаҳои рӯз дар ин ҷо пайдо мешаванд.",
-        dismiss = "Пӯшидан",
+        lessonTitle = "Дарси рӯз",
+        lessonNewPattern = "Нав: {range}",
+        lessonRecentPattern = "Навакак: {passages}",
+        lessonRecentProgressPattern = "Навакак: {a} аз {b}",
+        lessonOldPattern = "Кӯҳна: {range}",
+        lessonMinutesPattern = "~{n} дақ.",
+        lessonMinutesLeftPattern = "боз ~{n} дақ.",
+        lessonStart = "Оғози дарс",
+        lessonContinue = "Идомаи дарс",
+        lessonDone = "Дарс иҷро шуд",
+        lessonTomorrowPattern = "Фардо: {what}",
+        lessonTomorrowDuePattern = "такрор: {n}",
+        lessonTomorrowNothing = "Фардо: такрор нест",
+        lessonCatchingUp = "Ҷуброн мекунем: як қисми дарс ба рӯзҳои оянда гузашт",
+        lessonInviteTitle = "Нақша созед",
+        lessonInviteBody = "Ҳар рӯз дарси тайёр хоҳад буд: нав, навакак ва кӯҳна.",
+        lessonMakePlan = "Сохтани нақша",
+        lessonPlanFinished = "Нақша иҷро шуд",
+        lessonPlanFinishedBody = "Ҳамаи сураҳои нақша аз бар шуданд. Нақшаи навбатиро созед.",
+        lessonNewPlan = "Нақшаи нав",
+        myPlan = "Нақшаи ман",
+        lessonMore = "Бештар",
         recent = "Охирин",
         pinned = "Пин шудааст",
         searchPlaceholder = "Сура, рақам ё 2:255",
@@ -348,16 +469,23 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         statusNotStarted = "Оғоз нашудааст",
         statusLearning = "Аз бар мекунам",
         statusLearned = "Аз бар шуд",
+        sheetLearning = "Аз бар мекунам",
+        sheetKnown = "Аз бар медонам",
         learningPercentPattern = "Аз бар мекунам, {n}% аз бар шуд",
         pin = "Пин кардан",
         unpin = "Пинро бардоштан",
         listenSurah = "Гӯш кардани сура",
+        inPlan = "дар нақша",
+        forgetBody = "Ҷадвали такрори ин оятҳо нест карда мешавад.",
+        forgetConfirm = "Хориҷ кардан",
+        cancel = "Бекор",
         play = "Пахш",
         stop = "Қатъ",
         openPlayer = "Кушодани плеер",
         audioError = "Пайваст нест · Такрор",
         playerSubPattern = "Оят {a} · {s}",
         learnedToastPattern = "{name} — аз бар шуд",
+        learningToastPattern = "{name} — дар нақша",
         statusUpdateFailed = "Ҳолати сура тағйир наёфт",
     )
 
@@ -374,19 +502,28 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         listen = "Tinglash",
         pause = "Pauza",
         ayahOfPattern = "Oyat {a} / {b}",
-        today = "Bugun",
-        ofGoalPattern = "/ {n}",
-        todayProgressPattern = "Bugun {b} tadan {a} tasi bajarildi",
-        goalReachedPattern = "Maqsad bajarildi · {n}",
-        goalReachedDescriptionPattern = "Bugungi maqsad bajarildi: {b} tadan {a} tasi",
-        kindNew = "Yangi",
-        kindReview = "Takrorlash",
-        kindWeak = "Zaif joylar",
-        allDoneTitle = "Bugungi takrorlar tugadi",
-        allDoneBody = "Ertaga qaytib keling: yangi takrorlar jadval bo‘yicha paydo bo‘ladi.",
-        inviteTitle = "Surani «Yodlayapman» deb belgilang",
-        inviteBody = "Ro‘yxatda surani bosib turing va «Yodlayapman»ni tanlang — kunlik vazifalar shu yerda paydo bo‘ladi.",
-        dismiss = "Yopish",
+        lessonTitle = "Kunlik dars",
+        lessonNewPattern = "Yangi: {range}",
+        lessonRecentPattern = "Yaqinda: {passages}",
+        lessonRecentProgressPattern = "Yaqinda: {b} tadan {a} tasi",
+        lessonOldPattern = "Eski: {range}",
+        lessonMinutesPattern = "~{n} daq",
+        lessonMinutesLeftPattern = "yana ~{n} daq",
+        lessonStart = "Darsni boshlash",
+        lessonContinue = "Darsni davom ettirish",
+        lessonDone = "Dars bajarildi",
+        lessonTomorrowPattern = "Ertaga: {what}",
+        lessonTomorrowDuePattern = "takrorlash: {n}",
+        lessonTomorrowNothing = "Ertaga: takrorlash yo‘q",
+        lessonCatchingUp = "Yetib olyapmiz: darsning bir qismi keyingi kunlarga qoldi",
+        lessonInviteTitle = "Reja tuzing",
+        lessonInviteBody = "Har kuni tayyor dars bo‘ladi: yangi, yaqinda va eski.",
+        lessonMakePlan = "Reja tuzish",
+        lessonPlanFinished = "Reja bajarildi",
+        lessonPlanFinishedBody = "Rejadagi barcha suralar yodlangan. Keyingisini tuzing.",
+        lessonNewPlan = "Yangi reja",
+        myPlan = "Mening rejam",
+        lessonMore = "Yana",
         recent = "So‘nggilar",
         pinned = "Mahkamlangan",
         searchPlaceholder = "Sura, raqam yoki 2:255",
@@ -410,16 +547,23 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         statusNotStarted = "Boshlanmagan",
         statusLearning = "Yodlayapman",
         statusLearned = "Yodlangan",
+        sheetLearning = "Yodlayapman",
+        sheetKnown = "Yoddan bilaman",
         learningPercentPattern = "Yodlayapman, {n}% yodlangan",
         pin = "Mahkamlash",
         unpin = "Mahkamlashni olib tashlash",
         listenSurah = "Surani tinglash",
+        inPlan = "rejada",
+        forgetBody = "Bu oyatlarning takrorlash jadvali o‘chiriladi.",
+        forgetConfirm = "Olib tashlash",
+        cancel = "Bekor qilish",
         play = "Ijro etish",
         stop = "To‘xtatish",
         openPlayer = "Pleyerni ochish",
         audioError = "Aloqa yo‘q · Qayta urinish",
         playerSubPattern = "{a}-oyat · {s}",
         learnedToastPattern = "{name} — yodlangan",
+        learningToastPattern = "{name} — rejada",
         statusUpdateFailed = "Sura holatini o‘zgartirib bo‘lmadi",
     )
 
@@ -436,19 +580,28 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         listen = "Dinle",
         pause = "Duraklat",
         ayahOfPattern = "Ayet {a} / {b}",
-        today = "Bugün",
-        ofGoalPattern = "/ {n}",
-        todayProgressPattern = "Bugün {a} / {b} tamamlandı",
-        goalReachedPattern = "Hedef tamamlandı · {n}",
-        goalReachedDescriptionPattern = "Bugünün hedefi tamamlandı: {a} / {b}",
-        kindNew = "Yeni",
-        kindReview = "Tekrar et",
-        kindWeak = "Zayıf yerler",
-        allDoneTitle = "Bugünkü tekrarlar tamam",
-        allDoneBody = "Yarın tekrar gelin: yeni tekrarlar plana göre görünecek.",
-        inviteTitle = "Bir sureyi “Ezberliyorum” olarak işaretleyin",
-        inviteBody = "Listede bir sureye basılı tutun ve “Ezberliyorum”u seçin — günlük görevler burada görünür.",
-        dismiss = "Kapat",
+        lessonTitle = "Günün dersi",
+        lessonNewPattern = "Yeni: {range}",
+        lessonRecentPattern = "Yakın zamanda: {passages}",
+        lessonRecentProgressPattern = "Yakın zamanda: {a} / {b}",
+        lessonOldPattern = "Eski: {range}",
+        lessonMinutesPattern = "~{n} dk",
+        lessonMinutesLeftPattern = "~{n} dk kaldı",
+        lessonStart = "Derse başla",
+        lessonContinue = "Derse devam et",
+        lessonDone = "Ders tamamlandı",
+        lessonTomorrowPattern = "Yarın: {what}",
+        lessonTomorrowDuePattern = "tekrar: {n}",
+        lessonTomorrowNothing = "Yarın: tekrar yok",
+        lessonCatchingUp = "Yetişiyoruz: dersin bir kısmı sonraki günlere kaldı",
+        lessonInviteTitle = "Bir plan yapın",
+        lessonInviteBody = "Her gün hazır bir ders olur: yeni, yakın zamanda ve eski.",
+        lessonMakePlan = "Plan yap",
+        lessonPlanFinished = "Plan tamamlandı",
+        lessonPlanFinishedBody = "Plandaki tüm sureler ezberlendi. Sıradaki planı yapın.",
+        lessonNewPlan = "Yeni plan",
+        myPlan = "Planım",
+        lessonMore = "Daha fazla",
         recent = "Son açılanlar",
         pinned = "Sabitlendi",
         searchPlaceholder = "Sure, numara veya 2:255",
@@ -472,16 +625,23 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         statusNotStarted = "Başlanmadı",
         statusLearning = "Ezberliyorum",
         statusLearned = "Ezberlendi",
+        sheetLearning = "Ezberliyorum",
+        sheetKnown = "Ezbere biliyorum",
         learningPercentPattern = "Ezberliyorum, %{n} ezberlendi",
         pin = "Sabitle",
         unpin = "Sabitlemeyi kaldır",
         listenSurah = "Sureyi dinle",
+        inPlan = "planda",
+        forgetBody = "Bu ayetlerin tekrar programı silinecek.",
+        forgetConfirm = "Kaldır",
+        cancel = "İptal",
         play = "Oynat",
         stop = "Durdur",
         openPlayer = "Oynatıcıyı aç",
         audioError = "Bağlantı yok · Tekrar dene",
         playerSubPattern = "Ayet {a} · {s}",
         learnedToastPattern = "{name} — ezberlendi",
+        learningToastPattern = "{name} — planda",
         statusUpdateFailed = "Sure durumu değiştirilemedi",
     )
 }

@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -60,6 +61,7 @@ internal class RowTexts(
     val learned: String,
     val learningPercentPattern: String,
     val pinned: String,
+    val inPlan: String,
 ) {
     /**
      * What a screen reader says about the status of a row: "Not started", "Memorizing, 40% memorized"
@@ -83,6 +85,7 @@ internal class RowTexts(
             learned = copy.statusLearned,
             learningPercentPattern = copy.learningPercentPattern,
             pinned = copy.pinned,
+            inPlan = copy.inPlan,
         )
     }
 }
@@ -137,6 +140,7 @@ internal fun SurahListRow(
                         append(row.name)
                         if (subtitle.isNotEmpty()) append(", ").append(subtitle)
                         if (row.isPinned) append(", ").append(texts.pinned)
+                        if (row.inPlan) append(", ").append(texts.inPlan)
                     }
                     stateDescription = statusLabel
                 },
@@ -168,6 +172,7 @@ internal fun SurahListRow(
                     if (row.isPinned) {
                         Icon(Icons.Rounded.PushPin, contentDescription = null, tint = colors.gold, modifier = Modifier.size(14.dp))
                     }
+                    if (row.inPlan) InPlanLabel(texts.inPlan)
                 }
                 if (subtitle.isNotEmpty()) {
                     Text(
@@ -199,6 +204,23 @@ internal fun SurahListRow(
                 .background(colors.hairline),
         )
     }
+}
+
+/** A small gold label for the surah the plan is learning now. */
+@Composable
+private fun InPlanLabel(text: String) {
+    val colors = QhTheme.colors
+    Text(
+        text = text,
+        style = QhTheme.type.label,
+        color = colors.gold,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .clip(QhTheme.shapes.full)
+            .background(colors.goldContainer)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+    )
 }
 
 /**

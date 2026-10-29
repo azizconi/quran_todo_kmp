@@ -11,50 +11,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
-/** The final QA fixes of the home screen (task 3): goal counter, spoken states, large text. */
+/** The final QA fixes of the home screen (task 3): spoken states, large text. */
 class FinalQaFixesTest {
-    // -- Goal reached ("7 of 5") -----------------------------------------------------------------
-
-    @Test
-    fun theGoalIsReachedAtTheGoalAndPastIt() {
-        assertFalse(isGoalReached(done = 4, goal = 5))
-        assertTrue(isGoalReached(done = 5, goal = 5))
-        assertTrue(isGoalReached(done = 7, goal = 5))
-        assertFalse(isGoalReached(done = 0, goal = 0))
-    }
-
-    @Test
-    fun theGoalBurstPlaysOncePerDay() {
-        val today = 20_000
-        val never = HomeLocalPrefs.NoDay
-        // Not reached: never.
-        assertFalse(shouldCelebrateGoal(done = 3, goal = 5, celebratedDay = never, today = today))
-        // First time reached today (also when passed): yes.
-        assertTrue(shouldCelebrateGoal(done = 5, goal = 5, celebratedDay = never, today = today))
-        assertTrue(shouldCelebrateGoal(done = 7, goal = 5, celebratedDay = today - 1, today = today))
-        // Already played today: no replay, however much more is done.
-        assertFalse(shouldCelebrateGoal(done = 5, goal = 5, celebratedDay = today, today = today))
-        assertFalse(shouldCelebrateGoal(done = 9, goal = 5, celebratedDay = today, today = today))
-        // A new day plays it again.
-        assertTrue(shouldCelebrateGoal(done = 5, goal = 5, celebratedDay = today, today = today + 1))
-    }
-
-    @Test
-    fun theGoalReachedTextNamesTheCountInEveryLanguage() {
-        assertEquals("Цель выполнена · 7", homeCopy(AppLanguage.RU).goalReached(7))
-        assertEquals("Goal reached · 7", homeCopy(AppLanguage.EN).goalReached(7))
-        for (language in AppLanguage.entries) {
-            val copy = homeCopy(language)
-            val text = copy.goalReached(7)
-            val spoken = copy.goalReachedDescription(7, 5)
-            assertTrue(text.contains("7"), "${language.name}: $text")
-            assertTrue(spoken.contains("7") && spoken.contains("5"), "${language.name}: $spoken")
-            assertFalse(text.contains('{') || spoken.contains('{'), "${language.name}: $text / $spoken")
-            // It is not the "3 of 5" text: the counter really changes.
-            assertNotEquals(copy.todayProgress(7, 5), spoken)
-        }
-    }
-
     // -- Spoken state of a surah row ---------------------------------------------------------------
 
     private fun texts(language: AppLanguage) = RowTexts.of(homeCopy(language))

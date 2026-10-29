@@ -74,6 +74,7 @@ internal fun HeroCard(
     onRead: () -> Unit,
     onListen: () -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     val colors = QhTheme.colors
     val type = QhTheme.type
@@ -84,8 +85,8 @@ internal fun HeroCard(
         modifier = modifier
             .fillMaxWidth()
             .sharedBoundsKey(SharedKeys.surahContainer(origin, item.surah), SharedResize.Remeasure),
-        style = QhCardStyle.Hero,
-        contentPadding = PaddingValues(QhSpacing.cardLarge),
+        style = if (compact) QhCardStyle.Standard else QhCardStyle.Hero,
+        contentPadding = PaddingValues(if (compact) QhSpacing.card else QhSpacing.cardLarge),
     ) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
@@ -99,7 +100,7 @@ internal fun HeroCard(
                 Spacer(Modifier.height(QhSpacing.x2))
                 Text(
                     text = item.name,
-                    style = type.headline,
+                    style = if (compact) type.title1 else type.headline,
                     color = colors.ink,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -120,7 +121,7 @@ internal fun HeroCard(
         Spacer(Modifier.height(QhSpacing.x2))
         val position = heroPositionText(item, copy)
         Text(text = position, style = type.callout, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (!item.isFresh) {
+        if (!item.isFresh && !compact) {
             Spacer(Modifier.height(QhSpacing.x3))
             QhLinearProgress(
                 progress = item.progress,
@@ -128,13 +129,14 @@ internal fun HeroCard(
                 modifier = Modifier.semantics { contentDescription = position },
             )
         }
-        Spacer(Modifier.height(QhSpacing.x5))
+        Spacer(Modifier.height(if (compact) QhSpacing.x3 else QhSpacing.x5))
         val read: @Composable (Modifier) -> Unit = { buttonModifier ->
             HeroButton(
                 label = copy.read,
                 onClick = onRead,
                 primary = true,
                 active = false,
+                compact = compact,
                 modifier = buttonModifier,
             ) { tint ->
                 Icon(Icons.AutoMirrored.Rounded.MenuBook, contentDescription = null, tint = tint, modifier = Modifier.size(QhSpacing.iconInline))
@@ -147,6 +149,7 @@ internal fun HeroCard(
                 onClick = onListen,
                 primary = false,
                 active = playing,
+                compact = compact,
                 modifier = buttonModifier.semantics { if (playing) stateDescription = copy.pause },
             ) { tint ->
                 if (playing) {
@@ -184,6 +187,7 @@ private fun HeroButton(
     onClick: () -> Unit,
     primary: Boolean,
     active: Boolean,
+    compact: Boolean = false,
     modifier: Modifier = Modifier,
     leading: @Composable (tint: Color) -> Unit,
 ) {
@@ -206,7 +210,7 @@ private fun HeroButton(
     val tint = if (primary) colors.onPrimary else colors.primary
     Row(
         modifier
-            .heightIn(min = 52.dp)
+            .heightIn(min = if (compact) 44.dp else 52.dp)
             .pressable(onClick = onClick, shape = shape, highlight = !primary)
             .clip(shape)
             .background(container)

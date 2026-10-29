@@ -138,12 +138,27 @@ class HifzRepositoryImpl(
     override fun forecast(today: Flow<Int>): Flow<PlanForecast?> =
         today.distinctUntilChanged().flatMapLatest { forecast(it) }
 
+    override fun forecast(plan: HifzPlan, today: Int): Flow<PlanForecast> = observeWithMetrics(PASSAGES, LOG) { metrics ->
+        val log = dao.getNewLogSince(plan.startedEpochDay).map { it.toDomain() }
+        Forecast.compute(plan, Coverage(loadPassages(), metrics), log, today)
+    }
+
     override fun streak(today: Int): Flow<Int> = observe(LOG) { Streak.compute(dao.getLogDays(today), today) }
 
     override fun streak(today: Flow<Int>): Flow<Int> = today.distinctUntilChanged().flatMapLatest { streak(it) }
 
     override fun surahStatuses(): Flow<Map<Int, SurahHifzStatus>> = observeWithMetrics(PASSAGES, PLAN) { metrics ->
         HifzStatuses.all(loadPassages(), loadPlan(), metrics)
+    }
+
+    override fun coveredCounts(): Flow<Map<Int, Int>> = observeWithMetrics(PASSAGES) { metrics ->
+        val coverage = Coverage(loadPassages(), metrics)
+        val counts = LinkedHashMap<Int, Int>()
+        for (surah in 1..QuranFacts.SURAH_COUNT) {
+            val covered = coverage.coveredCount(surah)
+            if (covered > 0) counts[surah] = covered
+        }
+        counts
     }
 
     override fun surahCoverage(surah: Int): Flow<SurahCoverage> = observeWithMetrics(PASSAGES, HARD, PLAN) { metrics ->

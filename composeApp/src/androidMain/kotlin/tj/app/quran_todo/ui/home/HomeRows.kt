@@ -4,7 +4,7 @@ import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.domain.model.SurahModel
-import tj.app.quran_todo.presentation.home.PendingSurahStatus
+import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.ui.common.SurahNames
 import tj.app.quran_todo.ui.state.LastReadPosition
 
@@ -13,14 +13,20 @@ internal class RowsInput(
     val surahList: List<SurahModel>,
     val index: QuranIndex,
     val chapterNames: Map<Int, ChapterNameModel>,
-    /** Saved statuses; a surah without an entry is "not started". */
-    val statuses: Map<Int, SurahTodoStatus>,
-    /** Changes that are still being saved; they win over [statuses] so the UI answers at once. */
-    val pending: Map<Int, PendingSurahStatus>,
-    /** Number of memorized ayahs per surah. */
-    val learnedAyahs: Map<Int, Int>,
+    /** Statuses derived from the passages; a surah without an entry is "not started". */
+    val statuses: Map<Int, SurahHifzStatus>,
+    /** Number of memorized (covered) ayahs per surah; a surah without an entry has none. */
+    val coveredAyahs: Map<Int, Int>,
+    /** The surah the plan is learning now, if there is a plan. */
+    val currentPlanSurah: Int?,
     val pinned: Set<Int>,
 )
+
+/** The status of the hifz model as the status the list components draw. */
+internal fun SurahHifzStatus.toTodoStatus(): SurahTodoStatus = when (this) {
+    SurahHifzStatus.LEARNING -> SurahTodoStatus.LEARNING
+    SurahHifzStatus.LEARNED -> SurahTodoStatus.LEARNED
+}
 
 /** The 114 rows of the list (port of `buildLibraryRows` from the old library screen). */
 internal object HomeRows {
@@ -48,11 +54,7 @@ internal object HomeRows {
                 .takeUnless { it.equals(name, ignoreCase = true) }
                 .orEmpty()
             val ayahCount = meta?.ayahCount ?: ru?.ayats ?: QuranMeta.ayahCount(number)
-            val status = if (input.pending.containsKey(number)) {
-                input.pending.getValue(number).status
-            } else {
-                input.statuses[number]
-            }
+            val status = input.statuses[number]?.toTodoStatus()
             SurahRowUi(
                 number = number,
                 name = name,
@@ -61,9 +63,10 @@ internal object HomeRows {
                 arabicName = chapter?.arabic?.takeIf { it.isNotBlank() } ?: meta?.arabicName.orEmpty(),
                 ayahCount = ayahCount,
                 status = status,
-                learnedFraction = learnedFraction(status, input.learnedAyahs[number] ?: 0, ayahCount),
+                learnedFraction = learnedFraction(status, input.coveredAyahs[number] ?: 0, ayahCount),
                 canOpen = meta != null,
                 isPinned = number in input.pinned,
+                inPlan = number == input.currentPlanSurah,
             )
         }
     }
@@ -77,13 +80,9 @@ internal object HomeRows {
     /** Kept for existing callers; the rule lives in [SurahNames]. */
     fun cleanRussianName(raw: String): String = SurahNames.cleanRussianName(raw)
 
-    /** Memorized ayahs of the whole Quran (memorized surahs count in full) as a 0..1 fraction. */
-    fun overallProgress(rows: List<SurahRowUi>): Float {
-        val learned = rows.sumOf { row ->
-            if (row.status == SurahTodoStatus.LEARNED) row.ayahCount else (row.learnedFraction * row.ayahCount).toInt()
-        }
-        return (learned.toFloat() / QuranMeta.TotalAyahs).coerceIn(0f, 1f)
-    }
+    /** Memorized (covered) ayahs of the whole Quran as a 0..1 fraction. */
+    fun overallProgress(coveredAyahs: Map<Int, Int>): Float =
+        (coveredAyahs.values.sum().toFloat() / QuranMeta.TotalAyahs).coerceIn(0f, 1f)
 
     /** Pinned surahs first (in the order they were pinned), then the recent ones; no duplicates. */
     fun recent(

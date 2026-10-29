@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -71,6 +72,7 @@ import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.common.theme.ThemePalette
 import tj.app.quran_todo.common.theme.ThemeStorage
 import tj.app.quran_todo.common.utils.currentLocalDate
+import tj.app.quran_todo.hifz.EpochDayTicker
 import tj.app.quran_todo.ui.about.PrivacyScreen
 import tj.app.quran_todo.ui.about.SourcesScreen
 import tj.app.quran_todo.ui.catalog.CatalogScreen
@@ -172,6 +174,11 @@ fun QuranHifzApp() {
     LaunchedEffect(Unit) {
         AppTelemetry.logEvent("app_opened")
     }
+
+    // Back from the background the day may have changed (midnight passed while the process slept, or the
+    // date / time zone was changed): the lesson card follows the day without a restart.
+    val dayTicker = koinInject<EpochDayTicker>()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { dayTicker.refresh() }
 
     val systemReducedMotion = rememberSystemReducedMotion()
     val userReducedMotion by uiPrefs.reduceMotion.collectAsState()
@@ -372,6 +379,8 @@ private fun AppNavigation() {
                             onOpenReader = { navController.navigateOnce(it) },
                             onOpenSettings = { navController.navigateOnce(Dest.Settings) },
                             onOpenProgress = { navController.navigateOnce(Dest.Progress) },
+                            onOpenLesson = { navController.navigateOnce(Dest.Lesson) },
+                            onOpenPlan = { navController.navigateOnce(Dest.Plan) },
                             onOpenCatalog = if (isDebuggable) {
                                 { navController.navigateOnce(Dest.Catalog) }
                             } else {

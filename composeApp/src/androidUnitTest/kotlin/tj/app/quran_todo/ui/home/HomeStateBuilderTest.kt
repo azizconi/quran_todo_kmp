@@ -1,21 +1,19 @@
 package tj.app.quran_todo.ui.home
 
 import tj.app.quran_todo.common.i18n.AppLanguage
-import tj.app.quran_todo.data.database.entity.todo.AyahReviewEntity
-import tj.app.quran_todo.data.database.entity.todo.AyahTodoEntity
-import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
-import tj.app.quran_todo.data.database.entity.todo.SurahTodoEntity
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.domain.model.SurahModel
-import tj.app.quran_todo.presentation.home.PendingSurahStatus
+import tj.app.quran_todo.hifz.model.AyahRange
+import tj.app.quran_todo.hifz.model.SurahHifzStatus
+import tj.app.quran_todo.hifz.schedule.LessonPlan
+import tj.app.quran_todo.hifz.schedule.LessonTomorrow
 import tj.app.quran_todo.presentation.home.QuranLoadState
 import tj.app.quran_todo.ui.state.LastReadPosition
 import tj.app.quran_todo.ui.state.OnboardingGoal
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -38,38 +36,46 @@ class HomeStateBuilderTest {
         language: AppLanguage = AppLanguage.EN,
         index: QuranIndex = this.index,
         loadState: QuranLoadState = QuranLoadState.Content,
-        todoSurahs: List<SurahTodoEntity> = emptyList(),
-        ayahTodos: List<AyahTodoEntity> = emptyList(),
-        dueReviews: List<AyahReviewEntity> = emptyList(),
-        weak: Set<String> = emptySet(),
-        pending: Map<Int, PendingSurahStatus> = emptyMap(),
+        statuses: Map<Int, SurahHifzStatus> = emptyMap(),
+        covered: Map<Int, Int> = emptyMap(),
+        planQueue: List<Int> = emptyList(),
+        lesson: LessonPlan? = null,
         lastRead: LastReadPosition? = null,
         recent: List<Int> = emptyList(),
         pinned: Set<Int> = emptySet(),
         goals: Set<String> = emptySet(),
-        done: DoneStats? = DoneStats(0),
-        goal: Int = 5,
-        inviteDismissed: Boolean = false,
         names: Map<Int, ChapterNameModel> = chapterNames,
     ) = HomeSources(
         language = language,
-        dailyGoal = goal,
-        focusMinutes = 15,
         surahList = surahList,
         index = index,
-        todoSurahs = todoSurahs,
-        ayahTodos = ayahTodos,
-        dueReviews = dueReviews,
-        weakAyahKeys = weak,
+        statuses = statuses,
+        coveredAyahs = covered,
+        planQueue = planQueue,
+        lesson = lesson,
         chapterNames = names,
-        pending = pending,
         loadState = loadState,
         lastRead = lastRead,
         recentSurahs = recent,
         pinnedSurahs = pinned,
         onboardingGoals = goals,
-        doneStats = done,
-        inviteDismissed = inviteDismissed,
+    )
+
+    /** A lesson with nothing in it but a plan: the card says "plan finished" or "no plan" by the flags. */
+    private fun lesson(hasPlan: Boolean = true, finished: Boolean = false) = LessonPlan(
+        today = 20_000,
+        hasPlan = hasPlan,
+        planFinished = finished,
+        newBlock = null,
+        recent = emptyList(),
+        old = emptyList(),
+        totalMinutes = 0,
+        remainingMinutes = 0,
+        catchingUp = false,
+        deferredCount = 0,
+        isComplete = false,
+        isEmpty = true,
+        tomorrow = LessonTomorrow(newPassage = AyahRange(2, 1, 5), dueCount = 0),
     )
 
     private fun row(number: Int, status: SurahTodoStatus? = null, name: String = "S$number", pinned: Boolean = false) =
@@ -101,7 +107,7 @@ class HomeStateBuilderTest {
     fun nothingButRowsIsBuiltWhileLoading() {
         val base = HomeStateBuilder.buildBase(sources(index = QuranIndex.Empty, loadState = QuranLoadState.Loading, goals = setOf(OnboardingGoal.MEMORIZE)))
         assertNull(base.continueItem)
-        assertNull(base.today)
+        assertNull(base.lesson)
         assertTrue(base.recent.isEmpty())
         // The bundled list still names the surahs, but they cannot be opened yet.
         assertEquals(3, base.rows.size)
@@ -141,27 +147,21 @@ class HomeStateBuilderTest {
     }
 
     @Test
-    fun aPendingStatusWinsOverTheSavedOne() {
+    fun theStatusOfARowIsTheOneDerivedFromThePassages() {
         val rows = HomeStateBuilder.buildBase(
-            sources(
-                todoSurahs = listOf(SurahTodoEntity(1, SurahTodoStatus.LEARNING), SurahTodoEntity(2, SurahTodoStatus.LEARNED)),
-                pending = mapOf(1 to PendingSurahStatus(SurahTodoStatus.LEARNED, 1L), 2 to PendingSurahStatus(null, 2L)),
-            ),
+            sources(statuses = mapOf(1 to SurahHifzStatus.LEARNING, 2 to SurahHifzStatus.LEARNED)),
         ).rows
-        assertEquals(SurahTodoStatus.LEARNED, rows[0].status)
-        assertNull(rows[1].status)
+        assertEquals(SurahTodoStatus.LEARNING, rows[0].status)
+        assertEquals(SurahTodoStatus.LEARNED, rows[1].status)
+        assertNull(rows[2].status)
     }
 
     @Test
     fun learnedFractionCountsMemorizedAyahsAndIsFullForAMemorizedSurah() {
         val rows = HomeStateBuilder.buildBase(
             sources(
-                todoSurahs = listOf(SurahTodoEntity(1, SurahTodoStatus.LEARNING), SurahTodoEntity(2, SurahTodoStatus.LEARNED)),
-                ayahTodos = listOf(
-                    AyahTodoEntity(1, 1, AyahTodoStatus.LEARNED, 1),
-                    AyahTodoEntity(2, 1, AyahTodoStatus.LEARNED, 1),
-                    AyahTodoEntity(3, 1, AyahTodoStatus.LEARNING, 1),
-                ),
+                statuses = mapOf(1 to SurahHifzStatus.LEARNING, 2 to SurahHifzStatus.LEARNED),
+                covered = mapOf(1 to 2, 2 to 10),
             ),
         ).rows
         assertEquals(2f / 7f, rows[0].learnedFraction)
@@ -170,14 +170,23 @@ class HomeStateBuilderTest {
     }
 
     @Test
-    fun overallProgressCountsMemorizedSurahsInFull() {
-        val rows = listOf(
-            row(1, SurahTodoStatus.LEARNED), // 7
-            row(2, SurahTodoStatus.LEARNING).copy(learnedFraction = 0.5f), // 143
-            row(3),
-        )
-        assertEquals((7 + 143) / 6236f, HomeRows.overallProgress(rows))
-        assertEquals(0f, HomeRows.overallProgress(emptyList()))
+    fun theSurahThePlanIsLearningNowIsMarkedInPlan() {
+        // Surah 1 is covered completely: the plan is on surah 2, and only that row carries the label.
+        val rows = HomeStateBuilder.buildBase(
+            sources(
+                statuses = mapOf(1 to SurahHifzStatus.LEARNED, 2 to SurahHifzStatus.LEARNING),
+                covered = mapOf(1 to 7),
+                planQueue = listOf(1, 2, 3),
+            ),
+        ).rows
+        assertEquals(listOf(false, true, false), rows.map { it.inPlan })
+        assertTrue(HomeStateBuilder.buildBase(sources()).rows.none { it.inPlan }, "no plan, no label")
+    }
+
+    @Test
+    fun overallProgressIsTheShareOfCoveredAyahs() {
+        assertEquals((7 + 143) / 6236f, HomeRows.overallProgress(mapOf(1 to 7, 2 to 143)))
+        assertEquals(0f, HomeRows.overallProgress(emptyMap()))
     }
 
     @Test
@@ -254,153 +263,48 @@ class HomeStateBuilderTest {
         assertTrue(HomeStateBuilder.buildBase(sources()).recent.isEmpty())
     }
 
-    // -- Today ------------------------------------------------------------------------------------
+    // -- Lesson -----------------------------------------------------------------------------------
 
     @Test
-    fun todayIsHiddenWhenNothingIsInProgressAndNoGoalWasChosen() {
-        assertNull(HomeStateBuilder.buildBase(sources()).today)
-        assertNull(HomeStateBuilder.buildBase(sources(goals = setOf(OnboardingGoal.READ, OnboardingGoal.LISTEN))).today)
+    fun theLessonCardWaitsForTheRepositoryAndIsBuiltOnceItAnswered() {
+        assertNull(HomeStateBuilder.buildBase(sources(lesson = null)).lesson)
+        val card = HomeStateBuilder.buildBase(sources(lesson = lesson(hasPlan = false))).lesson!!
+        assertEquals(LessonCardState.NoPlan, card.state)
     }
 
     @Test
-    fun todayWaitsForTheFirstReadOfTheReviewTable() {
-        val learning = listOf(SurahTodoEntity(2, SurahTodoStatus.LEARNING))
-        assertNull(HomeStateBuilder.buildBase(sources(todoSurahs = learning, done = null)).today)
-        assertTrue(HomeStateBuilder.buildBase(sources(todoSurahs = learning)).today != null)
-    }
-
-    @Test
-    fun aMemorizingSurahProducesNewCards() {
-        val today = HomeStateBuilder.buildBase(
-            sources(todoSurahs = listOf(SurahTodoEntity(2, SurahTodoStatus.LEARNING)), done = DoneStats(3)),
-        ).today!!
-        assertEquals(3, today.done)
-        assertEquals(5, today.goal)
-        val cards = assertIs<TodayBody.Cards>(today.body).cards
-        assertEquals(1, cards.size)
-        val card = cards.single()
-        assertEquals(TodayKind.New, card.kind)
-        assertEquals(2, card.surah)
-        assertEquals("Al-Baqarah", card.surahName)
-        assertEquals(1, card.startAyah)
-        // The goal of five minus the three ayahs already done today leaves two new ones.
-        assertEquals(2, card.endAyah)
-        assertEquals(2, card.totalAyahs)
-        assertTrue(card.sharesElements)
-    }
-
-    @Test
-    fun dueReviewsAndWeakAyahsGetTheirCards() {
-        val today = HomeStateBuilder.buildBase(
-            sources(
-                dueReviews = listOf(
-                    AyahReviewEntity(9, 2, 0, 0, 0),
-                    AyahReviewEntity(10, 2, 0, 3, 0),
-                    AyahReviewEntity(1, 1, 0, 1, 0),
-                ),
-                weak = setOf("3:20"),
+    fun theLessonCardNamesSurahsInTheLanguageOfTheList() {
+        val lesson = lesson().copy(
+            isEmpty = false,
+            newBlock = tj.app.quran_todo.hifz.schedule.LessonNew(
+                surah = 2, startAyah = 1, endAyah = 5,
+                state = tj.app.quran_todo.hifz.schedule.LessonNewState.PENDING,
+                grade = null, passageId = null, estimateSeconds = 120,
             ),
-        ).today!!
-        val cards = assertIs<TodayBody.Cards>(today.body).cards
-        assertEquals(listOf(TodayKind.Review, TodayKind.Weak), cards.map { it.kind })
-        val review = cards[0]
-        assertEquals(3, review.totalAyahs)
-        assertEquals(2, review.surahCount)
-        assertEquals(2, review.surah)
-        val weak = cards[1]
-        assertEquals(1, weak.totalAyahs)
-        assertEquals(3, weak.surah)
-        assertEquals(3, weak.startAyah)
+            remainingMinutes = 2,
+            totalMinutes = 2,
+        )
+        val ru = HomeStateBuilder.buildBase(sources(language = AppLanguage.RU, lesson = lesson)).lesson!!
+        assertEquals("Аль-Бакара", ru.lines.single().surahName)
+        val en = HomeStateBuilder.buildBase(sources(language = AppLanguage.EN, lesson = lesson)).lesson!!
+        assertEquals("Al-Baqarah", en.lines.single().surahName)
     }
 
     @Test
-    fun twoCardsOnTheSameSurahShareElementKeysOnlyOnce() {
-        val cards = assertIs<TodayBody.Cards>(
-            HomeStateBuilder.buildBase(
-                sources(
-                    todoSurahs = listOf(SurahTodoEntity(2, SurahTodoStatus.LEARNING)),
-                    dueReviews = listOf(AyahReviewEntity(8, 2, 0, 0, 0)),
-                ),
-            ).today!!.body,
-        ).cards
-        assertEquals(listOf(TodayKind.New, TodayKind.Review), cards.map { it.kind })
-        assertEquals(listOf(true, false), cards.map { it.sharesElements })
+    fun noLessonCardWhileTheQuranIsNotThere() {
+        val base = HomeStateBuilder.buildBase(sources(index = QuranIndex.Empty, loadState = QuranLoadState.Loading, lesson = lesson()))
+        assertNull(base.lesson)
     }
 
     @Test
-    fun whenAllWorkIsDoneTodayShowsTheDoneCard() {
-        val learning = listOf(SurahTodoEntity(1, SurahTodoStatus.LEARNING))
-        val learned = (1..7).map { AyahTodoEntity(it, 1, AyahTodoStatus.LEARNED, 5) }
-        val today = HomeStateBuilder.buildBase(
-            sources(todoSurahs = learning, ayahTodos = learned, done = DoneStats(7, (1..7).toSet())),
-        ).today!!
-        assertIs<TodayBody.AllDone>(today.body)
-        assertEquals(7, today.done)
-    }
-
-    @Test
-    fun reviewedBeforeButNothingDueShowsTheDoneCard() {
-        val today = HomeStateBuilder.buildBase(sources(done = DoneStats(0, setOf(1)))).today!!
-        assertIs<TodayBody.AllDone>(today.body)
-    }
-
-    @Test
-    fun rightAfterAMemorizeSessionTodayDoesNotOfferTheRatedAyahsAsNewAgain() {
-        // The seven ayahs of Al-Fatihah were rated: each is "memorizing" with a review in the future
-        // (nothing is due), and 7 ayahs against a goal of 5 were done today.
-        val learning = listOf(SurahTodoEntity(1, SurahTodoStatus.LEARNING))
-        val rated = (1..7).map { AyahTodoEntity(it, 1, AyahTodoStatus.LEARNING, 5) }
-        val today = HomeStateBuilder.buildBase(
-            sources(todoSurahs = learning, ayahTodos = rated, done = DoneStats(7, (1..7).toSet())),
-        ).today!!
-        assertIs<TodayBody.AllDone>(today.body)
-        assertEquals(7, today.done)
-        assertEquals(5, today.goal)
-    }
-
-    @Test
-    fun afterASessionWithGoalLeftTodayOffersOnlyAyahsThatWereNeverRepeated() {
-        val learning = listOf(SurahTodoEntity(1, SurahTodoStatus.LEARNING), SurahTodoEntity(2, SurahTodoStatus.LEARNING))
-        val rated = (1..7).map { AyahTodoEntity(it, 1, AyahTodoStatus.LEARNING, 5) }
-        val today = HomeStateBuilder.buildBase(
-            sources(todoSurahs = learning, ayahTodos = rated, done = DoneStats(7, (1..7).toSet()), goal = 10),
-        ).today!!
-        val card = assertIs<TodayBody.Cards>(today.body).cards.single()
-        assertEquals(TodayKind.New, card.kind)
-        assertEquals(2, card.surah)
-        assertEquals(1, card.startAyah)
-        assertEquals(3, card.endAyah)
-    }
-
-    @Test
-    fun aReachedGoalShowsNoNewCardButStillTheDueReviews() {
-        val learning = listOf(SurahTodoEntity(2, SurahTodoStatus.LEARNING))
-        val onlyNew = HomeStateBuilder.buildBase(sources(todoSurahs = learning, done = DoneStats(5))).today!!
-        assertIs<TodayBody.AllDone>(onlyNew.body)
-        val withReview = HomeStateBuilder.buildBase(
-            sources(
-                todoSurahs = learning,
-                dueReviews = listOf(AyahReviewEntity(1, 1, 0, 0, 0)),
-                done = DoneStats(6, setOf(1)),
-            ),
-        ).today!!
-        assertEquals(6, withReview.done)
-        assertEquals(listOf(TodayKind.Review), assertIs<TodayBody.Cards>(withReview.body).cards.map { it.kind })
-    }
-
-    @Test
-    fun theMemorizeGoalAloneInvitesToMarkASurahUntilItIsDismissed() {
-        val goals = setOf(OnboardingGoal.MEMORIZE)
-        assertIs<TodayBody.Invite>(HomeStateBuilder.buildBase(sources(goals = goals)).today!!.body)
-        assertNull(HomeStateBuilder.buildBase(sources(goals = goals, inviteDismissed = true)).today)
-    }
-
-    @Test
-    fun theMemorizeGoalWithWorkShowsTheCardsNotTheInvitation() {
-        val today = HomeStateBuilder.buildBase(
-            sources(goals = setOf(OnboardingGoal.MEMORIZE), todoSurahs = listOf(SurahTodoEntity(1, SurahTodoStatus.LEARNING))),
-        ).today!!
-        assertIs<TodayBody.Cards>(today.body)
+    fun theLessonComesFirstForTheMemorizeGoalAndWhenNoGoalWasChosen() {
+        assertTrue(HomeStateBuilder.lessonFirst(emptySet()))
+        assertTrue(HomeStateBuilder.lessonFirst(setOf(OnboardingGoal.MEMORIZE)))
+        assertTrue(HomeStateBuilder.lessonFirst(setOf(OnboardingGoal.READ, OnboardingGoal.MEMORIZE)))
+        assertFalse(HomeStateBuilder.lessonFirst(setOf(OnboardingGoal.READ)))
+        assertFalse(HomeStateBuilder.lessonFirst(setOf(OnboardingGoal.READ, OnboardingGoal.LISTEN)))
+        assertFalse(HomeStateBuilder.buildBase(sources(goals = setOf(OnboardingGoal.LISTEN))).lessonFirst)
+        assertTrue(HomeStateBuilder.buildBase(sources(goals = setOf(OnboardingGoal.MEMORIZE))).lessonFirst)
     }
 
     // -- Listing ----------------------------------------------------------------------------------

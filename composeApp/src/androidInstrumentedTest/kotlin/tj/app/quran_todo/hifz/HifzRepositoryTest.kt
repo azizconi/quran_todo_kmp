@@ -508,6 +508,35 @@ class HifzRepositoryTest {
     }
 
     @Test
+    fun coveredCountsListsEverySurahWithACoveredAyahInOneRead() = runBlocking {
+        assertTrue(repository.coveredCounts().first().isEmpty())
+        repository.completeNew(114, 1, 4, ReviewGrade.GOOD, emptySet(), day)
+        repository.markKnown(112, today = day)
+        val counts = repository.coveredCounts().first()
+        assertEquals(setOf(112, 114), counts.keys)
+        assertEquals(4, counts[114])
+        assertEquals(repository.surahCoverage(112).first().ayahCount, counts[112])
+    }
+
+    @Test
+    fun aDraftPlanForecastUsesTheCoveredAyahsButStoresNothing() = runBlocking {
+        repository.completeNew(114, 1, 3, ReviewGrade.GOOD, emptySet(), day)
+        val draft = tj.app.quran_todo.hifz.model.HifzPlan(
+            scope = HifzScope.CUSTOM,
+            surahOrder = listOf(114),
+            dailyNewAyahs = 3,
+            targetEpochDay = null,
+            startedEpochDay = day,
+            manzilDays = 7,
+        )
+        val forecast = repository.forecast(draft, day).first()
+        assertEquals(6, forecast.totalAyahs)
+        assertEquals(3, forecast.remainingAyahs)
+        assertEquals(day + 1 + 1, forecast.finishEpochDay, "today's new passage is learned: counting starts tomorrow")
+        assertNull(repository.plan().first(), "the draft is not saved")
+    }
+
+    @Test
     fun aDayFlowMovesTheLessonToTheNextDay() = runBlocking {
         repository.completeNew(114, 1, 6, ReviewGrade.GOOD, emptySet(), day)
         val days = MutableStateFlow(day)
