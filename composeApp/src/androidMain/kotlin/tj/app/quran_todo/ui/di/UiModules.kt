@@ -12,9 +12,11 @@ import tj.app.quran_todo.ui.plan.PlanViewModel
 import tj.app.quran_todo.ui.playback.createPlaybackController
 import tj.app.quran_todo.ui.progress.ProgressViewModel
 import tj.app.quran_todo.ui.reader.ReaderViewModel
+import tj.app.quran_todo.ui.reminder.ReminderController
 import tj.app.quran_todo.ui.settings.SettingsViewModel
 import tj.app.quran_todo.ui.settings.TransferIo
 import tj.app.quran_todo.ui.state.UiPrefs
+import tj.app.quran_todo.ui.whatsnew.WhatsNewViewModel
 
 /**
  * One Koin module per feature (docs/redesign/ANDROID_REDESIGN.md, 4.2). Phase 1/2 tasks register the
@@ -95,7 +97,24 @@ val settingsUiModule = module {
 }
 
 val onboardingUiModule = module {
-    viewModel { OnboardingViewModel(home = get(), uiPrefs = get()) }
+    // The onboarding v2 keeps its step and its choices in the SavedStateHandle (a killed process continues from the same step). The
+    // handle is the parameter (see OnboardingViewModelFactory); the shared HomeViewModel, HifzRepository and the day ticker are
+    // singletons that come in through the constructor.
+    viewModel { params ->
+        OnboardingViewModel(
+            handle = params.get(),
+            home = get(),
+            hifz = get(),
+            ticker = get(),
+            uiPrefs = get(),
+            reminder = ReminderController(androidContext(), get()),
+        )
+    }
+}
+
+val whatsNewUiModule = module {
+    // "What's new: the lesson of the day" for people who updated: only reads whether a plan exists.
+    viewModel { WhatsNewViewModel(hifz = get(), uiPrefs = get()) }
 }
 
 /** App-wide singletons shared by all screens. */
@@ -114,4 +133,5 @@ val uiModules = listOf(
     progressUiModule,
     settingsUiModule,
     onboardingUiModule,
+    whatsNewUiModule,
 )
