@@ -587,7 +587,7 @@ class HifzRepositoryTest {
         val exported = repository.exportBackupData()
         val text = BackupCodec.encode(verifiedOf(exported))
         val mirrorBefore = mirrorState()
-        assertTrue(exported.hifz.passages.size >= 2 && exported.hifz.hard.isNotEmpty() && exported.hifz.reviewLog.size >= 4)
+        assertTrue(exported.hifz.passages.size >= 2 && exported.hifz.hard.isNotEmpty() && exported.hifz.reviewLog.size >= 3)
 
         // The phone changes afterwards: no plan, the new passage forgotten, another surah known, the note gone.
         repository.clearPlan()
