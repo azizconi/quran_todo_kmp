@@ -22,9 +22,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.StarHalf
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Contrast
+import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Tag
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -190,7 +190,7 @@ private fun MenuPage(statusLabel: String, copy: ReaderCopy, onStatus: () -> Unit
             title = copy.surahStatusTitle,
             value = statusLabel,
             onClick = onStatus,
-            icon = Icons.Rounded.StarBorder,
+            icon = Icons.Rounded.RadioButtonUnchecked,
             iconTint = QhTheme.colors.gold,
         )
         QhRowDivider()
@@ -209,21 +209,21 @@ private fun StatusPage(status: SurahTodoStatus?, copy: ReaderCopy, onSelect: (Su
         Spacer(Modifier.height(QhSpacing.x4))
         Row(horizontalArrangement = Arrangement.spacedBy(QhSpacing.x3)) {
             StatusOption(
-                icon = Icons.Rounded.StarBorder,
+                icon = Icons.Rounded.RadioButtonUnchecked,
                 label = copy.notStarted,
                 selected = status == null,
                 onClick = { onSelect(null) },
                 modifier = Modifier.weight(1f),
             )
             StatusOption(
-                icon = Icons.AutoMirrored.Rounded.StarHalf,
+                icon = Icons.Rounded.Contrast,
                 label = copy.learning,
                 selected = status == SurahTodoStatus.LEARNING,
                 onClick = { onSelect(SurahTodoStatus.LEARNING) },
                 modifier = Modifier.weight(1f),
             )
             StatusOption(
-                icon = Icons.Rounded.Star,
+                icon = Icons.Rounded.CheckCircle,
                 label = copy.learned,
                 selected = status == SurahTodoStatus.LEARNED,
                 onClick = { onSelect(SurahTodoStatus.LEARNED) },
@@ -233,7 +233,7 @@ private fun StatusPage(status: SurahTodoStatus?, copy: ReaderCopy, onSelect: (Su
     }
 }
 
-/** A big status card: an outline, a half and a full star. */
+/** A big status card: a circle, a half circle and a check. */
 @Composable
 private fun StatusOption(
     icon: ImageVector,

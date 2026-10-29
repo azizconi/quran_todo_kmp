@@ -20,7 +20,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import tj.app.quran_todo.ui.components.AnimatedEightPointStar
+import tj.app.quran_todo.ui.components.Calligraphy
+import tj.app.quran_todo.ui.components.CalligraphyText
 import tj.app.quran_todo.ui.components.OrnamentDivider
 import tj.app.quran_todo.ui.components.QhButton
 import tj.app.quran_todo.ui.components.QhButtonSize
@@ -124,7 +125,7 @@ fun QuranFinishedCard(
     ) {
         OrnamentDivider(Modifier.padding(horizontal = QhSpacing.x8))
         Spacer(Modifier.size(QhSpacing.x5))
-        AnimatedEightPointStar(size = 72.dp, drawMillis = 1_100, breathing = true)
+        CalligraphyText(Calligraphy.Alhamdulillah, size = 44.dp, revealMillis = 1_200)
         Spacer(Modifier.size(QhSpacing.x4))
         Text(
             text = copy.quranFinished,

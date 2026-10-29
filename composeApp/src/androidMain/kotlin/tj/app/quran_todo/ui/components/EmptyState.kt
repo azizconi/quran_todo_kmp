@@ -18,8 +18,8 @@ import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /**
- * A calm empty or error state: an illustration (by default the eight-pointed star drawing itself in
- * 900ms), a [title], an optional [message] and an optional action button.
+ * A calm empty or error state: an illustration (by default the mihrab arch drawing itself in 900ms
+ * with a calligraphy word inside), a [title], an optional [message] and an optional action button.
  */
 @Composable
 fun EmptyState(
@@ -28,7 +28,7 @@ fun EmptyState(
     message: String? = null,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
-    illustration: @Composable () -> Unit = { AnimatedEightPointStar(size = 88.dp, drawMillis = 900) },
+    illustration: @Composable () -> Unit = { MihrabCalligraphy(width = 88.dp) },
 ) {
     val colors = QhTheme.colors
     Column(

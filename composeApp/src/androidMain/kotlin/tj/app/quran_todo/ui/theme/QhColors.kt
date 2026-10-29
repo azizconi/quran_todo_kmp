@@ -42,7 +42,7 @@ data class QhColors(
     val goldContainer: Color,
     /** Status "memorized". */
     val learned: Color,
-    /** Content on [learned] (a filled star). Palette-independent, like [learned] itself. */
+    /** Content on [learned] (a filled medallion). Palette-independent, like [learned] itself. */
     val onLearned: Color,
     val learnedContainer: Color,
     /** Status "memorizing". */

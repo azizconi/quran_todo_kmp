@@ -66,7 +66,7 @@ enum class QhCardStyle {
     /** `surface` with a hairline outline; flat. */
     Standard,
 
-    /** Gradient `primaryContainer -> surface`, a star lattice, a gold hairline and the soft shadow. */
+    /** Gradient `primaryContainer -> surface`, an ogee lattice, a gold hairline and the soft shadow. */
     Hero,
 }
 
@@ -113,7 +113,7 @@ fun QhCard(
                 },
             ),
     ) {
-        if (hero) StarLattice(Modifier.matchParentSize())
+        if (hero) ArabesqueLattice(Modifier.matchParentSize())
         Column(Modifier.padding(contentPadding), content = content)
     }
 }

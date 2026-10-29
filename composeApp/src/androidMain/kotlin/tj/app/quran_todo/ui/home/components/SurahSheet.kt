@@ -14,11 +14,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.StarHalf
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.PushPin
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -58,7 +58,7 @@ import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /**
- * The surah sheet (long press on a row or a chip): three big status cards (outline, half, full star),
+ * The surah sheet (long press on a row or a chip): three big status cards (circle, half circle, check),
  * pin / unpin and "Listen to surah". Choosing a status lights up the card ([onPicked], at the tap),
  * slides the sheet away and then applies it ([onSetStatus]). [row] is the live row, so the selected
  * card follows the status.
@@ -131,7 +131,7 @@ internal fun SurahSheet(
         Row(horizontalArrangement = Arrangement.spacedBy(QhSpacing.x3)) {
             StatusCard(
                 label = copy.statusNotStarted,
-                icon = Icons.Rounded.StarBorder,
+                icon = Icons.Rounded.RadioButtonUnchecked,
                 selected = shownStatus == null,
                 accent = colors.inkSecondary,
                 container = colors.surfaceMuted,
@@ -140,7 +140,7 @@ internal fun SurahSheet(
             )
             StatusCard(
                 label = copy.statusLearning,
-                icon = Icons.AutoMirrored.Rounded.StarHalf,
+                icon = Icons.Rounded.Contrast,
                 selected = shownStatus == SurahTodoStatus.LEARNING,
                 accent = colors.learning,
                 container = colors.learningContainer,
@@ -149,7 +149,7 @@ internal fun SurahSheet(
             )
             StatusCard(
                 label = copy.statusLearned,
-                icon = Icons.Rounded.Star,
+                icon = Icons.Rounded.CheckCircle,
                 selected = shownStatus == SurahTodoStatus.LEARNED,
                 accent = colors.learned,
                 container = colors.learnedContainer,
@@ -179,7 +179,7 @@ private class Picked(val status: SurahTodoStatus?)
 
 /**
  * One of the three status choices. The selected one is tinted with the status color, gets a thicker
- * outline (not only color: the shape of the star differs too) and its star pops with `bouncy()`.
+ * outline (not only color: the shape of the icon differs too) and its icon pops with `bouncy()`.
  */
 @Composable
 private fun StatusCard(

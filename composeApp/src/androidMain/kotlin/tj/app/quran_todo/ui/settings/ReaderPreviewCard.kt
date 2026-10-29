@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.sp
 import tj.app.quran_todo.common.theme.ReadingFontStyle
 import tj.app.quran_todo.common.utils.getQuranFontFamily
 import tj.app.quran_todo.ui.components.AyahRosette
-import tj.app.quran_todo.ui.components.EightPointStar
+import tj.app.quran_todo.ui.components.Medallion
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.orSnap
@@ -80,7 +80,7 @@ internal fun ReaderPreviewCard(
             horizontalArrangement = Arrangement.spacedBy(QhSpacing.x2),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            EightPointStar(size = 14.dp, strokeWidth = 1.dp)
+            Medallion(size = 14.dp, strokeWidth = 1.dp)
             Text(
                 text = caption,
                 style = QhTheme.type.callout,

@@ -32,8 +32,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
@@ -388,7 +389,7 @@ private class CardLook(
 private fun cardLook(kind: TodayKind): CardLook {
     val colors = QhTheme.colors
     return when (kind) {
-        TodayKind.New -> CardLook(colors.goldContainer, colors.gold.copy(alpha = 0.35f), 1.dp, colors.gold, Icons.Rounded.AutoAwesome)
+        TodayKind.New -> CardLook(colors.goldContainer, colors.gold.copy(alpha = 0.35f), 1.dp, colors.gold, Icons.AutoMirrored.Rounded.MenuBook)
         TodayKind.Review -> CardLook(colors.dueContainer, Color.Transparent, 1.dp, colors.due, Icons.Rounded.Refresh)
         TodayKind.Weak -> CardLook(colors.surface, colors.due, 1.5.dp, colors.due, Icons.Rounded.PriorityHigh)
     }
@@ -431,7 +432,7 @@ private fun InviteCard(copy: HomeCopy, onDismiss: () -> Unit, modifier: Modifier
                     .background(colors.goldContainer),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.gold, modifier = Modifier.size(20.dp))
+                Icon(Icons.Rounded.Lightbulb, contentDescription = null, tint = colors.gold, modifier = Modifier.size(20.dp))
             }
             Column(Modifier.weight(1f).padding(top = QhSpacing.x1)) {
                 Text(copy.inviteTitle, style = QhTheme.type.title2, color = colors.ink)

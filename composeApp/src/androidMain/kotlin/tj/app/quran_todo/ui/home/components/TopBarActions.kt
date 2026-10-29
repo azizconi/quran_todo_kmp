@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import tj.app.quran_todo.ui.components.EightPointStar
+import tj.app.quran_todo.ui.components.Medallion
 import tj.app.quran_todo.ui.components.ProgressRing
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
@@ -44,8 +44,8 @@ import tj.app.quran_todo.ui.theme.tabular
 
 /**
  * The mini progress ring in the top bar: memorized ayahs of the Quran. Inside it is the percentage
- * once there is any progress, and a small filled gold star before that (a bare star outline read as
- * a brightness icon). Opens the progress screen; the ring flies into the big ring there
+ * once there is any progress, and a small gold medallion with a soft fill before that (a bare outline
+ * read as a brightness icon). Opens the progress screen; the ring flies into the big ring there
  * (`SharedKeys.ProgressRing`). [description] is the spoken label ("Progress: 3%").
  */
 @Composable
@@ -84,7 +84,7 @@ internal fun ProgressAction(
                     maxLines = 1,
                 )
             } else {
-                EightPointStar(
+                Medallion(
                     size = 15.dp,
                     color = colors.gold,
                     strokeWidth = 1.25.dp,

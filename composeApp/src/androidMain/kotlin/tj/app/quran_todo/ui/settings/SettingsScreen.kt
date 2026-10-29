@@ -41,8 +41,8 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.Source
 import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material.icons.rounded.StarRate
 import androidx.compose.material.icons.rounded.TextFields
+import androidx.compose.material.icons.rounded.ThumbUp
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material.icons.rounded.Visibility
@@ -591,7 +591,7 @@ private fun SettingsContent(
                 onClick = {
                     if (!openStoreListing(context)) toaster.show(copy.storeUnavailable, ToastKind.Error)
                 },
-                icon = Icons.Rounded.StarRate,
+                icon = Icons.Rounded.ThumbUp,
                 iconTint = colors.gold,
             )
         }

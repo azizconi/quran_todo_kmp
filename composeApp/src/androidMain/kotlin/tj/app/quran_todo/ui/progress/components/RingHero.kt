@@ -22,7 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import tj.app.quran_todo.ui.components.EightPointStar
+import tj.app.quran_todo.ui.components.Calligraphy
+import tj.app.quran_todo.ui.components.CalligraphyText
 import tj.app.quran_todo.ui.components.ProgressRing
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.components.QhCardStyle
@@ -69,7 +70,7 @@ internal fun RingHero(
     }
 }
 
-/** The ring with a star and the percentage; the ring itself fills from 0 on first show. */
+/** The ring with the word "hifz" in calligraphy over the percentage; the ring itself fills from 0 on first show. */
 @Composable
 internal fun BigRing(
     hero: HeroUi,
@@ -92,7 +93,7 @@ internal fun BigRing(
             },
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            EightPointStar(size = 18.dp, color = colors.gold, strokeWidth = 1.dp)
+            CalligraphyText(Calligraphy.Hifz, size = 20.dp, revealMillis = 700, shimmer = false)
             Spacer(Modifier.height(QhSpacing.x1))
             Percentage(value = percent, belowOne = hero.belowOnePercent, signFirst = copy.percentFirst)
         }

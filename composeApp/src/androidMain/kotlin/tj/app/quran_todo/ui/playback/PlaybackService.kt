@@ -31,7 +31,7 @@ import tj.app.quran_todo.ui.state.UiPrefs
 /**
  * Background playback (docs/redesign/API.md, "Audio"): a Media3 media session that shows the
  * [PlaybackController]'s audio to the system. Media3 keeps the service in the foreground and posts the
- * notification (previous, play/pause, next, the star icon, a tap opens the app) while audio plays; the
+ * notification (previous, play/pause, next, the app's status-bar icon, a tap opens the app) while audio plays; the
  * lock screen, the headset and Bluetooth buttons go through the same session.
  *
  * The service is created when the app binds to it for the first time ([MediaControllerLink]).

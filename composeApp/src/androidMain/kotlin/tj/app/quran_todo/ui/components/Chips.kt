@@ -22,11 +22,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
-import androidx.compose.material.icons.automirrored.rounded.StarHalf
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -138,9 +138,9 @@ fun StatusPill(
 }
 
 private fun QhStatus.icon(): ImageVector = when (this) {
-    QhStatus.NotStarted -> Icons.Rounded.StarBorder
-    QhStatus.Learning -> Icons.AutoMirrored.Rounded.StarHalf
-    QhStatus.Learned -> Icons.Rounded.Star
+    QhStatus.NotStarted -> Icons.Rounded.RadioButtonUnchecked
+    QhStatus.Learning -> Icons.Rounded.Contrast
+    QhStatus.Learned -> Icons.Rounded.CheckCircle
     QhStatus.Due -> Icons.Rounded.Refresh
 }
 

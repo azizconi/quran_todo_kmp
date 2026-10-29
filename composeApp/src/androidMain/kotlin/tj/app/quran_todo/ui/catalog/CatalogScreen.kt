@@ -70,11 +70,14 @@ import tj.app.quran_todo.common.utils.getQuranFontFamily
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.ui.components.AnimatedCheckmark
-import tj.app.quran_todo.ui.components.AnimatedEightPointStar
+import tj.app.quran_todo.ui.components.ArabesqueLattice
 import tj.app.quran_todo.ui.components.AyahRosette
 import tj.app.quran_todo.ui.components.AyahWheel
-import tj.app.quran_todo.ui.components.EightPointStar
+import tj.app.quran_todo.ui.components.Calligraphy
+import tj.app.quran_todo.ui.components.CalligraphyText
 import tj.app.quran_todo.ui.components.EmptyState
+import tj.app.quran_todo.ui.components.Medallion
+import tj.app.quran_todo.ui.components.MihrabCalligraphy
 import tj.app.quran_todo.ui.components.OrnamentDivider
 import tj.app.quran_todo.ui.components.ProgressRing
 import tj.app.quran_todo.ui.components.QhButton
@@ -98,7 +101,6 @@ import tj.app.quran_todo.ui.components.QhSwitchRow
 import tj.app.quran_todo.ui.components.QhValueRow
 import tj.app.quran_todo.ui.components.Skeleton
 import tj.app.quran_todo.ui.components.SkeletonRow
-import tj.app.quran_todo.ui.components.StarLattice
 import tj.app.quran_todo.ui.components.StatusPill
 import tj.app.quran_todo.ui.components.SurahCartouche
 import tj.app.quran_todo.ui.components.SurahNumberBadge
@@ -531,14 +533,23 @@ private fun OrnamentsDemo() {
     var replay by remember { mutableIntStateOf(0) }
     Column(verticalArrangement = Arrangement.spacedBy(QhSpacing.x4)) {
         Row(horizontalArrangement = Arrangement.spacedBy(QhSpacing.x4), verticalAlignment = Alignment.CenterVertically) {
-            EightPointStar(size = 24.dp)
-            EightPointStar(size = 48.dp)
-            EightPointStar(size = 72.dp, strokeWidth = 2.dp, fill = QhTheme.colors.goldContainer)
-            key(replay) {
-                AnimatedEightPointStar(size = 72.dp, breathing = true)
-            }
+            Medallion(size = 24.dp)
+            Medallion(size = 48.dp)
+            Medallion(size = 72.dp, strokeWidth = 2.dp, fill = QhTheme.colors.goldContainer)
             key(replay) { AnimatedCheckmark(size = 48.dp) }
             QhButton("Replay", { replay++ }, variant = QhButtonVariant.Tonal, size = QhButtonSize.S)
+        }
+        key(replay) {
+            Column(
+                Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(QhSpacing.x2),
+            ) {
+                CalligraphyText(Calligraphy.Bismillah, size = 44.dp)
+                CalligraphyText(Calligraphy.Iqra, size = 40.dp, revealMillis = 900)
+                CalligraphyText(Calligraphy.Alhamdulillah, size = 36.dp, revealMillis = 1_200)
+                MihrabCalligraphy()
+            }
         }
         OrnamentDivider()
         Box(
@@ -565,9 +576,9 @@ private fun OrnamentsDemo() {
                 .clip(QhTheme.shapes.lg)
                 .background(QhTheme.colors.primaryContainer),
         ) {
-            StarLattice(Modifier.fillMaxSize(), alpha = 0.16f)
+            ArabesqueLattice(Modifier.fillMaxSize(), alpha = 0.16f)
             Text(
-                "StarLattice (alpha 16% here, 7% by default)",
+                "ArabesqueLattice (alpha 16% here, 7% by default)",
                 style = QhTheme.type.callout,
                 color = QhTheme.colors.onPrimaryContainer,
                 modifier = Modifier

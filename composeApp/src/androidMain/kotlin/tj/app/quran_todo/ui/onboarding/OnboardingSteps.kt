@@ -57,12 +57,12 @@ import tj.app.quran_todo.common.theme.ReadingFontStyle
 import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.common.theme.ThemePalette
 import tj.app.quran_todo.common.utils.getQuranFontFamily
+import tj.app.quran_todo.ui.components.ArabesqueLattice
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.components.QhCardStyle
 import tj.app.quran_todo.ui.components.QhLinearProgress
 import tj.app.quran_todo.ui.components.QhSectionHeader
 import tj.app.quran_todo.ui.components.QhSlider
-import tj.app.quran_todo.ui.components.StarLattice
 import tj.app.quran_todo.ui.haptics.HapticKind
 import tj.app.quran_todo.ui.i18n.OnboardingCopy
 import tj.app.quran_todo.ui.i18n.SettingsCopy
@@ -164,14 +164,14 @@ internal fun WelcomeStep(
             .padding(bottom = QhSpacing.x4),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // The rosette sits on a faint star lattice that fades out toward every edge.
+        // The calligraphy sits on a faint ogee lattice that fades out toward every edge.
         Box(
             Modifier
                 .fillMaxWidth()
                 .bleed(QhSpacing.screen),
             contentAlignment = Alignment.Center,
         ) {
-            StarLattice(Modifier.matchParentSize(), alpha = 0.09f)
+            ArabesqueLattice(Modifier.matchParentSize(), alpha = 0.09f)
             Box(
                 Modifier
                     .matchParentSize()
@@ -189,7 +189,7 @@ internal fun WelcomeStep(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(QhSpacing.x2),
             ) {
-                WelcomeRosette()
+                WelcomeCalligraphy()
                 Spacer(Modifier.height(QhSpacing.x2))
                 Text(
                     text = "Quran Hifz",

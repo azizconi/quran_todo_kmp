@@ -94,7 +94,7 @@ internal const val LargeFontScale = 1.15f
 internal fun subtitleMaxLines(fontScale: Float): Int = if (fontScale > LargeFontScale) 2 else 1
 
 /**
- * A surah row: the numbered star (its shape and fill carry the status, its arc the progress), the
+ * A surah row: the numbered medallion (its shape and fill carry the status, its arc the progress), the
  * name, "meaning · N ayahs" and the Arabic name. No status pill: long press opens the surah sheet.
  * [origin] is `Origin.LIST` or `Origin.SEARCH` and feeds the shared element keys, so the reader's
  * header can grow out of this row. [celebration] != 0 plays a burst over the badge.

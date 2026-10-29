@@ -43,10 +43,11 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -108,7 +109,7 @@ private const val WaveStartDelayMillis = 450L
 /**
  * "Quran map": 114 small squares, ten to a row. A surah that is not started is a muted square, one in
  * progress is filled with gold from the bottom up by its share of memorized ayahs, a memorized one is
- * solid emerald with a small star. When the map first comes on screen a golden glint runs over the
+ * solid emerald with a small checkmark. When the map first comes on screen a golden glint runs over the
  * cells in order (not under reduced motion). A tap opens a bubble above the cell with the name, the
  * ayah count and "Open".
  */
@@ -355,7 +356,7 @@ private fun Modifier.cellDrawing(
                 val pop = 1f + 0.16f * glint
                 scale(pop, pop, pivot = center) {
                     drawRoundRect(palette.learned, cornerRadius = corner)
-                    drawStar(palette.onLearned.copy(alpha = 0.72f))
+                    drawCheck(palette.onLearned.copy(alpha = 0.72f))
                     if (glint > 0f) drawRoundRect(palette.glint, cornerRadius = corner, alpha = 0.92f * glint)
                 }
             }
@@ -373,14 +374,15 @@ private fun Modifier.cellDrawing(
     }
 }
 
-/** A small eight-pointed star (two squares) in the middle of a memorized cell: status is not only a color. */
-private fun DrawScope.drawStar(color: Color) {
-    val half = size.minDimension * 0.2f
-    val stroke = Stroke(width = 1.dp.toPx())
-    val topLeft = Offset(center.x - half, center.y - half)
-    val square = Size(half * 2, half * 2)
-    drawRect(color, topLeft, square, style = stroke)
-    rotate(45f, pivot = center) { drawRect(color, topLeft, square, style = stroke) }
+/** A checkmark in the middle of a memorized cell: status is not only a color. */
+private fun DrawScope.drawCheck(color: Color) {
+    val cell = size.minDimension
+    val check = Path().apply {
+        moveTo(cell * 0.28f, cell * 0.53f)
+        lineTo(cell * 0.44f, cell * 0.68f)
+        lineTo(cell * 0.73f, cell * 0.36f)
+    }
+    drawPath(check, color, style = Stroke(width = cell * 0.11f, cap = StrokeCap.Round, join = StrokeJoin.Round))
 }
 
 // -- Bubble --------------------------------------------------------------------------------------

@@ -21,13 +21,13 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.StarHalf
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -152,7 +152,7 @@ fun AyahSheet(
                 options = listOf(copy.notStarted, copy.learning, copy.learned),
                 selectedIndex = statuses.indexOf(model.status).coerceAtLeast(0),
                 onSelect = { onStatus(statuses[it]) },
-                icons = listOf(Icons.Rounded.StarBorder, Icons.AutoMirrored.Rounded.StarHalf, Icons.Rounded.Star),
+                icons = listOf(Icons.Rounded.RadioButtonUnchecked, Icons.Rounded.Contrast, Icons.Rounded.CheckCircle),
             )
 
             Spacer(Modifier.height(QhSpacing.x5))
