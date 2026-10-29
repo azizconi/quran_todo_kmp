@@ -259,7 +259,7 @@ fun QuranHifzApp() {
             val changedFields = buildList {
                 if (appSettings.dailyGoal != next.dailyGoal) add("daily_goal")
                 if (appSettings.focusMinutes != next.focusMinutes) add("focus_minutes")
-                    if (appSettings.targetAyahs != next.targetAyahs) add("target_ayahs")
+                if (appSettings.targetAyahs != next.targetAyahs) add("target_ayahs")
                 if (appSettings.targetEpochDay != next.targetEpochDay) add("target_day")
                 if (appSettings.examModeEnabled != next.examModeEnabled) add("exam_mode")
             }

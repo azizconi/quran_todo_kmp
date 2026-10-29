@@ -269,6 +269,16 @@ LessonItem(passageId, surah, startAyah, endAyah, stage, hardAyahs: Set<Int>, don
 - **Звук урока**: `PlaybackController.playSequence(surah, ayahIndices, prefs)` играет аяты в **точно заданном порядке** (каждый аят N раз, затем отрывок M раз) на том же плеере и сессии: уведомление, мини-плеер, фокус — как при обычном прослушивании; индекс состояния остаётся индексом аята. Порядок задаёт `ReaderAudioSession.playScript(indices)` (аддитивно, в `common/audio`: пока он задан, позиция в нём едет в `repeatsRemaining`, повторы/диапазон из настроек не применяются; `select`/другая сура его сбрасывают). Настройки ридера человека не трогаются: нигде не пишутся, а `RecallAudio` возвращает прежние настройки сессии, когда звук кончился, экран закрыт или VM очищена. Повторы урока — `UiPrefs.lessonAyahRepeats` (1..5, по умолчанию 3) и `lessonPassageRepeats` (1..4, по умолчанию 2), маленький лист настроек в фазе «Послушай»; формат копии принимает 1..20.
 - **Аналитика** (без текста): `lesson_started`, `lesson_block_done` (`block`=new|recent|old), `lesson_completed` (`minutes_bucket`=le5|le10|le15|le25|gt25), `check_completed` (`grade`).
 
+### Напоминание об уроке (B4, Android)
+
+- **Настройки**: `UiPrefs.reminderEnabled` (по умолчанию выкл) и `reminderMinuteOfDay` (1200 = 20:00); `UiPrefs.readReminder(context)` читает prefs напрямую для приёмников. Раздел «Напоминание» — `ui/reminder/ReminderSection` (разрешение `POST_NOTIFICATIONS` спрашивается в момент включения; заблокированные уведомления — строка «Уведомления выключены / Открыть настройки»). Включение и время — через `ReminderController`.
+- **Планирование**: `common/reminder/ReminderSync.sync(context)` — единая точка (старт приложения, настройки, `ReminderSystemReceiver` после `BOOT_COMPLETED` / `MY_PACKAGE_REPLACED` / `TIME_SET` / `TIMEZONE_CHANGED`; `LOCALE_CHANGED` переименовывает канал). Два разовых будильника `setAndAllowWhileIdle` (дневной и «Через час»), разрешение на точные не нужно. Момент — чистая `ReminderTime.nextTriggerMillis(now, minuteOfDay, zone)`.
+- **Срабатывание**: `ReminderReceiver` сначала ставит завтрашний будильник, затем (`goAsync`, таймаут 8 с) `ReminderNotifier` читает `hifz.lesson(EpochDays.now()).first()`; `ReminderNotices.build(...)` решает текст или тишину (`isComplete` → ничего, нет урока → «Продолжить чтение» по `lastReadPosition`). Канал `lesson_reminder`, имя на языке приложения; старый `hifz_reminders` удаляется.
+- **Ссылка**: `ReminderLink` (extras `open=lesson|reader`, `surah`, `ayah`) → `MainActivity` (`singleTop`, extras потребляются) → `ReminderOpenRequests` → `AppNavigation.openFromReminder` (поверх «Главного», `popUpTo<Home>`). Тексты — `ui/i18n/ReminderCopy.kt`.
+- **Копия**: `BackupSettings.reminderEnabled`, `reminderMinuteOfDay` (0..1439); импорт разрешение не спрашивает.
+- Старый `expect ReminderScheduler` на Android только зовёт `ReminderSync.sync` (аргументы не используются).
+- **Аналитика**: `reminder_enabled` (`hour`), `reminder_shown` / `reminder_opened` (`kind`=lesson|reading), `reminder_snoozed`, `reminder_timeout`.
+
 ### Что известно и ещё не сделано
 
 - `ProgressRestoreDao.replaceUserProgress` (восстановление старой копии из prefs) пишет только старые таблицы и не знает об отрывках: на Android его больше никто не вызывает (экран настроек работает через `replaceWithBackup`), на iOS он остаётся.
