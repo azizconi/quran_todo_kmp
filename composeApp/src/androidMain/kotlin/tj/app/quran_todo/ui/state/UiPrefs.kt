@@ -184,6 +184,25 @@ class UiPrefs(context: Context) {
         _onboardingGoals.value = value
     }
 
+    /**
+     * Onboarding v2 (task C1) bookkeeping. These are written straight to the preferences file and read back through
+     * [Companion.readOnboarding], because the splash screen and `MainActivity` decide whether the onboarding is next before the
+     * Compose app (and so this class) is there.
+     */
+    fun setOnboardingCompleted() {
+        prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, true).apply()
+    }
+
+    /** The onboarding v2 was shown at least once: from now on this is not an existing user who only updated the app. */
+    fun markOnboardingStarted() {
+        if (!prefs.getBoolean(KEY_ONBOARDING_V2_STARTED, false)) prefs.edit().putBoolean(KEY_ONBOARDING_V2_STARTED, true).apply()
+    }
+
+    /** The one-time "What's new: the lesson of the day" sheet for people who updated from an older version was shown. */
+    fun setWhatsNewShown() {
+        prefs.edit().putBoolean(KEY_WHATS_NEW_SHOWN, true).apply()
+    }
+
     private val _hifzHintMode = MutableStateFlow(
         prefs.getString(KEY_HIFZ_HINT_MODE, null)
             ?.let { name -> HifzHintMode.entries.firstOrNull { it.name == name } }
@@ -294,6 +313,21 @@ class UiPrefs(context: Context) {
             )
         }
 
+        /** The onboarding v2 flags as stored, for code that runs before the Compose app (splash, `MainActivity`). */
+        fun readOnboarding(context: Context): OnboardingFlags {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            return OnboardingFlags(
+                completed = prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false),
+                v2Started = prefs.getBoolean(KEY_ONBOARDING_V2_STARTED, false),
+                whatsNewShown = prefs.getBoolean(KEY_WHATS_NEW_SHOWN, false),
+            )
+        }
+
+        /** Marks the onboarding as passed without [UiPrefs]: an existing user is recognised at the first start of this version. */
+        fun writeOnboardingCompleted(context: Context) {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY_ONBOARDING_COMPLETED, true).apply()
+        }
+
         /** The stored analytics choice for code that runs before Koin starts (telemetry in Application.onCreate). */
         fun readAnalyticsEnabled(context: Context): Boolean =
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_ANALYTICS_ENABLED, true)
@@ -309,6 +343,9 @@ class UiPrefs(context: Context) {
         const val KEY_LAST_READ_SURAH = "last_read_surah"
         const val KEY_LAST_READ_AYAH = "last_read_ayah_in_surah"
         const val KEY_ONBOARDING_GOALS = "onboarding_goals"
+        const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
+        const val KEY_ONBOARDING_V2_STARTED = "onboarding_v2_started"
+        const val KEY_WHATS_NEW_SHOWN = "whats_new_shown"
         const val KEY_HIFZ_HINT_MODE = "hifz_hint_mode"
         const val KEY_ANALYTICS_ENABLED = "analytics_enabled"
         const val KEY_RECITER = "reciter"
@@ -319,6 +356,12 @@ class UiPrefs(context: Context) {
         const val KEY_REMINDER_MINUTE = "reminder_minute_of_day"
     }
 }
+
+/**
+ * The onboarding v2 flags. [completed]: the person went through the onboarding (or was recognised as an existing user).
+ * [v2Started]: the onboarding v2 screen was shown at least once on this install. [whatsNewShown]: the "What's new" sheet was shown.
+ */
+data class OnboardingFlags(val completed: Boolean, val v2Started: Boolean, val whatsNewShown: Boolean)
 
 /** The reminder settings as stored: on or off, and the time as minutes after midnight. */
 data class ReminderPrefs(val enabled: Boolean, val minuteOfDay: Int)
