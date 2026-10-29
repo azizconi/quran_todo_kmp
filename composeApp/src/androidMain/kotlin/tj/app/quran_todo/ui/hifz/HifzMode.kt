@@ -19,14 +19,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.core.parameter.parametersOf
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
-import tj.app.quran_todo.presentation.review.ReviewQuality
 import tj.app.quran_todo.ui.i18n.HifzCopy
 import tj.app.quran_todo.ui.i18n.hifzCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
@@ -40,12 +39,12 @@ import tj.app.quran_todo.ui.state.HifzHintMode
 @Immutable
 data class HifzRowState(
     val phase: HifzPhase,
-    /** The ayah being recalled has been revealed (its ratings are on offer). */
+    /** The ayah being recalled has been revealed (its two answers are on offer). */
     val revealed: Boolean,
-    /** The rating of a rated ayah. */
-    val rating: ReviewQuality?,
-    /** This is the ayah rated last: its mark pops in. */
-    val justRated: Boolean,
+    /** The answer given to an answered ayah. */
+    val mark: AyahMark?,
+    /** This is the ayah answered last: its mark pops in. */
+    val justMarked: Boolean,
     /** The first word of a hidden ayah stays readable. */
     val firstWordHint: Boolean,
     /** The mode has only just started: the rows on screen melt into their veil instead of appearing veiled. */
@@ -54,25 +53,33 @@ data class HifzRowState(
 )
 
 /**
- * The memorize mode as the reader sees it (docs/redesign/ANDROID_REDESIGN.md, 6.5). Everything about the mode
- * lives behind this object; the reader asks it for the row state of an ayah, the controls under the current
- * ayah, the eye button and the overlays, and otherwise behaves as it always does. Get it from
- * [rememberHifzMode].
+ * "Check yourself" as the reader sees it (docs/redesign/ANDROID_REDESIGN.md, 6.5; PRODUCT_PLAN.md, 2.4). Everything
+ * about the mode lives behind this object; the reader asks it for the row state of an ayah, the controls under the
+ * current ayah, the eye button and the overlays, and otherwise behaves as it always does. Get it from
+ * [rememberHifzMode]. It is the [RecallHost] of the controls under the ayahs.
  */
 @Stable
 class HifzMode internal constructor(
     internal val viewModel: HifzViewModel,
     internal val surah: SurahWithAyahs,
     internal val surahName: String,
-    internal val copy: HifzCopy,
+    override val copy: HifzCopy,
     private val sessionState: State<HifzSession?>,
     private val hintState: State<HifzHintMode>,
     private val startedAt: LongArray,
     private val startIndex: State<() -> Int>,
     private val rangeEndIndex: State<() -> Int?>,
-) {
-    /** The running session, or null. Reading it recomposes the reader of it whenever an ayah is rated. */
-    val session: HifzSession? get() = sessionState.value
+) : RecallHost {
+    /** The running session, or null. Reading it recomposes the reader of it whenever an ayah is answered. */
+    override val session: HifzSession? get() = sessionState.value
+
+    override val listening: StateFlow<Boolean> get() = viewModel.listening
+
+    override fun reveal() = viewModel.reveal()
+
+    override fun mark(mark: AyahMark, position: Int) = viewModel.mark(mark, position)
+
+    override fun toggleListen() = viewModel.toggleListen(surah)
 
     val active: Boolean get() = session != null
 
@@ -85,6 +92,11 @@ class HifzMode internal constructor(
         viewModel.startFromAyah(surah, startIndex.value(), rangeEndIndex.value())
     }
 
+    /** "Check yourself from here" in the sheet of an ayah: a session from the ayah at list index [index]. */
+    fun startAt(index: Int) {
+        viewModel.startFromAyah(surah, index, rangeEndIndex = null)
+    }
+
     fun rowState(index: Int): HifzRowState? {
         val session = session ?: return null
         val inSurah = index + 1
@@ -93,8 +105,8 @@ class HifzMode internal constructor(
         return HifzRowState(
             phase = phase,
             revealed = phase == HifzPhase.Current && session.revealed,
-            rating = if (phase == HifzPhase.Done) item?.rating else null,
-            justRated = phase == HifzPhase.Done && session.items.getOrNull(session.index - 1)?.inSurah == inSurah,
+            mark = if (phase == HifzPhase.Done) item?.mark else null,
+            justMarked = phase == HifzPhase.Done && session.items.getOrNull(session.index - 1)?.inSurah == inSurah,
             firstWordHint = hintState.value == HifzHintMode.FIRST_WORD,
             animateIn = SystemClock.uptimeMillis() - startedAt[0] < EnterWindowMillis,
             copy = copy,
@@ -105,7 +117,7 @@ class HifzMode internal constructor(
     fun controlsFor(index: Int): (@Composable () -> Unit)? {
         val session = session ?: return null
         if (session.phaseOf(index + 1) == HifzPhase.Outside) return null
-        return { HifzControlsHost(mode = this, inSurah = index + 1) }
+        return { RecallControlsHost(host = this, inSurah = index + 1) }
     }
 
     private companion object {
@@ -205,6 +217,3 @@ private suspend fun LazyListState.keepRowBottomVisible(itemIndex: Int, margin: F
     if (delta < 1f) return
     if (animate) animateScrollBy(delta) else scrollBy(delta)
 }
-
-/** Percent of recall for display: 0..100. */
-internal fun HifzSession.recallPercent(): Int = (recallShare * 100f).roundToInt()

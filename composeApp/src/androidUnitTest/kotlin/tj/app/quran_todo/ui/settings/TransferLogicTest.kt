@@ -187,6 +187,8 @@ class TransferLogicTest {
         override fun setKeepScreenOn(value: Boolean) { calls += "keepOn=$value" }
         override fun setReciter(reciter: Reciter) { calls += "reciter=${reciter.id}" }
         override fun setHifzHintMode(mode: HifzHintMode) { calls += "hint=$mode" }
+        override fun setLessonAyahRepeats(value: Int) { calls += "lessonAyah=$value" }
+        override fun setLessonPassageRepeats(value: Int) { calls += "lessonPassage=$value" }
         override fun setHapticsEnabled(value: Boolean) { calls += "haptics=$value" }
         override fun setReduceMotion(value: Boolean) { calls += "reduce=$value" }
     }
@@ -205,12 +207,14 @@ class TransferLogicTest {
             language = "tg", themeMode = "DARK", themeFollowsSystem = false, palette = "OCEAN", readingFont = "amiri_quran",
             readingFontSize = 34, dailyGoal = 9, showTranslation = true, highlightPlayingAyah = false, autoplayOnOpen = true,
             autoAdvanceAyahs = false, playbackSpeed = 1.5f, repeatCount = 3, readerLayout = "MUSHAF", keepScreenOn = false,
-            reciter = "husary", hifzHint = "FIRST_WORD", hapticsEnabled = false, reduceMotion = true,
+            reciter = "husary", lessonAyahRepeats = 4, lessonPassageRepeats = 3, hifzHint = "FIRST_WORD",
+            hapticsEnabled = false, reduceMotion = true,
         ).applyTo(target)
         assertEquals(
             listOf(
                 "language=TG", "mode=DARK", "follows=false", "palette=OCEAN", "font=AMIRI_QURAN", "app=9/34", "reader",
-                "layout=MUSHAF", "keepOn=false", "reciter=husary", "hint=FIRST_WORD", "haptics=false", "reduce=true",
+                "layout=MUSHAF", "keepOn=false", "reciter=husary", "hint=FIRST_WORD", "lessonAyah=4", "lessonPassage=3", "haptics=false",
+                "reduce=true",
             ),
             target.calls,
         )

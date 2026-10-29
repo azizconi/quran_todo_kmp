@@ -19,9 +19,8 @@ import tj.app.quran_todo.ui.state.UiPrefs
 /**
  * Settings <-> the `settings` block of the backup file.
  *
- * What the person set up goes to the file, analytics consent does not. TODO(B2 merge): the lesson repeats
- * (`UiPrefs.lessonAyahRepeats` / `lessonPassageRepeats` of task B2) are fields of the format already
- * (`BackupSettings.lessonAyahRepeats`, `lessonPassageRepeats`); read them in [collect] and set them in [applyTo] once B2 is merged.
+ * What the person set up goes to the file, analytics consent does not. That includes the repeats of the "Listen" phase of the
+ * lesson (`UiPrefs.lessonAyahRepeats` / `lessonPassageRepeats`).
  */
 internal object TransferSettings {
     /** The settings of this phone, as they are stored now. Values never saved are left out (the phone that imports keeps its own). */
@@ -42,6 +41,8 @@ internal object TransferSettings {
         readerLayout = uiPrefs.readerLayout.value.name,
         keepScreenOn = uiPrefs.keepScreenOn.value,
         reciter = uiPrefs.reciter.value.id,
+        lessonAyahRepeats = uiPrefs.lessonAyahRepeats.value,
+        lessonPassageRepeats = uiPrefs.lessonPassageRepeats.value,
         hifzHint = uiPrefs.hifzHintMode.value.name,
         hapticsEnabled = uiPrefs.hapticsEnabled.value,
         reduceMotion = uiPrefs.reduceMotion.value,
@@ -79,6 +80,12 @@ internal interface TransferSettingsTarget {
 
     fun setHifzHintMode(mode: HifzHintMode)
 
+    /** How many times every ayah of a new passage sounds in the lesson. */
+    fun setLessonAyahRepeats(value: Int)
+
+    /** How many times the whole new passage sounds in the lesson after that. */
+    fun setLessonPassageRepeats(value: Int)
+
     fun setHapticsEnabled(value: Boolean)
 
     fun setReduceMotion(value: Boolean)
@@ -115,6 +122,8 @@ internal fun BackupSettings.applyTo(target: TransferSettingsTarget) {
     keepScreenOn?.let(target::setKeepScreenOn)
     reciter?.let { id -> Reciters.all.firstOrNull { it.id == id } }?.let(target::setReciter)
     hifzHint?.let { name -> HifzHintMode.entries.firstOrNull { it.name == name } }?.let(target::setHifzHintMode)
+    lessonAyahRepeats?.let(target::setLessonAyahRepeats)
+    lessonPassageRepeats?.let(target::setLessonPassageRepeats)
     hapticsEnabled?.let(target::setHapticsEnabled)
     reduceMotion?.let(target::setReduceMotion)
 }

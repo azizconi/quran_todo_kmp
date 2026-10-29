@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -24,32 +22,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
-import tj.app.quran_todo.presentation.review.ReviewQuality
 import tj.app.quran_todo.ui.components.AyahRosette
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.theme.QhTheme
 
-/** The color a rating stands for: Forgot is due, Hard is learning, Good is the brand, Easy is learned. */
+/** The color an answer stands for: "I remember" is the brand, "hard" is due. */
 @Composable
-internal fun ratingColor(quality: ReviewQuality): Color = with(QhTheme.colors) {
-    when (quality) {
-        ReviewQuality.FORGOT -> due
-        ReviewQuality.HARD -> learning
-        ReviewQuality.GOOD -> primary
-        ReviewQuality.EASY -> learned
+internal fun markColor(mark: AyahMark): Color = with(QhTheme.colors) {
+    when (mark) {
+        AyahMark.REMEMBERED -> primary
+        AyahMark.HARD -> due
     }
 }
 
 /**
- * The rosette of an ayah in the mode. A rated ayah carries a small round mark of its rating on the rosette
- * (a glyph as well as a color) and its name next to it; the mark of the ayah rated last pops in.
+ * The rosette of an ayah in the mode. An answered ayah carries a small round mark of its answer on the rosette
+ * (a glyph as well as a color) and its name next to it; the mark of the ayah answered last pops in.
  */
 @Composable
 fun HifzRosette(
@@ -59,43 +53,46 @@ fun HifzRosette(
     state: HifzRowState,
     modifier: Modifier = Modifier,
 ) {
-    val rating = state.rating
+    val mark = state.mark
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Box {
             AyahRosette(number = number, status = status, weak = weak)
-            if (rating != null) {
-                RatingMark(
-                    quality = rating,
-                    pop = state.justRated,
+            if (mark != null) {
+                AnswerMark(
+                    mark = mark,
+                    pop = state.justMarked,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .offset(x = 5.dp, y = 4.dp),
                 )
             }
         }
-        if (rating != null) {
+        if (mark != null) {
             Text(
-                text = state.copy.label(rating),
+                text = state.copy.label(mark),
                 style = QhTheme.type.label,
                 color = QhTheme.colors.inkSecondary,
                 modifier = Modifier
                     .padding(start = 12.dp)
-                    .semantics { contentDescription = state.copy.rated(rating) },
+                    .semantics { contentDescription = state.copy.answered(mark) },
             )
         }
     }
 }
 
 @Composable
-private fun RatingMark(quality: ReviewQuality, pop: Boolean, modifier: Modifier = Modifier) {
+private fun AnswerMark(mark: AyahMark, pop: Boolean, modifier: Modifier = Modifier) {
     val colors = QhTheme.colors
     val reduced = LocalReducedMotion.current
     val scale = remember { Animatable(if (pop && !reduced) 0.2f else 1f) }
     LaunchedEffect(Unit) {
         if (scale.value != 1f) scale.animateTo(1f, QhMotion.bouncy())
     }
-    val fill = ratingColor(quality)
-    val (icon, glyph) = ratingGlyph(quality)
+    val fill = markColor(mark)
+    val (icon, glyph) = when (mark) {
+        AyahMark.REMEMBERED -> Icons.Rounded.Check to colors.onPrimary
+        AyahMark.HARD -> Icons.Rounded.PriorityHigh to colors.readerBg
+    }
     Box(
         modifier
             .graphicsLayer {
@@ -110,17 +107,5 @@ private fun RatingMark(quality: ReviewQuality, pop: Boolean, modifier: Modifier 
         contentAlignment = Alignment.Center,
     ) {
         Icon(imageVector = icon, contentDescription = null, tint = glyph, modifier = Modifier.size(10.dp))
-    }
-}
-
-/** The glyph of a rating mark and its color against the mark's fill. */
-@Composable
-private fun ratingGlyph(quality: ReviewQuality): Pair<ImageVector, Color> {
-    val colors = QhTheme.colors
-    return when (quality) {
-        ReviewQuality.FORGOT -> Icons.Rounded.Close to colors.readerBg
-        ReviewQuality.HARD -> Icons.Rounded.PriorityHigh to colors.readerBg
-        ReviewQuality.GOOD -> Icons.Rounded.Check to colors.onPrimary
-        ReviewQuality.EASY -> Icons.Rounded.DoneAll to colors.onLearned
     }
 }

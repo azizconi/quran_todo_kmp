@@ -55,6 +55,13 @@ class ReaderAudioSession internal constructor(
     private var pendingStep: ReaderPlaybackStep? = null
     private var gapRemainingMs = 0L
     private var stopAfterIndex: Int? = null
+
+    /**
+     * An explicit order of ayah indices ([playScript]); while it is set, the position in it travels in
+     * [repeatsRemaining] and replaces the repeat/advance rules of the preferences. Any other way to start
+     * playing ([select], a different surah) drops it.
+     */
+    private var script: List<Int>? = null
     private val ticker = scope.launch {
         state.map { it.isPlaying }.distinctUntilChanged().collectLatest { playing ->
             if (playing) {
@@ -82,6 +89,7 @@ class ReaderAudioSession internal constructor(
             return
         }
         stop()
+        script = null
         this.surahNumber = surahNumber
         this.ayahs = ayahs
         this.preferences = preferences
@@ -92,6 +100,7 @@ class ReaderAudioSession internal constructor(
     }
 
     fun select(index: Int) {
+        script = null
         stop()
         if (index !in ayahs.indices) return
         mutableState.value = ReaderAudioState(index = index)
@@ -113,8 +122,27 @@ class ReaderAudioSession internal constructor(
         }
     }
 
+    /**
+     * Plays the ayahs at [indices] (positions in the ayah list, repeats allowed) in exactly this order, one after the
+     * other, regardless of the repeat and advance preferences; the pause between ayahs still applies. This is how the
+     * lesson plays "every ayah three times, then the whole passage twice" without a gap or a change of settings.
+     * Pause, resume, next and previous work on the sequence; [select] or another surah ends it. Indices that are not
+     * ayahs are dropped; nothing happens when none is left.
+     */
+    fun playScript(indices: List<Int>) {
+        val valid = indices.filter { it in ayahs.indices }
+        if (valid.isEmpty()) return
+        script = valid
+        start(ReaderPlaybackStep(valid[0], 0))
+    }
+
     private fun play() {
         if (ayahs.isEmpty()) return
+        script?.let { order ->
+            val position = if (sequenceCompleted) 0 else repeatsRemaining.coerceIn(0, order.lastIndex)
+            start(ReaderPlaybackStep(order[position], position))
+            return
+        }
         val bounds = playbackBounds()
         val index = if (practice.rangeEnabled && sequenceCompleted) bounds.first else
             state.value.index.takeIf { it in bounds } ?: bounds.first
@@ -134,6 +162,11 @@ class ReaderAudioSession internal constructor(
 
     private fun skip(delta: Int) {
         if (ayahs.isEmpty()) return
+        script?.let { order ->
+            val position = (repeatsRemaining + delta).coerceIn(0, order.lastIndex)
+            start(ReaderPlaybackStep(order[position], position))
+            return
+        }
         val bounds = playbackBounds()
         val index = (state.value.index + delta).coerceIn(bounds.first, bounds.last)
         start(ReaderPlaybackStep(index, if (practice.rangeEnabled) practice.rangeRepeatCount else preferences.repeatCount))
@@ -191,10 +224,11 @@ class ReaderAudioSession internal constructor(
     }
 
     private fun finishedAyah() {
-        val step = if (state.value.index == stopAfterIndex) {
-            null
-        } else {
-            nextReaderPlaybackStep(state.value.index, repeatsRemaining, ayahs.size, preferences, practice)
+        val order = script
+        val step = when {
+            state.value.index == stopAfterIndex -> null
+            order != null -> order.getOrNull(repeatsRemaining + 1)?.let { ReaderPlaybackStep(it, repeatsRemaining + 1) }
+            else -> nextReaderPlaybackStep(state.value.index, repeatsRemaining, ayahs.size, preferences, practice)
         }
         if (step == null) {
             sequenceCompleted = true

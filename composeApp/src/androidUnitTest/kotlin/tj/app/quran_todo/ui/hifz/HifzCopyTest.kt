@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import tj.app.quran_todo.common.i18n.AppLanguage
-import tj.app.quran_todo.presentation.review.ReviewQuality
+import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.ui.i18n.HifzCopy
 import tj.app.quran_todo.ui.i18n.hifzCopy
 
@@ -19,7 +19,7 @@ class HifzCopyTest {
     fun everyStringIsFilledInAllFiveLanguages() {
         AppLanguage.entries.forEach { language ->
             val strings = hifzCopy(language).strings()
-            assertTrue(strings.size > 20, "copy of $language looks incomplete")
+            assertTrue(strings.size >= 30, "copy of $language looks incomplete")
             strings.forEach { (name, value) -> assertTrue(value.isNotBlank(), "$language.$name is blank") }
         }
     }
@@ -35,7 +35,7 @@ class HifzCopyTest {
     }
 
     @Test
-    fun theRatingsFollowTheGlossary() {
+    fun theGradesFollowTheGlossary() {
         val expected = mapOf(
             AppLanguage.RU to listOf("Забыл", "Трудно", "Хорошо", "Легко"),
             AppLanguage.EN to listOf("Forgot", "Hard", "Good", "Easy"),
@@ -43,20 +43,20 @@ class HifzCopyTest {
             AppLanguage.UZ to listOf("Unutdim", "Qiyin", "Yaxshi", "Oson"),
             AppLanguage.TR to listOf("Unuttum", "Zor", "İyi", "Kolay"),
         )
-        val order = listOf(ReviewQuality.FORGOT, ReviewQuality.HARD, ReviewQuality.GOOD, ReviewQuality.EASY)
+        val order = listOf(ReviewGrade.FORGOT, ReviewGrade.HARD, ReviewGrade.GOOD, ReviewGrade.EASY)
         expected.forEach { (language, words) ->
             val copy = hifzCopy(language)
-            assertEquals(words, order.map(copy::label), "$language ratings")
+            assertEquals(words, order.map { copy.label(it) }, "$language grades")
         }
     }
 
     @Test
-    fun theModeAndRevealFollowTheGlossary() {
-        assertEquals("Заучивание", hifzCopy(AppLanguage.RU).modeName)
-        assertEquals("Memorize mode", hifzCopy(AppLanguage.EN).modeName)
-        assertEquals("Ҳифз", hifzCopy(AppLanguage.TG).modeName)
-        assertEquals("Yodlash", hifzCopy(AppLanguage.UZ).modeName)
-        assertEquals("Ezber modu", hifzCopy(AppLanguage.TR).modeName)
+    fun theModeIsCalledCheckYourselfAndRevealFollowsTheGlossary() {
+        assertEquals("Проверь себя", hifzCopy(AppLanguage.RU).modeName)
+        assertEquals("Check yourself", hifzCopy(AppLanguage.EN).modeName)
+        assertEquals("Худро санҷед", hifzCopy(AppLanguage.TG).modeName)
+        assertEquals("O‘zingizni tekshiring", hifzCopy(AppLanguage.UZ).modeName)
+        assertEquals("Kendini sına", hifzCopy(AppLanguage.TR).modeName)
         assertEquals("Показать", hifzCopy(AppLanguage.RU).reveal)
         assertEquals("Reveal", hifzCopy(AppLanguage.EN).reveal)
         assertEquals("Нишон додан", hifzCopy(AppLanguage.TG).reveal)
@@ -65,14 +65,22 @@ class HifzCopyTest {
     }
 
     @Test
+    fun theTwoAnswersAreRememberedAndHard() {
+        assertEquals("Помню", hifzCopy(AppLanguage.RU).label(AyahMark.REMEMBERED))
+        assertEquals("Трудно", hifzCopy(AppLanguage.RU).label(AyahMark.HARD))
+        assertEquals("I remember", hifzCopy(AppLanguage.EN).label(AyahMark.REMEMBERED))
+        assertEquals("Hard", hifzCopy(AppLanguage.EN).label(AyahMark.HARD))
+    }
+
+    @Test
     fun placeholdersAreFilledInEveryLanguage() {
         AppLanguage.entries.forEach { language ->
             val copy = hifzCopy(language)
             val body = copy.exitBody(4, 10)
             assertTrue("4" in body && "10" in body, "$language exit body: $body")
-            val rated = copy.rated(ReviewQuality.GOOD)
-            assertTrue(copy.good in rated, "$language rated: $rated")
-            listOf(body, rated).forEach { assertTrue('{' !in it && '}' !in it, "$language leaves a placeholder: $it") }
+            val answered = copy.answered(AyahMark.HARD)
+            assertTrue(copy.hardMark in answered, "$language answered: $answered")
+            listOf(body, answered).forEach { assertTrue('{' !in it && '}' !in it, "$language leaves a placeholder: $it") }
         }
     }
 }

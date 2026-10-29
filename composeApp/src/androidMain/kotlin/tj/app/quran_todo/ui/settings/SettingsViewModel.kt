@@ -169,6 +169,10 @@ internal class SettingsViewModel(
 
     fun setHifzHintMode(value: HifzHintMode) = uiPrefs.setHifzHintMode(value)
 
+    fun setLessonAyahRepeats(value: Int) = uiPrefs.setLessonAyahRepeats(value)
+
+    fun setLessonPassageRepeats(value: Int) = uiPrefs.setLessonPassageRepeats(value)
+
     /** "System" in the theme control; picking light or dark goes through the root's mode setter. */
     fun setThemeFollowsSystem(value: Boolean) = uiPrefs.setThemeFollowsSystem(value)
 

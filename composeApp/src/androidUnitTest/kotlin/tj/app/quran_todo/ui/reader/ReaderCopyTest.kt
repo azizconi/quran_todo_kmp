@@ -65,6 +65,30 @@ class ReaderCopyTest {
     }
 
     @Test
+    fun removingLearnedAyahsAsksInTheRightPluralForm() {
+        val ru = readerCopy(AppLanguage.RU)
+        assertEquals("Убрать 1 выученный аят из повторений?", ru.removeLearned(1))
+        assertEquals("Убрать 3 выученных аята из повторений?", ru.removeLearned(3))
+        assertEquals("Убрать 12 выученных аятов из повторений?", ru.removeLearned(12))
+        assertEquals("Убрать 21 выученный аят из повторений?", ru.removeLearned(21))
+        assertEquals("Remove 1 learned ayah from your reviews?", readerCopy(AppLanguage.EN).removeLearned(1))
+        assertEquals("Remove 7 learned ayahs from your reviews?", readerCopy(AppLanguage.EN).removeLearned(7))
+        AppLanguage.entries.forEach { language ->
+            val text = readerCopy(language).removeLearned(7)
+            assertTrue("7" in text && '{' !in text, "$language: $text")
+        }
+    }
+
+    @Test
+    fun theStateLineOfAnAyahIsFilledInEveryLanguage() {
+        AppLanguage.entries.forEach { language ->
+            val copy = readerCopy(language)
+            listOf(copy.weakAyah, copy.inOldCircle, copy.reviewDue, copy.reviewIn(3), copy.checkFromHere, copy.knowThisAyah, copy.removeFromLearned)
+                .forEach { assertTrue(it.isNotBlank() && '{' !in it, "$language: $it") }
+        }
+    }
+
+    @Test
     fun englishAyahCountSeparatesOneFromMany() {
         val copy = readerCopy(AppLanguage.EN)
         assertEquals("1 ayah", copy.ayahCount(1))

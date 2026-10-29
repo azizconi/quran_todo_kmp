@@ -403,7 +403,8 @@ private fun AppNavigation() {
                     ProvideNavScope {
                         LessonScreen(
                             onBack = { navController.popOnce() },
-                            onOpenReader = { navController.navigateOnce(it) },
+                            onOpenPlan = { navController.navigateOnce(Dest.Plan) },
+                            onHome = { navController.goHome() },
                         )
                     }
                 }
@@ -470,6 +471,14 @@ private fun NavController.navigateOnce(route: Dest, builder: NavOptionsBuilder.(
 
 private fun NavController.popOnce() {
     if (isIdle()) popBackStack()
+}
+
+/** Back to Home from deep inside (the lesson summary); when Home is not on the stack it becomes the root. */
+private fun NavController.goHome() {
+    if (!isIdle()) return
+    if (!popBackStack<Dest.Home>(inclusive = false)) {
+        navigate(Dest.Home) { popUpTo(0) }
+    }
 }
 
 private fun NavDestination.screenName(): String? = when {

@@ -21,11 +21,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.RadioButtonUnchecked
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,7 +46,6 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import tj.app.quran_todo.data.database.entity.quran.AyahEntity
-import tj.app.quran_todo.data.database.entity.todo.AyahReviewEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
 import tj.app.quran_todo.ui.components.AyahRosette
 import tj.app.quran_todo.ui.components.QhButton
@@ -56,14 +53,12 @@ import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.components.QhIconTile
 import tj.app.quran_todo.ui.components.QhSectionHeader
-import tj.app.quran_todo.ui.components.QhSegmentedControl
 import tj.app.quran_todo.ui.components.QhSheet
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.motion.pressable
+import tj.app.quran_todo.ui.reader.AyahSchedule
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
-
-private const val DayMillis = 24L * 60 * 60 * 1000
 
 /** What the ayah sheet shows about one ayah. */
 class AyahSheetModel(
@@ -72,15 +67,18 @@ class AyahSheetModel(
     val surahName: String,
     val arabic: String,
     val translation: String?,
-    val status: AyahTodoStatus?,
-    val weak: Boolean,
+    /** The ayah is covered by a passage (learned). */
+    val learned: Boolean,
+    /** The ayah is marked as difficult. */
+    val hard: Boolean,
+    /** When a learned ayah comes back; null when it is not learned. */
+    val schedule: AyahSchedule?,
     val note: String,
-    val review: AyahReviewEntity?,
 )
 
 /**
- * The sheet of one ayah (long press or the "..." button): listen from here, repeat it, its status, a note,
- * copy and share. Closing it saves a note that was typed but not saved.
+ * The sheet of one ayah (long press or the "..." button): listen from here, repeat it, check oneself from it, whether
+ * it is learned (and when it comes back), a note, copy and share. Closing it saves a note that was typed but not saved.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,7 +88,9 @@ fun AyahSheet(
     copy: ReaderCopy,
     onListenFromHere: () -> Unit,
     onRepeat: () -> Unit,
-    onStatus: (AyahTodoStatus?) -> Unit,
+    onCheckFromHere: () -> Unit,
+    onMarkKnown: () -> Unit,
+    onForget: () -> Unit,
     onSaveNote: (String) -> Unit,
     onCopy: () -> Unit,
     onShare: () -> Unit,
@@ -112,10 +112,15 @@ fun AyahSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(QhSpacing.x3),
             ) {
-                AyahRosette(number = number, status = model.status, weak = model.weak, size = 48.dp)
+                AyahRosette(
+                    number = number,
+                    status = if (model.learned) AyahTodoStatus.LEARNED else null,
+                    weak = model.hard,
+                    size = 48.dp,
+                )
                 Column(Modifier.weight(1f)) {
                     SheetTitle("${model.surahName} · ${copy.ayah} $number")
-                    reviewLine(model, copy)?.let { (text, due) ->
+                    stateLine(model, copy)?.let { (text, due) ->
                         Text(
                             text = text,
                             style = QhTheme.type.callout,
@@ -143,16 +148,23 @@ fun AyahSheet(
                 onRepeat()
                 close()
             }
+            SheetActionRow(Icons.Rounded.Visibility, copy.checkFromHere) {
+                onCheckFromHere()
+                close()
+            }
 
             Spacer(Modifier.height(QhSpacing.x5))
             QhSectionHeader(copy.ayahStatus)
             Spacer(Modifier.height(QhSpacing.x2))
-            val statuses = listOf<AyahTodoStatus?>(null, AyahTodoStatus.LEARNING, AyahTodoStatus.LEARNED)
-            QhSegmentedControl(
-                options = listOf(copy.notStarted, copy.learning, copy.learned),
-                selectedIndex = statuses.indexOf(model.status).coerceAtLeast(0),
-                onSelect = { onStatus(statuses[it]) },
-                icons = listOf(Icons.Rounded.RadioButtonUnchecked, Icons.Rounded.Contrast, Icons.Rounded.CheckCircle),
+            QhButton(
+                text = if (model.learned) copy.removeFromLearned else copy.knowThisAyah,
+                onClick = {
+                    if (model.learned) onForget() else onMarkKnown()
+                    close()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                variant = if (model.learned) QhButtonVariant.Tonal else QhButtonVariant.Primary,
+                size = QhButtonSize.M,
             )
 
             Spacer(Modifier.height(QhSpacing.x5))
@@ -194,16 +206,19 @@ fun AyahSheet(
     }
 }
 
-/** (text, isDue) for the weak mark / review schedule under the title, or null when there is nothing to say. */
-private fun reviewLine(model: AyahSheetModel, copy: ReaderCopy): Pair<String, Boolean>? {
-    val review = model.review
-    if (review != null) {
-        val left = review.nextReviewAt - System.currentTimeMillis()
-        if (left <= 0L) return copy.reviewDue to true
-        val days = ((left + DayMillis - 1) / DayMillis).toInt().coerceAtLeast(1)
-        return copy.reviewIn(days) to false
+/** (text, isDue) for the difficult mark and the schedule under the title, or null when there is nothing to say. */
+private fun stateLine(model: AyahSheetModel, copy: ReaderCopy): Pair<String, Boolean>? {
+    val parts = buildList {
+        if (model.hard) add(copy.weakAyah to true)
+        when (val schedule = model.schedule) {
+            AyahSchedule.Circle -> add(copy.inOldCircle to false)
+            AyahSchedule.Due -> add(copy.reviewDue to true)
+            is AyahSchedule.InDays -> add(copy.reviewIn(schedule.days) to false)
+            null -> Unit
+        }
     }
-    return if (model.weak) copy.weakAyah to true else null
+    if (parts.isEmpty()) return null
+    return parts.joinToString(" · ") { it.first } to parts.any { it.second }
 }
 
 @Composable

@@ -195,6 +195,108 @@ class ReaderAudioSessionTest {
         session.close()
     }
 
+    // -- Scripts (the lesson's "every ayah N times, then the passage M times") ----------------------------------
+
+    private val lessonScript = listOf(0, 0, 1, 1, 0, 1)
+
+    @Test
+    fun aScriptPlaysItsAyahsInOrderWithRepeatsAndThenStops() = runTest {
+        val audio = FakeAudio()
+        val session = createSession(audio)
+        session.playScript(lessonScript)
+        runCurrent()
+        repeat(lessonScript.size) { audio.complete(); runCurrent() }
+        assertEquals(listOf("1", "1", "2", "2", "1", "2"), audio.played)
+        assertFalse(session.state.value.isPlaying)
+        assertFalse(session.state.value.canResume)
+        session.close()
+    }
+
+    @Test
+    fun aScriptIgnoresTheRepeatAndRangeSettings() = runTest {
+        val audio = FakeAudio()
+        val session = createSession(audio)
+        // The session is configured with a repeated range 1..3; the script must not follow it.
+        session.updateSettings(SurahReaderPreferences(repeatCount = 5), ReaderPracticeSettings(true, 1, 3, 5, 0))
+        session.playScript(listOf(2, 1))
+        runCurrent()
+        repeat(2) { audio.complete(); runCurrent() }
+        assertEquals(listOf("3", "2"), audio.played)
+        assertFalse(session.state.value.isPlaying)
+        session.close()
+    }
+
+    @Test
+    fun aScriptCanBePausedAndResumedAndContinuesWhereItWas() = runTest {
+        val audio = FakeAudio()
+        val session = createSession(audio)
+        session.playScript(lessonScript)
+        runCurrent()
+        audio.complete(); runCurrent()
+        session.toggle()
+        assertTrue(session.state.value.canResume)
+        session.toggle()
+        audio.complete(); runCurrent()
+        assertEquals(listOf("1", "1", "2"), audio.played)
+        assertEquals(1, session.state.value.index)
+        session.close()
+    }
+
+    @Test
+    fun nextAndPreviousMoveAlongTheScript() = runTest {
+        val audio = FakeAudio()
+        val session = createSession(audio)
+        session.playScript(lessonScript)
+        runCurrent()
+        session.next(); runCurrent()
+        session.next(); runCurrent()
+        session.previous(); runCurrent()
+        assertEquals(listOf("1", "1", "2", "1"), audio.played)
+        session.close()
+    }
+
+    @Test
+    fun aFinishedScriptStartsAgainFromItsBeginning() = runTest {
+        val audio = FakeAudio()
+        val session = createSession(audio)
+        session.playScript(listOf(1, 2))
+        runCurrent()
+        repeat(2) { audio.complete(); runCurrent() }
+        assertFalse(session.state.value.isPlaying)
+        session.toggle()
+        runCurrent()
+        assertEquals(listOf("2", "3", "2"), audio.played)
+        session.close()
+    }
+
+    @Test
+    fun selectingAnAyahEndsTheScript() = runTest {
+        val audio = FakeAudio()
+        val session = createSession(audio)
+        session.playScript(listOf(0, 1, 2))
+        runCurrent()
+        session.select(2)
+        session.toggle()
+        runCurrent()
+        audio.complete(); runCurrent()
+        // Back to the session's own rules (the range 1..3, one pass): ayah 3 is the last one, the script's
+        // remaining ayahs are not played.
+        assertEquals(listOf("1", "3"), audio.played)
+        assertFalse(session.state.value.isPlaying)
+        session.close()
+    }
+
+    @Test
+    fun aScriptWithoutValidAyahsDoesNothing() = runTest {
+        val audio = FakeAudio()
+        val session = createSession(audio)
+        session.playScript(listOf(7, -1))
+        runCurrent()
+        assertEquals(emptyList(), audio.played)
+        assertFalse(session.state.value.isPlaying)
+        session.close()
+    }
+
     private fun TestScope.createSession(audio: FakeAudio, pause: Int = 0, preparationDelay: Long = 0): ReaderAudioSession {
         return ReaderAudioSession(
             backgroundScope, audio,

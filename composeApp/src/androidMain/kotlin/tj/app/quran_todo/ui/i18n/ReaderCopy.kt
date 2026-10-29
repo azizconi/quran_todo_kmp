@@ -33,6 +33,16 @@ data class ReaderCopy(
     val learned: String,
     val learnedToastFmt: String,
     val statusError: String,
+    /** The status page of the surah sheet: "Learning" (adds the surah to the plan) and "I know it by heart". */
+    val choiceLearning: String,
+    val choiceKnown: String,
+    /** "Remove {n} learned ayahs from the repetitions?" in the plural forms of the language (see [removeLearned]). */
+    val removeLearnedOne: String,
+    val removeLearnedFew: String,
+    val removeLearnedMany: String,
+    val removeLearnedHint: String,
+    val removeAction: String,
+    val cancelAction: String,
     // End of surah
     val nextSurah: String,
     val quranFinished: String,
@@ -85,6 +95,11 @@ data class ReaderCopy(
     val weakAyah: String,
     val reviewDue: String,
     val reviewInFmt: String,
+    /** The ayah is in a passage of the manzil circle (no due day). */
+    val inOldCircle: String,
+    val checkFromHere: String,
+    val knowThisAyah: String,
+    val removeFromLearned: String,
     val copyAction: String,
     val copied: String,
     val share: String,
@@ -141,6 +156,24 @@ data class ReaderCopy(
 
     fun reviewIn(days: Int): String = reviewInFmt.replace("{n}", days.toString())
 
+    /** "Remove 12 learned ayahs from the repetitions?" */
+    fun removeLearned(count: Int): String {
+        val pattern = if (language == AppLanguage.RU) {
+            val mod10 = count % 10
+            val mod100 = count % 100
+            when {
+                mod10 == 1 && mod100 != 11 -> removeLearnedOne
+                mod10 in 2..4 && mod100 !in 12..14 -> removeLearnedFew
+                else -> removeLearnedMany
+            }
+        } else if (language == AppLanguage.EN && count == 1) {
+            removeLearnedOne
+        } else {
+            removeLearnedMany
+        }
+        return pattern.replace("{n}", count.toString())
+    }
+
     fun repeatLabel(passage: String, times: String) = "↻ $passage $times"
 }
 
@@ -150,9 +183,15 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         back = "Назад", textSettings = "Вид текста", more = "Ещё", readingProgress = "Прогресс чтения",
         ayah = "Аят", meccan = "Мекканская", medinan = "Мединская", ofWord = "из", ayahWord = "аят", ayahWordFew = "аята", ayahWordMany = "аятов",
         goToAyah = "Перейти к аяту…", goToTitle = "Перейти к аяту", goTo = "Перейти",
-        surahStatusTitle = "Статус суры", surahStatusHint = "Выберите, на каком этапе вы сейчас.",
+        surahStatusTitle = "Статус суры", surahStatusHint = "«Знаю наизусть» добавит суру в повторения, «Учу» — в ваш план.",
         notStarted = "Не начал", learning = "Заучиваю", learned = "Выучено",
         learnedToastFmt = "{name} — выучено", statusError = "Не удалось обновить статус",
+        choiceLearning = "Учу", choiceKnown = "Знаю наизусть",
+        removeLearnedOne = "Убрать {n} выученный аят из повторений?",
+        removeLearnedFew = "Убрать {n} выученных аята из повторений?",
+        removeLearnedMany = "Убрать {n} выученных аятов из повторений?",
+        removeLearnedHint = "Прогресс повторений этих аятов будет потерян.",
+        removeAction = "Убрать", cancelAction = "Отмена",
         nextSurah = "Следующая сура", quranFinished = "Вы дочитали Коран до конца", startOver = "Начать сначала",
         notLoaded = "Не удалось загрузить суру", retry = "Повторить",
         translationNotLoaded = "Перевод не загружен",
@@ -170,7 +209,9 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         listenFromHere = "Слушать отсюда", repeatThisAyah = "Повторять этот аят", ayahStatus = "Статус аята",
         note = "Заметка", noteHint = "Добавьте заметку к этому аяту", saveNote = "Сохранить",
         noteSaved = "Заметка сохранена", noteRemoved = "Заметка удалена", hasNote = "Есть заметка",
-        weakAyah = "Слабый аят", reviewDue = "Пора повторить", reviewInFmt = "Повтор через {n} дн.",
+        weakAyah = "Трудный аят", reviewDue = "Пора повторить", reviewInFmt = "Повторение через {n} дн.",
+        inOldCircle = "В круге старого", checkFromHere = "Проверь себя отсюда",
+        knowThisAyah = "Знаю этот аят", removeFromLearned = "Убрать из выученных",
         copyAction = "Копировать", copied = "Скопировано", share = "Поделиться", quranRef = "Коран",
         textSize = "Размер текста", fontStyle = "Шрифт", translation = "Перевод", theme = "Тема",
         keepScreenOn = "Не гасить экран",
@@ -180,9 +221,15 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         back = "Back", textSettings = "Text appearance", more = "More", readingProgress = "Reading progress",
         ayah = "Ayah", meccan = "Meccan", medinan = "Medinan", ofWord = "of", ayahWord = "ayah", ayahWordFew = "ayahs", ayahWordMany = "ayahs",
         goToAyah = "Go to ayah…", goToTitle = "Go to ayah", goTo = "Go",
-        surahStatusTitle = "Surah status", surahStatusHint = "Choose where you are with this surah.",
+        surahStatusTitle = "Surah status", surahStatusHint = "\"I know it by heart\" adds the surah to your reviews, \"Learning\" adds it to your plan.",
         notStarted = "Not started", learning = "Memorizing", learned = "Memorized",
         learnedToastFmt = "{name} — memorized", statusError = "Couldn't update the status",
+        choiceLearning = "Learning", choiceKnown = "I know it by heart",
+        removeLearnedOne = "Remove {n} learned ayah from your reviews?",
+        removeLearnedFew = "Remove {n} learned ayahs from your reviews?",
+        removeLearnedMany = "Remove {n} learned ayahs from your reviews?",
+        removeLearnedHint = "The review progress of these ayahs will be lost.",
+        removeAction = "Remove", cancelAction = "Cancel",
         nextSurah = "Next surah", quranFinished = "You have reached the end of the Quran", startOver = "Start over",
         notLoaded = "Couldn't load the surah", retry = "Retry",
         translationNotLoaded = "Translation not loaded",
@@ -200,7 +247,9 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         listenFromHere = "Listen from here", repeatThisAyah = "Repeat this ayah", ayahStatus = "Ayah status",
         note = "Note", noteHint = "Add a note to this ayah", saveNote = "Save",
         noteSaved = "Note saved", noteRemoved = "Note removed", hasNote = "Has a note",
-        weakAyah = "Weak ayah", reviewDue = "Due for review", reviewInFmt = "Review in {n} d",
+        weakAyah = "Hard ayah", reviewDue = "Due for review", reviewInFmt = "Review in {n} d",
+        inOldCircle = "In the review circle", checkFromHere = "Check yourself from here",
+        knowThisAyah = "I know this ayah", removeFromLearned = "Remove from learned",
         copyAction = "Copy", copied = "Copied", share = "Share", quranRef = "Quran",
         textSize = "Text size", fontStyle = "Font", translation = "Translation", theme = "Theme",
         keepScreenOn = "Keep screen on",
@@ -210,9 +259,15 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         back = "Бозгашт", textSettings = "Намуди матн", more = "Бештар", readingProgress = "Пешрафти хониш",
         ayah = "Оят", meccan = "Маккӣ", medinan = "Маданӣ", ofWord = "аз", ayahWord = "оят", ayahWordFew = "оят", ayahWordMany = "оят",
         goToAyah = "Гузаштан ба оят…", goToTitle = "Гузаштан ба оят", goTo = "Гузаштан",
-        surahStatusTitle = "Ҳолати сура", surahStatusHint = "Интихоб кунед, ки дар кадом марҳила ҳастед.",
+        surahStatusTitle = "Ҳолати сура", surahStatusHint = "«Аз бар медонам» сураро ба такрорҳо, «Аз бар мекунам» — ба нақшаи шумо илова мекунад.",
         notStarted = "Оғоз нашудааст", learning = "Аз бар мекунам", learned = "Аз бар шуд",
         learnedToastFmt = "{name} — аз бар шуд", statusError = "Навсозии ҳолат муяссар нашуд",
+        choiceLearning = "Аз бар мекунам", choiceKnown = "Аз бар медонам",
+        removeLearnedOne = "{n} ояти аз баршударо аз такрорҳо мебароред?",
+        removeLearnedFew = "{n} ояти аз баршударо аз такрорҳо мебароред?",
+        removeLearnedMany = "{n} ояти аз баршударо аз такрорҳо мебароред?",
+        removeLearnedHint = "Пешрафти такрори ин оятҳо гум мешавад.",
+        removeAction = "Баровардан", cancelAction = "Бекор кардан",
         nextSurah = "Сураи навбатӣ", quranFinished = "Шумо Қуръонро то охир хондед", startOver = "Аз сари нав оғоз кардан",
         notLoaded = "Сура бор нашуд", retry = "Такрор",
         translationNotLoaded = "Тарҷума бор нашуд",
@@ -230,7 +285,9 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         listenFromHere = "Гӯш кардан аз ин ҷо", repeatThisAyah = "Ин оятро такрор кардан", ayahStatus = "Ҳолати оят",
         note = "Ёддошт", noteHint = "Ба ин оят ёддошт илова кунед", saveNote = "Захира кардан",
         noteSaved = "Ёддошт захира шуд", noteRemoved = "Ёддошт нест карда шуд", hasNote = "Ёддошт дорад",
-        weakAyah = "Ояти заиф", reviewDue = "Вақти такрор расид", reviewInFmt = "Такрор баъд аз {n} рӯз",
+        weakAyah = "Ояти душвор", reviewDue = "Вақти такрор расид", reviewInFmt = "Такрор баъд аз {n} рӯз",
+        inOldCircle = "Дар доираи такрор", checkFromHere = "Аз ин ҷо худро санҷед",
+        knowThisAyah = "Ин оятро медонам", removeFromLearned = "Аз оятҳои аз баршуда баровардан",
         copyAction = "Нусха бардоштан", copied = "Нусха бардошта шуд", share = "Мубодила кардан", quranRef = "Қуръон",
         textSize = "Андозаи матн", fontStyle = "Ҳуруф", translation = "Тарҷума", theme = "Мавзӯъ",
         keepScreenOn = "Экранро хомӯш накардан",
@@ -240,9 +297,15 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         back = "Orqaga", textSettings = "Matn ko‘rinishi", more = "Yana", readingProgress = "O‘qish jarayoni",
         ayah = "Oyat", meccan = "Makkiy", medinan = "Madaniy", ofWord = "/", ayahWord = "oyat", ayahWordFew = "oyat", ayahWordMany = "oyat",
         goToAyah = "Oyatga o‘tish…", goToTitle = "Oyatga o‘tish", goTo = "O‘tish",
-        surahStatusTitle = "Sura holati", surahStatusHint = "Ushbu sura bo‘yicha bosqichingizni tanlang.",
+        surahStatusTitle = "Sura holati", surahStatusHint = "«Yoddan bilaman» surani takrorlarga, «Yodlayapman» — rejangizga qo‘shadi.",
         notStarted = "Boshlanmagan", learning = "Yodlayapman", learned = "Yodlangan",
         learnedToastFmt = "{name} — yodlandi", statusError = "Holatni yangilab bo‘lmadi",
+        choiceLearning = "Yodlayapman", choiceKnown = "Yoddan bilaman",
+        removeLearnedOne = "{n} ta yodlangan oyatni takrorlardan olib tashlaysizmi?",
+        removeLearnedFew = "{n} ta yodlangan oyatni takrorlardan olib tashlaysizmi?",
+        removeLearnedMany = "{n} ta yodlangan oyatni takrorlardan olib tashlaysizmi?",
+        removeLearnedHint = "Bu oyatlarning takror jarayoni yo‘qoladi.",
+        removeAction = "Olib tashlash", cancelAction = "Bekor qilish",
         nextSurah = "Keyingi sura", quranFinished = "Siz Qur’onni oxirigacha o‘qib chiqdingiz", startOver = "Boshidan boshlash",
         notLoaded = "Surani yuklab bo‘lmadi", retry = "Qayta urinish",
         translationNotLoaded = "Tarjima yuklanmadi",
@@ -260,7 +323,9 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         listenFromHere = "Shu yerdan tinglash", repeatThisAyah = "Shu oyatni takrorlash", ayahStatus = "Oyat holati",
         note = "Eslatma", noteHint = "Bu oyatga eslatma qo‘shing", saveNote = "Saqlash",
         noteSaved = "Eslatma saqlandi", noteRemoved = "Eslatma o‘chirildi", hasNote = "Eslatma bor",
-        weakAyah = "Zaif oyat", reviewDue = "Takrorlash vaqti keldi", reviewInFmt = "Takror {n} kundan keyin",
+        weakAyah = "Qiyin oyat", reviewDue = "Takrorlash vaqti keldi", reviewInFmt = "Takror {n} kundan keyin",
+        inOldCircle = "Takror doirasida", checkFromHere = "Shu yerdan o‘zingizni tekshiring",
+        knowThisAyah = "Bu oyatni bilaman", removeFromLearned = "Yodlanganlardan olib tashlash",
         copyAction = "Nusxalash", copied = "Nusxalandi", share = "Ulashish", quranRef = "Qur’on",
         textSize = "Matn o‘lchami", fontStyle = "Shrift", translation = "Tarjima", theme = "Mavzu",
         keepScreenOn = "Ekranni o‘chirmaslik",
@@ -270,9 +335,15 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         back = "Geri", textSettings = "Metin görünümü", more = "Daha fazla", readingProgress = "Okuma ilerlemesi",
         ayah = "Ayet", meccan = "Mekki", medinan = "Medeni", ofWord = "/", ayahWord = "ayet", ayahWordFew = "ayet", ayahWordMany = "ayet",
         goToAyah = "Ayete git…", goToTitle = "Ayete git", goTo = "Git",
-        surahStatusTitle = "Sure durumu", surahStatusHint = "Bu surede hangi aşamada olduğunuzu seçin.",
+        surahStatusTitle = "Sure durumu", surahStatusHint = "«Ezbere biliyorum» sureyi tekrarlara, «Ezberliyorum» planınıza ekler.",
         notStarted = "Başlanmadı", learning = "Ezberliyorum", learned = "Ezberlendi",
         learnedToastFmt = "{name} — ezberlendi", statusError = "Durum güncellenemedi",
+        choiceLearning = "Ezberliyorum", choiceKnown = "Ezbere biliyorum",
+        removeLearnedOne = "{n} ezberlenmiş ayet tekrarlardan çıkarılsın mı?",
+        removeLearnedFew = "{n} ezberlenmiş ayet tekrarlardan çıkarılsın mı?",
+        removeLearnedMany = "{n} ezberlenmiş ayet tekrarlardan çıkarılsın mı?",
+        removeLearnedHint = "Bu ayetlerin tekrar ilerlemesi kaybolacak.",
+        removeAction = "Çıkar", cancelAction = "Vazgeç",
         nextSurah = "Sonraki sure", quranFinished = "Kur’an’ı sonuna kadar okudunuz", startOver = "Baştan başla",
         notLoaded = "Sure yüklenemedi", retry = "Tekrar dene",
         translationNotLoaded = "Çeviri yüklenmedi",
@@ -290,7 +361,9 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         listenFromHere = "Buradan dinle", repeatThisAyah = "Bu ayeti tekrarla", ayahStatus = "Ayet durumu",
         note = "Not", noteHint = "Bu ayete not ekleyin", saveNote = "Kaydet",
         noteSaved = "Not kaydedildi", noteRemoved = "Not silindi", hasNote = "Notu var",
-        weakAyah = "Zayıf ayet", reviewDue = "Tekrar zamanı geldi", reviewInFmt = "{n} gün sonra tekrar",
+        weakAyah = "Zor ayet", reviewDue = "Tekrar zamanı geldi", reviewInFmt = "{n} gün sonra tekrar",
+        inOldCircle = "Tekrar döngüsünde", checkFromHere = "Buradan kendini sına",
+        knowThisAyah = "Bu ayeti biliyorum", removeFromLearned = "Ezberlenenlerden çıkar",
         copyAction = "Kopyala", copied = "Kopyalandı", share = "Paylaş", quranRef = "Kur’an",
         textSize = "Metin boyutu", fontStyle = "Yazı tipi", translation = "Çeviri", theme = "Tema",
         keepScreenOn = "Ekranı açık tut",
