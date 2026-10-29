@@ -529,7 +529,7 @@ private fun HomeContent(
                                 // The first row of the list is what the tour points at ("hold a surah").
                                 .then(
                                     if (position == 0) {
-                                        Modifier.spotlightTarget(SpotlightTargets.HomeSurahRow, SpotlightShape.Rounded(14.dp), inset = 10.dp)
+                                        Modifier.spotlightTarget(SpotlightTargets.HomeSurahRow, SpotlightShape.Rounded(14.dp), reveal = true, inset = 10.dp)
                                     } else {
                                         Modifier
                                     },

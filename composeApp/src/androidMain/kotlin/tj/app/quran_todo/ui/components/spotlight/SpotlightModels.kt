@@ -62,14 +62,20 @@ data class SpotlightStep(
 
 /**
  * A list of steps shown once. [id] is the key of the "seen" flag and the `tour` value of the analytics events,
- * [screen] the screen that asks for it.
+ * [screen] the screen that asks for it. [settleMillis] is how long the screen has to stay as it is before the tour starts, the
+ * first time (once a sheet has been on screen the host settles for the default time only).
  */
 @Immutable
 data class SpotlightTour(
     val id: String,
     val screen: SpotlightScreen,
     val steps: List<SpotlightStep>,
-)
+    val settleMillis: Long = DefaultSettleMillis,
+) {
+    companion object {
+        const val DefaultSettleMillis = 350L
+    }
+}
 
 /** Ids of the targets the app registers. */
 object SpotlightTargets {
@@ -93,6 +99,10 @@ object SpotlightTargets {
 
 /** The tours of the app (docs/redesign/PRODUCT_PLAN.md, 5.2). */
 object SpotlightTours {
+    /**
+     * The "What's new" sheet of an update rises 900 ms after Home is at rest; the Home tour waits longer than that for its first
+     * start, so the sheet comes first and the tour follows once it is closed.
+     */
     val Home = SpotlightTour(
         id = "home",
         screen = SpotlightScreen.Home,
@@ -102,6 +112,7 @@ object SpotlightTours {
             SpotlightStep(SpotlightTargets.HomeSurahRow, SpotlightTip.HomeSurah),
             SpotlightStep(SpotlightTargets.HomeProgress, SpotlightTip.HomeProgress),
         ),
+        settleMillis = 1_500L,
     )
 
     /** Both ayah steps point at the same ayah row: the reader registers one row, the first one fully on screen. */

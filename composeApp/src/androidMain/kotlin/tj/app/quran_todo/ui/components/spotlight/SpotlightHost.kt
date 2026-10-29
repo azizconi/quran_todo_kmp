@@ -81,9 +81,6 @@ fun SpotlightHost(
     }
 }
 
-/** How long the screen has to stay put before a tour starts (entrances, the end of a transition). */
-private const val StartSettleMillis = 350L
-
 /** How often the targets are looked at while a tour waits for its first step. */
 private const val StartPollMillis = 100L
 
@@ -102,7 +99,7 @@ private fun SpotlightStarter(controller: SpotlightController, host: SpotlightHos
             .distinctUntilChanged()
             .collectLatest { tour ->
                 if (tour == null) return@collectLatest
-                delay(StartSettleMillis)
+                delay(if (controller.sheetWasShown) SpotlightTour.DefaultSettleMillis else tour.settleMillis)
                 var waited = 0L
                 var previous: List<Rect?>? = null
                 while (true) {

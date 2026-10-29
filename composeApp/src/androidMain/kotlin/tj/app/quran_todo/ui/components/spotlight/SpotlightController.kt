@@ -61,6 +61,10 @@ class SpotlightController(
     private var navigationIdle: Boolean by mutableStateOf(false)
     private var sheetsOpen: Int by mutableIntStateOf(0)
 
+    /** A sheet has been on screen in this process: what had to wait for a sheet has had its turn. */
+    internal var sheetWasShown = false
+        private set
+
     /** Set by the host from the window focus. Dialogs, menus and sheets take the focus from the window of the app. */
     var windowFocused: Boolean by mutableStateOf(true)
 
@@ -82,6 +86,7 @@ class SpotlightController(
     /** A [tj.app.quran_todo.ui.components.QhSheet] came on screen: no tour starts above it. */
     fun sheetShown() {
         sheetsOpen++
+        sheetWasShown = true
     }
 
     fun sheetHidden() {

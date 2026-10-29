@@ -152,6 +152,16 @@ internal fun SpotlightOverlay(
                     haptics.perform(HapticKind.Tick)
                 }
             } else {
+                // While the next target is being brought into view (the list scrolls under the scrim) the cutout keeps
+                // following the target of the step before, so it does not stay behind in empty space.
+                val previous = shown
+                if (previous != null && previous.index != index && viewport != null && coordinates != null) {
+                    val old = controller.registry.find(previous.step.targetId, coordinates)
+                    if (old != null && SpotlightSteps.isVisible(old.bounds, viewport)) {
+                        val moved = previous.copy(rect = old.bounds.rect)
+                        if (moved != previous) shown = moved
+                    }
+                }
                 val reveal = info?.reveal
                 if (reveal != null && !revealing) {
                     revealing = true
@@ -291,7 +301,7 @@ internal fun SpotlightOverlay(
             copy = copy,
             title = tip.title,
             body = tip.body,
-            nextLabel = if (run.isLast) copy.gotIt else copy.nextLabel(current.index + 1, run.total),
+            nextLabel = if (current.index == run.total - 1) copy.gotIt else copy.nextLabel(current.index + 1, run.total),
             below = placement.below,
             arrowX = placement.arrowCenterX?.let { it - placement.topLeft.x },
             onNext = onNext,

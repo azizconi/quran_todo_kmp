@@ -85,6 +85,24 @@ class SpotlightGateTest {
     }
 
     @Test
+    fun theHomeTourWaitsLongerThanTheWhatsNewSheetTakesToRise() {
+        // The sheet of an update rises 900 ms after Home is at rest (WhatsNewHost); the Home tour must not start before it.
+        assertTrue(SpotlightTours.Home.settleMillis > 900L)
+        SpotlightTours.all.filter { it != SpotlightTours.Home }.forEach {
+            assertEquals(SpotlightTour.DefaultSettleMillis, it.settleMillis, it.id)
+        }
+    }
+
+    @Test
+    fun theControllerRemembersThatASheetHasBeenOnScreen() {
+        val controller = SpotlightController(SpotlightFlags(InMemorySpotlightStore()), SpotlightAnalytics { _, _ -> })
+        assertFalse(controller.sheetWasShown)
+        controller.sheetShown()
+        controller.sheetHidden()
+        assertTrue(controller.sheetWasShown)
+    }
+
+    @Test
     fun twoSheetsNeedTwoCloses() {
         val controller = SpotlightController(SpotlightFlags(InMemorySpotlightStore()), SpotlightAnalytics { _, _ -> })
         controller.request(SpotlightTours.Home)
