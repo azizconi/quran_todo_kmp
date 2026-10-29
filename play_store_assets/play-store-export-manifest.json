@@ -1,0 +1,97 @@
+{
+  "version": "current-app-play-store-2026-08-04",
+  "languages": [
+    "en-US",
+    "ru-RU"
+  ],
+  "source": "Fresh Android emulator captures from the current debug build in each locale",
+  "exports": {
+    "ru-RU": [
+      {
+        "file": "localized/ru-RU/feature-graphic-1024x500.png",
+        "size": [
+          1024,
+          500
+        ]
+      },
+      {
+        "file": "localized/ru-RU/phone/phone-01-home-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "quran-library-learning-current.png"
+      },
+      {
+        "file": "localized/ru-RU/phone/phone-02-review-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "quran-reader-learning-current.png"
+      },
+      {
+        "file": "localized/ru-RU/phone/phone-03-focus-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "quran-status-sheet-current.png"
+      },
+      {
+        "file": "localized/ru-RU/phone/phone-04-settings-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "quran-settings-appearance-current.png"
+      }
+    ],
+    "en-US": [
+      {
+        "file": "localized/en-US/feature-graphic-1024x500.png",
+        "size": [
+          1024,
+          500
+        ]
+      },
+      {
+        "file": "localized/en-US/phone/phone-01-home-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "en-quran-library-learning-current.png"
+      },
+      {
+        "file": "localized/en-US/phone/phone-02-review-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "en-quran-reader-learning-current.png"
+      },
+      {
+        "file": "localized/en-US/phone/phone-03-focus-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "en-quran-status-sheet-current.png"
+      },
+      {
+        "file": "localized/en-US/phone/phone-04-settings-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "en-quran-settings-appearance-current.png"
+      }
+    ]
+  },
+  "typography": {
+    "headings": "SF Pro Rounded Bold",
+    "descriptions": "SF Pro Display Regular"
+  },
+  "provenance": "UI pixels are preserved from current app captures. Marketing copy, dimensions, framing, and exports are deterministic."
+}

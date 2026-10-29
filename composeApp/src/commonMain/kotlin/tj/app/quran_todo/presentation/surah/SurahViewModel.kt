@@ -59,6 +59,15 @@ class SurahViewModel(
     private val _ayahTranslations = MutableStateFlow<Map<Int, String>>(emptyMap())
     val ayahTranslations: StateFlow<Map<Int, String>> = _ayahTranslations.asStateFlow()
 
+    private val _translationFailedSurah = MutableStateFlow<Int?>(null)
+
+    /**
+     * Number of the surah whose translation could not be loaded by the last [loadTranslations] (offline, a
+     * server error), or null: nothing failed, or a new load has started. A reader shows its "Retry" hint
+     * when this is its own surah.
+     */
+    val translationFailedSurah: StateFlow<Int?> = _translationFailedSurah.asStateFlow()
+
     private val _ruSurahNames = MutableStateFlow<Map<Int, String>>(emptyMap())
     val ruSurahNames: StateFlow<Map<Int, String>> = _ruSurahNames.asStateFlow()
 
@@ -159,25 +168,38 @@ class SurahViewModel(
         }
     }
 
-    fun loadTranslations(surahNumber: Int, language: AppLanguage, expectedCount: Int) {
-        if (lastLoaded == surahNumber to language &&
+    /** [force] is the explicit "Retry": it also goes through the failed-request memory of the repository. */
+    fun loadTranslations(
+        surahNumber: Int,
+        language: AppLanguage,
+        expectedCount: Int,
+        force: Boolean = false,
+    ) {
+        if (!force &&
+            lastLoaded == surahNumber to language &&
             _ayahTranslations.value.isNotEmpty() &&
             (_ayahTranslations.value.size == expectedCount || expectedCount <= 0)
         ) {
             return
         }
+        val sameRequest = lastLoaded == surahNumber to language
         lastLoaded = surahNumber to language
         _ayahTranslations.value = emptyMap()
+        // The "failed" mark stays while the same surah is quietly asked for again (the repository answers at
+        // once from its memory of failures), so the retry hint does not blink; a new surah or a retry clears it.
+        if (force || !sameRequest) _translationFailedSurah.value = null
         translationJob?.cancel()
 
         translationJob = viewModelScope.launch(Dispatchers.IO) {
             val translations = getAyahTranslationsUseCase(
                 surahNumber = surahNumber,
                 language = language,
-                expectedCount = expectedCount
+                expectedCount = expectedCount,
+                force = force,
             )
             if (lastLoaded != (surahNumber to language)) return@launch
             _ayahTranslations.value = translations
+            _translationFailedSurah.value = if (translations.isEmpty()) surahNumber else null
             AppTelemetry.logEvent(
                 name = "surah_translations_loaded",
                 params = mapOf(

@@ -1,0 +1,46 @@
+{
+  "version": "marketing_v2",
+  "language": "ru",
+  "palette": {
+    "forest": "#0C362F",
+    "sand": "#DBBA6F",
+    "ivory": "#F7F4ED"
+  },
+  "assets": [
+    {
+      "file": "feature-graphic-1024x500.png",
+      "width": 1024,
+      "height": 500,
+      "purpose": "Google Play feature graphic"
+    },
+    {
+      "file": "screenshots/phone/01-plan-1080x1920.png",
+      "width": 1080,
+      "height": 1920,
+      "purpose": "phone screenshot"
+    },
+    {
+      "file": "screenshots/phone/02-review-1080x1920.png",
+      "width": 1080,
+      "height": 1920,
+      "purpose": "phone screenshot"
+    },
+    {
+      "file": "screenshots/phone/03-focus-1080x1920.png",
+      "width": 1080,
+      "height": 1920,
+      "purpose": "phone screenshot"
+    },
+    {
+      "file": "screenshots/phone/04-settings-1080x1920.png",
+      "width": 1080,
+      "height": 1920,
+      "purpose": "phone screenshot"
+    }
+  ],
+  "provenance": {
+    "background": "background-forest-ai.png generated with built-in image generation",
+    "ui_sources": "play_store_assets/screenshots/phone/*.png",
+    "composition": "Deterministic Pillow export; copy, safe zones, device frame, and dimensions are code-defined."
+  }
+}

@@ -4,29 +4,28 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import tj.app.quran_todo.common.platform.AndroidContextHolder
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
 
+/**
+ * File cache of the ayah recordings, one `.mp3` per key. Bounded by [AudioCacheStorage]: 1 GB, the least
+ * recently used files are evicted first, a cache hit refreshes the use time.
+ */
 actual class AudioCache {
-    private val cacheDir: File = File(
-        AndroidContextHolder.context.noBackupFilesDir,
-        "offline_audio"
-    ).apply {
-        if (!exists()) {
-            mkdirs()
-        }
-    }
+    private val storage = AudioCacheStorage.shared
 
     actual suspend fun getOrFetch(url: String, cacheKey: String): String? {
         return withContext(Dispatchers.IO) {
             mutexFor(cacheKey).withLock {
-                val file = fileForKey(cacheKey)
-                if (isValidCacheFile(file)) return@withLock file.absolutePath
+                val file = storage.fileFor(cacheKey)
+                if (isValidCacheFile(file)) {
+                    storage.markUsed(file)
+                    return@withLock file.absolutePath
+                }
                 file.delete()
 
-                val temporary = temporaryFileForKey(cacheKey)
+                val temporary = storage.temporaryFileFor(cacheKey)
                 temporary.delete()
                 try {
                     val connection = URL(url).openConnection().apply {
@@ -42,6 +41,7 @@ actual class AudioCache {
                         temporary.delete()
                         null
                     } else {
+                        storage.recordAdded(file)
                         file.absolutePath
                     }
                 } catch (_: Exception) {
@@ -58,20 +58,14 @@ actual class AudioCache {
     }
 
     actual fun isCached(cacheKey: String): Boolean {
-        return isValidCacheFile(fileForKey(cacheKey))
+        return isValidCacheFile(storage.fileFor(cacheKey))
     }
 
     actual fun clear(cacheKey: String) {
-        fileForKey(cacheKey).delete()
-        temporaryFileForKey(cacheKey).delete()
+        storage.fileFor(cacheKey).delete()
+        storage.temporaryFileFor(cacheKey).delete()
+        storage.invalidateTotals()
     }
-
-    private fun fileForKey(cacheKey: String): File {
-        return File(cacheDir, "$cacheKey.mp3")
-    }
-
-    private fun temporaryFileForKey(cacheKey: String): File =
-        File(cacheDir, "$cacheKey.mp3.download")
 
     private fun isValidCacheFile(file: File): Boolean =
         file.exists() && file.length() >= minimumAudioBytes
