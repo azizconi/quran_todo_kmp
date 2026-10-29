@@ -8,6 +8,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +34,7 @@ import tj.app.quran_todo.ui.components.QhButton
 import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.components.QhSheet
+import tj.app.quran_todo.ui.components.spotlight.LocalSpotlight
 import tj.app.quran_todo.ui.i18n.homeCopy
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
@@ -48,8 +50,8 @@ private const val SettleMillis = 900L
  * - [suppressed]: a link from the reminder was opened in this launch: the sheet is put off to the next start (it is not marked as
  *   shown), and it goes away if it is already up.
  *
- * It rises once per launch at most and writes its flag the moment it is up, so it is not repeated. A sheet is a window of its own:
- * the spotlights of C2 do not start over it.
+ * It rises once per launch at most and writes its flag the moment it is up, so it is not repeated. The spotlight tips of C2 do not
+ * start while it is waiting to rise or is up.
  */
 @Composable
 internal fun WhatsNewHost(
@@ -61,6 +63,14 @@ internal fun WhatsNewHost(
 ) {
     var visible by rememberSaveable { mutableStateOf(false) }
     var raised by rememberSaveable { mutableStateOf(false) }
+    // The tips of Home (C2) wait for this sheet: they are held back during the wait before it rises, then the sheet itself
+    // (a QhSheet) holds them until it is closed. Without this the order would rest on two timers.
+    val holdingTips = pending && atHome && !suppressed && !raised
+    val spotlight = LocalSpotlight.current
+    DisposableEffect(holdingTips, spotlight) {
+        if (holdingTips) spotlight.sheetShown()
+        onDispose { if (holdingTips) spotlight.sheetHidden() }
+    }
     LaunchedEffect(pending, atHome, suppressed) {
         if (pending && atHome && !suppressed && !raised) {
             delay(SettleMillis)

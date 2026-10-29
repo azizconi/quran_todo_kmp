@@ -299,6 +299,32 @@ LessonItem(passageId, surah, startAyah, endAyah, stage, hardAyahs: Set<Int>, don
 - **«Новое: Урок дня»** (`ui/whatsnew/`): `WhatsNewHost` после NavHost. `WhatsNewGate.pending` = `completed && !v2Started && !whatsNewShown`. Лист показывается один раз над главным; если план есть — кнопка «Открыть урок», иначе «Составить план». Ссылка из напоминания откладывает лист до следующего запуска.
 - **Аналитика**: `onboarding_step` (`step`), `onboarding_story_skipped`, `onboarding_completed` (`goal`, `preset`, `pace`, `known`, `reminder`, `action`), `whats_new_shown`, `whats_new_action`.
 
+### Подсказки-спотлайты (C2, `ui/components/spotlight/`)
+
+- **Корень**:
+  - `SpotlightHost(controller) { AppNavigation() }` — слой над навигацией и мини-плеером, в том же окне. Даёт `LocalSpotlight`, контроллер создаёт `rememberSpotlightController()`.
+  - `SpotlightNavigationEffect(route, lifecycle)` сообщает, какой экран сверху и в покое ли он (запись в RESUMED).
+- **Цель**: `Modifier.spotlightTarget(id, shape = Rounded(16.dp), reveal = false, inset = 0.dp)` — после `padding`, до `clip`/`background`. Узел хранит только координаты (при прокрутке ничего не считается). Если у нескольких элементов один id, берётся самый видимый. `reveal = true` — цель сама прокручивается в видимую область (`BringIntoViewRequester`). Id — в `SpotlightTargets`.
+- **Тур**:
+  - экран зовёт `SpotlightTourEffect(SpotlightTours.X, ready)`; `ready` — данные загружены и цель на экране;
+  - `SpotlightTour(id, screen, steps, settleMillis = 350)`, шаг — `SpotlightStep(targetId, tip, shape?, position)`, тексты — `SpotlightCopy`;
+  - туры: `Home` (4 шага, `settleMillis` 1,5 с), `Reader` (5), `LessonHeader`, `LessonPeek`, `LessonGrade`, `Player` (2).
+- **Когда стартует** (`SpotlightGate`):
+  - экран тура сверху и в покое, это не онбординг;
+  - нет открытого `QhSheet` (счётчик `sheetShown`/`sheetHidden`; `WhatsNewHost` держит его и пока лист «Новое» ждёт показа);
+  - окно приложения в фокусе (нет диалога, меню, шторки);
+  - другой тур не идёт.
+
+  Затем ожидание, пока границы целей перестанут меняться. Шаги без видимой цели пропускаются; если ни одного — тур не отмечается.
+- **Флаги**: свой файл `quran_hifz_spotlights`, ключи `seen_<tourId>`; ставятся по окончании или пропуске, не при старте. `resetAll()` — строка «Показать подсказки снова» в «Удобстве». В копию B5 флаги не входят.
+- **Вид и ввод**:
+  - затемнение 70 % (в тёмной теме — затемнённый фон), вырез = цель + 8 dp (`Offscreen` + `DstOut`);
+  - вырез и карточка перетекают `QhMotion.bounds()`, золотое кольцо пульсирует;
+  - касание вне карточки — следующий шаг, элемент под вырезом не срабатывает; «Назад» — пропуск;
+  - тактильный `Tick` на шаг, текст — polite live region, содержимое под затемнением скрыто от TalkBack;
+  - Reduce Motion — без перетекания и пульса.
+- **Аналитика**: `spotlight_shown` (`tour`), `spotlight_finished` (`tour`, `result` = done|skipped, `step`).
+
 ### Что известно и ещё не сделано
 
 - `ProgressRestoreDao.replaceUserProgress` (восстановление старой копии из prefs) пишет только старые таблицы и не знает об отрывках: на Android его больше никто не вызывает (экран настроек работает через `replaceWithBackup`), на iOS он остаётся.
