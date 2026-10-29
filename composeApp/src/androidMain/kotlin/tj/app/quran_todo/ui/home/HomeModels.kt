@@ -37,51 +37,19 @@ data class SurahRowUi(
     val translatedName: String,
     val arabicName: String,
     val ayahCount: Int,
-    /** Includes a change that is still being saved. */
+    /** Derived from the passages of the hifz model; null = not started. */
     val status: SurahTodoStatus?,
     /** Memorized ayahs / all ayahs; 1 for a memorized surah. */
     val learnedFraction: Float,
     val canOpen: Boolean,
     val isPinned: Boolean,
+    /** The surah the plan is learning now ("in the plan" label). */
+    val inPlan: Boolean = false,
 )
 
 /** A chip of the "Recent" row. */
 @Immutable
 data class RecentUi(val surah: Int, val name: String, val pinned: Boolean)
-
-/** Today's tasks. [done] of [goal] is the counter next to the heading. */
-@Immutable
-data class TodayUi(val done: Int, val goal: Int, val body: TodayBody)
-
-@Immutable
-sealed interface TodayBody {
-    /** One card per kind of work that is left (new, review, weak). */
-    @Immutable
-    data class Cards(val cards: List<TodayCardUi>) : TodayBody
-
-    /** There was work but nothing is left for today. */
-    data object AllDone : TodayBody
-
-    /** Memorizing was chosen as a goal but no surah is marked yet. */
-    data object Invite : TodayBody
-}
-
-/**
- * A card of the Today row. [surah] is the surah the reader opens ([startAyah]..[endAyah] inside it);
- * [totalAyahs] and [surahCount] describe all the work of this [kind].
- */
-@Immutable
-data class TodayCardUi(
-    val kind: TodayKind,
-    val surah: Int,
-    val surahName: String,
-    val startAyah: Int,
-    val endAyah: Int,
-    val totalAyahs: Int,
-    val surahCount: Int,
-    /** False when another card already uses this surah for shared element keys. */
-    val sharesElements: Boolean,
-)
 
 /** What the search shows first for `2:255`. */
 @Immutable
@@ -102,7 +70,10 @@ data class ListingUi(
 data class HomeUi(
     val phase: HomePhase = HomePhase.Loading,
     val continueItem: ContinueUi? = null,
-    val today: TodayUi? = null,
+    /** Today's lesson card; null until the repository has answered (and while the Quran is not loaded). */
+    val lesson: LessonCardUi? = null,
+    /** "Lesson of the day" goes above "Continue reading" (the goal is memorizing, or no goal was chosen). */
+    val lessonFirst: Boolean = true,
     val recent: List<RecentUi> = emptyList(),
     /** All surahs in order; the listing and the sheets look rows up here. */
     val rows: List<SurahRowUi> = emptyList(),

@@ -190,8 +190,10 @@ class LessonViewModel(private val hifz: HifzRepository, private val ticker: Epoc
 | `lesson(today: Int \| Flow<Int>): Flow<LessonPlan>` | «Урок дня» (ниже) |
 | `plan(): Flow<HifzPlan?>` | активный план (`scope`, `surahOrder`, `dailyNewAyahs`, `targetEpochDay?`, `startedEpochDay`, `manzilDays`); null — нет плана |
 | `forecast(today): Flow<PlanForecast?>` | `totalAyahs, remainingAyahs, dailyNewAyahs, finished, finishEpochDay?, targetEpochDay?, requiredPerDay?, behindAyahs`; null — нет плана |
+| `forecast(plan: HifzPlan, today: Int): Flow<PlanForecast>` | прогноз **черновика** плана (экран «Мой план» показывает его вживую): как `forecast(today)`, но по переданному плану; ничего не сохраняет, `startedEpochDay` берётся из черновика |
 | `streak(today): Flow<Int>` | серия дней |
 | `surahStatuses(): Flow<Map<Int, SurahHifzStatus>>` | только суры со статусом (`LEARNING`/`LEARNED`); нет в карте — «не начал» |
+| `coveredCounts(): Flow<Map<Int, Int>>` | сколько аятов каждой суры покрыто отрывками (в карте только суры хотя бы с одним аятом): одна подписка на весь список сур («выучено 23 из 40» в строке) вместо 114 `surahCoverage` |
 | `surahCoverage(surah): Flow<SurahCoverage>` | `ayahCount`, `coveredAyahs`, `hardAyahs`, `passages` (по мусхафу), `isCurrent`, `status` |
 | `reviewLog(fromDay, toDay): Flow<List<ReviewLogEntry>>` | записи за дни включительно, старые первыми (для итога урока и D2) |
 | `oldWeight(): Flow<Int>` | сумма символов всех `OLD`-отрывков (вес круга манзиль); экран плана: «≈ N страниц в день» = `oldWeight / HifzConstants.CHARS_PER_PAGE / manzilDays` |
@@ -240,6 +242,13 @@ LessonItem(passageId, surah, startAyah, endAyah, stage, hardAyahs: Set<Int>, don
 ### Перенос данных старых пользователей (`legacy/LegacyImport.kt`)
 
 Один раз, из `QuranTodoApplication` в фоне (`HifzStartup`, ошибки — `AppTelemetry.logError(context = "hifz_legacy_import_failed")` без текста; метки нет — повторится при следующем запуске). Чистая функция `LegacyImport.run(input, metrics)` + выполнение в репозитории **одной транзакцией** (отрывки, трудные аяты, план, зеркало, метка), после коммита очищаются слабые аяты в prefs. Правила: суры `LEARNED` → `OLD` целиком; аяты `LEARNED` → `OLD`-отрывки; `LEARNING` и аяты с `ayah_review` без статуса → лестница (этап по `intervalIndex` 0..4 → R1..R30, ≥5 → `OLD`; срок — день `nextReviewAt`, может быть в прошлом; без `ayah_review` — `R1` сегодня; в отрывке — минимальные этап и срок); нарезка по страницам; глобальные номера → в суре; слабые ключи `"s:n"` (`n` в глобальном диапазоне суры — глобальный, иначе `1..ayahCount` — в суре, иначе отброшен), внутри отрывка — трудный аят, вне — отброшен; план `CUSTOM` из «заучиваемых» сур (все в 67..114 — по убыванию номера, иначе по возрастанию; темп = старая цель в 1..20, иначе 5). Зеркало при переносе пересчитывает только суры, получившие отрывки, и текущую суру плана: «заучиваемые» суры без покрытия остаются в `surah_todo` как были. Аяты `LEARNING` в старых таблицах после переноса — `LEARNED` (они стали отрывками лестницы).
+
+### UI на модели хифза: главный и «Мой план» (B3)
+
+- **Главный** (`ui/home`): одна подписка на `lesson(ticker.day)`, `surahStatuses()`, `coveredCounts()` и `plan()` в `HomeUiViewModel`; из старых таблиц, `dueReviews` и слабых аятов главный больше ничего не читает. Карточка «Урок дня» — `LessonCardBuilder.build(lesson, nameOf)` → `LessonCardUi` (состояния `Start`, `Continue`, `Done`, `NoPlan`, `PlanFinished`; строки Новое/Недавнее/Старое; `catchingUp`; `tomorrow`). Переход в урок — `sharedBounds` с `SharedKeys.LessonCard`.
+- **Лист суры** (главный; тот же смысл должен быть в листе суры ридера) — `SurahStatusChange`: «Знаю наизусть» = `markKnown(surah)`; «Учу» = `learnNext(surah)` (у выученной суры сначала `forget(surah)`); «Не начал» = `forget(surah)` и, если сура в очереди плана, `setPlan(CUSTOM, очередь без суры, …)` (`clearPlan()`, если очередь опустела) — иначе сура осталась бы «Учу» через план. Если из повторений уходят выученные аяты (`lostAyahs > 0`), спрашивают: «Убрать N выученных аятов из повторений?». Строка под статусом: `surahCoverage(surah)` → «Выучено 23 из 40 аятов · 2 трудных».
+- **Мой план** (`Dest.Plan`, `ui/plan`): черновик `PlanDraft` (пресет/свои суры, темп или дата, круг старого), правки — чистые функции; сохранение по кнопке `setPlan`, «Удалить план» с подтверждением — `clearPlan`. Прогноз — `forecast(draftPlan, today)`, оценка нового отрывка — `NewPassagePlanner` по покрытию текущей суры + `estimateMinutes(…, isNew = true)`, «≈ N страниц в день» — `oldWeight()`.
+- День: `QuranHifzApp` вызывает `EpochDayTicker.refresh()` на `ON_RESUME` активити.
 
 ### Что известно и ещё не сделано
 

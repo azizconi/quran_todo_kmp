@@ -2,44 +2,41 @@ package tj.app.quran_todo.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.LanguageStorage
 import tj.app.quran_todo.common.settings.ReaderPracticeSettings
 import tj.app.quran_todo.common.settings.SurahReaderPreferences
 import tj.app.quran_todo.common.settings.UserSettingsStorage
-import tj.app.quran_todo.common.utils.currentLocalDate
-import tj.app.quran_todo.common.utils.localDateFromEpoch
-import tj.app.quran_todo.data.database.dao.AyahReviewDao
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
-import tj.app.quran_todo.data.database.entity.todo.AyahReviewEntity
-import tj.app.quran_todo.data.database.entity.todo.AyahTodoEntity
-import tj.app.quran_todo.data.database.entity.todo.SurahTodoEntity
-import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.domain.model.SurahModel
+import tj.app.quran_todo.hifz.EpochDayTicker
+import tj.app.quran_todo.hifz.HifzRepository
+import tj.app.quran_todo.hifz.model.HifzScope
+import tj.app.quran_todo.hifz.model.SurahCoverage
+import tj.app.quran_todo.hifz.model.SurahHifzStatus
+import tj.app.quran_todo.hifz.schedule.LessonPlan
 import tj.app.quran_todo.presentation.home.HomeUiState
 import tj.app.quran_todo.presentation.home.HomeViewModel
-import tj.app.quran_todo.presentation.home.PendingSurahStatus
 import tj.app.quran_todo.presentation.home.QuranLoadState
 import tj.app.quran_todo.ui.playback.NowPlaying
 import tj.app.quran_todo.ui.playback.PlaybackController
@@ -48,19 +45,21 @@ import tj.app.quran_todo.ui.state.UiPrefs
 
 /**
  * State of the home screen. Gathers the shared [HomeViewModel] (injected, never obtained through
- * `koinViewModel`: see docs/redesign/API.md), [UiPrefs], the [PlaybackController] and the review table
- * into immutable UI models, off the main thread.
+ * `koinViewModel`: see docs/redesign/API.md; it still provides the text and the names), [UiPrefs], the
+ * [PlaybackController] and the hifz model ([HifzRepository]: the lesson of the day, the derived statuses and
+ * the coverage of the surahs) into immutable UI models, off the main thread. The screen changes the
+ * progress only through [HifzRepository] ([applyStatus]).
  */
-@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+@OptIn(FlowPreview::class)
 class HomeUiViewModel internal constructor(
     private val home: HomeViewModel,
     private val uiPrefs: UiPrefs,
     private val playback: PlaybackController,
-    private val reviewDao: AyahReviewDao,
-    private val localPrefs: HomeLocalPrefs,
+    private val hifz: HifzRepository,
+    private val ticker: EpochDayTicker,
 ) : ViewModel() {
 
-    private val inputs = MutableStateFlow(HomeInputs.fromStorage())
+    private val language = MutableStateFlow(HomeInputs.fromStorage())
     private val query = MutableStateFlow("")
     private val filter = MutableStateFlow(SurahFilter.All)
     private val resumeTick = MutableStateFlow(0)
@@ -80,31 +79,22 @@ class HomeUiViewModel internal constructor(
         .distinctUntilChanged(::sameData)
 
     /**
-     * Ayahs touched today and the ayahs that have a review record (those are never "new"), re-read when
-     * the ayah table, the due reviews or the day change.
+     * What the hifz model says: the derived statuses, how many ayahs of each surah are memorized, the queue of
+     * the plan and the lesson of the day (it follows the changing day through the ticker). A failing read
+     * leaves the previous kind of answer ("nothing") instead of freezing the whole screen.
      */
-    private val doneStats: Flow<DoneStats?> = home.uiState
-        .map { Triple(it.ayahTodos, it.dueReviews, it.currentEpochDay) }
-        .distinctUntilChanged { a, b -> a.first === b.first && a.second === b.second && a.third == b.third }
-        .mapLatest { (todos, _, epochDay) ->
-            val reviews = withContext(Dispatchers.IO) {
-                runCatching { reviewDao.getAll() }.getOrDefault(emptyList())
-            }
-            DoneStats(
-                doneToday = TodayPlanner.countDoneToday(todos, reviews) { millis ->
-                    localDateFromEpoch(millis).toEpochDays() == epochDay
-                },
-                reviewedAyahs = reviews.mapTo(HashSet()) { it.ayahNumber },
-            ) as DoneStats?
-        }
-        .onStart { emit(null) }
+    private val hifzSnapshot: Flow<HifzSnapshot> = combine(
+        hifz.surahStatuses().orFallback(emptyMap()),
+        hifz.coveredCounts().orFallback(emptyMap()),
+        hifz.plan().map { it?.surahOrder.orEmpty() }.orFallback(emptyList()),
+        hifz.lesson(ticker.day).map<LessonPlan, LessonPlan?> { it }.orFallback(null),
+    ) { statuses, covered, queue, lesson -> HifzSnapshot(statuses, covered, queue, lesson) }
 
     private val prefs: Flow<PrefsSnapshot> = combine(
         uiPrefs.lastReadPosition,
         uiPrefs.recentSurahs,
         uiPrefs.pinnedSurahs,
         uiPrefs.onboardingGoals,
-        localPrefs.hifzInviteDismissed,
         ::PrefsSnapshot,
     )
 
@@ -119,10 +109,10 @@ class HomeUiViewModel internal constructor(
     ) { tick, _, _ -> tick }
 
     private val base: StateFlow<HomeBase> = combine(
-        combine(data, inputs, doneStats, ::Triple),
+        combine(data, language, hifzSnapshot, ::Triple),
         prefs,
         audioPosition,
-    ) { (data, inputs, done), prefs, _ -> HomeStateBuilder.buildBase(sourcesOf(data, inputs, done, prefs)) }
+    ) { (data, language, snapshot), prefs, _ -> HomeStateBuilder.buildBase(sourcesOf(data, language, snapshot, prefs)) }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.Eagerly, initialBase())
 
@@ -155,28 +145,17 @@ class HomeUiViewModel internal constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(PlaybackStopTimeoutMillis), 0f)
 
     init {
-        home.loadChapterNames(inputs.value.language)
-        viewModelScope.launch {
-            home.uiState
-                .map { it.statusUpdateError }
-                .distinctUntilChanged()
-                .filterNotNull()
-                .collect {
-                    eventChannel.trySend(HomeEvent.StatusUpdateFailed)
-                    home.clearStatusUpdateError()
-                }
-        }
+        home.loadChapterNames(language.value)
     }
 
     // -- Inputs from the screen ---------------------------------------------------------------
 
-    /** The app language and the plan settings live in the app root; the screen forwards them. */
-    fun setInputs(language: AppLanguage, dailyGoal: Int, focusMinutes: Int) {
-        val next = HomeInputs(language, dailyGoal.coerceIn(1, 50), focusMinutes.coerceIn(5, 60))
-        val previous = inputs.value
+    /** The app language lives in the app root; the screen forwards it. */
+    fun setLanguage(next: AppLanguage) {
+        val previous = language.value
         if (previous == next) return
-        inputs.value = next
-        if (previous.language != language) home.loadChapterNames(language)
+        language.value = next
+        home.loadChapterNames(next)
     }
 
     fun setQuery(value: String) {
@@ -188,7 +167,6 @@ class HomeUiViewModel internal constructor(
     }
 
     fun onResume() {
-        home.refreshDueReviewsNow()
         resumeTick.value += 1
     }
 
@@ -197,21 +175,54 @@ class HomeUiViewModel internal constructor(
     /** The Quran failed to load (or the person wants to try again): reload it from the network. */
     fun retry() = home.refreshQuran(withLocalAction = false)
 
-    fun setSurahStatus(surah: Int, status: SurahTodoStatus?) = home.setSurahStatus(surah, status)
-
     fun togglePin(surah: Int) = uiPrefs.togglePin(surah)
 
-    fun dismissHifzInvite() = localPrefs.dismissHifzInvite()
+    /** The memorized ayahs and the passages of [surah], for the line under the status in the surah sheet. */
+    fun coverage(surah: Int): Flow<SurahCoverage> = hifz.surahCoverage(surah).catch { error ->
+        // The line under the status is a nicety: without it the sheet still works.
+        AppTelemetry.logError(throwable = error, context = "home_coverage_read_failed")
+    }
 
     /**
-     * Asks whether the burst for the reached goal should play now. True at most once per day: the day is
-     * remembered at the moment the answer is yes.
+     * Applies the choice of the surah sheet through [HifzRepository] (see [SurahStatusChange] for what each choice
+     * does). The screen has asked for the confirmation already when ayahs are taken out of the repetitions.
      */
-    fun consumeGoalCelebration(done: Int, goal: Int): Boolean {
-        val day = currentLocalDate().toEpochDays()
-        if (!shouldCelebrateGoal(done, goal, localPrefs.goalCelebratedDay, day)) return false
-        localPrefs.markGoalCelebrated(day)
-        return true
+    fun applyStatus(surah: Int, target: SurahTarget) {
+        viewModelScope.launch {
+            try {
+                val today = ticker.day.value
+                val current = hifz.surahStatuses().first()[surah]
+                val plan = hifz.plan().first()
+                val steps = SurahStatusChange.steps(current, target, inPlan = plan != null && surah in plan.surahOrder)
+                for (step in steps) {
+                    when (step) {
+                        StatusStep.Forget -> hifz.forget(surah)
+                        StatusStep.LearnNext -> hifz.learnNext(surah, today)
+                        StatusStep.MarkKnown -> hifz.markKnown(surah, today = today)
+                        StatusStep.LeaveThePlan -> if (plan != null) {
+                            val rest = plan.surahOrder - surah
+                            if (rest.isEmpty()) {
+                                hifz.clearPlan()
+                            } else {
+                                hifz.setPlan(
+                                    scope = HifzScope.CUSTOM,
+                                    surahOrder = rest,
+                                    dailyNewAyahs = plan.dailyNewAyahs,
+                                    targetEpochDay = plan.targetEpochDay,
+                                    manzilDays = plan.manzilDays,
+                                    today = today,
+                                )
+                            }
+                        }
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                AppTelemetry.logError(throwable = error, context = "home_status_change_failed")
+                eventChannel.trySend(HomeEvent.StatusUpdateFailed)
+            }
+        }
     }
 
     /**
@@ -250,7 +261,8 @@ class HomeUiViewModel internal constructor(
     private fun assemble(base: HomeBase, query: String, filter: SurahFilter): HomeUi = HomeUi(
         phase = base.phase,
         continueItem = base.continueItem,
-        today = base.today,
+        lesson = base.lesson,
+        lessonFirst = base.lessonFirst,
         recent = base.recent,
         rows = base.rows,
         listing = HomeStateBuilder.buildListing(base.rows, searchIndexFor(base.rows), query, filter),
@@ -260,30 +272,26 @@ class HomeUiViewModel internal constructor(
     private fun initialBase(): HomeBase = HomeStateBuilder.buildBase(
         sourcesOf(
             data = home.uiState.value.toData(),
-            inputs = inputs.value,
-            done = null,
+            language = language.value,
+            snapshot = HifzSnapshot(),
             prefs = PrefsSnapshot(
                 lastRead = uiPrefs.lastReadPosition.value,
                 recent = uiPrefs.recentSurahs.value,
                 pinned = uiPrefs.pinnedSurahs.value,
                 goals = uiPrefs.onboardingGoals.value,
-                inviteDismissed = localPrefs.hifzInviteDismissed.value,
             ),
         ),
     )
 
-    private fun sourcesOf(data: HomeData, inputs: HomeInputs, done: DoneStats?, prefs: PrefsSnapshot) = HomeSources(
-        language = inputs.language,
-        dailyGoal = inputs.dailyGoal,
-        focusMinutes = inputs.focusMinutes,
+    private fun sourcesOf(data: HomeData, language: AppLanguage, snapshot: HifzSnapshot, prefs: PrefsSnapshot) = HomeSources(
+        language = language,
         surahList = data.surahList,
         index = indexFor(data.completeQuran),
-        todoSurahs = data.todoSurahs,
-        ayahTodos = data.ayahTodos,
-        dueReviews = data.dueReviews,
-        weakAyahKeys = data.weakAyahKeys,
+        statuses = snapshot.statuses,
+        coveredAyahs = snapshot.covered,
+        planQueue = snapshot.planQueue,
+        lesson = snapshot.lesson,
         chapterNames = data.chapterNames,
-        pending = data.pending,
         loadState = data.loadState,
         lastRead = HomeStateBuilder.lastReadWithLegacy(
             saved = prefs.lastRead,
@@ -293,8 +301,6 @@ class HomeUiViewModel internal constructor(
         recentSurahs = prefs.recent,
         pinnedSurahs = prefs.pinned,
         onboardingGoals = prefs.goals,
-        doneStats = done,
-        inviteDismissed = prefs.inviteDismissed,
     )
 
     private fun indexFor(completeQuran: List<SurahWithAyahs>): QuranIndex {
@@ -332,51 +338,44 @@ class HomeUiViewModel internal constructor(
     }
 }
 
+/** A read of the hifz model that does not end the stream when it fails: it reports and continues with [fallback]. */
+private fun <T> Flow<T>.orFallback(fallback: T): Flow<T> = catch { error ->
+    AppTelemetry.logError(throwable = error, context = "home_hifz_read_failed")
+    emit(fallback)
+}
+
+/** What the home screen reads from the hifz model; empty until the first answer. */
+internal class HifzSnapshot(
+    val statuses: Map<Int, SurahHifzStatus> = emptyMap(),
+    val covered: Map<Int, Int> = emptyMap(),
+    val planQueue: List<Int> = emptyList(),
+    val lesson: LessonPlan? = null,
+)
+
 /** The parts of [HomeUiState] this screen reads; compared by reference so progress updates do not recompute. */
 private class HomeData(
     val surahList: List<SurahModel>,
-    val todoSurahs: List<SurahTodoEntity>,
-    val ayahTodos: List<AyahTodoEntity>,
     val completeQuran: List<SurahWithAyahs>,
     val chapterNames: Map<Int, ChapterNameModel>,
-    val dueReviews: List<AyahReviewEntity>,
-    val weakAyahKeys: Set<String>,
-    val pending: Map<Int, PendingSurahStatus>,
     val loadState: QuranLoadState,
 )
 
 private fun HomeUiState.toData() = HomeData(
     surahList = surahList,
-    todoSurahs = todoSurahs,
-    ayahTodos = ayahTodos,
     completeQuran = completeQuran,
     chapterNames = chapterNames,
-    dueReviews = dueReviews,
-    weakAyahKeys = weakAyahKeys,
-    pending = pendingSurahStatuses,
     loadState = quranLoadState,
 )
 
 private fun sameData(a: HomeData, b: HomeData): Boolean =
     a.surahList === b.surahList &&
-        a.todoSurahs === b.todoSurahs &&
-        a.ayahTodos === b.ayahTodos &&
         a.completeQuran === b.completeQuran &&
         a.chapterNames === b.chapterNames &&
-        a.dueReviews === b.dueReviews &&
-        a.weakAyahKeys === b.weakAyahKeys &&
-        a.pending === b.pending &&
         a.loadState == b.loadState
 
-private data class HomeInputs(val language: AppLanguage, val dailyGoal: Int, val focusMinutes: Int) {
-    companion object {
-        /** What the app root loads at start; the screen then forwards later changes. */
-        fun fromStorage() = HomeInputs(
-            language = LanguageStorage.getSavedLanguage() ?: LanguageStorage.getDeviceLanguage(),
-            dailyGoal = UserSettingsStorage.getDailyGoal()?.coerceIn(1, 50) ?: 5,
-            focusMinutes = UserSettingsStorage.getFocusMinutes()?.coerceIn(5, 60) ?: 10,
-        )
-    }
+private object HomeInputs {
+    /** What the app root loads at start; the screen then forwards later changes. */
+    fun fromStorage(): AppLanguage = LanguageStorage.getSavedLanguage() ?: LanguageStorage.getDeviceLanguage()
 }
 
 private class PrefsSnapshot(
@@ -384,7 +383,6 @@ private class PrefsSnapshot(
     val recent: List<Int>,
     val pinned: Set<Int>,
     val goals: Set<String>,
-    val inviteDismissed: Boolean,
 )
 
 private data class PlayerCore(val index: Int, val isPlaying: Boolean, val isPreparing: Boolean, val hasError: Boolean)

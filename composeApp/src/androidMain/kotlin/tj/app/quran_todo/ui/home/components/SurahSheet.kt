@@ -19,9 +19,11 @@ import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,12 +46,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
+import tj.app.quran_todo.hifz.model.SurahCoverage
+import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.ui.components.QhIconTile
 import tj.app.quran_todo.ui.components.QhSectionHeader
 import tj.app.quran_todo.ui.components.QhSheet
 import tj.app.quran_todo.ui.components.SurahNumberBadge
 import tj.app.quran_todo.ui.haptics.HapticKind
 import tj.app.quran_todo.ui.home.SurahRowUi
+import tj.app.quran_todo.ui.home.SurahStatusChange
+import tj.app.quran_todo.ui.home.SurahTarget
 import tj.app.quran_todo.ui.i18n.HomeCopy
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.orSnap
@@ -59,18 +65,23 @@ import tj.app.quran_todo.ui.theme.QhTheme
 
 /**
  * The surah sheet (long press on a row or a chip): three big status cards (circle, half circle, check),
- * pin / unpin and "Listen to surah". Choosing a status lights up the card ([onPicked], at the tap),
- * slides the sheet away and then applies it ([onSetStatus]). [row] is the live row, so the selected
- * card follows the status.
+ * the line "Memorized 23 of 40 ayahs - 2 hard", pin / unpin and "Listen to surah". Choosing a status lights
+ * up the card ([onPicked], at the tap), slides the sheet away and then applies it ([onApply]); the status is
+ * the one derived from the passages of the hifz model, so [row] is the live row and the selected card
+ * follows it. Taking memorized ayahs out of the repetitions ("Not started" on a surah with memorized ayahs,
+ * or "Memorizing" on a memorized one) asks first: "Remove N memorized ayahs from your reviews?".
+ *
+ * [coverage] is the live coverage of this surah (null until it is loaded).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SurahSheet(
     row: SurahRowUi,
+    coverage: SurahCoverage?,
     copy: HomeCopy,
     arabicStyle: TextStyle,
-    onPicked: (SurahTodoStatus?) -> Unit,
-    onSetStatus: (SurahTodoStatus?) -> Unit,
+    onPicked: (SurahTarget) -> Unit,
+    onApply: (SurahTarget) -> Unit,
     onTogglePin: () -> Unit,
     onListen: () -> Unit,
     onDismiss: () -> Unit,
@@ -79,10 +90,17 @@ internal fun SurahSheet(
     val scope = rememberCoroutineScope()
     val colors = QhTheme.colors
     val type = QhTheme.type
-    // The status the person tapped: its card lights up at once, before the change is applied.
+    // The choice the person tapped: its card lights up at once, before the change is applied.
     var picked by remember { mutableStateOf<Picked?>(null) }
     var closing by remember { mutableStateOf(false) }
-    val shownStatus = picked?.let { it.status } ?: row.status
+    var confirm by remember { mutableStateOf<Confirm?>(null) }
+    val currentStatus: SurahHifzStatus? = when (row.status) {
+        null -> null
+        SurahTodoStatus.LEARNING -> SurahHifzStatus.LEARNING
+        SurahTodoStatus.LEARNED -> SurahHifzStatus.LEARNED
+    }
+    val shownTarget = picked?.target ?: SurahStatusChange.targetOf(currentStatus)
+    val coveredCount = coverage?.coveredAyahs?.size ?: Math.round(row.learnedFraction * row.ayahCount)
 
     /**
      * Slides the sheet away, then runs [action]: the row behind it changes (the badge pops, the burst
@@ -97,12 +115,18 @@ internal fun SurahSheet(
         }
     }
 
-    /** A tap on a status card: lights it up, reports the pick, and applies it after the sheet closed. */
-    fun choose(status: SurahTodoStatus?) {
-        if (closing || shownStatus == status) return
-        picked = Picked(status)
-        onPicked(status)
-        closeThen { onSetStatus(status) }
+    fun commit(target: SurahTarget) {
+        if (closing) return
+        picked = Picked(target)
+        onPicked(target)
+        closeThen { onApply(target) }
+    }
+
+    /** A tap on a status card: asks first when memorized ayahs would leave the repetitions, else applies it. */
+    fun choose(target: SurahTarget) {
+        if (closing || shownTarget == target) return
+        val lost = SurahStatusChange.lostAyahs(currentStatus, coveredCount, target)
+        if (lost > 0) confirm = Confirm(target, lost) else commit(target)
     }
 
     QhSheet(onDismiss = onDismiss, sheetState = sheetState) {
@@ -132,32 +156,40 @@ internal fun SurahSheet(
             StatusCard(
                 label = copy.statusNotStarted,
                 icon = Icons.Rounded.RadioButtonUnchecked,
-                selected = shownStatus == null,
+                selected = shownTarget == SurahTarget.NotStarted,
                 accent = colors.inkSecondary,
                 container = colors.surfaceMuted,
-                onClick = { choose(null) },
+                onClick = { choose(SurahTarget.NotStarted) },
                 modifier = Modifier.weight(1f),
             )
             StatusCard(
-                label = copy.statusLearning,
+                label = copy.sheetLearning,
                 icon = Icons.Rounded.Contrast,
-                selected = shownStatus == SurahTodoStatus.LEARNING,
+                selected = shownTarget == SurahTarget.Learning,
                 accent = colors.learning,
                 container = colors.learningContainer,
-                onClick = { choose(SurahTodoStatus.LEARNING) },
+                onClick = { choose(SurahTarget.Learning) },
                 modifier = Modifier.weight(1f),
             )
             StatusCard(
-                label = copy.statusLearned,
+                label = copy.sheetKnown,
                 icon = Icons.Rounded.CheckCircle,
-                selected = shownStatus == SurahTodoStatus.LEARNED,
+                selected = shownTarget == SurahTarget.Known,
                 accent = colors.learned,
                 container = colors.learnedContainer,
-                onClick = { choose(SurahTodoStatus.LEARNED) },
+                onClick = { choose(SurahTarget.Known) },
                 modifier = Modifier.weight(1f),
             )
         }
-        Spacer(Modifier.height(QhSpacing.x4))
+        Spacer(Modifier.height(QhSpacing.x3))
+        // Where the surah stands now: memorized ayahs of all, and the ones marked difficult.
+        Text(
+            text = copy.coverageLine(coveredCount, row.ayahCount, coverage?.hardAyahs?.size ?: 0),
+            style = type.callout,
+            color = colors.inkSecondary,
+            modifier = Modifier.padding(horizontal = QhSpacing.x1),
+        )
+        Spacer(Modifier.height(QhSpacing.x3))
         SheetAction(
             icon = Icons.Rounded.PushPin,
             title = if (row.isPinned) copy.unpin else copy.pin,
@@ -172,10 +204,33 @@ internal fun SurahSheet(
             onClick = { closeThen(onListen) },
         )
     }
+
+    confirm?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { confirm = null },
+            containerColor = colors.surface,
+            title = { Text(copy.forgetTitle(pending.lostAyahs), style = type.title1, color = colors.ink) },
+            text = { Text(copy.forgetBody, style = type.body, color = colors.inkSecondary) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirm = null
+                        commit(pending.target)
+                    },
+                ) { Text(copy.forgetConfirm, style = type.title2, color = colors.danger) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirm = null }) { Text(copy.cancel, style = type.title2, color = colors.primary) }
+            },
+        )
+    }
 }
 
-/** A status choice (null = "not started") waiting for the sheet to close. */
-private class Picked(val status: SurahTodoStatus?)
+/** A status choice waiting for the sheet to close. */
+private class Picked(val target: SurahTarget)
+
+/** A choice that takes [lostAyahs] memorized ayahs out of the repetitions and waits for a yes. */
+private class Confirm(val target: SurahTarget, val lostAyahs: Int)
 
 /**
  * One of the three status choices. The selected one is tinted with the status color, gets a thicker

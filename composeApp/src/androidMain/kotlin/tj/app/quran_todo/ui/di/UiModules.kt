@@ -4,10 +4,10 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.compose.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 import tj.app.quran_todo.ui.hifz.HifzViewModel
-import tj.app.quran_todo.ui.home.HomeLocalPrefs
 import tj.app.quran_todo.ui.home.HomeUiViewModel
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.onboarding.OnboardingViewModel
+import tj.app.quran_todo.ui.plan.PlanViewModel
 import tj.app.quran_todo.ui.playback.createPlaybackController
 import tj.app.quran_todo.ui.progress.ProgressViewModel
 import tj.app.quran_todo.ui.reader.ReaderViewModel
@@ -20,16 +20,21 @@ import tj.app.quran_todo.ui.state.UiPrefs
  * `QuranTodoApplication.startKoin` through [uiModules].
  */
 val homeUiModule = module {
-    single { HomeLocalPrefs(androidContext()) }
+    // The hifz repository and the day ticker are Koin singles of the common module: injected, never via koinViewModel.
     viewModel {
         HomeUiViewModel(
             home = get(),
             uiPrefs = get(),
             playback = get(),
-            reviewDao = get(),
-            localPrefs = get(),
+            hifz = get(),
+            ticker = get(),
         )
     }
+}
+
+val planUiModule = module {
+    // "My plan": a draft of the plan over the shared HifzRepository; HomeViewModel only supplies the surah names.
+    viewModel { PlanViewModel(hifz = get(), ticker = get(), home = get()) }
 }
 
 val readerUiModule = module {
@@ -85,6 +90,7 @@ val appUiModule = module {
 val uiModules = listOf(
     appUiModule,
     homeUiModule,
+    planUiModule,
     readerUiModule,
     hifzUiModule,
     progressUiModule,
