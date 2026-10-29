@@ -44,6 +44,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.compose.koinInject
 import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.i18n.AppLanguage
@@ -52,7 +56,8 @@ import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppLanguageSetter
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.i18n.stringsFor
-import tj.app.quran_todo.common.reminder.ReminderScheduler
+import tj.app.quran_todo.common.reminder.ReminderChannel
+import tj.app.quran_todo.common.reminder.ReminderSync
 import tj.app.quran_todo.common.settings.AppSettings
 import tj.app.quran_todo.common.settings.LocalAppSettings
 import tj.app.quran_todo.common.settings.LocalAppSettingsSetter
@@ -93,6 +98,8 @@ import tj.app.quran_todo.ui.navigation.NavTransitions
 import tj.app.quran_todo.ui.onboarding.OnboardingScreen
 import tj.app.quran_todo.ui.plan.PlanScreen
 import tj.app.quran_todo.ui.progress.ProgressScreen
+import tj.app.quran_todo.ui.reminder.ReminderOpenRequests
+import tj.app.quran_todo.ui.reminder.ReminderTarget
 import tj.app.quran_todo.ui.reader.ReaderScreen
 import tj.app.quran_todo.ui.settings.SettingsScreen
 import tj.app.quran_todo.ui.state.UiPrefs
@@ -163,13 +170,15 @@ fun QuranHifzApp() {
         appSettings = loadAppSettings()
     }
 
+    // The daily lesson reminder (B4): every start plans the alarm again from the stored settings (the alarm does not survive
+    // an update or a restart on its own), so a reminder the person turned on keeps coming.
+    val appContext = LocalContext.current.applicationContext
     LaunchedEffect(Unit) {
-        UserSettingsStorage.saveReminderEnabled(false)
-        ReminderScheduler.syncDailyReminder(
-            enabled = false,
-            title = strings.reminderTitle,
-            body = strings.reminderBody,
-        )
+        withContext(Dispatchers.Default) { ReminderSync.sync(appContext) }
+    }
+    // The name of the reminder channel in the system settings follows the language of the app.
+    LaunchedEffect(language) {
+        withContext(Dispatchers.Default) { ReminderChannel.renameIfExists(appContext, language) }
     }
     LaunchedEffect(Unit) {
         AppTelemetry.logEvent("app_opened")
@@ -250,8 +259,7 @@ fun QuranHifzApp() {
             val changedFields = buildList {
                 if (appSettings.dailyGoal != next.dailyGoal) add("daily_goal")
                 if (appSettings.focusMinutes != next.focusMinutes) add("focus_minutes")
-                if (appSettings.remindersEnabled != next.remindersEnabled) add("reminders")
-                if (appSettings.targetAyahs != next.targetAyahs) add("target_ayahs")
+                    if (appSettings.targetAyahs != next.targetAyahs) add("target_ayahs")
                 if (appSettings.targetEpochDay != next.targetEpochDay) add("target_day")
                 if (appSettings.examModeEnabled != next.examModeEnabled) add("exam_mode")
             }
@@ -264,7 +272,6 @@ fun QuranHifzApp() {
             appSettings = next
             UserSettingsStorage.saveDailyGoal(next.dailyGoal)
             UserSettingsStorage.saveFocusMinutes(next.focusMinutes)
-            UserSettingsStorage.saveReminderEnabled(next.remindersEnabled)
             UserSettingsStorage.saveTargetAyahs(next.targetAyahs)
             UserSettingsStorage.saveTargetEpochDay(next.targetEpochDay)
             UserSettingsStorage.saveExamModeEnabled(next.examModeEnabled)
@@ -349,6 +356,19 @@ private fun AppNavigation() {
     val screenName = currentEntry?.destination?.screenName()
     LaunchedEffect(screenName) {
         if (screenName != null) AppTelemetry.logScreen(screenName)
+    }
+
+    // A tap on the daily reminder: the lesson or the reader opens over Home, and back goes to Home.
+    val openRequest by ReminderOpenRequests.pending.collectAsState()
+    LaunchedEffect(openRequest) {
+        val request = openRequest ?: return@LaunchedEffect
+        // The graph is set up and the screen is still: not in the middle of a transition (the first frames of a cold start).
+        val ready = withTimeoutOrNull(OpenRequestWaitMillis) {
+            while (!navController.isIdle()) delay(OpenRequestPollMillis)
+            true
+        }
+        ReminderOpenRequests.consume(request)
+        if (ready == true) navController.openFromReminder(request.target)
     }
 
     SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
@@ -481,6 +501,29 @@ private fun NavController.goHome() {
     }
 }
 
+private const val OpenRequestWaitMillis = 3_000L
+private const val OpenRequestPollMillis = 40L
+
+/** Origin of a reader opened from the reminder: it matches no shared element, so the reader simply slides in. */
+private const val ReminderOrigin = "reminder"
+
+/**
+ * Opens what the daily reminder points at over Home: everything above Home is dropped first, so back always lands on Home. During
+ * onboarding (no Home on the stack) nothing happens, and a lesson that is already open stays as it is.
+ */
+private fun NavController.openFromReminder(target: ReminderTarget) {
+    if (currentBackStack.value.none { it.destination.hasRoute<Dest.Home>() }) return
+    when (target) {
+        ReminderTarget.Lesson -> {
+            if (currentDestination?.hasRoute<Dest.Lesson>() == true) return
+            navigate(Dest.Lesson) { popUpTo<Dest.Home> { inclusive = false } }
+        }
+        is ReminderTarget.Reader -> navigate(Dest.Reader(surah = target.surah, ayah = target.ayah, origin = ReminderOrigin)) {
+            popUpTo<Dest.Home> { inclusive = false }
+        }
+    }
+}
+
 private fun NavDestination.screenName(): String? = when {
     hasRoute<Dest.Onboarding>() -> "onboarding"
     hasRoute<Dest.Home>() -> "home"
@@ -500,7 +543,8 @@ private fun loadAppSettings(): AppSettings {
     return AppSettings(
         dailyGoal = UserSettingsStorage.getDailyGoal()?.coerceIn(1, 50) ?: 5,
         focusMinutes = UserSettingsStorage.getFocusMinutes()?.coerceIn(5, 60) ?: 10,
-        remindersEnabled = UserSettingsStorage.isReminderEnabled() ?: true,
+        // The reminder of the Android app lives in UiPrefs (task B4); this old field is not read and nothing shows it.
+        remindersEnabled = false,
         targetAyahs = UserSettingsStorage.getTargetAyahs()?.coerceIn(50, 6236) ?: 300,
         targetEpochDay = UserSettingsStorage.getTargetEpochDay() ?: (todayEpochDay + 60),
         examModeEnabled = UserSettingsStorage.isExamModeEnabled() ?: false,

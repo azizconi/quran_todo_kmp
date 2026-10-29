@@ -27,6 +27,9 @@ object BackupSettingsRules {
     val PLAYBACK_SPEEDS: Set<Float> = setOf(0.75f, 1f, 1.25f, 1.5f, 2f)
     val REPEAT_COUNTS: Set<Int> = setOf(1, 3, 5, -1)
     val LESSON_REPEATS = 1..20
+
+    /** Minutes after midnight. */
+    val REMINDER_MINUTE_OF_DAY = 0..1439
 }
 
 /** Returns the settings with every value that is not valid removed (null = "leave the phone's setting as it is"). */
@@ -52,4 +55,6 @@ fun BackupSettings.sanitized(): BackupSettings = BackupSettings(
     hifzHint = hifzHint?.takeIf { it in BackupSettingsRules.HINT_MODES },
     hapticsEnabled = hapticsEnabled,
     reduceMotion = reduceMotion,
+    reminderEnabled = reminderEnabled,
+    reminderMinuteOfDay = reminderMinuteOfDay?.takeIf { it in BackupSettingsRules.REMINDER_MINUTE_OF_DAY },
 )

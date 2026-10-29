@@ -28,7 +28,7 @@ class BackupCodecTest {
         readingFontSize = 30, dailyGoal = 7, showTranslation = true, highlightPlayingAyah = true, autoplayOnOpen = false,
         autoAdvanceAyahs = true, playbackSpeed = 1.25f, repeatCount = -1, readerLayout = "MUSHAF", keepScreenOn = true,
         reciter = "husary", lessonAyahRepeats = 3, lessonPassageRepeats = 2, hifzHint = "FIRST_WORD", hapticsEnabled = false,
-        reduceMotion = true,
+        reduceMotion = true, reminderEnabled = true, reminderMinuteOfDay = 1200,
     )
 
     private val passages = listOf(
@@ -300,10 +300,12 @@ class BackupCodecTest {
             settings = settings.copy(
                 language = "xx", themeMode = "SEPIA", palette = "NEON", readingFont = "comic", readingFontSize = 99, dailyGoal = 0,
                 playbackSpeed = 3f, repeatCount = 4, readerLayout = "GRID", reciter = "nobody", lessonAyahRepeats = 0,
-                lessonPassageRepeats = 500, hifzHint = "ALL",
+                lessonPassageRepeats = 500, hifzHint = "ALL", reminderMinuteOfDay = 1440,
             ),
         )
         val applied = verified(bad).settings
+        assertNull(applied.reminderMinuteOfDay)
+        assertEquals(true, applied.reminderEnabled)
         assertNull(applied.language)
         assertNull(applied.themeMode)
         assertNull(applied.palette)
@@ -321,6 +323,26 @@ class BackupCodecTest {
         assertEquals(true, applied.showTranslation)
         assertEquals(false, applied.hapticsEnabled)
         assertEquals(true, applied.reduceMotion)
+    }
+
+    @Test
+    fun theReminderTimeMustBeAMinuteOfTheDay() {
+        listOf(-1, 1440, 100_000).forEach { minute ->
+            assertNull(verified(file.copy(settings = BackupSettings(reminderMinuteOfDay = minute))).settings.reminderMinuteOfDay, "$minute")
+        }
+        listOf(0, 1, 1200, 1439).forEach { minute ->
+            assertEquals(minute, verified(file.copy(settings = BackupSettings(reminderMinuteOfDay = minute))).settings.reminderMinuteOfDay)
+        }
+    }
+
+    @Test
+    fun aFileWrittenBeforeTheReminderExistedStillReads() {
+        // The reminder fields are optional: a copy without them leaves the reminder of the phone as it is.
+        val text = BackupCodec.encode(verified(file.copy(settings = BackupSettings(language = "ru"))))
+        val parsed = (BackupCodec.decode(text) as BackupParse.Ok).backup.settings
+        assertEquals("ru", parsed.language)
+        assertNull(parsed.reminderEnabled)
+        assertNull(parsed.reminderMinuteOfDay)
     }
 
     @Test

@@ -122,6 +122,7 @@ import tj.app.quran_todo.ui.motion.rememberStaggerState
 import tj.app.quran_todo.ui.motion.rememberThemeSwitcher
 import tj.app.quran_todo.ui.motion.sharedElementKey
 import tj.app.quran_todo.ui.motion.staggeredEnter
+import tj.app.quran_todo.ui.reminder.ReminderSection
 import tj.app.quran_todo.ui.state.HifzHintMode
 import tj.app.quran_todo.ui.state.ReaderLayout
 import tj.app.quran_todo.ui.theme.QhSpacing
@@ -207,6 +208,8 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources:
                 override fun setLessonPassageRepeats(value: Int) = viewModel.setLessonPassageRepeats(value)
                 override fun setHapticsEnabled(value: Boolean) = viewModel.setHapticsEnabled(value)
                 override fun setReduceMotion(value: Boolean) = viewModel.setReduceMotion(value)
+                override fun setReminderMinuteOfDay(value: Int) = viewModel.setReminderMinuteOfDay(value)
+                override fun setReminderEnabled(value: Boolean) = viewModel.setReminderEnabled(value)
             },
         )
         viewModel.consumePendingSettings()
@@ -552,8 +555,11 @@ private fun SettingsContent(
             )
         }
 
-        // 5. Language
-        SettingsSection(copy.sectionLanguage, Modifier.staggeredEnter(4, stagger)) {
+        // 5. Reminder
+        ReminderSection(language = language, modifier = Modifier.staggeredEnter(4, stagger))
+
+        // 6. Language
+        SettingsSection(copy.sectionLanguage, Modifier.staggeredEnter(5, stagger)) {
             QhValueRow(
                 title = copy.language,
                 value = language.nativeName(),
@@ -563,10 +569,10 @@ private fun SettingsContent(
             )
         }
 
-        // 6. Data
+        // 7. Data
         SettingsSection(
             title = copy.sectionData,
-            modifier = Modifier.staggeredEnter(5, stagger),
+            modifier = Modifier.staggeredEnter(6, stagger),
         ) {
             OfflineDownloadRow(
                 state = offline.toUi(),
@@ -575,10 +581,10 @@ private fun SettingsContent(
             )
         }
 
-        // 7. Transfer and backup: the copy is a file the person keeps or sends, not a hidden copy on this phone.
+        // 8. Transfer and backup: the copy is a file the person keeps or sends, not a hidden copy on this phone.
         SettingsSection(
             title = transfer.sectionTitle,
-            modifier = Modifier.staggeredEnter(6, stagger),
+            modifier = Modifier.staggeredEnter(7, stagger),
             footnote = transfer.footnote,
         ) {
             QhNavRow(
@@ -610,8 +616,8 @@ private fun SettingsContent(
             )
         }
 
-        // 8. Comfort
-        SettingsSection(copy.sectionComfort, Modifier.staggeredEnter(7, stagger)) {
+        // 9. Comfort
+        SettingsSection(copy.sectionComfort, Modifier.staggeredEnter(8, stagger)) {
             QhSwitchRow(
                 title = copy.haptics,
                 description = copy.hapticsDescription,
@@ -635,8 +641,8 @@ private fun SettingsContent(
             )
         }
 
-        // 9. Privacy
-        SettingsSection(trust.sectionPrivacy, Modifier.staggeredEnter(8, stagger)) {
+        // 10. Privacy
+        SettingsSection(trust.sectionPrivacy, Modifier.staggeredEnter(9, stagger)) {
             QhSwitchRow(
                 title = trust.analyticsTitle,
                 description = trust.analyticsDescription,
@@ -663,8 +669,8 @@ private fun SettingsContent(
             )
         }
 
-        // 10. About
-        SettingsSection(copy.sectionAbout, Modifier.staggeredEnter(9, stagger)) {
+        // 11. About
+        SettingsSection(copy.sectionAbout, Modifier.staggeredEnter(10, stagger)) {
             if (versionLabel.isNotEmpty()) {
                 QhValueRow(
                     title = copy.version,
