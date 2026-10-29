@@ -126,6 +126,20 @@ class LessonBuilderTest {
         // 3 passages of 500, manzilDays defaults to 7: quota 215, one passage.
         assertEquals(1, lesson.old.size)
         assertFalse(lesson.isEmpty)
+        assertEquals(1, lesson.tomorrow.dueCount, "tomorrow's turn of the circle")
+    }
+
+    @Test
+    fun tomorrowCountsTheNextTurnOfTheCircleAfterTodaysIsDone() {
+        val old = listOf(Fx.passage(1, 2, 1, 5), Fx.passage(2, 2, 6, 10), Fx.passage(3, 2, 11, 15))
+        val outcome = PassageOps.review(old, 1, ReviewGrade.GOOD, emptySet(), today, m)!!
+        val log = listOf(Fx.logOf(outcome.before, ReviewKind.OLD, ReviewGrade.GOOD, today))
+        val recentDue = recent(4, due = today + 1)
+        val lesson = lesson(null, outcome.passages + recentDue, log)
+
+        assertTrue(lesson.isComplete)
+        // The ladder passage due tomorrow, and the next passage of the circle (today's one waits its 7 days).
+        assertEquals(2, lesson.tomorrow.dueCount)
     }
 
     // ---- recent ----

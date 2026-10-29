@@ -111,6 +111,7 @@ import tj.app.quran_todo.ui.components.rememberQhTopBarState
 import tj.app.quran_todo.ui.haptics.HapticKind
 import tj.app.quran_todo.ui.haptics.rememberHaptics
 import tj.app.quran_todo.ui.i18n.SettingsCopy
+import tj.app.quran_todo.ui.i18n.planCopy
 import tj.app.quran_todo.ui.i18n.rememberSettingsCopy
 import tj.app.quran_todo.ui.i18n.rememberTrustCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
@@ -133,8 +134,6 @@ private enum class SettingsSheet { Typography, Language }
 private val SpeedOptions = listOf(0.75f, 1f, 1.25f, 1.5f, 2f)
 private val RepeatOptions = listOf(1, 3, 5, SurahReaderPreferences.RepeatForever)
 
-private const val MinDailyGoal = 1
-private const val MaxDailyGoal = 50
 
 /**
  * The settings screen (docs/redesign/ANDROID_REDESIGN.md, 6.6): a large title over grouped cards of
@@ -144,7 +143,7 @@ private const val MaxDailyGoal = 50
  */
 @OptIn(KoinExperimentalAPI::class, ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources: () -> Unit, onOpenPlan: () -> Unit) {
     val viewModel = koinViewModel<SettingsViewModel>()
     val language = LocalAppLanguage.current
     val setLanguage = LocalAppLanguageSetter.current
@@ -291,6 +290,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources:
                 onRestoreFromFile = { openLauncher.launch(arrayOf(BackupFormat.MIME_TYPE, "*/*")) },
                 onOpenPrivacy = onOpenPrivacy,
                 onOpenSources = onOpenSources,
+                onOpenPlan = onOpenPlan,
             )
         }
         QhLargeTopBar(
@@ -373,6 +373,7 @@ private fun SettingsContent(
     onRestoreFromFile: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenSources: () -> Unit,
+    onOpenPlan: () -> Unit,
 ) {
     val copy = rememberSettingsCopy(language)
     val transfer = copy.transfer
@@ -525,22 +526,13 @@ private fun SettingsContent(
 
         // 4. Memorization
         SettingsSection(copy.sectionMemorization, Modifier.staggeredEnter(3, stagger)) {
-            StepperRow(
-                title = copy.dailyGoal,
-                description = copy.dailyGoalDescription,
+            // The pace lives in the plan (task B3): the row opens it instead of keeping a second daily goal here.
+            QhNavRow(
+                title = planCopy(language).title,
+                description = copy.myPlanDescription,
+                onClick = onOpenPlan,
                 icon = Icons.Rounded.Flag,
-                tint = colors.gold,
-                value = settings.dailyGoal,
-                onDecrease = {
-                    setSettings(settings.copy(dailyGoal = (settings.dailyGoal - 1).coerceAtLeast(MinDailyGoal)))
-                },
-                onIncrease = {
-                    setSettings(settings.copy(dailyGoal = (settings.dailyGoal + 1).coerceAtMost(MaxDailyGoal)))
-                },
-                canDecrease = settings.dailyGoal > MinDailyGoal,
-                canIncrease = settings.dailyGoal < MaxDailyGoal,
-                decreaseLabel = copy.decrease,
-                increaseLabel = copy.increase,
+                iconTint = colors.gold,
             )
             QhRowDivider()
             QhSwitchRow(

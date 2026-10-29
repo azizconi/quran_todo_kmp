@@ -75,7 +75,7 @@ class SettingsLogicTest {
         listOf(AppLanguage.RU, AppLanguage.TG, AppLanguage.UZ, AppLanguage.TR).forEach { language ->
             val other = settingsCopy(language)
             assertTrue(other.sectionAppearance != english.sectionAppearance, "sectionAppearance/$language")
-            assertTrue(other.dailyGoal != english.dailyGoal, "dailyGoal/$language")
+            assertTrue(other.myPlanDescription != english.myPlanDescription, "myPlanDescription/$language")
             assertTrue(other.offlineTitle != english.offlineTitle, "offlineTitle/$language")
         }
     }

@@ -447,6 +447,7 @@ private fun AppNavigation() {
                             onBack = { navController.popOnce() },
                             onOpenPrivacy = { navController.navigateOnce(Dest.Privacy) },
                             onOpenSources = { navController.navigateOnce(Dest.Sources) },
+                            onOpenPlan = { navController.navigateOnce(Dest.Plan) },
                         )
                     }
                 }

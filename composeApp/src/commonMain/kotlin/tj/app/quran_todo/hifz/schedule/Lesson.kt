@@ -53,7 +53,10 @@ data class LessonNew(
 data class LessonTomorrow(
     /** The next new passage by the plan (the same as today's if today's is not learned), null if there is none. */
     val newPassage: AyahRange?,
-    /** Passages of the ladder that are due tomorrow or are overdue now. */
+    /**
+     * Repetitions waiting tomorrow: the passages of the ladder that are due tomorrow or are overdue now, and tomorrow's turn of the
+     * manzil circle as it stands now (what was repeated today is not eligible again until its `manzilDays` have passed).
+     */
     val dueCount: Int,
 )
 
@@ -232,7 +235,9 @@ object LessonBuilder {
             (newBlock == null || newBlock.state == LessonNewState.DEFERRED)
         val isComplete = !isEmpty && recentItems.all { it.done } && oldItems.all { it.done } && !pendingNew
 
-        val tomorrowDue = input.passages.count { it.stage != PassageStage.OLD && (it.nextDueEpochDay ?: Int.MAX_VALUE) <= today + 1 }
+        val tomorrowLadder = input.passages.count { it.stage != PassageStage.OLD && (it.nextDueEpochDay ?: Int.MAX_VALUE) <= today + 1 }
+        val tomorrowOld = Manzil.portion(input.passages, emptyList(), plan?.manzilDays ?: HifzConstants.MANZIL_DAYS_DEFAULT, metrics, today + 1).items.size
+        val tomorrowDue = tomorrowLadder + tomorrowOld
 
         return LessonPlan(
             today = today,
