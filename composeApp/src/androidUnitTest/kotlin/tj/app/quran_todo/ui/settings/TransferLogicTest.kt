@@ -191,6 +191,8 @@ class TransferLogicTest {
         override fun setLessonPassageRepeats(value: Int) { calls += "lessonPassage=$value" }
         override fun setHapticsEnabled(value: Boolean) { calls += "haptics=$value" }
         override fun setReduceMotion(value: Boolean) { calls += "reduce=$value" }
+        override fun setReminderMinuteOfDay(value: Int) { calls += "reminderAt=$value" }
+        override fun setReminderEnabled(value: Boolean) { calls += "reminder=$value" }
     }
 
     @Test
@@ -208,13 +210,13 @@ class TransferLogicTest {
             readingFontSize = 34, dailyGoal = 9, showTranslation = true, highlightPlayingAyah = false, autoplayOnOpen = true,
             autoAdvanceAyahs = false, playbackSpeed = 1.5f, repeatCount = 3, readerLayout = "MUSHAF", keepScreenOn = false,
             reciter = "husary", lessonAyahRepeats = 4, lessonPassageRepeats = 3, hifzHint = "FIRST_WORD",
-            hapticsEnabled = false, reduceMotion = true,
+            hapticsEnabled = false, reduceMotion = true, reminderEnabled = true, reminderMinuteOfDay = 1230,
         ).applyTo(target)
         assertEquals(
             listOf(
                 "language=TG", "mode=DARK", "follows=false", "palette=OCEAN", "font=AMIRI_QURAN", "app=9/34", "reader",
                 "layout=MUSHAF", "keepOn=false", "reciter=husary", "hint=FIRST_WORD", "lessonAyah=4", "lessonPassage=3", "haptics=false",
-                "reduce=true",
+                "reduce=true", "reminderAt=1230", "reminder=true",
             ),
             target.calls,
         )
@@ -225,6 +227,24 @@ class TransferLogicTest {
             ),
             target.reader,
         )
+    }
+
+    @Test
+    fun theReminderTimeIsSetBeforeTheSwitchSoTheAlarmIsPlannedOnceAtTheRightTime() {
+        val target = Recorder()
+        BackupSettings(reminderEnabled = true, reminderMinuteOfDay = 480).applyTo(target)
+        assertEquals(listOf("reminderAt=480", "reminder=true"), target.calls)
+    }
+
+    @Test
+    fun aCopyWithTheReminderOffTurnsItOffAndAnOldCopyWithoutItLeavesItAlone() {
+        val off = Recorder()
+        BackupSettings(reminderEnabled = false).applyTo(off)
+        assertEquals(listOf("reminder=false"), off.calls)
+
+        val old = Recorder()
+        BackupSettings(language = "ru").applyTo(old)
+        assertEquals(listOf("language=RU"), old.calls)
     }
 
     @Test

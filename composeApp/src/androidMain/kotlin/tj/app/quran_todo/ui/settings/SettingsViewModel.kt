@@ -20,6 +20,7 @@ import kotlinx.coroutines.withContext
 import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.audio.Reciter
 import tj.app.quran_todo.common.i18n.AppLanguage
+import tj.app.quran_todo.common.platform.AndroidContextHolder
 import tj.app.quran_todo.common.settings.SettingsChangeNotifier
 import tj.app.quran_todo.common.settings.SurahReaderPreferences
 import tj.app.quran_todo.hifz.HifzRepository
@@ -34,6 +35,7 @@ import tj.app.quran_todo.hifz.backup.VerifiedBackup
 import tj.app.quran_todo.hifz.backup.preview
 import tj.app.quran_todo.presentation.home.HomeUiState
 import tj.app.quran_todo.presentation.home.HomeViewModel
+import tj.app.quran_todo.ui.reminder.ReminderController
 import tj.app.quran_todo.ui.state.HifzHintMode
 import tj.app.quran_todo.ui.state.ReaderLayout
 import tj.app.quran_todo.ui.state.UiPrefs
@@ -172,6 +174,17 @@ internal class SettingsViewModel(
     fun setLessonAyahRepeats(value: Int) = uiPrefs.setLessonAyahRepeats(value)
 
     fun setLessonPassageRepeats(value: Int) = uiPrefs.setLessonPassageRepeats(value)
+
+    /**
+     * The reminder time and switch of an imported copy. The alarm is planned (or cancelled) at once; the notification permission is
+     * not asked here, so a reminder that comes in on, on a phone that never allowed notifications, stays quiet and the reminder
+     * section of the screen shows why.
+     */
+    fun setReminderMinuteOfDay(value: Int) =
+        ReminderController(AndroidContextHolder.context.applicationContext, uiPrefs).setMinuteOfDay(value, track = false)
+
+    fun setReminderEnabled(value: Boolean) =
+        ReminderController(AndroidContextHolder.context.applicationContext, uiPrefs).setEnabled(value, track = false)
 
     /** "System" in the theme control; picking light or dark goes through the root's mode setter. */
     fun setThemeFollowsSystem(value: Boolean) = uiPrefs.setThemeFollowsSystem(value)

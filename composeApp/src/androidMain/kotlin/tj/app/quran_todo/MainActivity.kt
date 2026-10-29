@@ -1,5 +1,6 @@
 package tj.app.quran_todo
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.activity.ComponentActivity
@@ -12,11 +13,15 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.android.ext.android.inject
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.platform.AndroidContextHolder
 import tj.app.quran_todo.presentation.home.HomeViewModel
 import tj.app.quran_todo.presentation.home.QuranLoadState
 import tj.app.quran_todo.ui.QuranHifzApp
 import tj.app.quran_todo.ui.needsOnboarding
+import tj.app.quran_todo.ui.reminder.ReminderLink
+import tj.app.quran_todo.ui.reminder.ReminderOpenRequests
+import tj.app.quran_todo.ui.reminder.ReminderTarget
 
 class MainActivity : ComponentActivity() {
     private val homeViewModel: HomeViewModel by inject()
@@ -27,7 +32,35 @@ class MainActivity : ComponentActivity() {
         configureSplashScreen(splashScreen)
         // The app root re-applies the bar icon style whenever the theme changes.
         enableEdgeToEdge()
+        // A recreated activity (state restored) keeps the screens the person had: its intent must not open the link again.
+        handleReminderLink(intent, restored = savedInstanceState != null)
         setContent { QuranHifzApp() }
+    }
+
+    /** The app is already open and the person taps the reminder: the link arrives here (`launchMode="singleTop"`). */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleReminderLink(intent, restored = false)
+    }
+
+    /**
+     * Takes the link of the daily reminder out of [intent] (open the lesson, or the reader at a surah and ayah) and gives it to the
+     * navigation. The extras are removed from the intent in any case, so the same link is never handled twice: not after a rotation
+     * or any recreation of the activity (which hands over the same intent again), and not when the app is reopened from the recents
+     * (the system then repeats the intent that started the task). Before onboarding is done there is nothing to open on top of: the
+     * app just starts.
+     */
+    private fun handleReminderLink(intent: Intent?, restored: Boolean) {
+        val target = ReminderLink.targetFrom(intent)
+        if (intent != null) ReminderLink.consume(intent)
+        if (target == null || restored || needsOnboarding()) return
+        if (intent != null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        AppTelemetry.logEvent(
+            name = "reminder_opened",
+            params = mapOf("kind" to if (target is ReminderTarget.Lesson) "lesson" else "reading"),
+        )
+        ReminderOpenRequests.post(target)
     }
 
     /**

@@ -256,7 +256,44 @@ class UiPrefs(context: Context) {
         _lastExportAt.value = value
     }
 
+    /**
+     * The daily lesson reminder (task B4). Off by default: the system permission is asked at the moment the person turns it on.
+     * The alarm itself is planned by `common/reminder/ReminderSync` from these two values, which it reads straight from the
+     * preferences file (see [Companion.readReminder]) because it also runs in receivers.
+     */
+    private val _reminderEnabled = MutableStateFlow(prefs.getBoolean(KEY_REMINDER_ENABLED, false))
+    val reminderEnabled: StateFlow<Boolean> = _reminderEnabled.asStateFlow()
+
+    fun setReminderEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_REMINDER_ENABLED, value).apply()
+        _reminderEnabled.value = value
+    }
+
+    /** When the reminder comes: minutes after midnight (20:00 is 1200), in the time zone of the phone. */
+    private val _reminderMinuteOfDay = MutableStateFlow(
+        prefs.getInt(KEY_REMINDER_MINUTE, DEFAULT_REMINDER_MINUTE_OF_DAY).coerceIn(REMINDER_MINUTE_RANGE),
+    )
+    val reminderMinuteOfDay: StateFlow<Int> = _reminderMinuteOfDay.asStateFlow()
+
+    fun setReminderMinuteOfDay(value: Int) {
+        val next = value.coerceIn(REMINDER_MINUTE_RANGE)
+        prefs.edit().putInt(KEY_REMINDER_MINUTE, next).apply()
+        _reminderMinuteOfDay.value = next
+    }
+
     internal companion object {
+        /**
+         * The stored reminder settings for code that runs without the Compose app (the boot and alarm receivers). Always the
+         * latest persisted values, whichever [UiPrefs] instance wrote them.
+         */
+        fun readReminder(context: Context): ReminderPrefs {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            return ReminderPrefs(
+                enabled = prefs.getBoolean(KEY_REMINDER_ENABLED, false),
+                minuteOfDay = prefs.getInt(KEY_REMINDER_MINUTE, DEFAULT_REMINDER_MINUTE_OF_DAY).coerceIn(REMINDER_MINUTE_RANGE),
+            )
+        }
+
         /** The stored analytics choice for code that runs before Koin starts (telemetry in Application.onCreate). */
         fun readAnalyticsEnabled(context: Context): Boolean =
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_ANALYTICS_ENABLED, true)
@@ -278,8 +315,17 @@ class UiPrefs(context: Context) {
         const val KEY_LESSON_AYAH_REPEATS = "lesson_ayah_repeats"
         const val KEY_LESSON_PASSAGE_REPEATS = "lesson_passage_repeats"
         const val KEY_LAST_EXPORT_AT = "last_export_at"
+        const val KEY_REMINDER_ENABLED = "reminder_enabled"
+        const val KEY_REMINDER_MINUTE = "reminder_minute_of_day"
     }
 }
+
+/** The reminder settings as stored: on or off, and the time as minutes after midnight. */
+data class ReminderPrefs(val enabled: Boolean, val minuteOfDay: Int)
+
+/** Allowed values of [UiPrefs.reminderMinuteOfDay] and its default, 20:00. */
+val REMINDER_MINUTE_RANGE = 0..1439
+const val DEFAULT_REMINDER_MINUTE_OF_DAY = 20 * 60
 
 /** Allowed values of [UiPrefs.lessonAyahRepeats] and [UiPrefs.lessonPassageRepeats], and their defaults. */
 val LESSON_AYAH_REPEATS_RANGE = 1..5

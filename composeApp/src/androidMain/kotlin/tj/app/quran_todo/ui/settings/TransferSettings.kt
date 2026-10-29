@@ -46,6 +46,8 @@ internal object TransferSettings {
         hifzHint = uiPrefs.hifzHintMode.value.name,
         hapticsEnabled = uiPrefs.hapticsEnabled.value,
         reduceMotion = uiPrefs.reduceMotion.value,
+        reminderEnabled = uiPrefs.reminderEnabled.value,
+        reminderMinuteOfDay = uiPrefs.reminderMinuteOfDay.value,
     )
 }
 
@@ -89,6 +91,12 @@ internal interface TransferSettingsTarget {
     fun setHapticsEnabled(value: Boolean)
 
     fun setReduceMotion(value: Boolean)
+
+    /** When the daily reminder comes, minutes after midnight. Comes before [setReminderEnabled], so a reminder that is turned on is planned once, at the right time. */
+    fun setReminderMinuteOfDay(value: Int)
+
+    /** The daily reminder on or off. The permission to show notifications is not asked here. */
+    fun setReminderEnabled(value: Boolean)
 }
 
 /**
@@ -126,4 +134,6 @@ internal fun BackupSettings.applyTo(target: TransferSettingsTarget) {
     lessonPassageRepeats?.let(target::setLessonPassageRepeats)
     hapticsEnabled?.let(target::setHapticsEnabled)
     reduceMotion?.let(target::setReduceMotion)
+    reminderMinuteOfDay?.let(target::setReminderMinuteOfDay)
+    reminderEnabled?.let(target::setReminderEnabled)
 }
