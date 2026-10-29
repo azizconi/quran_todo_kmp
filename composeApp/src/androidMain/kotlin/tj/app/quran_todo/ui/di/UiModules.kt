@@ -5,6 +5,7 @@ import org.koin.compose.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 import tj.app.quran_todo.ui.hifz.HifzViewModel
 import tj.app.quran_todo.ui.home.HomeUiViewModel
+import tj.app.quran_todo.ui.lesson.LessonViewModel
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.onboarding.OnboardingViewModel
 import tj.app.quran_todo.ui.plan.PlanViewModel
@@ -45,24 +46,38 @@ val readerUiModule = module {
             route = params.get<Dest.Reader>(),
             homeViewModel = get(),
             surahViewModel = get(),
-            ayahTodoDao = get(),
             ayahNoteDao = get(),
-            ayahReviewDao = get(),
+            uiPrefs = get(),
+            playback = get(),
+            hifz = get(),
+            ticker = get(),
+        )
+    }
+}
+
+val hifzUiModule = module {
+    // One HifzViewModel ("Check yourself") per Dest.Reader back stack entry, next to its ReaderViewModel; the
+    // HifzRepository and the day ticker are Koin singletons that come in through the constructor.
+    viewModel { params ->
+        HifzViewModel(
+            route = params.get<Dest.Reader>(),
+            hifz = get(),
+            ticker = get(),
             uiPrefs = get(),
             playback = get(),
         )
     }
 }
 
-val hifzUiModule = module {
-    // One HifzViewModel per Dest.Reader back stack entry, next to its ReaderViewModel; the shared
-    // SurahViewModel comes in through Koin like in the reader.
-    viewModel { params ->
-        HifzViewModel(
-            route = params.get<Dest.Reader>(),
+val lessonUiModule = module {
+    // The lesson of the day. The shared Home/Surah view models, the HifzRepository and the ticker are singletons that
+    // come in through the constructor (never koinViewModel for them).
+    viewModel {
+        LessonViewModel(
+            hifz = get(),
+            ticker = get(),
+            home = get(),
             surahViewModel = get(),
-            homeViewModel = get(),
-            ayahTodoDao = get(),
             uiPrefs = get(),
             playback = get(),
         )
@@ -95,6 +110,7 @@ val uiModules = listOf(
     planUiModule,
     readerUiModule,
     hifzUiModule,
+    lessonUiModule,
     progressUiModule,
     settingsUiModule,
     onboardingUiModule,

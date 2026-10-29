@@ -104,10 +104,44 @@ class PlaybackController internal constructor(
         fromIndex: Int,
         autoplay: Boolean = true,
     ) {
+        val index = bind(surah, prefs, practice, fromIndex) ?: return
+        session.select(index)
+        if (autoplay) session.toggle()
+    }
+
+    /**
+     * Plays the ayahs at [ayahIndices] (0-based positions in ayah order, repeats allowed) of [surah] in exactly this
+     * order, one after the other: the lesson's "every ayah three times, then the whole passage twice". The player,
+     * the notification and the mini player behave as for any listening, and the index of [state] stays the index of
+     * the ayah being played. Nothing the person saved is touched: the repeat, range and pause settings are not
+     * consulted (only [prefs] for the speed), and the next [start] of any reader puts its own settings back.
+     * Pause, resume, previous and next work on the sequence; [select] or [start] end it. An empty list does nothing.
+     */
+    fun playSequence(
+        surah: SurahWithAyahs,
+        ayahIndices: List<Int>,
+        prefs: SurahReaderPreferences,
+        autoplay: Boolean = true,
+    ) {
+        val first = ayahIndices.firstOrNull() ?: return
+        // The practice is plain on purpose (no passage, no pause); the preferences must not advance by themselves.
+        val plain = ReaderPracticeSettings(rangeEnabled = false, startAyah = 1, endAyah = 1, pauseSeconds = 0)
+        val index = bind(surah, prefs.copy(autoAdvanceAyahs = false, repeatCount = 1), plain, first) ?: return
+        session.select(index)
+        if (autoplay) session.playScript(ayahIndices)
+    }
+
+    /** Configures the session for [surah] and publishes it; returns the clamped start index, or null without ayahs. */
+    private fun bind(
+        surah: SurahWithAyahs,
+        prefs: SurahReaderPreferences,
+        practice: ReaderPracticeSettings,
+        fromIndex: Int,
+    ): Int? {
         val ayahs = surah.ayahs
             .sortedBy { it.numberInSurah }
             .map { ReaderAudioAyah(globalNumber = it.number, numberInSurah = it.numberInSurah) }
-        if (ayahs.isEmpty()) return
+        if (ayahs.isEmpty()) return null
         serviceLink?.ensureConnected()
         watchReciter()
         watchIdle()
@@ -123,8 +157,7 @@ class PlaybackController internal constructor(
         )
         _nowPlaying.value = NowPlaying(surah.surah.number, ayahs)
         applyEndOfSurahLimit()
-        session.select(index)
-        if (autoplay) session.toggle()
+        return index
     }
 
     fun toggle() {

@@ -29,18 +29,18 @@ import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import tj.app.quran_todo.presentation.review.ReviewQuality
+import kotlinx.coroutines.flow.StateFlow
 import tj.app.quran_todo.ui.components.QhButton
 import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
@@ -52,18 +52,40 @@ import tj.app.quran_todo.ui.motion.pressable
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
+/**
+ * What the controls under an ayah of a recall session need from their screen. The reader's "Check yourself" and the
+ * lesson implement it; the controls and the rows are the same in both. [session] is read in composition, so a screen
+ * implements it with a snapshot state.
+ */
+@Stable
+interface RecallHost {
+    val session: HifzSession?
+    val copy: HifzCopy
+
+    /** The audio of the ayah being recalled plays (or is being prepared). */
+    val listening: StateFlow<Boolean>
+
+    fun reveal()
+
+    /** Answers the ayah at session position [position]; ignored when the session has moved on already. */
+    fun mark(mark: AyahMark, position: Int)
+
+    /** The headphones button: plays the ayah being recalled, pauses it while it plays. */
+    fun toggleListen()
+}
+
 /** The font scale above which the buttons stack instead of sitting side by side. */
 private const val LargeFontScale = 1.15f
 
 /**
  * What sits under an ayah of the session. Only the ayah being recalled shows anything: first "Listen" and
- * "Reveal", after the reveal the four ratings. It comes in when the ayah becomes the current one and folds
- * away when it is rated (the row follows with `animateContentSize`).
+ * "Reveal", after the reveal the two answers "I remember" / "Hard". It comes in when the ayah becomes the current
+ * one and folds away when it is answered (the row follows with `animateContentSize`).
  */
 @Composable
-internal fun HifzControlsHost(mode: HifzMode, inSurah: Int) {
+fun RecallControlsHost(host: RecallHost, inSurah: Int) {
     val reduced = LocalReducedMotion.current
-    val session = mode.session
+    val session = host.session
     val show = session != null && !session.finished && session.current?.inSurah == inSurah
     // The controls stay up while they leave, after the session has moved on.
     val held = remember { arrayOfNulls<HifzSession>(1) }
@@ -85,14 +107,13 @@ internal fun HifzControlsHost(mode: HifzMode, inSurah: Int) {
             fadeOut(tween(QhMotion.Short)) + shrinkVertically(tween(QhMotion.Medium, easing = QhMotion.Emphasized))
         },
     ) {
-        held[0]?.let { HifzControls(mode = mode, session = it) }
+        held[0]?.let { RecallControls(host = host, session = it) }
     }
 }
 
 @Composable
-private fun HifzControls(mode: HifzMode, session: HifzSession) {
+private fun RecallControls(host: RecallHost, session: HifzSession) {
     val reduced = LocalReducedMotion.current
-    val copy = mode.copy
     AnimatedContent(
         targetState = session.revealed,
         modifier = Modifier
@@ -109,15 +130,12 @@ private fun HifzControls(mode: HifzMode, session: HifzSession) {
                     SizeTransform(clip = false) { _, _ -> tween(QhMotion.Medium, easing = QhMotion.Emphasized) }
             }
         },
-        label = "hifz-controls",
+        label = "recall-controls",
     ) { revealed ->
         if (revealed) {
-            RatingControls(copy = copy, onRate = { mode.viewModel.rate(it, session.index) })
+            MarkControls(copy = host.copy, onMark = { host.mark(it, session.index) })
         } else {
-            RevealControls(
-                mode = mode,
-                firstAyah = session.ratedCount == 0,
-            )
+            RevealControls(host = host, firstAyah = session.markedCount == 0)
         }
     }
 }
@@ -128,10 +146,10 @@ private fun HifzControls(mode: HifzMode, session: HifzSession) {
 private enum class RevealLayout { Wide, Narrow, Stacked }
 
 @Composable
-private fun RevealControls(mode: HifzMode, firstAyah: Boolean) {
-    val copy = mode.copy
+private fun RevealControls(host: RecallHost, firstAyah: Boolean) {
+    val copy = host.copy
     val colors = QhTheme.colors
-    val listening by mode.viewModel.listening.collectAsState()
+    val listening by host.listening.collectAsState()
     val fontScale = LocalDensity.current.fontScale
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -144,24 +162,24 @@ private fun RevealControls(mode: HifzMode, firstAyah: Boolean) {
             }
             when (layout) {
                 RevealLayout.Stacked -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    RevealButton(copy, mode, Modifier.fillMaxWidth())
-                    ListenButton(copy, listening, mode, Modifier.fillMaxWidth())
+                    RevealButton(copy, host, Modifier.fillMaxWidth())
+                    ListenButton(copy, listening, host, Modifier.fillMaxWidth())
                 }
                 RevealLayout.Wide -> Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ListenButton(copy, listening, mode)
-                    RevealButton(copy, mode, Modifier.weight(1f))
+                    ListenButton(copy, listening, host)
+                    RevealButton(copy, host, Modifier.weight(1f))
                 }
                 RevealLayout.Narrow -> Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ListenIconButton(copy, listening, mode)
-                    RevealButton(copy, mode, Modifier.weight(1f))
+                    ListenIconButton(copy, listening, host)
+                    RevealButton(copy, host, Modifier.weight(1f))
                 }
             }
         }
@@ -175,10 +193,10 @@ private fun RevealControls(mode: HifzMode, firstAyah: Boolean) {
 private val WideRevealMinWidth = 360.dp
 
 @Composable
-private fun RevealButton(copy: HifzCopy, mode: HifzMode, modifier: Modifier = Modifier) {
+private fun RevealButton(copy: HifzCopy, host: RecallHost, modifier: Modifier = Modifier) {
     QhButton(
         text = copy.reveal,
-        onClick = mode.viewModel::reveal,
+        onClick = host::reveal,
         modifier = modifier,
         size = QhButtonSize.L,
         icon = Icons.Rounded.Visibility,
@@ -186,10 +204,10 @@ private fun RevealButton(copy: HifzCopy, mode: HifzMode, modifier: Modifier = Mo
 }
 
 @Composable
-private fun ListenButton(copy: HifzCopy, listening: Boolean, mode: HifzMode, modifier: Modifier = Modifier) {
+private fun ListenButton(copy: HifzCopy, listening: Boolean, host: RecallHost, modifier: Modifier = Modifier) {
     QhButton(
         text = if (listening) copy.listenPause else copy.listen,
-        onClick = { mode.viewModel.toggleListen(mode.surah) },
+        onClick = host::toggleListen,
         modifier = modifier,
         variant = QhButtonVariant.Tonal,
         size = QhButtonSize.M,
@@ -199,14 +217,14 @@ private fun ListenButton(copy: HifzCopy, listening: Boolean, mode: HifzMode, mod
 
 /** "Listen" as a round button, for the screens too narrow for its name; the name is its label. */
 @Composable
-private fun ListenIconButton(copy: HifzCopy, listening: Boolean, mode: HifzMode, modifier: Modifier = Modifier) {
+private fun ListenIconButton(copy: HifzCopy, listening: Boolean, host: RecallHost, modifier: Modifier = Modifier) {
     val colors = QhTheme.colors
     val label = if (listening) copy.listenPause else copy.listen
     Box(
         modifier
             .size(QhSpacing.minTouch)
             .pressable(
-                onClick = { mode.viewModel.toggleListen(mode.surah) },
+                onClick = host::toggleListen,
                 shape = CircleShape,
                 onClickLabel = label,
             )
@@ -225,89 +243,85 @@ private fun ListenIconButton(copy: HifzCopy, listening: Boolean, mode: HifzMode,
 
 // -- After the reveal ---------------------------------------------------------------------------------------
 
-private val Ratings = listOf(ReviewQuality.FORGOT, ReviewQuality.HARD, ReviewQuality.GOOD, ReviewQuality.EASY)
-
-/** How a rating button looks: the fill, the text, and an accent dot where the fill alone would not tell. */
-private class RatingLook(val container: Color, val content: Color, val accent: Color?)
-
-@Composable
-private fun ratingLook(quality: ReviewQuality): RatingLook {
-    val colors = QhTheme.colors
-    return when (quality) {
-        ReviewQuality.FORGOT -> RatingLook(colors.dueContainer, colors.ink, colors.due)
-        ReviewQuality.HARD -> RatingLook(colors.learningContainer, colors.ink, colors.learning)
-        ReviewQuality.GOOD -> RatingLook(colors.primary, colors.onPrimary, null)
-        ReviewQuality.EASY -> RatingLook(colors.learnedContainer, colors.ink, colors.learned)
-    }
-}
-
 /**
- * Forgot, Hard, Good, Easy in one row when the screen is wide enough for the longest names (Tajik: "Фаромӯш")
- * to fit uncut; otherwise two by two, which also suits large text and gives the buttons more room for a dot of
- * their color.
+ * "I remember" and "Hard" side by side (stacked at large text sizes). The answer is about this ayah only; the grade
+ * of the passage comes at the end.
  */
 @Composable
-private fun RatingControls(copy: HifzCopy, onRate: (ReviewQuality) -> Unit) {
+private fun MarkControls(copy: HifzCopy, onMark: (AyahMark) -> Unit) {
     val colors = QhTheme.colors
     val fontScale = LocalDensity.current.fontScale
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(text = copy.rateTitle, style = QhTheme.type.callout, color = colors.inkSecondary)
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val oneRow = fontScale <= LargeFontScale && maxWidth >= OneRowMinWidth
-            if (oneRow) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Ratings.forEach { RatingPill(it, copy, onRate, showDot = false, modifier = Modifier.weight(1f)) }
-                }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Ratings.chunked(2).forEach { pair ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            pair.forEach { RatingPill(it, copy, onRate, showDot = true, modifier = Modifier.weight(1f)) }
-                        }
-                    }
-                }
+        Text(text = copy.markTitle, style = QhTheme.type.callout, color = colors.inkSecondary)
+        if (fontScale > LargeFontScale) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                RememberedPill(copy, onMark, Modifier.fillMaxWidth())
+                HardPill(copy, onMark, Modifier.fillMaxWidth())
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RememberedPill(copy, onMark, Modifier.weight(1f))
+                HardPill(copy, onMark, Modifier.weight(1f))
             }
         }
     }
 }
 
-/** The width of the controls from which the four ratings share one row. */
-private val OneRowMinWidth = 350.dp
-
-/** A rating button: a pill in the color of its meaning. "Forgot" is answered with the reject buzz, the rest tick. */
 @Composable
-private fun RatingPill(
-    quality: ReviewQuality,
-    copy: HifzCopy,
-    onRate: (ReviewQuality) -> Unit,
-    showDot: Boolean,
+private fun RememberedPill(copy: HifzCopy, onMark: (AyahMark) -> Unit, modifier: Modifier) {
+    val colors = QhTheme.colors
+    MarkPill(
+        label = copy.remembered,
+        container = colors.primary,
+        content = colors.onPrimary,
+        dot = null,
+        haptic = HapticKind.Tick,
+        onClick = { onMark(AyahMark.REMEMBERED) },
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun HardPill(copy: HifzCopy, onMark: (AyahMark) -> Unit, modifier: Modifier) {
+    val colors = QhTheme.colors
+    MarkPill(
+        label = copy.hardMark,
+        container = colors.dueContainer,
+        content = colors.ink,
+        dot = colors.due,
+        haptic = HapticKind.Segment,
+        onClick = { onMark(AyahMark.HARD) },
+        modifier = modifier,
+    )
+}
+
+/** An answer button: a pill in the color of its meaning, with a dot where the fill alone would not tell. */
+@Composable
+private fun MarkPill(
+    label: String,
+    container: androidx.compose.ui.graphics.Color,
+    content: androidx.compose.ui.graphics.Color,
+    dot: androidx.compose.ui.graphics.Color?,
+    haptic: HapticKind,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val look = ratingLook(quality)
     val shape = QhTheme.shapes.full
     Row(
         modifier
-            .heightIn(min = 48.dp)
-            .pressable(
-                onClick = { onRate(quality) },
-                haptic = if (quality == ReviewQuality.FORGOT) HapticKind.Reject else HapticKind.Tick,
-                shape = shape,
-                scale = 0.95f,
-                onClickLabel = copy.label(quality),
-            )
+            .heightIn(min = 52.dp)
+            .pressable(onClick = onClick, haptic = haptic, shape = shape, scale = 0.95f, onClickLabel = label)
             .clip(shape)
-            .background(look.container)
-            .padding(horizontal = 6.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            .background(container)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        look.accent?.takeIf { showDot }?.let { accent ->
-            Box(Modifier.size(8.dp).clip(CircleShape).background(accent))
-        }
+        dot?.let { Box(Modifier.size(8.dp).clip(CircleShape).background(it)) }
         Text(
-            text = copy.label(quality),
-            style = QhTheme.type.label,
-            color = look.content,
+            text = label,
+            style = QhTheme.type.title2,
+            color = content,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,

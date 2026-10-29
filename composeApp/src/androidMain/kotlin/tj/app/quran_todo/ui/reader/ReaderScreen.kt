@@ -261,6 +261,7 @@ private fun ReaderContent(
     val statuses by viewModel.ayahStatuses.collectAsState()
     val notes by viewModel.notes.collectAsState()
     val weak by viewModel.weakAyahs.collectAsState()
+    val coverage by viewModel.coverage.collectAsState()
     val translations by viewModel.translations.collectAsState()
     val translationMissing by viewModel.translationMissing.collectAsState()
 
@@ -562,10 +563,11 @@ private fun ReaderContent(
                 initialPage = open.page,
                 surahName = title,
                 status = status,
+                learnedAyahs = coverage?.coveredAyahs?.size ?: 0,
                 totalAyahs = total,
                 currentAyah = (firstVisibleAyah.value.coerceAtLeast(0)) + 1,
                 copy = copy,
-                onStatus = viewModel::setSurahStatus,
+                onChoice = viewModel::chooseSurah,
                 onGoTo = { number ->
                     val index = (number - 1).coerceIn(0, total - 1)
                     flashIndex = index
@@ -580,7 +582,6 @@ private fun ReaderContent(
             is ReaderSheet.Ayah -> {
                 val ayah = ayahs.getOrNull(open.index)
                 if (ayah != null) {
-                    val reviews by viewModel.reviews.collectAsState()
                     val arabic = splitBismillah(surahNumber, ayah.numberInSurah, ayah.text)
                     val translation = translations[ayah.number]
                     val sheetModel = AyahSheetModel(
@@ -589,10 +590,10 @@ private fun ReaderContent(
                         surahName = title,
                         arabic = arabic,
                         translation = translation,
-                        status = statuses[ayah.number],
-                        weak = ayah.number in weak,
+                        learned = ayah.number in statuses,
+                        hard = ayah.number in weak,
+                        schedule = viewModel.scheduleOf(ayah.numberInSurah),
                         note = notes[ayah.number]?.note.orEmpty(),
-                        review = reviews[ayah.number],
                     )
                     val shareText = ayahShareText(arabic, translation, copy.quranRef, surahNumber, ayah.numberInSurah, surahName = title)
                     AyahSheet(
@@ -607,7 +608,9 @@ private fun ReaderContent(
                             following = true
                             viewModel.repeatAyah(open.index)
                         },
-                        onStatus = { viewModel.setAyahStatus(ayah, it) },
+                        onCheckFromHere = { hifz.startAt(open.index) },
+                        onMarkKnown = { viewModel.markAyahKnown(ayah) },
+                        onForget = { viewModel.forgetAyah(ayah) },
                         onSaveNote = { text ->
                             viewModel.saveNote(ayah, text)
                             toaster.show(if (text.isBlank()) copy.noteRemoved else copy.noteSaved, ToastKind.Success)

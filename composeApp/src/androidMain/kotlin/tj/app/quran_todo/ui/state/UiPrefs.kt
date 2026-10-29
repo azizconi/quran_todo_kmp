@@ -196,6 +196,30 @@ class UiPrefs(context: Context) {
         _hifzHintMode.value = value
     }
 
+    /** "Listen" phase of the lesson: how many times every ayah of the new passage sounds (1..5, default 3). */
+    private val _lessonAyahRepeats = MutableStateFlow(
+        prefs.getInt(KEY_LESSON_AYAH_REPEATS, DEFAULT_LESSON_AYAH_REPEATS).coerceIn(LESSON_AYAH_REPEATS_RANGE),
+    )
+    val lessonAyahRepeats: StateFlow<Int> = _lessonAyahRepeats.asStateFlow()
+
+    fun setLessonAyahRepeats(value: Int) {
+        val next = value.coerceIn(LESSON_AYAH_REPEATS_RANGE)
+        prefs.edit().putInt(KEY_LESSON_AYAH_REPEATS, next).apply()
+        _lessonAyahRepeats.value = next
+    }
+
+    /** "Listen" phase of the lesson: how many times the whole new passage sounds after that (1..4, default 2). */
+    private val _lessonPassageRepeats = MutableStateFlow(
+        prefs.getInt(KEY_LESSON_PASSAGE_REPEATS, DEFAULT_LESSON_PASSAGE_REPEATS).coerceIn(LESSON_PASSAGE_REPEATS_RANGE),
+    )
+    val lessonPassageRepeats: StateFlow<Int> = _lessonPassageRepeats.asStateFlow()
+
+    fun setLessonPassageRepeats(value: Int) {
+        val next = value.coerceIn(LESSON_PASSAGE_REPEATS_RANGE)
+        prefs.edit().putInt(KEY_LESSON_PASSAGE_REPEATS, next).apply()
+        _lessonPassageRepeats.value = next
+    }
+
     /** The reciter of the ayah audio. An unknown or missing saved id means the default reciter (Alafasy). */
     private val _reciter = MutableStateFlow(Reciters.byId(prefs.getString(KEY_RECITER, null)))
     val reciter: StateFlow<Reciter> = _reciter.asStateFlow()
@@ -251,9 +275,17 @@ class UiPrefs(context: Context) {
         const val KEY_HIFZ_HINT_MODE = "hifz_hint_mode"
         const val KEY_ANALYTICS_ENABLED = "analytics_enabled"
         const val KEY_RECITER = "reciter"
+        const val KEY_LESSON_AYAH_REPEATS = "lesson_ayah_repeats"
+        const val KEY_LESSON_PASSAGE_REPEATS = "lesson_passage_repeats"
         const val KEY_LAST_EXPORT_AT = "last_export_at"
     }
 }
+
+/** Allowed values of [UiPrefs.lessonAyahRepeats] and [UiPrefs.lessonPassageRepeats], and their defaults. */
+val LESSON_AYAH_REPEATS_RANGE = 1..5
+val LESSON_PASSAGE_REPEATS_RANGE = 1..4
+const val DEFAULT_LESSON_AYAH_REPEATS = 3
+const val DEFAULT_LESSON_PASSAGE_REPEATS = 2
 
 internal const val MAX_RECENT_SURAHS = 8
 

@@ -3,6 +3,7 @@ package tj.app.quran_todo.ui.reader
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -23,20 +25,27 @@ import tj.app.quran_todo.common.settings.ReaderPracticeSettings
 import tj.app.quran_todo.common.settings.SettingsChangeNotifier
 import tj.app.quran_todo.common.settings.SurahReaderPreferences
 import tj.app.quran_todo.data.database.dao.AyahNoteDao
-import tj.app.quran_todo.data.database.dao.AyahReviewDao
-import tj.app.quran_todo.data.database.dao.AyahTodoDao
 import tj.app.quran_todo.data.database.entity.quran.AyahEntity
 import tj.app.quran_todo.data.database.entity.quran.SurahEntity
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
 import tj.app.quran_todo.data.database.entity.todo.AyahNoteEntity
-import tj.app.quran_todo.data.database.entity.todo.AyahReviewEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
+import tj.app.quran_todo.data.bundled.QuranFacts
+import tj.app.quran_todo.hifz.EpochDayTicker
+import tj.app.quran_todo.hifz.HifzRepository
+import tj.app.quran_todo.hifz.model.HifzScope
+import tj.app.quran_todo.hifz.model.PassageStage
+import tj.app.quran_todo.hifz.model.SurahCoverage
+import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.presentation.home.HomeViewModel
 import tj.app.quran_todo.presentation.home.QuranLoadState
 import tj.app.quran_todo.presentation.surah.SurahViewModel
 import tj.app.quran_todo.ui.common.SurahNames
+import tj.app.quran_todo.ui.home.StatusStep
+import tj.app.quran_todo.ui.home.SurahStatusChange
+import tj.app.quran_todo.ui.home.SurahTarget
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.navigation.Origin
 import tj.app.quran_todo.ui.playback.NowPlaying
@@ -88,10 +97,23 @@ sealed interface ReaderEvent {
     data object StatusFailed : ReaderEvent
 }
 
+/** When an ayah that is learned comes back (the line under the title of the ayah sheet). */
+sealed interface AyahSchedule {
+    /** The passage is OLD: it is in the manzil circle. */
+    data object Circle : AyahSchedule
+
+    /** The passage is on the ladder and is due in [days] days. */
+    data class InDays(val days: Int) : AyahSchedule
+
+    /** The passage is on the ladder and is due today or overdue. */
+    data object Due : AyahSchedule
+}
+
 /**
  * State of one reader (one `Dest.Reader` back stack entry). The shared HomeViewModel and SurahViewModel
- * (Koin singletons) come in through the constructor; ayah statuses, notes and reviews of this surah are read
- * from the DAOs here so no collector piles up in a singleton.
+ * (Koin singletons) come in through the constructor; the notes of this surah are read from the DAO here so no
+ * collector piles up in a singleton. What is learned, difficult or due comes from the [HifzRepository] (the only
+ * writer of progress), never from the old tables.
  *
  * Audio belongs to [PlaybackController]: while the shared session plays another surah this reader keeps its
  * own "ready" position and only takes the session over when the person presses play or picks an ayah to
@@ -102,11 +124,11 @@ class ReaderViewModel(
     val route: Dest.Reader,
     private val homeViewModel: HomeViewModel,
     private val surahViewModel: SurahViewModel,
-    ayahTodoDao: AyahTodoDao,
     ayahNoteDao: AyahNoteDao,
-    ayahReviewDao: AyahReviewDao,
     private val uiPrefs: UiPrefs,
     private val playback: PlaybackController,
+    private val hifz: HifzRepository,
+    private val ticker: EpochDayTicker,
 ) : ViewModel() {
     val surahNumber: Int = route.surah
 
@@ -132,9 +154,14 @@ class ReaderViewModel(
 
     val chapterNames: StateFlow<Map<Int, ChapterNameModel>> = surahViewModel.chapterNames
 
-    /** Ayah statuses by GLOBAL ayah number (`AyahEntity.number`). */
-    val ayahStatuses: StateFlow<Map<Int, AyahTodoStatus>> = ayahTodoDao.getBySurahNumber(surahNumber)
-        .map { list -> list.associate { it.ayahNumber to it.status } }
+    /** Covered, difficult and due ayahs and the passages of this surah; null until the first read. */
+    val coverage: StateFlow<SurahCoverage?> = hifz.surahCoverage(surahNumber)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Learned ayahs by GLOBAL ayah number (`AyahEntity.number`), for the rosette rings. */
+    val ayahStatuses: StateFlow<Map<Int, AyahTodoStatus>> = coverage
+        .map { c -> c?.coveredAyahs.orEmpty().associate { globalNumber(it) to AyahTodoStatus.LEARNED } }
+        .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     /** Notes by global ayah number. */
@@ -142,23 +169,13 @@ class ReaderViewModel(
         .map { list -> list.associateBy { it.ayahNumber } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
-    /** Review schedule by global ayah number. */
-    val reviews: StateFlow<Map<Int, AyahReviewEntity>> = ayahReviewDao.getBySurahNumber(surahNumber)
-        .map { list -> list.associateBy { it.ayahNumber } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
-
-    /** Global numbers of the weak ayahs of this surah (`HomeUiState.weakAyahKeys` holds "surah:ayah"). */
-    val weakAyahs: StateFlow<Set<Int>> = homeViewModel.uiState
-        .map { it.weakAyahKeys }
-        .distinctUntilChanged()
-        .map { keys ->
-            val prefix = "$surahNumber:"
-            keys.mapNotNullTo(HashSet()) { key ->
-                if (key.startsWith(prefix)) key.substring(prefix.length).toIntOrNull() else null
-            }
-        }
+    /** Global numbers of the difficult ayahs of this surah (the ones marked while checking oneself). */
+    val weakAyahs: StateFlow<Set<Int>> = coverage
+        .map { c -> c?.hardAyahs.orEmpty().mapTo(HashSet()) { globalNumber(it) } }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    private fun globalNumber(ayahInSurah: Int): Int = QuranFacts.firstAyahNumber(surahNumber) + ayahInSurah - 1
 
     /** Loading the Quran failed (and so there is no surah to show). */
     val loadFailed: StateFlow<Boolean> = homeViewModel.uiState
@@ -177,18 +194,15 @@ class ReaderViewModel(
 
     // -- Surah status -----------------------------------------------------------------------------------
 
-    private class PendingStatus(val status: SurahTodoStatus?)
-
-    private val pendingStatus = MutableStateFlow<PendingStatus?>(null)
-    private var statusRequestId = 0L
-
-    private val persistedStatus: Flow<SurahTodoStatus?> = surahViewModel.surahStatus(surahNumber)
-    private var lastPersistedStatus: SurahTodoStatus? = null
-
-    /** Status of the surah; a change shows at once and is rolled back if saving fails. */
-    val surahStatus: StateFlow<SurahTodoStatus?> = combine(persistedStatus, pendingStatus) { persisted, pending ->
-        if (pending != null) pending.status else persisted
-    }
+    /** The status of the surah, derived from its passages (and from the plan: the surah being learned now). */
+    val surahStatus: StateFlow<SurahTodoStatus?> = coverage
+        .map { c ->
+            when (c?.status) {
+                SurahHifzStatus.LEARNED -> SurahTodoStatus.LEARNED
+                SurahHifzStatus.LEARNING -> SurahTodoStatus.LEARNING
+                null -> null
+            }
+        }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -345,14 +359,6 @@ class ReaderViewModel(
             }
         }
         viewModelScope.launch {
-            // The optimistic status is dropped as soon as the database says the same thing.
-            persistedStatus.collect { persisted ->
-                lastPersistedStatus = persisted
-                val pending = pendingStatus.value
-                if (pending != null && pending.status == persisted) pendingStatus.value = null
-            }
-        }
-        viewModelScope.launch {
             // Reading position: written 400 ms after the first visible ayah stops changing.
             visibleAyah.debounce(400).collect { index -> commitVisibleAyah(index) }
         }
@@ -450,42 +456,85 @@ class ReaderViewModel(
         }
     }
 
-    // -- Surah and ayah status ----------------------------------------------------------------------------
+    // -- Surah and ayah state -----------------------------------------------------------------------------
 
-    fun setSurahStatus(status: SurahTodoStatus?) {
-        if (status == surahStatus.value && pendingStatus.value == null) return
-        val id = ++statusRequestId
-        pendingStatus.value = if (status == lastPersistedStatus) null else PendingStatus(status)
-        surahViewModel.setSurahStatus(
-            surahNumber = surahNumber,
-            status = status,
-            onCompleted = {
-                if (statusRequestId == id) {
-                    if (status == SurahTodoStatus.LEARNED) eventChannel.trySend(ReaderEvent.SurahLearned)
-                    // The database flow normally clears the pending value first; this is the safety net.
-                    viewModelScope.launch {
-                        delay(2_000)
-                        if (statusRequestId == id) pendingStatus.value = null
+    /**
+     * "Not started" / "Learning" / "I know it by heart" of the surah sheet, with the meaning of the Home sheet: the repository
+     * calls are the steps of [SurahStatusChange] (one copy of the rules). The sheet has asked for the confirmation already
+     * when learned ayahs leave the repetitions.
+     */
+    fun chooseSurah(target: SurahTarget) {
+        viewModelScope.launch {
+            try {
+                val today = ticker.day.value
+                val current = hifz.surahCoverage(surahNumber).first().status
+                val plan = hifz.plan().first()
+                val steps = SurahStatusChange.steps(current, target, inPlan = plan != null && surahNumber in plan.surahOrder)
+                for (step in steps) {
+                    when (step) {
+                        StatusStep.Forget -> hifz.forget(surahNumber)
+                        StatusStep.LearnNext -> hifz.learnNext(surahNumber, today)
+                        StatusStep.MarkKnown -> hifz.markKnown(surahNumber, today = today)
+                        StatusStep.LeaveThePlan -> if (plan != null) {
+                            val rest = plan.surahOrder - surahNumber
+                            if (rest.isEmpty()) {
+                                hifz.clearPlan()
+                            } else {
+                                hifz.setPlan(
+                                    scope = HifzScope.CUSTOM,
+                                    surahOrder = rest,
+                                    dailyNewAyahs = plan.dailyNewAyahs,
+                                    targetEpochDay = plan.targetEpochDay,
+                                    manzilDays = plan.manzilDays,
+                                    today = today,
+                                )
+                            }
+                        }
                     }
                 }
-            },
-            onError = {
-                if (statusRequestId == id) {
-                    pendingStatus.value = null
-                    eventChannel.trySend(ReaderEvent.StatusFailed)
+                if (SurahStatusChange.resulting(target) == SurahHifzStatus.LEARNED) {
+                    eventChannel.trySend(ReaderEvent.SurahLearned)
                 }
-            },
-        )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                eventChannel.trySend(ReaderEvent.StatusFailed)
+            }
+        }
     }
 
-    /** Sets the status of an ayah; null clears it. */
-    fun setAyahStatus(ayah: AyahEntity, status: AyahTodoStatus?) {
-        val total = _surah.value?.ayahs?.size ?: return
-        if (status == null) {
-            surahViewModel.clearAyahStatus(ayah.number, surahNumber, total)
-        } else {
-            surahViewModel.updateAyahStatus(ayah.number, surahNumber, total, status)
+    /** "I know this ayah": the ayah becomes an OLD passage of its own (or joins the neighbours). */
+    fun markAyahKnown(ayah: AyahEntity) {
+        viewModelScope.launch {
+            try {
+                hifz.markKnown(surahNumber, ayah.numberInSurah, ayah.numberInSurah, ticker.day.value)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                eventChannel.trySend(ReaderEvent.StatusFailed)
+            }
         }
+    }
+
+    /** "Remove from learned": the ayah leaves its passage (a passage can be cut in two). */
+    fun forgetAyah(ayah: AyahEntity) {
+        viewModelScope.launch {
+            try {
+                hifz.forget(surahNumber, ayah.numberInSurah, ayah.numberInSurah)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                eventChannel.trySend(ReaderEvent.StatusFailed)
+            }
+        }
+    }
+
+    /** When the ayah comes back, from the passage that covers it; null when the ayah is not learned. */
+    fun scheduleOf(ayahInSurah: Int): AyahSchedule? {
+        val passage = coverage.value?.passages?.firstOrNull { ayahInSurah in it } ?: return null
+        if (passage.stage == PassageStage.OLD) return AyahSchedule.Circle
+        val days = (passage.nextDueEpochDay ?: return AyahSchedule.Circle) - ticker.day.value
+        return if (days <= 0) AyahSchedule.Due else AyahSchedule.InDays(days)
     }
 
     fun saveNote(ayah: AyahEntity, note: String) {

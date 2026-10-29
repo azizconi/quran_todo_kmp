@@ -125,6 +125,46 @@ class PlaybackControllerTest {
         assertEquals(listOf("1", "2"), audio.played)
     }
 
+    @Test
+    fun aSequencePlaysTheGivenAyahsInOrderAndLeavesTheSurahStateAlone() = runTest {
+        val audio = FakeAudio()
+        val controller = createController(audio)
+        // The person's own settings would repeat ayah 1 five times and move through a range; the sequence ignores them.
+        val persons = SurahReaderPreferences(repeatCount = 5, autoAdvanceAyahs = true)
+        controller.playSequence(surah(4, 3), listOf(1, 1, 2, 1, 2), persons)
+        runCurrent()
+        assertTrue(controller.isActiveFor(4))
+        assertEquals(1, controller.state.value.index)
+        repeat(5) { audio.complete(); runCurrent() }
+        assertEquals(listOf("2", "2", "3", "2", "3"), audio.played)
+        assertFalse(controller.state.value.isPlaying)
+    }
+
+    @Test
+    fun aSequenceThatStartedCanBePausedAndEndedByStart() = runTest {
+        val audio = FakeAudio()
+        val controller = createController(audio)
+        controller.playSequence(surah(4, 3), listOf(0, 1, 2), SurahReaderPreferences())
+        runCurrent()
+        controller.toggle()
+        assertTrue(controller.state.value.canResume)
+        controller.start(surah(4, 3), SurahReaderPreferences(), practice, fromIndex = 2)
+        runCurrent()
+        audio.complete(); runCurrent()
+        // start() put the ayah-by-ayah rules back: the sequence's second ayah is not played.
+        assertEquals(listOf("1", "3"), audio.played)
+    }
+
+    @Test
+    fun anEmptySequenceDoesNothing() = runTest {
+        val audio = FakeAudio()
+        val controller = createController(audio)
+        controller.playSequence(surah(4, 3), emptyList(), SurahReaderPreferences())
+        runCurrent()
+        assertNull(controller.nowPlaying.value)
+        assertEquals(emptyList(), audio.played)
+    }
+
     private fun TestScope.createController(audio: FakeAudio) = PlaybackController(
         ReaderAudioSession(
             backgroundScope, audio,
@@ -151,8 +191,11 @@ class PlaybackControllerTest {
     private class FakeAudio : ReaderAudioOutput {
         val played = mutableListOf<String>()
         var stopped = 0
+        var completion: () -> Unit = {}
+        fun complete() = completion()
         override fun play(url: String, onError: () -> Unit, onComplete: () -> Unit) {
             played += url
+            completion = onComplete
         }
         override fun pause() {}
         override fun resume() {}

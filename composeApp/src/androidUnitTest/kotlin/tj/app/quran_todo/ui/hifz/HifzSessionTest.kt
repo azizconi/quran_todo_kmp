@@ -7,11 +7,11 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import tj.app.quran_todo.data.database.entity.quran.AyahEntity
-import tj.app.quran_todo.presentation.review.ReviewQuality
+import tj.app.quran_todo.hifz.model.ReviewGrade
 
 class HifzSessionTest {
-    /** A surah of 12 ayahs whose first ayah has the global number 100. */
-    private val ayahs = (1..12).map { inSurah ->
+    /** A surah of 25 ayahs whose first ayah has the global number 100. */
+    private val ayahs = (1..25).map { inSurah ->
         AyahEntity(
             number = 99 + inSurah,
             numberInSurah = inSurah,
@@ -23,15 +23,18 @@ class HifzSessionTest {
 
     private fun HifzSession.numbers() = items.map { it.inSurah }
 
-    /** A session over exactly these ayahs of the surah (numbers in the surah), unrated. */
+    /** A session over exactly these ayahs of the surah (numbers in the surah), unanswered. */
     private fun sessionOf(vararg inSurah: Int): HifzSession {
         val whole = assertNotNull(HifzSessions.range(7, ayahs, inSurah.min(), inSurah.max()))
         return whole.copy(items = whole.items.filter { it.inSurah in inSurah.toList() })
     }
 
-    /** Reveals and rates every ayah in turn. */
-    private fun HifzSession.rateAll(vararg qualities: ReviewQuality): HifzSession =
-        qualities.fold(this) { current, quality -> current.reveal().rate(quality) }
+    /** Reveals and answers every ayah in turn. */
+    private fun HifzSession.answerAll(vararg marks: AyahMark): HifzSession =
+        marks.fold(this) { current, mark -> current.reveal().mark(mark) }
+
+    private val ok = AyahMark.REMEMBERED
+    private val hard = AyahMark.HARD
 
     // -- Building --------------------------------------------------------------------------------------------
 
@@ -41,9 +44,10 @@ class HifzSessionTest {
         assertEquals(listOf(3, 4, 5, 6), session.numbers())
         assertEquals(listOf(102, 103, 104, 105), session.items.map { it.number })
         assertEquals(7, session.surah)
-        assertEquals(12, session.totalInSurah)
         assertEquals(0, session.index)
         assertFalse(session.revealed)
+        assertEquals(3, session.firstAyah)
+        assertEquals(6, session.lastAyah)
     }
 
     @Test
@@ -53,13 +57,13 @@ class HifzSessionTest {
 
     @Test
     fun aRangeIsClampedToTheAyahsThatExist() {
-        assertEquals(listOf(11, 12), HifzSessions.range(7, ayahs, 11, 40)?.numbers())
+        assertEquals(listOf(24, 25), HifzSessions.range(7, ayahs, 24, 40)?.numbers())
         assertEquals(listOf(1, 2), HifzSessions.range(7, ayahs, -3, 2)?.numbers())
     }
 
     @Test
     fun aRangeWithoutAyahsMakesNoSession() {
-        assertNull(HifzSessions.range(7, ayahs, 20, 30))
+        assertNull(HifzSessions.range(7, ayahs, 30, 40))
         assertNull(HifzSessions.range(7, emptyList(), 1, 3))
     }
 
@@ -69,154 +73,118 @@ class HifzSessionTest {
     }
 
     @Test
-    fun fromAnAyahRunsToTheEndOfTheSurah() {
-        val session = assertNotNull(HifzSessions.fromAyah(7, ayahs, startIndex = 8))
-        assertEquals(listOf(9, 10, 11, 12), session.numbers())
+    fun fromAnAyahTakesAtMostTenAyahs() {
+        val session = assertNotNull(HifzSessions.fromAyah(7, ayahs, startIndex = 2))
+        assertEquals((3..12).toList(), session.numbers())
+        assertEquals(HifzSessions.MaxFromHere, session.size)
     }
 
     @Test
-    fun fromAnAyahStopsAtTheEndOfTheRepeatPassage() {
+    fun fromAnAyahNearTheEndStopsAtTheEndOfTheSurah() {
+        assertEquals(listOf(23, 24, 25), HifzSessions.fromAyah(7, ayahs, startIndex = 22)?.numbers())
+    }
+
+    @Test
+    fun fromAnAyahStopsAtTheEndOfTheRepeatPassageEvenWhenLonger() {
         assertEquals(listOf(3, 4, 5), HifzSessions.fromAyah(7, ayahs, startIndex = 2, endIndex = 4)?.numbers())
+        assertEquals(15, HifzSessions.fromAyah(7, ayahs, startIndex = 0, endIndex = 14)?.size)
         // A passage that ends where the session starts is a session of that one ayah.
         assertEquals(listOf(5), HifzSessions.fromAyah(7, ayahs, startIndex = 4, endIndex = 4)?.numbers())
     }
 
     @Test
     fun aPassageThatEndsBeforeTheStartIsIgnored() {
-        assertEquals(listOf(9, 10, 11, 12), HifzSessions.fromAyah(7, ayahs, startIndex = 8, endIndex = 2)?.numbers())
+        assertEquals((9..18).toList(), HifzSessions.fromAyah(7, ayahs, startIndex = 8, endIndex = 2)?.numbers())
     }
 
     @Test
-    fun fromAnAyahClampsTheStartAndTheEnd() {
-        assertEquals(listOf(12), HifzSessions.fromAyah(7, ayahs, startIndex = 99)?.numbers())
-        assertEquals(12, HifzSessions.fromAyah(7, ayahs, startIndex = -5)?.size)
-        assertEquals(listOf(11, 12), HifzSessions.fromAyah(7, ayahs, startIndex = 10, endIndex = 50)?.numbers())
+    fun fromAnAyahClampsTheStart() {
+        assertEquals(listOf(25), HifzSessions.fromAyah(7, ayahs, startIndex = 99)?.numbers())
+        assertEquals(10, HifzSessions.fromAyah(7, ayahs, startIndex = -5)?.size)
         assertNull(HifzSessions.fromAyah(7, emptyList(), startIndex = 0))
     }
 
     // -- Running ---------------------------------------------------------------------------------------------
 
     @Test
-    fun anAyahCanBeRatedOnlyAfterItIsRevealed() {
+    fun anAyahCanBeAnsweredOnlyAfterItIsRevealed() {
         val fresh = sessionOf(1, 2, 3)
-        assertEquals(fresh, fresh.rate(ReviewQuality.GOOD))
-        val rated = fresh.reveal().rate(ReviewQuality.GOOD)
-        assertEquals(1, rated.index)
-        assertEquals(ReviewQuality.GOOD, rated.items[0].rating)
-        assertFalse(rated.revealed, "the next ayah starts hidden")
+        assertEquals(fresh, fresh.mark(ok))
+        val answered = fresh.reveal().mark(ok)
+        assertEquals(1, answered.index)
+        assertEquals(ok, answered.items[0].mark)
+        assertFalse(answered.revealed, "the next ayah starts hidden")
     }
 
     @Test
     fun theWholeSessionWalksThroughItsAyahsInOrder() {
-        val given = listOf(ReviewQuality.EASY, ReviewQuality.HARD, ReviewQuality.FORGOT)
+        val given = listOf(ok, hard, ok)
         var current = sessionOf(1, 2, 3)
-        given.forEachIndexed { position, quality ->
+        given.forEachIndexed { position, mark ->
             assertEquals(position, current.index)
             assertFalse(current.finished)
-            current = current.reveal().rate(quality)
+            current = current.reveal().mark(mark)
         }
         assertTrue(current.finished)
         assertNull(current.current)
-        assertEquals(given, current.items.map { it.rating })
-        assertEquals(3, current.ratedCount)
+        assertEquals(given, current.items.map { it.mark })
+        assertEquals(3, current.markedCount)
         assertEquals(0, current.remaining)
     }
 
     @Test
     fun aFinishedSessionIgnoresFurtherCommands() {
-        val finished = sessionOf(1).rateAll(ReviewQuality.GOOD)
+        val finished = sessionOf(1).answerAll(ok)
         assertTrue(finished.finished)
         assertEquals(finished, finished.reveal())
-        assertEquals(finished, finished.rate(ReviewQuality.EASY))
+        assertEquals(finished, finished.mark(hard))
     }
 
     @Test
     fun phasesFollowThePosition() {
-        val running = sessionOf(3, 4, 5).rateAll(ReviewQuality.GOOD)
+        val running = sessionOf(3, 4, 5).answerAll(hard)
         assertEquals(HifzPhase.Outside, running.phaseOf(2))
         assertEquals(HifzPhase.Done, running.phaseOf(3))
         assertEquals(HifzPhase.Current, running.phaseOf(4))
         assertEquals(HifzPhase.Upcoming, running.phaseOf(5))
         assertEquals(HifzPhase.Outside, running.phaseOf(6))
-        assertEquals(ReviewQuality.GOOD, running.itemOf(3)?.rating)
+        assertEquals(hard, running.itemOf(3)?.mark)
         assertNull(running.itemOf(2))
     }
 
     @Test
-    fun theBreakdownCountsEveryRating() {
-        val done = sessionOf(1, 2, 3, 4, 5).rateAll(
-            ReviewQuality.EASY, ReviewQuality.GOOD, ReviewQuality.GOOD, ReviewQuality.HARD, ReviewQuality.FORGOT,
-        )
-        assertEquals(1, done.count(ReviewQuality.EASY))
-        assertEquals(2, done.count(ReviewQuality.GOOD))
-        assertEquals(1, done.count(ReviewQuality.HARD))
-        assertEquals(1, done.count(ReviewQuality.FORGOT))
-        assertEquals(0.6f, done.recallShare, 1e-6f)
-        assertEquals(60, done.recallPercent())
+    fun theHardAyahsAreTheOnesAnsweredHard() {
+        val done = sessionOf(1, 2, 3, 4, 5).answerAll(hard, ok, hard, ok, ok)
+        assertEquals(setOf(1, 3), done.hardAyahs)
+        assertEquals(emptySet(), sessionOf(1, 2).answerAll(ok, ok).hardAyahs)
     }
 
-    @Test
-    fun theRecallShareBeforeAnyRatingIsZero() {
-        assertEquals(0f, sessionOf(1, 2).recallShare)
-    }
-
-    // -- Repeating the hard ones -------------------------------------------------------------------------------
+    // -- The suggested grade -----------------------------------------------------------------------------------
 
     @Test
-    fun theHardOnesAreTheAyahsRatedHardOrForgotten() {
-        val done = sessionOf(1, 2, 3, 4, 5).rateAll(
-            ReviewQuality.HARD, ReviewQuality.GOOD, ReviewQuality.FORGOT, ReviewQuality.EASY, ReviewQuality.HARD,
-        )
-        val retry = assertNotNull(done.retryHard())
-        assertEquals(listOf(1, 3, 5), retry.numbers())
-        assertEquals(listOf(100, 102, 104), retry.items.map { it.number })
-        assertTrue(retry.items.all { it.rating == null }, "the new session starts unrated")
-        assertEquals(0, retry.index)
-        assertFalse(retry.revealed)
-        assertEquals(2, retry.round)
-        assertEquals(7, retry.surah)
-        assertEquals(12, retry.totalInSurah)
-    }
-
-    @Test
-    fun withoutHardOnesThereIsNothingToRepeat() {
-        val done = sessionOf(1, 2).rateAll(ReviewQuality.GOOD, ReviewQuality.EASY)
-        assertNull(done.retryHard())
-        assertTrue(done.hardItems.isEmpty())
-    }
-
-    @Test
-    fun aRetryOfARetryKeepsCountingRounds() {
-        val first = sessionOf(1, 2).rateAll(ReviewQuality.HARD, ReviewQuality.HARD)
-        val second = assertNotNull(first.retryHard()).rateAll(ReviewQuality.FORGOT, ReviewQuality.GOOD)
-        val third = assertNotNull(second.retryHard())
-        assertEquals(listOf(1), third.numbers())
-        assertEquals(3, third.round)
+    fun theSessionOffersTheGradeThatFollowsFromItsAnswers() {
+        assertEquals(ReviewGrade.GOOD, sessionOf(1, 2, 3, 4).answerAll(ok, ok, ok, ok).suggestedGrade)
+        assertEquals(ReviewGrade.HARD, sessionOf(1, 2, 3, 4).answerAll(ok, hard, ok, ok).suggestedGrade)
+        assertEquals(ReviewGrade.FORGOT, sessionOf(1, 2, 3, 4).answerAll(hard, hard, ok, ok).suggestedGrade)
     }
 
     // -- Saving ------------------------------------------------------------------------------------------------
 
     @Test
     fun aSessionSurvivesBeingSavedAsText() {
-        val current = sessionOf(4, 5, 6, 7).rateAll(ReviewQuality.FORGOT, ReviewQuality.EASY).reveal()
+        val current = sessionOf(4, 5, 6, 7).answerAll(hard, ok).reveal()
         val restored = assertNotNull(HifzSession.decode(current.encode()))
         assertEquals(current, restored)
         assertEquals(2, restored.index)
         assertTrue(restored.revealed)
-        assertEquals(ReviewQuality.FORGOT, restored.items[0].rating)
-        assertNull(restored.items[2].rating)
+        assertEquals(hard, restored.items[0].mark)
+        assertNull(restored.items[2].mark)
     }
 
     @Test
     fun aFinishedSessionSurvivesToo() {
-        val done = sessionOf(1, 2).rateAll(ReviewQuality.GOOD, ReviewQuality.HARD)
+        val done = sessionOf(1, 2).answerAll(ok, hard)
         assertEquals(done, HifzSession.decode(done.encode()))
-    }
-
-    @Test
-    fun aRetryRoundKeepsItsRound() {
-        val retry = assertNotNull(sessionOf(1, 2).rateAll(ReviewQuality.HARD, ReviewQuality.GOOD).retryHard())
-        assertEquals(2, HifzSession.decode(retry.encode())?.round)
     }
 
     @Test
@@ -224,19 +192,20 @@ class HifzSessionTest {
         assertNull(HifzSession.decode(null))
         assertNull(HifzSession.decode(""))
         assertNull(HifzSession.decode(HifzViewModel.SavedOff))
-        assertNull(HifzSession.decode("h2|7|12|0|0|1|100:1:-1"))
-        assertNull(HifzSession.decode("h1|7|12|0|0|1|"))
-        assertNull(HifzSession.decode("h1|7|12|0|0|1|100:1"))
-        assertNull(HifzSession.decode("h1|7|12|5|0|1|100:1:-1"))
-        assertNull(HifzSession.decode("h1|7|12|0|2|1|100:1:-1"))
-        assertNull(HifzSession.decode("h1|7|12|0|0|1|100:1:9"))
-        assertNull(HifzSession.decode("h1|x|12|0|0|1|100:1:-1"))
+        // The old format (rating per ayah) is not read.
+        assertNull(HifzSession.decode("h1|7|12|0|0|1|100:1:-1"))
+        assertNull(HifzSession.decode("h2|7|0|0|"))
+        assertNull(HifzSession.decode("h2|7|0|0|100:1"))
+        assertNull(HifzSession.decode("h2|7|5|0|100:1:-1"))
+        assertNull(HifzSession.decode("h2|7|0|2|100:1:-1"))
+        assertNull(HifzSession.decode("h2|7|0|0|100:1:9"))
+        assertNull(HifzSession.decode("h2|x|0|0|100:1:-1"))
     }
 
     @Test
     fun aRevealedFlagOnAFinishedSessionIsDropped() {
         // index == size means nothing is left to reveal.
-        val decoded = assertNotNull(HifzSession.decode("h1|7|12|1|1|1|100:1:2"))
+        val decoded = assertNotNull(HifzSession.decode("h2|7|1|1|100:1:0"))
         assertTrue(decoded.finished)
         assertFalse(decoded.revealed)
     }

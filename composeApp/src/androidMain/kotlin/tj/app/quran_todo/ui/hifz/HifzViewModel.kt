@@ -2,46 +2,48 @@ package tj.app.quran_todo.ui.hifz
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import tj.app.quran_todo.common.settings.ReaderPracticeSettings
-import tj.app.quran_todo.common.settings.SurahReaderPreferences
-import tj.app.quran_todo.data.database.dao.AyahTodoDao
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
-import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
-import tj.app.quran_todo.presentation.review.ReviewQuality
-import tj.app.quran_todo.presentation.home.HomeViewModel
-import tj.app.quran_todo.presentation.surah.SurahViewModel
+import tj.app.quran_todo.hifz.EpochDayTicker
+import tj.app.quran_todo.hifz.HifzRepository
+import tj.app.quran_todo.hifz.model.AyahRange
+import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.playback.PlaybackController
 import tj.app.quran_todo.ui.state.HifzHintMode
 import tj.app.quran_todo.ui.state.UiPrefs
 
+/** What a finished check did: counted as the repetition of a passage of today's lesson, or only logged. */
+enum class CheckSaved { Review, Check }
+
 /**
- * State and commands of the memorize mode of one reader (one `Dest.Reader` back stack entry). The session
- * lives here, so it survives a rotation; [HifzMode] keeps a text copy of it for the case the process dies.
+ * State and commands of "Check yourself" in one reader (one `Dest.Reader` back stack entry). The session lives
+ * here, so it survives a rotation; [HifzMode] keeps a text copy of it for the case the process dies.
  *
- * The shared view models (Koin singletons, injected, never obtained through `koinViewModel`) write the
- * ratings: [HomeViewModel.completeReview] moves the SM-2 schedule of the ayah and refreshes the due reviews
- * and weak ayahs that Home's "Today" reads; an ayah that has no status yet becomes "memorizing" first
- * through [SurahViewModel.updateAyahStatus] (without scheduling a review: `completeReview` does that with
- * the rating).
+ * The answers of the session are not written one by one: at the end the person grades the passage and
+ * [finish] writes ONE result through the [HifzRepository] (the only writer of progress): [HifzRepository.review]
+ * when the checked range is exactly a passage of today's lesson that is not done yet ([CheckRouting]), otherwise
+ * [HifzRepository.logCheck] (stages and due days do not change).
  *
- * Audio belongs to the shared [PlaybackController]. "Listen" plays only the ayah in question, for which the
- * session is configured without auto-advance, repeats and passage; the person's own settings are put back as
- * soon as that ayah is over, the mode is left or this view model is cleared.
+ * Audio belongs to the shared [PlaybackController] (see [RecallAudio]): "Listen" plays only the ayah in question
+ * and the person's own player settings are put back as soon as it is over or the mode is left.
  */
 class HifzViewModel(
     private val route: Dest.Reader,
-    private val surahViewModel: SurahViewModel,
-    private val homeViewModel: HomeViewModel,
-    ayahTodoDao: AyahTodoDao,
+    private val hifz: HifzRepository,
+    private val ticker: EpochDayTicker,
     uiPrefs: UiPrefs,
     private val playback: PlaybackController,
 ) : ViewModel() {
@@ -54,22 +56,28 @@ class HifzViewModel(
 
     private val _exitPrompt = MutableStateFlow(false)
 
-    /** The "leave memorize mode?" question is open. */
+    /** The "leave Check yourself?" question is open. */
     val exitPrompt: StateFlow<Boolean> = _exitPrompt
+
+    private val _saving = MutableStateFlow(false)
+
+    /** The result is being written. */
+    val saving: StateFlow<Boolean> = _saving
+
+    private val savedChannel = Channel<CheckSaved>(Channel.BUFFERED)
+
+    /** One value per result written. */
+    val saved: Flow<CheckSaved> = savedChannel.receiveAsFlow()
 
     /** Whether the first word of a hidden ayah stays readable. */
     val hintMode: StateFlow<HifzHintMode> = uiPrefs.hifzHintMode
 
-    /** Statuses of the ayahs of this surah by global number; always current, so a rating reads the truth. */
-    private val statuses: StateFlow<Map<Int, AyahTodoStatus>> = ayahTodoDao.getBySurahNumber(surahNumber)
-        .map { list -> list.associate { it.ayahNumber to it.status } }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+    private val audio = RecallAudio(playback, surahNumber, viewModelScope)
 
     /** The audio of the ayah being recalled plays (or is being prepared). */
-    val listening: StateFlow<Boolean> = combine(_session, playback.nowPlaying, playback.state) { session, now, audio ->
+    val listening: StateFlow<Boolean> = combine(_session, audio.state) { session, sound ->
         val current = session?.current
-        current != null && now?.surahNumber == surahNumber &&
-            audio.index == current.inSurah - 1 && (audio.isPlaying || audio.isPreparing)
+        current != null && sound.ayah == current.inSurah && sound.playing
     }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -81,7 +89,7 @@ class HifzViewModel(
     /**
      * Called once when the surah is there. [saved] is what the screen kept as text across a process death:
      * a session to put back, [SavedOff] when the mode had been left, or empty for a first start. A reader
-     * opened with `hifz = true` then starts its session on the range of the task.
+     * opened with `hifz = true` then starts its session on the range of the route.
      */
     fun enter(surah: SurahWithAyahs, saved: String) {
         if (routeHandled) return
@@ -101,56 +109,77 @@ class HifzViewModel(
     }
 
     /**
-     * The eye button: from the ayah at list index [startIndex] to the end of the surah, or to [rangeEndIndex]
-     * when a repeat passage is on.
+     * The eye button and "Check yourself from here": from the ayah at list index [startIndex], to [rangeEndIndex]
+     * when a repeat passage is on, otherwise at most [HifzSessions.MaxFromHere] ayahs.
      */
     fun startFromAyah(surah: SurahWithAyahs, startIndex: Int, rangeEndIndex: Int?) {
         routeHandled = true
         val ayahs = surah.ayahs.sortedBy { it.numberInSurah }
-        HifzSessions.fromAyah(surahNumber, ayahs, startIndex, rangeEndIndex)?.let { _session.value = it }
+        HifzSessions.fromAyah(surahNumber, ayahs, startIndex, rangeEndIndex)?.let {
+            audio.endListening()
+            _session.value = it
+        }
     }
 
-    /** "Repeat the hard ones" from the summary. */
-    fun startRetry() {
-        val retry = _session.value?.retryHard() ?: return
-        endListening()
-        _session.value = retry
-    }
-
-    // -- Recalling and rating -----------------------------------------------------------------------------
+    // -- Recalling ----------------------------------------------------------------------------------------
 
     fun reveal() {
         _session.value = _session.value?.reveal()
     }
 
     /**
-     * Rates the ayah at session position [position] and moves on. Ignored when the session has moved
+     * Answers the ayah at session position [position] and moves on. Ignored when the session has moved
      * already (a second tap in the same frame) or the ayah is not revealed yet.
      */
-    fun rate(quality: ReviewQuality, position: Int) {
+    fun mark(mark: AyahMark, position: Int) {
         val session = _session.value ?: return
         if (session.finished || session.index != position || !session.revealed) return
-        val item = session.items[position]
-        endListening()
-        if (statuses.value[item.number] == null) {
-            surahViewModel.updateAyahStatus(
-                ayahNumber = item.number,
-                surahNumber = session.surah,
-                totalAyahs = session.totalInSurah,
-                status = AyahTodoStatus.LEARNING,
-                scheduleNextReview = false,
-            )
+        audio.endListening()
+        _session.value = session.mark(mark)
+    }
+
+    /**
+     * Writes the result of the finished session: [grade] for the passage and [hard] (numbers in the surah) as its
+     * difficult ayahs. Counts as the lesson's repetition when the range is exactly a passage that is due today.
+     */
+    fun finish(grade: ReviewGrade, hard: Set<Int>) {
+        val session = _session.value ?: return
+        if (!session.finished || _saving.value) return
+        _saving.value = true
+        viewModelScope.launch {
+            val range = AyahRange(session.surah, session.firstAyah, session.lastAyah)
+            val today = ticker.day.value
+            try {
+                val lesson = runCatching { hifz.lesson(today).first() }.getOrNull()
+                when (val action = CheckRouting.choose(lesson, range)) {
+                    is CheckAction.Review -> {
+                        hifz.review(action.passageId, grade, hard, today)
+                        savedChannel.trySend(CheckSaved.Review)
+                    }
+                    CheckAction.LogCheck -> {
+                        hifz.logCheck(range.surah, range.startAyah, range.endAyah, grade, hard, today)
+                        savedChannel.trySend(CheckSaved.Check)
+                    }
+                }
+                AppTelemetry.logEvent("check_completed", mapOf("grade" to grade.name.lowercase()))
+                exit()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Leave the sheet open: the person can try again.
+                AppTelemetry.logError(e, context = "check_save_failed")
+            } finally {
+                _saving.value = false
+            }
         }
-        homeViewModel.completeReview(item.number, session.surah, quality)
-        _session.value = session.rate(quality)
     }
 
     // -- Leaving ------------------------------------------------------------------------------------------
 
-    /** The close button and the back gesture: asks first when ratings were given but ayahs remain. */
+    /** The close button and the back gesture: asks first when ayahs were answered but some remain. */
     fun requestExit() {
         val session = _session.value ?: return
-        if (!session.finished && session.ratedCount > 0) {
+        if (!session.finished && session.markedCount > 0) {
             _exitPrompt.value = true
         } else {
             exit()
@@ -162,77 +191,21 @@ class HifzViewModel(
     }
 
     fun exit() {
-        endListening()
+        audio.endListening()
         _exitPrompt.value = false
         _session.value = null
     }
 
     // -- Listening ----------------------------------------------------------------------------------------
 
-    private class Original(val prefs: SurahReaderPreferences, val practice: ReaderPracticeSettings)
-
-    private var original: Original? = null
-    private var listenSeenPlaying = false
-
-    init {
-        viewModelScope.launch {
-            // The single ayah is over (or failed): the person's own settings come back.
-            playback.state.collect { audio ->
-                if (original == null) return@collect
-                if (audio.isPlaying) {
-                    listenSeenPlaying = true
-                } else if (!audio.isPreparing && !audio.canResume && (listenSeenPlaying || audio.hasError)) {
-                    restoreSettings()
-                }
-            }
-        }
-    }
-
     /** The "Listen" button: plays the current ayah, pauses it while it plays, resumes it when paused. */
     fun toggleListen(surah: SurahWithAyahs) {
         val current = _session.value?.current ?: return
-        val ayahs = surah.ayahs.sortedBy { it.numberInSurah }
-        val index = ayahs.indexOfFirst { it.number == current.number }
-        if (index < 0) return
-        val audio = playback.state.value
-        val ours = playback.isActiveFor(surahNumber) && audio.index == index
-        if (ours && (audio.isPlaying || audio.isPreparing || audio.canResume)) {
-            playback.toggle()
-            return
-        }
-        val saved = original ?: Original(
-            SurahReaderPreferences.load(),
-            ReaderPracticeSettings.load(surahNumber, ayahs.size),
-        )
-        playback.start(
-            surah = surah,
-            prefs = saved.prefs.copy(autoAdvanceAyahs = false, repeatCount = 1),
-            practice = saved.practice.copy(rangeEnabled = false),
-            fromIndex = index,
-            autoplay = true,
-        )
-        // Set only now: while start() runs the audio state passes through "idle" and would look like the end.
-        original = saved
-        listenSeenPlaying = false
-    }
-
-    /** Stops what "Listen" started and gives the person's own player settings back. */
-    private fun endListening() {
-        if (original == null) return
-        val audio = playback.state.value
-        if (playback.isActiveFor(surahNumber) && (audio.isPlaying || audio.isPreparing)) playback.toggle()
-        restoreSettings()
-    }
-
-    private fun restoreSettings() {
-        val saved = original ?: return
-        original = null
-        listenSeenPlaying = false
-        if (playback.isActiveFor(surahNumber)) playback.updateSettings(saved.prefs, saved.practice)
+        audio.toggleAyah(surah, current.inSurah)
     }
 
     override fun onCleared() {
-        endListening()
+        audio.endListening()
         super.onCleared()
     }
 

@@ -52,8 +52,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
+import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.ui.components.AyahWheel
 import tj.app.quran_todo.ui.components.QhButton
+import tj.app.quran_todo.ui.components.QhButtonSize
+import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.QhNavRow
@@ -63,6 +66,8 @@ import tj.app.quran_todo.ui.components.QhValueRow
 import tj.app.quran_todo.ui.haptics.HapticKind
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.motion.pressable
+import tj.app.quran_todo.ui.home.SurahStatusChange
+import tj.app.quran_todo.ui.home.SurahTarget
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -99,10 +104,12 @@ fun SurahSheet(
     initialPage: SurahSheetPage,
     surahName: String,
     status: SurahTodoStatus?,
+    /** How many ayahs of the surah are covered by passages; "not started" with some asks first. */
+    learnedAyahs: Int,
     totalAyahs: Int,
     currentAyah: Int,
     copy: ReaderCopy,
-    onStatus: (SurahTodoStatus?) -> Unit,
+    onChoice: (SurahTarget) -> Unit,
     onGoTo: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -150,11 +157,13 @@ fun SurahSheet(
                     )
                     SurahSheetPage.Status -> StatusPage(
                         status = status,
+                        learnedAyahs = learnedAyahs,
                         copy = copy,
-                        onSelect = { selected ->
-                            onStatus(selected)
+                        onSelect = { choice ->
+                            onChoice(choice)
                             close()
                         },
+                        onCancel = close,
                     )
                     SurahSheetPage.GoTo -> GoToPage(
                         value = ayah,
@@ -203,7 +212,36 @@ private fun MenuPage(statusLabel: String, copy: ReaderCopy, onStatus: () -> Unit
 }
 
 @Composable
-private fun StatusPage(status: SurahTodoStatus?, copy: ReaderCopy, onSelect: (SurahTodoStatus?) -> Unit) {
+private fun StatusPage(
+    status: SurahTodoStatus?,
+    learnedAyahs: Int,
+    copy: ReaderCopy,
+    onSelect: (SurahTarget) -> Unit,
+    onCancel: () -> Unit,
+) {
+    // The choices mean what they mean on Home: SurahStatusChange is the one place that says when something is lost.
+    val current = when (status) {
+        null -> null
+        SurahTodoStatus.LEARNING -> SurahHifzStatus.LEARNING
+        SurahTodoStatus.LEARNED -> SurahHifzStatus.LEARNED
+    }
+    var confirming by remember { mutableStateOf<SurahTarget?>(null) }
+    confirming?.let { target ->
+        RemovalPage(
+            lostAyahs = SurahStatusChange.lostAyahs(current, learnedAyahs, target),
+            copy = copy,
+            onRemove = { onSelect(target) },
+            onCancel = onCancel,
+        )
+        return
+    }
+    fun choose(choice: SurahTarget) {
+        when {
+            SurahStatusChange.isNoop(current, choice) -> onCancel()
+            SurahStatusChange.needsConfirmation(current, learnedAyahs, choice) -> confirming = choice
+            else -> onSelect(choice)
+        }
+    }
     Column(Modifier.padding(top = QhSpacing.x1)) {
         Text(copy.surahStatusHint, style = QhTheme.type.body, color = QhTheme.colors.inkSecondary)
         Spacer(Modifier.height(QhSpacing.x4))
@@ -212,24 +250,48 @@ private fun StatusPage(status: SurahTodoStatus?, copy: ReaderCopy, onSelect: (Su
                 icon = Icons.Rounded.RadioButtonUnchecked,
                 label = copy.notStarted,
                 selected = status == null,
-                onClick = { onSelect(null) },
+                onClick = { choose(SurahTarget.NotStarted) },
                 modifier = Modifier.weight(1f),
             )
             StatusOption(
                 icon = Icons.Rounded.Contrast,
-                label = copy.learning,
+                label = copy.choiceLearning,
                 selected = status == SurahTodoStatus.LEARNING,
-                onClick = { onSelect(SurahTodoStatus.LEARNING) },
+                onClick = { choose(SurahTarget.Learning) },
                 modifier = Modifier.weight(1f),
             )
             StatusOption(
                 icon = Icons.Rounded.CheckCircle,
-                label = copy.learned,
+                label = copy.choiceKnown,
                 selected = status == SurahTodoStatus.LEARNED,
-                onClick = { onSelect(SurahTodoStatus.LEARNED) },
+                onClick = { choose(SurahTarget.Known) },
                 modifier = Modifier.weight(1f),
             )
         }
+    }
+}
+
+/** "Remove 12 learned ayahs from the repetitions?": the one status change that throws progress away. */
+@Composable
+private fun RemovalPage(lostAyahs: Int, copy: ReaderCopy, onRemove: () -> Unit, onCancel: () -> Unit) {
+    Column(Modifier.padding(top = QhSpacing.x1), verticalArrangement = Arrangement.spacedBy(QhSpacing.x3)) {
+        Text(copy.removeLearned(lostAyahs), style = QhTheme.type.title2, color = QhTheme.colors.ink)
+        Text(copy.removeLearnedHint, style = QhTheme.type.body, color = QhTheme.colors.inkSecondary)
+        Spacer(Modifier.height(QhSpacing.x1))
+        QhButton(
+            text = copy.removeAction,
+            onClick = onRemove,
+            modifier = Modifier.fillMaxWidth(),
+            variant = QhButtonVariant.Danger,
+            size = QhButtonSize.M,
+        )
+        QhButton(
+            text = copy.cancelAction,
+            onClick = onCancel,
+            modifier = Modifier.fillMaxWidth(),
+            variant = QhButtonVariant.Tonal,
+            size = QhButtonSize.M,
+        )
     }
 }
 

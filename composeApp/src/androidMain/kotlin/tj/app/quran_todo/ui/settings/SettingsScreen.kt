@@ -203,6 +203,8 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources:
                 override fun setKeepScreenOn(value: Boolean) = viewModel.setKeepScreenOn(value)
                 override fun setReciter(reciter: Reciter) = viewModel.setReciter(reciter)
                 override fun setHifzHintMode(mode: HifzHintMode) = viewModel.setHifzHintMode(mode)
+                override fun setLessonAyahRepeats(value: Int) = viewModel.setLessonAyahRepeats(value)
+                override fun setLessonPassageRepeats(value: Int) = viewModel.setLessonPassageRepeats(value)
                 override fun setHapticsEnabled(value: Boolean) = viewModel.setHapticsEnabled(value)
                 override fun setReduceMotion(value: Boolean) = viewModel.setReduceMotion(value)
             },
