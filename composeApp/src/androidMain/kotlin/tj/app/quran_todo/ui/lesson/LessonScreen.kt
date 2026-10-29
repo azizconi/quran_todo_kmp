@@ -62,6 +62,11 @@ import tj.app.quran_todo.ui.components.QhLinearProgress
 import tj.app.quran_todo.ui.components.QhSheet
 import tj.app.quran_todo.ui.components.Skeleton
 import tj.app.quran_todo.ui.components.ToastKind
+import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
+import tj.app.quran_todo.ui.components.spotlight.SpotlightTargets
+import tj.app.quran_todo.ui.components.spotlight.SpotlightTourEffect
+import tj.app.quran_todo.ui.components.spotlight.SpotlightTours
+import tj.app.quran_todo.ui.components.spotlight.spotlightTarget
 import tj.app.quran_todo.ui.i18n.HifzCopy
 import tj.app.quran_todo.ui.i18n.LessonCopy
 import tj.app.quran_todo.ui.i18n.hifzCopy
@@ -188,6 +193,8 @@ private fun LessonBody(
     val steps = remember(plan) { LessonCards.steps(plan) }
     val current = (ui as? LessonUi.Working)?.card?.block
     val reduced = LocalReducedMotion.current
+    // The tip "Lesson steps" (C2): the first time a lesson is worked on.
+    SpotlightTourEffect(SpotlightTours.LessonHeader, ready = ui is LessonUi.Working && steps.isNotEmpty())
     Column(Modifier.fillMaxSize()) {
         LessonTopBar(
             copy = copy,
@@ -274,7 +281,8 @@ private fun LessonSteps(steps: List<LessonStep>, current: LessonBlock?, copy: Le
         Modifier
             .fillMaxWidth()
             .padding(horizontal = QhSpacing.screen)
-            .padding(top = QhSpacing.x1, bottom = QhSpacing.x3),
+            .padding(top = QhSpacing.x1, bottom = QhSpacing.x3)
+            .spotlightTarget(SpotlightTargets.LessonSteps, SpotlightShape.Rounded(14.dp), inset = (-4).dp),
         horizontalArrangement = Arrangement.spacedBy(QhSpacing.x3),
     ) {
         steps.forEach { step ->

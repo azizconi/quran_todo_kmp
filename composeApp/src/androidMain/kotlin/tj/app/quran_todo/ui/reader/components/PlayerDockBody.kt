@@ -77,6 +77,9 @@ import tj.app.quran_todo.ui.components.QhChip
 import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.QhSectionHeader
 import tj.app.quran_todo.ui.components.QhSegmentedControl
+import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
+import tj.app.quran_todo.ui.components.spotlight.SpotlightTargets
+import tj.app.quran_todo.ui.components.spotlight.spotlightTarget
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.playback.SleepTimer
 import tj.app.quran_todo.ui.reader.PlayerUi
@@ -132,6 +135,7 @@ internal fun DockBody(
             selected = practice.pauseSeconds,
             onSelect = viewModel::setPauseSeconds,
             hint = copy.pauseHint,
+            modifier = Modifier.spotlightTarget(SpotlightTargets.PlayerPause, SpotlightShape.Rounded(16.dp), reveal = true, inset = 4.dp),
         )
         ChipSection(
             title = copy.speed,
@@ -301,7 +305,10 @@ private fun RepeatSection(
     val applied = practice.rangeEnabled && practice.startAyah == from && practice.endAyah == to &&
         practice.rangeRepeatCount == count
 
-    Column(verticalArrangement = Arrangement.spacedBy(QhSpacing.x3)) {
+    Column(
+        Modifier.spotlightTarget(SpotlightTargets.PlayerRepeat, SpotlightShape.Rounded(16.dp), reveal = true, inset = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(QhSpacing.x3),
+    ) {
         QhSectionHeader(copy.repeatPassage)
         Row(
             Modifier
@@ -361,8 +368,9 @@ private fun <T> ChipSection(
     selected: T,
     onSelect: (T) -> Unit,
     hint: String? = null,
+    modifier: Modifier = Modifier,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(QhSpacing.x2)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(QhSpacing.x2)) {
         QhSectionHeader(title)
         if (hint != null) {
             Text(hint, style = QhTheme.type.callout, color = QhTheme.colors.inkSecondary)
