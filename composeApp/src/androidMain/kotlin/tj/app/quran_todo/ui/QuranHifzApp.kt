@@ -95,6 +95,8 @@ import tj.app.quran_todo.ui.motion.rememberSystemReducedMotion
 import tj.app.quran_todo.ui.motion.rememberThemeReveal
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.navigation.NavTransitions
+import tj.app.quran_todo.ui.onboarding.OnboardingExit
+import tj.app.quran_todo.ui.onboarding.OnboardingGate
 import tj.app.quran_todo.ui.onboarding.OnboardingScreen
 import tj.app.quran_todo.ui.plan.PlanScreen
 import tj.app.quran_todo.ui.progress.ProgressScreen
@@ -104,17 +106,20 @@ import tj.app.quran_todo.ui.reader.ReaderScreen
 import tj.app.quran_todo.ui.settings.SettingsScreen
 import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.theme.QhTheme
+import tj.app.quran_todo.ui.whatsnew.WhatsNewGate
+import tj.app.quran_todo.ui.whatsnew.WhatsNewHost
 
 /** Reading font size range of the redesign (docs/redesign/ANDROID_REDESIGN.md, 2.2). */
 private const val MinReadingFontSize = 22
 private const val MaxReadingFontSize = 40
 
 /**
- * True until the person has chosen a language and a reading font (existing users skip onboarding).
- * Shared by the app root and the splash screen, which does not wait for data when onboarding is next.
+ * True until the onboarding v2 is passed. People who used an older version (the language and the reading font saved by it) are
+ * existing users: they never see it, and the first call marks them as having passed it (see [OnboardingGate]). Shared by the app
+ * root, `MainActivity` and the splash screen, which does not wait for data when onboarding is next; reads the stored state
+ * directly, so it works before Compose and Koin are up.
  */
-internal fun needsOnboarding(): Boolean =
-    LanguageStorage.getSavedLanguage() == null || ThemeStorage.getSavedReadingFontStyle() == null
+internal fun needsOnboarding(): Boolean = OnboardingGate.resolve().showsOnboarding
 
 /**
  * Root of the Android UI: owns language, theme, font and settings state, provides the `Local*` values
@@ -371,6 +376,12 @@ private fun AppNavigation() {
         if (ready == true) navController.openFromReminder(request.target)
     }
 
+    // "What's new: the lesson of the day" for people who updated: decided once, now that needsOnboarding() has marked them. A link from
+    // the reminder in this launch puts it off to the next one.
+    val whatsNewPending = remember { WhatsNewGate.pending(UiPrefs.readOnboarding(context)) }
+    var whatsNewSuppressed by remember { mutableStateOf(openRequest != null) }
+    LaunchedEffect(openRequest) { if (openRequest != null) whatsNewSuppressed = true }
+
     SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalSharedTransitionScope provides this) {
             NavHost(
@@ -385,9 +396,15 @@ private fun AppNavigation() {
                 composable<Dest.Onboarding> {
                     ProvideNavScope {
                         OnboardingScreen(
-                            onFinished = {
+                            onFinished = { exit ->
                                 navController.navigateOnce(Dest.Home) {
                                     popUpTo<Dest.Onboarding> { inclusive = true }
+                                }
+                                // The first lesson or Al-Fatihah opens over Home, so back lands on Home.
+                                when (exit) {
+                                    OnboardingExit.Lesson -> navController.navigate(Dest.Lesson)
+                                    OnboardingExit.Reader -> navController.navigate(Dest.Reader(surah = 1, origin = OnboardingOrigin))
+                                    OnboardingExit.Later -> Unit
                                 }
                             },
                         )
@@ -471,6 +488,14 @@ private fun AppNavigation() {
             }
         }
     }
+
+    WhatsNewHost(
+        pending = whatsNewPending,
+        atHome = screenName == "home",
+        suppressed = whatsNewSuppressed,
+        onOpenLesson = { navController.navigateOnce(Dest.Lesson) },
+        onOpenPlan = { navController.navigateOnce(Dest.Plan) },
+    )
 }
 
 /** Gives the screen of a NavHost entry its [LocalNavAnimatedVisibilityScope] for shared elements. */
@@ -504,6 +529,9 @@ private fun NavController.goHome() {
 
 private const val OpenRequestWaitMillis = 3_000L
 private const val OpenRequestPollMillis = 40L
+
+/** Origin of the reader opened by the last onboarding button: it matches no shared element, so the reader simply slides in. */
+private const val OnboardingOrigin = "onboarding"
 
 /** Origin of a reader opened from the reminder: it matches no shared element, so the reader simply slides in. */
 private const val ReminderOrigin = "reminder"

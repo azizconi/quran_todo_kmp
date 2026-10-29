@@ -28,6 +28,30 @@ internal fun rahmanPreview(quran: List<SurahWithAyahs>): List<PreviewAyah>? {
     return ayahs.takeIf { it.size == PreviewAyahCount && it.none { ayah -> ayah.text.isBlank() } }
 }
 
+/** Al-Fatihah, the surah of the story slides: the first three ayahs are shown. */
+private const val StorySurah = 1
+private const val StoryAyahCount = 3
+
+/**
+ * Al-Fatihah 1-3 for the story slides, used while the text is not loaded yet (the slides never wait for it). The first ayah is the
+ * bismillah, as in the `quran-uthmani` edition.
+ */
+internal val FallbackFatihaAyahs: List<PreviewAyah> = listOf(
+    PreviewAyah(1, "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"),
+    PreviewAyah(2, "ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَٰلَمِينَ"),
+    PreviewAyah(3, "ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"),
+)
+
+/** The first three ayahs of Al-Fatihah from the loaded Quran, or null when they are not all there. */
+internal fun fatihaPreview(quran: List<SurahWithAyahs>): List<PreviewAyah>? {
+    val surah = quran.firstOrNull { it.surah.number == StorySurah } ?: return null
+    val ayahs = surah.ayahs
+        .filter { it.numberInSurah in 1..StoryAyahCount }
+        .sortedBy { it.numberInSurah }
+        .map { PreviewAyah(it.numberInSurah, it.text) }
+    return ayahs.takeIf { it.size == StoryAyahCount && it.none { ayah -> ayah.text.isBlank() } }
+}
+
 private val Whitespace = Regex("[\\s\\u00A0\\u200B-\\u200F]+")
 
 /** The four words of the Bismillah without marks: bismi, Allah, ar-Rahman, ar-Rahim. */

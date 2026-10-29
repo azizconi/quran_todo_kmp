@@ -42,24 +42,11 @@ class OnboardingPreviewTest {
     }
 
     @Test
-    fun dailyGoalPresetsStepThroughOneThreeFiveTen() {
-        val presets = DailyGoalPresets
-        assertEquals(listOf(1, 3, 5, 10), presets)
-        assertEquals(3, presets.nextOf(1))
-        assertEquals(5, presets.nextOf(3))
-        assertEquals(10, presets.nextOf(5))
-        assertEquals(10, presets.nextOf(10))
-        assertEquals(5, presets.previousOf(10))
-        assertEquals(1, presets.previousOf(3))
-        assertEquals(1, presets.previousOf(1))
-    }
-
-    @Test
-    fun savedGoalSnapsToTheNearestPreset() {
-        assertEquals(5, DailyGoalPresets.nearestTo(5))
-        assertEquals(1, DailyGoalPresets.nearestTo(2))
-        assertEquals(10, DailyGoalPresets.nearestTo(40))
-        assertEquals(5, DailyGoalPresets.nearestTo(6))
+    fun fallbackStoryTextIsTheFirstThreeAyahsOfAlFatihah() {
+        assertEquals(listOf(1, 2, 3), FallbackFatihaAyahs.map { it.number })
+        assertTrue(FallbackFatihaAyahs.none { it.text.isBlank() })
+        // The loaded Quran has nothing yet: the slides use the sample.
+        assertEquals(null, fatihaPreview(emptyList()))
     }
 
     @Test
