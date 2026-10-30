@@ -1,10 +1,26 @@
 {
-  "version": "current-app-play-store-2026-08-04",
+  "version": "redesign-android-e3",
   "languages": [
+    "ru-RU",
     "en-US",
-    "ru-RU"
+    "tg",
+    "uz",
+    "tr-TR"
   ],
-  "source": "Fresh Android emulator captures from the current debug build in each locale",
+  "source": "Emulator DoruIman_API_35 (1080x2400), debug build of redesign/android, demo mode status bar, light theme (screen 8 dark); captured by capture/capture.py with the demo history of capture/seed_demo.py",
+  "phone_size": [
+    1080,
+    1920
+  ],
+  "feature_graphic_size": [
+    1024,
+    500
+  ],
+  "review_needed": [
+    "tg",
+    "uz",
+    "tr-TR"
+  ],
   "exports": {
     "ru-RU": [
       {
@@ -20,31 +36,71 @@
           1080,
           1920
         ],
-        "source": "quran-library-learning-current.png"
+        "source": "capture/raw/ru/01_home.png",
+        "headline": "Каждый день — готовый урок"
       },
       {
-        "file": "localized/ru-RU/phone/phone-02-review-1080x1920.png",
+        "file": "localized/ru-RU/phone/phone-02-recall-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "quran-reader-learning-current.png"
+        "source": "capture/raw/ru/02_recall.png",
+        "headline": "Вспомните, затем проверьте себя"
       },
       {
-        "file": "localized/ru-RU/phone/phone-03-focus-1080x1920.png",
+        "file": "localized/ru-RU/phone/phone-03-lesson-done-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "quran-status-sheet-current.png"
+        "source": "capture/raw/ru/03_summary.png",
+        "headline": "Повторение в нужный день"
       },
       {
-        "file": "localized/ru-RU/phone/phone-04-settings-1080x1920.png",
+        "file": "localized/ru-RU/phone/phone-04-plan-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "quran-settings-appearance-current.png"
+        "source": "capture/raw/ru/04_plan.png",
+        "headline": "Знаете, когда закончите"
+      },
+      {
+        "file": "localized/ru-RU/phone/phone-05-reader-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/ru/05_reader.png",
+        "headline": "Красивый мусхаф и чтецы"
+      },
+      {
+        "file": "localized/ru-RU/phone/phone-06-progress-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/ru/06_progress.png",
+        "headline": "Честный прогресс"
+      },
+      {
+        "file": "localized/ru-RU/phone/phone-07-onboarding-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/ru/07_ready.png",
+        "headline": "План готов за минуту"
+      },
+      {
+        "file": "localized/ru-RU/phone/phone-08-dark-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/ru/08_dark.png",
+        "headline": "Удобно днём и ночью"
       }
     ],
     "en-US": [
@@ -61,37 +117,315 @@
           1080,
           1920
         ],
-        "source": "en-quran-library-learning-current.png"
+        "source": "capture/raw/en/01_home.png",
+        "headline": "A ready lesson every day"
       },
       {
-        "file": "localized/en-US/phone/phone-02-review-1080x1920.png",
+        "file": "localized/en-US/phone/phone-02-recall-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "en-quran-reader-learning-current.png"
+        "source": "capture/raw/en/02_recall.png",
+        "headline": "Recall first, then check yourself"
       },
       {
-        "file": "localized/en-US/phone/phone-03-focus-1080x1920.png",
+        "file": "localized/en-US/phone/phone-03-lesson-done-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "en-quran-status-sheet-current.png"
+        "source": "capture/raw/en/03_summary.png",
+        "headline": "Reviews on the right day"
       },
       {
-        "file": "localized/en-US/phone/phone-04-settings-1080x1920.png",
+        "file": "localized/en-US/phone/phone-04-plan-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "en-quran-settings-appearance-current.png"
+        "source": "capture/raw/en/04_plan.png",
+        "headline": "Know when you will finish"
+      },
+      {
+        "file": "localized/en-US/phone/phone-05-reader-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/en/05_reader.png",
+        "headline": "A beautiful mushaf and reciters"
+      },
+      {
+        "file": "localized/en-US/phone/phone-06-progress-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/en/06_progress.png",
+        "headline": "Honest progress"
+      },
+      {
+        "file": "localized/en-US/phone/phone-07-onboarding-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/en/07_ready.png",
+        "headline": "Your plan in a minute"
+      },
+      {
+        "file": "localized/en-US/phone/phone-08-dark-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/en/08_dark.png",
+        "headline": "Easy on the eyes at night"
+      }
+    ],
+    "tg": [
+      {
+        "file": "localized/tg/feature-graphic-1024x500.png",
+        "size": [
+          1024,
+          500
+        ]
+      },
+      {
+        "file": "localized/tg/phone/phone-01-home-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tg/01_home.png",
+        "headline": "Ҳар рӯз — дарси тайёр"
+      },
+      {
+        "file": "localized/tg/phone/phone-02-recall-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tg/02_recall.png",
+        "headline": "Аввал ба ёд оред, баъд санҷед"
+      },
+      {
+        "file": "localized/tg/phone/phone-03-lesson-done-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tg/03_summary.png",
+        "headline": "Такрор дар рӯзи лозим"
+      },
+      {
+        "file": "localized/tg/phone/phone-04-plan-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tg/04_plan.png",
+        "headline": "Медонед, кай ба охир мерасонед"
+      },
+      {
+        "file": "localized/tg/phone/phone-05-reader-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tg/05_reader.png",
+        "headline": "Мусҳафи зебо ва қориён"
+      },
+      {
+        "file": "localized/tg/phone/phone-06-progress-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tg/06_progress.png",
+        "headline": "Пешрафти ҳақиқӣ"
+      },
+      {
+        "file": "localized/tg/phone/phone-07-onboarding-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tg/07_ready.png",
+        "headline": "Нақша дар як дақиқа"
+      },
+      {
+        "file": "localized/tg/phone/phone-08-dark-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tg/08_dark.png",
+        "headline": "Шабу рӯз бароҳат"
+      }
+    ],
+    "uz": [
+      {
+        "file": "localized/uz/feature-graphic-1024x500.png",
+        "size": [
+          1024,
+          500
+        ]
+      },
+      {
+        "file": "localized/uz/phone/phone-01-home-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/uz/01_home.png",
+        "headline": "Har kuni — tayyor dars"
+      },
+      {
+        "file": "localized/uz/phone/phone-02-recall-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/uz/02_recall.png",
+        "headline": "Avval eslang, keyin tekshiring"
+      },
+      {
+        "file": "localized/uz/phone/phone-03-lesson-done-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/uz/03_summary.png",
+        "headline": "Takror — kerakli kunda"
+      },
+      {
+        "file": "localized/uz/phone/phone-04-plan-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/uz/04_plan.png",
+        "headline": "Qachon tugatishingizni bilasiz"
+      },
+      {
+        "file": "localized/uz/phone/phone-05-reader-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/uz/05_reader.png",
+        "headline": "Chiroyli mushaf va qorilar"
+      },
+      {
+        "file": "localized/uz/phone/phone-06-progress-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/uz/06_progress.png",
+        "headline": "Halol natija"
+      },
+      {
+        "file": "localized/uz/phone/phone-07-onboarding-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/uz/07_ready.png",
+        "headline": "Reja bir daqiqada"
+      },
+      {
+        "file": "localized/uz/phone/phone-08-dark-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/uz/08_dark.png",
+        "headline": "Kechayu kunduz qulay"
+      }
+    ],
+    "tr-TR": [
+      {
+        "file": "localized/tr-TR/feature-graphic-1024x500.png",
+        "size": [
+          1024,
+          500
+        ]
+      },
+      {
+        "file": "localized/tr-TR/phone/phone-01-home-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tr/01_home.png",
+        "headline": "Her gün hazır bir ders"
+      },
+      {
+        "file": "localized/tr-TR/phone/phone-02-recall-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tr/02_recall.png",
+        "headline": "Önce hatırla, sonra kontrol et"
+      },
+      {
+        "file": "localized/tr-TR/phone/phone-03-lesson-done-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tr/03_summary.png",
+        "headline": "Tekrar tam zamanında"
+      },
+      {
+        "file": "localized/tr-TR/phone/phone-04-plan-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tr/04_plan.png",
+        "headline": "Ne zaman bitireceğini bil"
+      },
+      {
+        "file": "localized/tr-TR/phone/phone-05-reader-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tr/05_reader.png",
+        "headline": "Güzel mushaf ve kâriler"
+      },
+      {
+        "file": "localized/tr-TR/phone/phone-06-progress-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tr/06_progress.png",
+        "headline": "Dürüst ilerleme"
+      },
+      {
+        "file": "localized/tr-TR/phone/phone-07-onboarding-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tr/07_ready.png",
+        "headline": "Planın bir dakikada hazır"
+      },
+      {
+        "file": "localized/tr-TR/phone/phone-08-dark-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/tr/08_dark.png",
+        "headline": "Gece gündüz rahat"
       }
     ]
-  },
-  "typography": {
-    "headings": "SF Pro Rounded Bold",
-    "descriptions": "SF Pro Display Regular"
-  },
-  "provenance": "UI pixels are preserved from current app captures. Marketing copy, dimensions, framing, and exports are deterministic."
+  }
 }
