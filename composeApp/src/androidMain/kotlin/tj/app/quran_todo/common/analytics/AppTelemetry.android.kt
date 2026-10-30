@@ -1,5 +1,7 @@
 package tj.app.quran_todo.common.analytics
 
+import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.util.Log
 import com.google.firebase.FirebaseApp
@@ -12,9 +14,17 @@ import tj.app.quran_todo.ui.state.UiPrefs
  * Firebase Analytics and Crashlytics behind the person's choice ("Anonymous statistics and crash
  * reports" in the settings, [UiPrefs.analyticsEnabled], on by default). Every call goes through a
  * [TelemetryGate]: while the choice is off nothing is sent and the SDK collection is switched off.
+ *
+ * A debuggable build never sends anything to Firebase, so the production project shows only real users: the events go to
+ * Logcat instead (tag `AppTelemetry`), and the SDK collection is switched off at start. The manifest placeholders of the debug
+ * build type deactivate both SDKs before this code runs.
  */
 actual object AppTelemetry {
-    private val gate = TelemetryGate(FirebaseTelemetrySink())
+    private val gate: TelemetryGate by lazy {
+        // No application context (local unit tests) counts as debug: nothing can reach Firebase.
+        val debuggable = runCatching { isDebuggable(AndroidContextHolder.context) }.getOrDefault(true)
+        TelemetryGate(if (debuggable) LogcatTelemetrySink() else FirebaseTelemetrySink())
+    }
 
     @Volatile
     private var initialized = false
@@ -26,6 +36,7 @@ actual object AppTelemetry {
         val consent = runCatching { UiPrefs.readAnalyticsEnabled(context) }.getOrDefault(true)
         runCatching { FirebaseApp.initializeApp(context) }
             .onFailure { error -> Log.e(TAG, "Telemetry initialization failed", error) }
+        if (isDebuggable(context)) FirebaseTelemetrySink().setCollectionEnabled(false)
         // The stored choice, not a change: the gate follows it before anything can be logged.
         gate.restore(consent)
         initialized = true
@@ -57,7 +68,33 @@ actual object AppTelemetry {
         gate.logError(throwable, context, params)
     }
 
+    private fun isDebuggable(context: Context): Boolean =
+        context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+
     private const val TAG = "AppTelemetry"
+}
+
+/** Debug builds: the events are written to Logcat and never leave the device. */
+private class LogcatTelemetrySink : TelemetrySink {
+    override fun setCollectionEnabled(enabled: Boolean) = Unit
+
+    override fun clearStoredData() = Unit
+
+    override fun logEvent(name: String, params: Map<String, String>) {
+        Log.d(TAG, "event $name $params")
+    }
+
+    override fun logScreen(screenName: String, params: Map<String, String>) {
+        Log.d(TAG, "screen $screenName $params")
+    }
+
+    override fun recordError(throwable: Throwable, context: String?, params: Map<String, String>) {
+        Log.w(TAG, "error context=$context $params", throwable)
+    }
+
+    private companion object {
+        const val TAG = "AppTelemetry"
+    }
 }
 
 /** The real destination: Firebase. Every name and value reaching it was cleaned by the [TelemetryGate]. */

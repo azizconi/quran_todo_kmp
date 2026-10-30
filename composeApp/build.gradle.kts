@@ -172,7 +172,14 @@ android {
         }
     }
     buildTypes {
+        // Debug builds stay out of the production Firebase project (see AppTelemetry.android.kt).
+        getByName("debug") {
+            manifestPlaceholders["analyticsDeactivated"] = "true"
+            manifestPlaceholders["crashlyticsEnabled"] = "false"
+        }
         getByName("release") {
+            manifestPlaceholders["analyticsDeactivated"] = "false"
+            manifestPlaceholders["crashlyticsEnabled"] = "true"
             // R8: shrinks and obfuscates the code, shrinkResources drops unused resources. The keep rules are in
             // proguard-rules.pro; the Crashlytics plugin uploads the mapping file for readable stack traces.
             isMinifyEnabled = true

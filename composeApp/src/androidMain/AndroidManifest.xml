@@ -27,6 +27,13 @@
         android:enableOnBackInvokedCallback="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.QuranHifz">
+        <!-- Debug builds never send analytics or crash reports to the production Firebase project (build.gradle.kts). -->
+        <meta-data
+            android:name="firebase_analytics_collection_deactivated"
+            android:value="${analyticsDeactivated}" />
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="${crashlyticsEnabled}" />
         <!-- Firebase never reads or collects the advertising ID, and never personalizes ads. -->
         <meta-data
             android:name="google_analytics_adid_collection_enabled"
