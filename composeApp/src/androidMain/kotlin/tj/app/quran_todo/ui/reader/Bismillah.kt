@@ -16,15 +16,55 @@ private const val BismillahFirstWord = "بسم"
 fun hasBismillahLine(surahNumber: Int): Boolean = surahNumber in 2..114 && surahNumber != 9
 
 /**
+ * The sign of the start of a quarter of a hizb, U+06DE (rub el hizb). The bundled text puts it at the start of 199 ayahs, followed
+ * by a space ("۞ إِنَّ ٱللَّهَ ..."), and it looks like an eight-pointed star: the app does not draw stars, and the start of a
+ * quarter is shown by the quiet line above the ayah (`MushafMarks`).
+ */
+const val RubElHizbSign = '\u06DE'
+
+/**
+ * What the screens draw for the ayah [ayahNumberInSurah] of [surahNumber]: the text of the bundled database prepared for
+ * display, in one place for the reader, the lesson, "Check yourself", the sheets and the previews:
+ *
+ * 1. the Bismillah that opens the first ayah is cut off ([cutBismillah]), the reader shows it on its own line;
+ * 2. the rub el hizb sign is hidden ([hideRubSign]).
+ *
+ * Only the display changes: the database text stays as it is, and copy and share use [cutBismillah] (the sign stays in them).
+ */
+fun splitBismillah(surahNumber: Int, ayahNumberInSurah: Int, text: String): String =
+    hideRubSign(cutBismillah(surahNumber, ayahNumberInSurah, text))
+
+/**
+ * [text] without the rub el hizb sign and the space after it, for display. A text without the sign is returned as it is. The
+ * sign is a display problem only: callers that copy or share an ayah keep the original text.
+ */
+fun hideRubSign(text: String): String {
+    if (text.indexOf(RubElHizbSign) < 0) return text
+    return buildString(text.length) {
+        var index = 0
+        while (index < text.length) {
+            val char = text[index]
+            index++
+            if (char == RubElHizbSign) {
+                while (index < text.length && text[index].isSpace()) index++
+            } else {
+                append(char)
+            }
+        }
+    }.trim { it.isSpace() }
+}
+
+/**
  * In the `quran-uthmani` edition (api.alquran.cloud) the first ayah of surahs 2-114, except 9, starts with
  * the Bismillah: "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ الٓمٓ". The reader shows the Bismillah on its own line, so it is
  * cut off here: the text of the ayah without its first four words.
  *
  * The first word is compared without harakat, Quranic annotation marks and tatweel, so Unicode variants of
  * the same spelling match. Anything else (other ayahs, Al-Fatiha, At-Tawbah, a text that does not start with
- * "بسم", or a text that would be left empty) is returned unchanged.
+ * "بسم", or a text that would be left empty) is returned unchanged. The rub el hizb sign is not touched here (see
+ * [splitBismillah] for the text to draw).
  */
-fun splitBismillah(surahNumber: Int, ayahNumberInSurah: Int, text: String): String {
+fun cutBismillah(surahNumber: Int, ayahNumberInSurah: Int, text: String): String {
     if (ayahNumberInSurah != 1 || !hasBismillahLine(surahNumber)) return text
 
     var cursor = 0

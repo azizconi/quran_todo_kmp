@@ -10,6 +10,7 @@ import tj.app.quran_todo.hifz.schedule.HifzConstants
 import tj.app.quran_todo.hifz.schedule.LessonBuilder
 import tj.app.quran_todo.hifz.schedule.LessonInput
 import tj.app.quran_todo.hifz.schedule.LessonNewState
+import tj.app.quran_todo.hifz.schedule.Manzil
 import tj.app.quran_todo.hifz.schedule.PassageOps
 import tj.app.quran_todo.hifz.schedule.TextMetrics
 import kotlin.math.abs
@@ -76,6 +77,35 @@ class RealTextCalibrationTest {
         assertEquals((78..114).sumOf { metrics.ayahCount(it) }, passages.sumOf { it.ayahCount })
         // Al-Ikhlas is on one page and is one passage.
         assertEquals(1, passages.count { it.surah == 112 })
+    }
+
+    @Test
+    fun theCircleOfJuzAmmaCostsAboutTheMinutesOfTheBriefAndTheSuggestionIsInRange() {
+        val weight = (78..114).sumOf { metrics.surahChars(it) }
+        assertEquals(22_102, weight)
+        // About 20 / 10 / 5 minutes a day for 7 / 14 / 30 days, and with Tabarak or Al-Baqarah on top a month is still long.
+        assertEquals(listOf(19, 10, 5), listOf(7, 14, 30).map { Manzil.minutesPerDay(weight, it) })
+        assertEquals(14, Manzil.suggestedDays(weight))
+        val withBaqarah = weight + metrics.surahChars(2)
+        assertEquals(30, Manzil.suggestedDays(withBaqarah))
+        assertEquals(69, Manzil.minutesPerDay(withBaqarah, 7))
+        assertEquals(7, Manzil.suggestedDays(metrics.surahChars(1) + (105..114).sumOf { metrics.surahChars(it) }), "a few short surahs: a week is enough")
+    }
+
+    @Test
+    fun aPersonWhoKnowsJuzAmmaGetsNewLearningAndTheWholeOldPortionInTheSameLesson() {
+        var passages = emptyList<Passage>()
+        for (surah in 114 downTo 78) passages = PassageOps.markKnown(passages, surah, 1, metrics.ayahCount(surah), 100, metrics)
+        val plan = Fx.plan(HifzPresets.JUZ_29, daily = 5, manzilDays = 7)
+        val lesson = LessonBuilder.build(LessonInput(today = 200, plan = plan, passages = passages, todayLog = emptyList(), metrics = metrics))
+
+        assertEquals(LessonNewState.PENDING, lesson.newBlock?.state, "the new passage is in the lesson")
+        assertTrue(lesson.old.isNotEmpty())
+        assertEquals(0, lesson.deferredCount)
+        assertTrue(!lesson.catchingUp)
+        // A week of the circle is about 20 minutes of the old: past the budget with the new passage, and that is the person's circle to shorten.
+        val oldMinutes = HifzConstants.minutes(lesson.old.sumOf { it.estimateSeconds })
+        assertTrue(oldMinutes in 12..30, "$oldMinutes min of the old")
     }
 
     @Test

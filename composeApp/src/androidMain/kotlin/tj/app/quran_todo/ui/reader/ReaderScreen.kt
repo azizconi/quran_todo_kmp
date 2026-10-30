@@ -634,7 +634,15 @@ private fun ReaderContent(
                         schedule = viewModel.scheduleOf(ayah.numberInSurah),
                         note = notes[ayah.number]?.note.orEmpty(),
                     )
-                    val shareText = ayahShareText(arabic, translation, copy.quranRef, surahNumber, ayah.numberInSurah, surahName = title)
+                    // Copy and share carry the text of the database (the rub el hizb sign stays), the sheet draws the cleaned one.
+                    val shareText = ayahShareText(
+                        cutBismillah(surahNumber, ayah.numberInSurah, ayah.text),
+                        translation,
+                        copy.quranRef,
+                        surahNumber,
+                        ayah.numberInSurah,
+                        surahName = title,
+                    )
                     AyahSheet(
                         model = sheetModel,
                         arabicStyle = remember(type, quranFamily) { type.quranBody(quranFamily, 24.sp) },
@@ -668,7 +676,7 @@ private fun ReaderContent(
             ReaderSheet.Appearance -> AppearanceSheet(
                 previewArabic = ayahs.firstOrNull { it.numberInSurah == (firstVisibleAyah.value.coerceAtLeast(0) + 1) }
                     ?.let { splitBismillah(surahNumber, it.numberInSurah, it.text) }
-                    ?: ayahs.firstOrNull()?.text.orEmpty(),
+                    ?: ayahs.firstOrNull()?.text?.let(::hideRubSign).orEmpty(),
                 prefs = prefs,
                 copy = copy,
                 onTranslation = viewModel::setShowTranslation,

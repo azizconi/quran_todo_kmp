@@ -34,6 +34,8 @@ import tj.app.quran_todo.hifz.HifzRepository
 import tj.app.quran_todo.hifz.model.HifzPlan
 import tj.app.quran_todo.hifz.model.HifzScope
 import tj.app.quran_todo.hifz.model.SurahHifzStatus
+import tj.app.quran_todo.hifz.schedule.HifzConstants
+import tj.app.quran_todo.hifz.schedule.Manzil
 import tj.app.quran_todo.hifz.schedule.PlanForecast
 import tj.app.quran_todo.presentation.home.HomeViewModel
 import tj.app.quran_todo.ui.home.HomeRows
@@ -166,7 +168,8 @@ internal class PlanViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(StopTimeoutMillis), PlanUi())
 
     init {
-        // The draft starts as the saved plan (or the first-plan defaults) and is the person's own after that.
+        // The draft starts as the saved plan (or the first-plan defaults) and is the person's own after that. A saved plan keeps its
+        // own circle of the old; a first plan starts with the circle suggested for what is memorized (never silently for a saved one).
         viewModelScope.launch {
             val saved = try {
                 hifz.plan().first()
@@ -176,7 +179,19 @@ internal class PlanViewModel(
                 AppTelemetry.logError(throwable = error, context = "plan_read_failed")
                 null
             }
-            draft.value = PlanDraft.of(saved)
+            val suggestedDays = if (saved != null) {
+                HifzConstants.MANZIL_DAYS_DEFAULT
+            } else {
+                try {
+                    Manzil.suggestedDays(hifz.oldWeight().first())
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    AppTelemetry.logError(throwable = error, context = "plan_old_weight_failed")
+                    HifzConstants.MANZIL_DAYS_DEFAULT
+                }
+            }
+            draft.value = PlanDraft.of(saved, suggestedDays)
         }
     }
 
@@ -210,6 +225,12 @@ internal class PlanViewModel(
     fun setTarget(epochDay: Int) = edit { it.withTarget(epochDay) }
 
     fun setManzilDays(days: Int) = edit { it.withManzilDays(days) }
+
+    /** The chip of the hint: sets the circle to the suggested length (nothing is saved until "Save"). */
+    fun applySuggestedManzilDays() {
+        val hint = ui.value.oldHint ?: return
+        edit { it.withManzilDays(hint.suggestedDays) }
+    }
 
     // -- Saving -------------------------------------------------------------------------------
 

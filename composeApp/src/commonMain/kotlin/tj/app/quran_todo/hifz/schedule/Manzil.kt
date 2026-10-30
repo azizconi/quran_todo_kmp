@@ -5,6 +5,7 @@ import tj.app.quran_todo.hifz.model.PassageStage
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.hifz.model.ReviewKind
 import tj.app.quran_todo.hifz.model.ReviewLogEntry
+import kotlin.math.abs
 
 /** One passage of the manzil portion of the day. */
 class ManzilItem(val passage: Passage, val done: Boolean, val grade: ReviewGrade?)
@@ -33,12 +34,57 @@ class ManzilPortion(val quota: Int, val items: List<ManzilItem>)
  * is "done" and keeps its place. An OLD passage that was repeated today and was sent back to the ladder (HARD, FORGOT)
  * stays in the portion as done and counts into the quota and into the total weight, otherwise the quota would change
  * under the person.
+ *
+ * The portion goes into the lesson **whole**; the lesson budget does not cut it. What keeps it small is the length of the
+ * circle: [suggestedDays] proposes the length that costs about [HifzConstants.OLD_TARGET_MINUTES] minutes a day.
  */
 object Manzil {
     fun quota(totalWeight: Int, manzilDays: Int): Int {
         if (totalWeight <= 0) return 0
         val days = manzilDays.coerceAtLeast(1)
         return (totalWeight + days - 1) / days
+    }
+
+    /**
+     * The estimate of a day of the circle, in seconds: [oldWeightChars] over [days] days is read as cards of about a page
+     * (`CHARS_PER_PAGE`; the passages of the circle are at most about that) and every card costs [HifzConstants.reviewSeconds].
+     * Zero when there is nothing old.
+     */
+    fun dailySeconds(oldWeightChars: Int, days: Int): Int {
+        if (oldWeightChars <= 0) return 0
+        val daily = quota(oldWeightChars, days)
+        val cards = ((daily + HifzConstants.CHARS_PER_PAGE - 1) / HifzConstants.CHARS_PER_PAGE).coerceAtLeast(1)
+        return cards * HifzConstants.reviewSeconds((daily + cards - 1) / cards)
+    }
+
+    /**
+     * About how many minutes a day the circle of [days] days costs for [oldWeightChars] characters of OLD passages, by the
+     * formula of [HifzConstants.reviewSeconds]. Rounded to the nearest minute (it is shown with "about"), never 0 when
+     * something is old; 0 when nothing is.
+     */
+    fun minutesPerDay(oldWeightChars: Int, days: Int): Int {
+        val seconds = dailySeconds(oldWeightChars, days)
+        return if (seconds <= 0) 0 else ((seconds + 30) / 60).coerceAtLeast(1)
+    }
+
+    /**
+     * The length of the circle, in days, that brings a day of the old circle nearest to [HifzConstants.OLD_TARGET_MINUTES],
+     * between [HifzConstants.MANZIL_DAYS_SUGGEST_MIN] (7) and [HifzConstants.MANZIL_DAYS_MAX] (30). Nothing old: 7. When two lengths
+     * are equally near, the shorter circle wins. Only a suggestion: a saved plan is never changed by it.
+     */
+    fun suggestedDays(oldWeightChars: Int): Int {
+        if (oldWeightChars <= 0) return HifzConstants.MANZIL_DAYS_SUGGEST_MIN
+        val target = HifzConstants.OLD_TARGET_MINUTES * 60
+        var best = HifzConstants.MANZIL_DAYS_SUGGEST_MIN
+        var bestGap = Int.MAX_VALUE
+        for (days in HifzConstants.MANZIL_DAYS_SUGGEST_MIN..HifzConstants.MANZIL_DAYS_MAX) {
+            val gap = abs(dailySeconds(oldWeightChars, days) - target)
+            if (gap < bestGap) {
+                best = days
+                bestGap = gap
+            }
+        }
+        return best
     }
 
     fun portion(
@@ -91,6 +137,4 @@ object Manzil {
         { it.surah },
         { it.startAyah },
     )
-
-    val ITEM_PRIORITY: Comparator<ManzilItem> = Comparator { a, b -> PRIORITY.compare(a.passage, b.passage) }
 }

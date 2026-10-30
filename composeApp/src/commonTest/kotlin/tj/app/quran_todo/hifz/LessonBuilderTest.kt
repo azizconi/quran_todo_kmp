@@ -11,6 +11,7 @@ import tj.app.quran_todo.hifz.schedule.LessonBuilder
 import tj.app.quran_todo.hifz.schedule.LessonInput
 import tj.app.quran_todo.hifz.schedule.LessonNewState
 import tj.app.quran_todo.hifz.schedule.LessonPlan
+import tj.app.quran_todo.hifz.schedule.Manzil
 import tj.app.quran_todo.hifz.schedule.PassageOps
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -196,18 +197,19 @@ class LessonBuilderTest {
         (1..count).map { recent(it.toLong(), due = today - 20 + it) } // 1 is the most overdue
 
     @Test
-    fun theLessonNeverExceedsTheBudgetAndWhatDoesNotFitIsDeferred() {
-        // 8 repetitions of 191 s: 7 fit into 1500 s (1337 s), the 8th does not. The old portion and the new passage come after it.
+    fun theBudgetCapsTheRecentBlockOnly_theOldPortionGoesInWholeAndTheNewPassageWaits() {
+        // 8 repetitions of 191 s: 7 fit into 1500 s (1337 s), the 8th does not: a backlog. The old portion is not cut by the
+        // budget (it is one passage, 191 s, after the 1500 s line of the recent block), and the new passage waits.
         val passages = overdueRecents(8) + Fx.passage(20, 3, 1, 5)
         val lesson = lesson(plan114, passages)
 
         assertEquals((1L..7L).toList(), lesson.recent.map { it.passageId }, "the most overdue ones are done first")
-        assertTrue(lesson.old.isEmpty())
+        assertEquals(listOf(20L), lesson.old.map { it.passageId }, "the old portion is whole")
         assertEquals(LessonNewState.DEFERRED, lesson.newBlock?.state)
         assertTrue(lesson.catchingUp)
-        assertEquals(3, lesson.deferredCount, "one repetition, the old portion, the new passage")
-        assertTrue(lesson.totalMinutes <= HifzConstants.LESSON_BUDGET_MINUTES)
-        assertEquals(23, lesson.totalMinutes) // 1337 s
+        assertEquals(2, lesson.deferredCount, "one repetition and the new passage; the old portion is never counted")
+        assertTrue(lesson.recent.sumOf { it.estimateSeconds } <= HifzConstants.LESSON_BUDGET_SECONDS)
+        assertEquals(26, lesson.totalMinutes) // 1337 s of recent + 191 s of old = 1528 s
     }
 
     @Test
@@ -226,15 +228,93 @@ class LessonBuilderTest {
     }
 
     @Test
-    fun aBacklogOfRepetitionsDefersTheNewPassageWhole() {
-        // Seven repetitions fit (1337 s); the old portion (191 s) is cut at the 1500 s line: that is a backlog.
+    fun aCutRepetitionDefersTheNewPassageWholeButNotTheOldPortion() {
+        val passages = overdueRecents(12) + Fx.passage(20, 3, 1, 5)
+        val lesson = lesson(plan114, passages)
+        assertEquals(7, lesson.recent.size)
+        assertEquals(1, lesson.old.size)
+        assertEquals(LessonNewState.DEFERRED, lesson.newBlock?.state)
+        assertEquals(6, lesson.deferredCount, "five repetitions and the new passage")
+        assertTrue(lesson.catchingUp)
+        assertFalse(lesson.isComplete)
+    }
+
+    @Test
+    fun aRecentBlockThatJustFitsIsNotABacklogAndTheOldPortionDoesNotChangeThat() {
+        // Seven repetitions fill 1337 s of the 1500 s; the old portion (191 s) is not counted against them, so nothing is cut.
         val passages = overdueRecents(7) + Fx.passage(20, 3, 1, 5)
         val lesson = lesson(plan114, passages)
         assertEquals(7, lesson.recent.size)
-        assertTrue(lesson.old.isEmpty())
-        assertEquals(LessonNewState.DEFERRED, lesson.newBlock?.state)
-        assertEquals(2, lesson.deferredCount, "the old passage and the new one")
-        assertTrue(lesson.catchingUp)
+        assertEquals(1, lesson.old.size)
+        assertEquals(LessonNewState.PENDING, lesson.newBlock?.state)
+        assertEquals(0, lesson.deferredCount)
+        assertFalse(lesson.catchingUp)
+    }
+
+    @Test
+    fun aPersonWhoKnowsJuzAmmaStillLearnsNewEveryDayWithTheWeekCircle() {
+        // About the size of Juz Amma in the real text (564 ayahs, ~22 000 characters; 60 characters an ayah make it bigger on purpose):
+        // a week of the circle is far beyond the 25 minutes, and the new passage is still in the lesson.
+        val metrics = Fx.metrics(chars = { _, _ -> 60 })
+        var old = emptyList<Passage>()
+        for (surah in 114 downTo 78) old = PassageOps.markKnown(old, surah, 1, metrics.ayahCount(surah), today - 30, metrics)
+        val plan = Fx.plan(listOf(77, 76), daily = 5, manzilDays = 7)
+        val lesson = LessonBuilder.build(LessonInput(today, plan, old, emptyList(), metrics))
+
+        assertTrue(lesson.old.isNotEmpty())
+        assertTrue(
+            lesson.old.sumOf { it.estimateSeconds } > HifzConstants.LESSON_BUDGET_SECONDS,
+            "the old portion alone is past the budget",
+        )
+        assertEquals(LessonNewState.PENDING, lesson.newBlock?.state, "new learning does not wait for the old circle")
+        assertTrue(lesson.recent.isEmpty())
+        assertEquals(0, lesson.deferredCount)
+        assertFalse(lesson.catchingUp)
+        assertTrue(lesson.totalMinutes > HifzConstants.LESSON_BUDGET_MINUTES)
+        val seconds = lesson.old.sumOf { it.estimateSeconds } + lesson.newBlock!!.estimateSeconds
+        assertEquals(HifzConstants.minutes(seconds), lesson.totalMinutes)
+        assertEquals(lesson.totalMinutes, lesson.remainingMinutes, "nothing is done yet")
+    }
+
+    @Test
+    fun anOldPortionBiggerThanTheBudgetDefersNothingAndIsNotCatchingUp() {
+        // 20 old passages of 500 characters and a one-day circle: all of them are in the portion, 20 x 191 s = 64 minutes.
+        val old = (1..20).map { Fx.passage(it.toLong(), 2, 5 * (it - 1) + 1, 5 * it) }
+        val lesson = lesson(Fx.plan(listOf(114), manzilDays = 1), old)
+        assertEquals(20, lesson.old.size)
+        assertTrue(lesson.totalMinutes > 2 * HifzConstants.LESSON_BUDGET_MINUTES)
+        assertEquals(0, lesson.deferredCount)
+        assertFalse(lesson.catchingUp)
+        assertEquals(LessonNewState.PENDING, lesson.newBlock?.state)
+    }
+
+    @Test
+    fun theOldBlockIsExactlyTheManzilPortionEvenWithABacklogOfRepetitions() {
+        val old = (1..6).map { Fx.passage(100L + it, 3, 5 * (it - 1) + 1, 5 * it) }
+        val passages = overdueRecents(12) + old
+        val plan = Fx.plan(listOf(114), manzilDays = 2)
+        val portion = Manzil.portion(passages, emptyList(), 2, m, today)
+        val lesson = lesson(plan, passages)
+        assertEquals(portion.items.map { it.passage.id }, lesson.old.map { it.passageId })
+        assertTrue(lesson.catchingUp, "the recent block was cut")
+        assertEquals(6, lesson.deferredCount, "five cut repetitions and the new passage; the old portion is not counted")
+    }
+
+    @Test
+    fun learningTheNewPassageDoesNotShrinkTheRecentBlock() {
+        // Five repetitions (955 s) and a new passage of 752 s together are past 1500 s. The budget of the recent block does not
+        // depend on the new passage: the same five stay after it is learned.
+        val recents = overdueRecents(5)
+        val before = lesson(plan114, recents)
+        assertEquals(5, before.recent.size)
+        assertEquals(LessonNewState.PENDING, before.newBlock?.state)
+
+        val learned = Fx.passage(30, 114, 1, 6, PassageStage.R1, due = today + 1, last = today, learned = today)
+        val log = listOf(Fx.logOf(learned, ReviewKind.NEW, ReviewGrade.GOOD, today))
+        val after = lesson(plan114, recents + learned, log)
+        assertEquals(before.recent.map { it.passageId }, after.recent.map { it.passageId })
+        assertEquals(LessonNewState.DONE, after.newBlock?.state)
+        assertEquals(0, after.deferredCount)
     }
 
     @Test

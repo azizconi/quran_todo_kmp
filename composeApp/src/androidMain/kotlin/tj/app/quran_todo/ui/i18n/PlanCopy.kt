@@ -57,6 +57,8 @@ data class PlanCopy(
     val oldTitlePattern: String,
     val oldPagesPattern: String,
     val oldNone: String,
+    val oldHintPattern: String,
+    val oldSetDaysPattern: String,
 
     // Forecast
     val sectionForecast: String,
@@ -109,6 +111,25 @@ data class PlanCopy(
 
     /** "≈ 1,5 pages a day". */
     fun oldPages(pages: Float): String = oldPagesPattern.fill("pages" to pagesLabel(pages))
+
+    /**
+     * The soft hint under the circle slider: "That is about 27 minutes a day. A circle of 20 days is about 10 minutes."
+     * [minutes] is the circle as it stands, [days] and [targetMinutes] the suggested one.
+     */
+    fun oldHint(minutes: Int, days: Int, targetMinutes: Int): String = oldHintPattern.fill(
+        "minutes" to aboutMinutesLabel(minutes),
+        "days" to daysLabel(days),
+        "target" to aboutMinutesLabel(targetMinutes),
+    )
+
+    /** What the chip "20 days" does, for TalkBack: "Set the circle to 20 days". */
+    fun oldSetDays(days: Int): String = oldSetDaysPattern.fill("days" to daysLabel(days))
+
+    /** A number of minutes after "about": the Russian genitive ("около 21 минуты", "около 22 минут"). */
+    fun aboutMinutesLabel(n: Int): String = when (language) {
+        AppLanguage.RU -> "$n ${if (n % 10 == 1 && n % 100 != 11) "минуты" else "минут"}"
+        else -> minutesLabel(n)
+    }
 
     fun finishOn(epochDay: Int, today: Int): String = finishOnPattern.fill("date" to dateLabel(epochDay, today))
 
@@ -226,6 +247,8 @@ fun planCopy(language: AppLanguage): PlanCopy = when (language) {
         oldTitlePattern = "Повторять всё выученное за {n}",
         oldPagesPattern = "≈ {pages} в день",
         oldNone = "Когда появится выученное, здесь будет видно, сколько страниц в день вы повторяете.",
+        oldHintPattern = "Это около {minutes} в день. Круг в {days} — около {target}.",
+        oldSetDaysPattern = "Поставить круг в {days}",
         sectionForecast = "Прогноз",
         finishOnPattern = "Закончите ~{date}",
         finished = "Все суры плана выучены",
@@ -296,6 +319,8 @@ fun planCopy(language: AppLanguage): PlanCopy = when (language) {
         oldTitlePattern = "Review everything memorized over {n}",
         oldPagesPattern = "≈ {pages} a day",
         oldNone = "Once something is memorized, this shows how many pages a day you review.",
+        oldHintPattern = "That is about {minutes} a day. A circle of {days} is about {target}.",
+        oldSetDaysPattern = "Set the circle to {days}",
         sectionForecast = "Forecast",
         finishOnPattern = "You will finish ~{date}",
         finished = "All the surahs of the plan are memorized",
@@ -366,6 +391,8 @@ fun planCopy(language: AppLanguage): PlanCopy = when (language) {
         oldTitlePattern = "Ҳамаи аз бар шударо дар {n} такрор кардан",
         oldPagesPattern = "≈ {pages} дар як рӯз",
         oldNone = "Вақте чизе аз бар шавад, дар ин ҷо менамояд, ки чанд саҳифа дар як рӯз такрор мекунед.",
+        oldHintPattern = "Ин тақрибан {minutes} дар як рӯз аст. Давра дар {days} — тақрибан {target}.",
+        oldSetDaysPattern = "Давраро ба {days} танзим кунед",
         sectionForecast = "Пешгӯӣ",
         finishOnPattern = "Анҷом медиҳед ~{date}",
         finished = "Ҳамаи сураҳои нақша аз бар шудаанд",
@@ -436,6 +463,8 @@ fun planCopy(language: AppLanguage): PlanCopy = when (language) {
         oldTitlePattern = "Yodlanganlarning hammasini {n}da takrorlash",
         oldPagesPattern = "≈ kuniga {pages}",
         oldNone = "Yodlangan narsa paydo bo‘lgach, bu yerda kuniga necha sahifa takrorlashingiz ko‘rinadi.",
+        oldHintPattern = "Bu kuniga taxminan {minutes}. {days}lik doira — taxminan {target}.",
+        oldSetDaysPattern = "Doirani {days}ga qo‘yish",
         sectionForecast = "Bashorat",
         finishOnPattern = "Tugatasiz ~{date}",
         finished = "Rejadagi barcha suralar yodlangan",
@@ -506,6 +535,8 @@ fun planCopy(language: AppLanguage): PlanCopy = when (language) {
         oldTitlePattern = "Ezberlenenlerin hepsini {n} içinde tekrar et",
         oldPagesPattern = "≈ günde {pages}",
         oldNone = "Ezberlediğiniz bir şey olunca burada günde kaç sayfa tekrar ettiğiniz görünür.",
+        oldHintPattern = "Bu günde yaklaşık {minutes}. {days}lük döngü yaklaşık {target} sürer.",
+        oldSetDaysPattern = "Döngüyü {days} yap",
         sectionForecast = "Tahmin",
         finishOnPattern = "Bitirirsiniz ~{date}",
         finished = "Plandaki tüm sureler ezberlendi",

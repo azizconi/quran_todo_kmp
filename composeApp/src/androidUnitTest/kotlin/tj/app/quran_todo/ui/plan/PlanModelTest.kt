@@ -276,6 +276,74 @@ class PlanModelTest {
     }
 
     @Test
+    fun theCircleCostsMinutesADayAndIsAbsentWhenNothingIsMemorized() {
+        assertEquals(19, PlanMath.oldMinutesPerDay(oldWeight = 22_102, days = 7))
+        assertEquals(10, PlanMath.oldMinutesPerDay(oldWeight = 22_102, days = 14))
+        assertNull(PlanMath.oldMinutesPerDay(oldWeight = 0, days = 7))
+    }
+
+    @Test
+    fun aLongDayOfTheCircleGetsAHintWithTheSuggestedLength() {
+        // 33 000 characters: a week is 29 minutes a day, 20 days is 10.
+        val hint = PlanMath.oldHint(oldWeight = 33_000, days = 7)
+        assertEquals(OldCircleHint(minutesPerDay = 29, suggestedDays = 20, suggestedMinutes = 10), hint)
+        assertEquals(OldCircleHint(minutesPerDay = 25, suggestedDays = 20, suggestedMinutes = 10), PlanMath.oldHint(33_000, 8))
+    }
+
+    @Test
+    fun theHintOnlyComesAboveFifteenMinutesAndOnlyWhenALongerCircleHelps() {
+        assertNull(PlanMath.oldHint(oldWeight = 0, days = 7), "nothing memorized")
+        assertNull(PlanMath.oldHint(oldWeight = 17_000, days = 7), "exactly 15 minutes is still fine")
+        assertEquals(16, PlanMath.oldHint(oldWeight = 18_000, days = 7)?.minutesPerDay)
+        assertNull(PlanMath.oldHint(oldWeight = 33_000, days = 20), "the suggested length itself needs no hint")
+        assertNull(PlanMath.oldHint(oldWeight = 33_000, days = 25), "already longer than suggested")
+        // 78 810 characters: even 30 days is 16 minutes, but there is no longer circle to offer.
+        assertNull(PlanMath.oldHint(oldWeight = 78_810, days = 30))
+        assertEquals(30, PlanMath.oldHint(oldWeight = 78_810, days = 29)?.suggestedDays)
+    }
+
+    @Test
+    fun aFirstPlanStartsWithTheSuggestedCircleAndASavedPlanKeepsItsOwn() {
+        assertEquals(20, PlanDraft.initial(manzilDays = 20).manzilDays)
+        assertEquals(30, PlanDraft.initial(manzilDays = 99).manzilDays)
+        assertEquals(20, PlanDraft.of(null, suggestedManzilDays = 20).manzilDays)
+        assertEquals(7, PlanDraft.of(null).manzilDays)
+        // A saved plan is never changed silently, whatever is suggested.
+        assertEquals(7, PlanDraft.of(saved(manzil = 7), suggestedManzilDays = 20).manzilDays)
+        assertEquals(10, PlanDraft.of(saved(manzil = 10), suggestedManzilDays = 20).manzilDays)
+    }
+
+    @Test
+    fun theSuggestedCircleOfAFirstPlanIsNotAnEditButMovingBackToAWeekIs() {
+        val suggested = build(PlanDraft.initial(manzilDays = 20), oldWeight = 33_000)
+        assertFalse(suggested.edited, "the proposed first plan is not an edit")
+        assertNull(suggested.oldHint)
+        assertEquals(20, suggested.draft.manzilDays)
+        assertEquals(10, suggested.oldMinutesPerDay)
+
+        val week = build(PlanDraft.initial(manzilDays = 20).withManzilDays(7), oldWeight = 33_000)
+        assertTrue(week.edited, "the person moved the slider")
+        assertEquals(29, week.oldHint?.minutesPerDay, "and the hint comes back")
+    }
+
+    @Test
+    fun theChipSetsTheSliderAndTheHintGoes_andASavedPlanIsOnlyHinted() {
+        val plan = saved(manzil = 7)
+        val before = build(PlanDraft.of(plan), saved = plan, oldWeight = 33_000)
+        assertEquals(7, before.draft.manzilDays, "nothing changed silently")
+        assertFalse(before.dirty)
+        assertFalse(before.edited)
+        val hint = before.oldHint
+        assertEquals(20, hint?.suggestedDays)
+
+        val after = build(PlanDraft.of(plan).withManzilDays(hint!!.suggestedDays), saved = plan, oldWeight = 33_000)
+        assertEquals(20, after.draft.manzilDays)
+        assertNull(after.oldHint)
+        assertTrue(after.dirty, "saved only by the Save button")
+        assertTrue(after.edited)
+    }
+
+    @Test
     fun theNewPassageOfTheCurrentSurahFollowsTheSchedulersRule() {
         fun passage(start: Int, end: Int) = Passage(1, 78, start, end, today - 1, PassageStage.R1, today, today - 1, 0)
         // Nothing learned of a long surah: the first five.
