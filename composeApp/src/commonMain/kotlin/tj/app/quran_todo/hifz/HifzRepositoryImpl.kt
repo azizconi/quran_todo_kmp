@@ -161,6 +161,15 @@ class HifzRepositoryImpl(
         counts
     }
 
+    override fun coveredAyahs(): Flow<Map<Int, Set<Int>>> = observeWithMetrics(PASSAGES) { metrics ->
+        val coverage = Coverage(loadPassages(), metrics)
+        val ayahs = LinkedHashMap<Int, Set<Int>>()
+        for (surah in 1..QuranFacts.SURAH_COUNT) {
+            if (coverage.coveredCount(surah) > 0) ayahs[surah] = coverage.coveredAyahs(surah)
+        }
+        ayahs
+    }
+
     override fun surahCoverage(surah: Int): Flow<SurahCoverage> = observeWithMetrics(PASSAGES, HARD, PLAN) { metrics ->
         HifzStatuses.surahCoverage(surah, loadPassages(), loadPlan(), metrics)
     }

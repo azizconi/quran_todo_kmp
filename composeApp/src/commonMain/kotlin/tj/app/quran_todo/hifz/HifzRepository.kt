@@ -93,6 +93,12 @@ interface HifzRepository {
      */
     fun coveredCounts(): Flow<Map<Int, Int>>
 
+    /**
+     * The covered ayahs of each surah (numbers in the surah): only the surahs with at least one covered ayah are in the map. For
+     * progress that does not follow surah boundaries (a juz starts inside a surah); one subscription for the whole Quran.
+     */
+    fun coveredAyahs(): Flow<Map<Int, Set<Int>>>
+
     /** Covered and difficult ayahs and the passages of a surah. */
     fun surahCoverage(surah: Int): Flow<SurahCoverage>
 

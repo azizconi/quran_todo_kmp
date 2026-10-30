@@ -519,6 +519,17 @@ class HifzRepositoryTest {
     }
 
     @Test
+    fun coveredAyahsListsTheCoveredAyahNumbersOfEverySurahInOneRead() = runBlocking {
+        assertTrue(repository.coveredAyahs().first().isEmpty())
+        repository.completeNew(114, 1, 4, ReviewGrade.GOOD, emptySet(), day)
+        repository.markKnown(112, today = day)
+        val ayahs = repository.coveredAyahs().first()
+        assertEquals(setOf(112, 114), ayahs.keys)
+        assertEquals((1..4).toSet(), ayahs[114])
+        assertEquals(repository.surahCoverage(112).first().coveredAyahs, ayahs[112])
+    }
+
+    @Test
     fun aDraftPlanForecastUsesTheCoveredAyahsButStoresNothing() = runBlocking {
         repository.completeNew(114, 1, 3, ReviewGrade.GOOD, emptySet(), day)
         val draft = tj.app.quran_todo.hifz.model.HifzPlan(
