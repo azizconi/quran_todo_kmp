@@ -74,6 +74,7 @@ import tj.app.quran_todo.hifz.model.SurahCoverage
 import tj.app.quran_todo.ui.components.EmptyState
 import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.QhLargeTopBar
+import tj.app.quran_todo.ui.components.QhSegmentedControl
 import tj.app.quran_todo.ui.components.ToastKind
 import tj.app.quran_todo.ui.components.rememberQhTopBarState
 import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
@@ -87,6 +88,7 @@ import tj.app.quran_todo.ui.home.components.HeroCard
 import tj.app.quran_todo.ui.home.components.HeroListenState
 import tj.app.quran_todo.ui.home.components.HomeSkeletonRow
 import tj.app.quran_todo.ui.home.components.HomeSkeletonTop
+import tj.app.quran_todo.ui.home.components.JuzListRow
 import tj.app.quran_todo.ui.home.components.LessonCard
 import tj.app.quran_todo.ui.home.components.LessonInviteRow
 import tj.app.quran_todo.ui.home.components.ListEmptyState
@@ -104,6 +106,7 @@ import tj.app.quran_todo.ui.home.components.SurahSheet
 import tj.app.quran_todo.ui.home.components.listBottomPadding
 import tj.app.quran_todo.ui.i18n.HomeCopy
 import tj.app.quran_todo.ui.i18n.homeCopy
+import tj.app.quran_todo.ui.i18n.mushafCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.orSnap
@@ -229,10 +232,15 @@ private fun HomeContent(
     // -- Screen state -----------------------------------------------------------------------------
     var query by rememberSaveable { mutableStateOf("") }
     var filterOrdinal by rememberSaveable { mutableStateOf(0) }
+    // "Surahs" / "Juz": kept for as long as the screen lives (a rotation, coming back from the reader).
+    var tabOrdinal by rememberSaveable { mutableStateOf(0) }
     var sheetSurah by rememberSaveable { mutableStateOf<Int?>(null) }
     var searchFocused by remember { mutableStateOf(false) }
     var celebration by remember { mutableStateOf(Celebration()) }
     val filter = SurahFilter.entries.getOrElse(filterOrdinal) { SurahFilter.All }
+    val tab = HomeTab.entries.getOrElse(tabOrdinal) { HomeTab.Surahs }
+    val mushaf = remember(copy.language) { mushafCopy(copy.language) }
+    val tabLabels = remember(mushaf) { listOf(mushaf.tabSurahs, mushaf.tabJuz) }
     // The search text lives here (an immediate echo for the field); the ViewModel filters off the UI thread.
     LaunchedEffect(Unit) {
         actions.setQuery(query)
@@ -302,8 +310,8 @@ private fun HomeContent(
         HeroListenState.Idle
     }
     // Index of the sticky header: the title space and whatever sections exist above it (the lesson card
-    // item is always there in the content phase; it folds to nothing until the lesson is known).
-    val searchHeaderIndex = 1 + (if (hero != null) 1 else 0) + 1 + (if (ui.recent.isNotEmpty()) 1 else 0)
+    // item is always there in the content phase; it folds to nothing until the lesson is known), then the tabs.
+    val searchHeaderIndex = 1 + (if (hero != null) 1 else 0) + 1 + (if (ui.recent.isNotEmpty()) 1 else 0) + 1
     val searchStuck = remember(listState, searchHeaderIndex) { { listState.firstVisibleItemIndex >= searchHeaderIndex } }
 
     // Focusing the field lifts it under the top bar. Only when the sections above it are still on
@@ -453,7 +461,9 @@ private fun HomeContent(
                     }
                     if (ui.recent.isNotEmpty()) {
                         item(key = "recent", contentType = "recent") {
-                            FoldableSection(visible = !searchMode) {
+                            // The tabs of the list follow: a tighter gap than between the cards, so the first surah row stays
+                            // on screen as before (the tour of the home screen points at it).
+                            FoldableSection(visible = !searchMode, trailingSpace = QhSpacing.x4) {
                                 RecentSection(
                                     recent = ui.recent,
                                     copy = copy,
@@ -462,6 +472,20 @@ private fun HomeContent(
                                     modifier = Modifier.staggeredEnter(2, stagger),
                                 )
                             }
+                        }
+                    }
+
+                    item(key = "tabs", contentType = "tabs") {
+                        // No space after the switch: the sticky header below has its own top padding.
+                        FoldableSection(visible = !searchMode, trailingSpace = 0.dp) {
+                            QhSegmentedControl(
+                                options = tabLabels,
+                                selectedIndex = tab.ordinal,
+                                onSelect = { tabOrdinal = it },
+                                modifier = Modifier
+                                    .padding(horizontal = QhSpacing.screen)
+                                    .staggeredEnter(TabsStaggerIndex, stagger),
+                            )
                         }
                     }
 
@@ -477,64 +501,107 @@ private fun HomeContent(
                                 filterOrdinal = it.ordinal
                                 actions.setFilter(it)
                             },
-                            showFilters = !searchMode,
+                            showFilters = !searchMode && tab == HomeTab.Surahs,
                             copy = copy,
                             focusRequester = focusRequester,
                             onFocusChange = { searchFocused = it },
                             stuck = searchStuck,
-                            modifier = Modifier.staggeredEnter(3, stagger),
+                            modifier = Modifier.staggeredEnter(SearchStaggerIndex, stagger),
+                            placeholder = if (tab == HomeTab.Juz) mushaf.juzSearchPlaceholder else null,
+                            showTabs = searchMode,
+                            tabs = {
+                                QhSegmentedControl(
+                                    options = tabLabels,
+                                    selectedIndex = tab.ordinal,
+                                    onSelect = { tabOrdinal = it },
+                                )
+                            },
                         )
                     }
 
-                    val listing = ui.listing
-                    listing.smartResult?.let { smart ->
-                        item(key = "smart", contentType = "smart") {
-                            SmartResultCard(
-                                result = smart,
-                                copy = copy,
-                                onOpen = {
-                                    open(Dest.Reader(surah = smart.row.number, ayah = smart.ayah, origin = Origin.SEARCH))
-                                },
-                                modifier = Modifier
-                                    .padding(horizontal = QhSpacing.screen, vertical = QhSpacing.x1)
-                                    .then(rowAnimation()),
-                            )
+                    when (tab) {
+                        HomeTab.Surahs -> {
+                            val listing = ui.listing
+                            listing.smartResult?.let { smart ->
+                                item(key = "smart", contentType = "smart") {
+                                    SmartResultCard(
+                                        result = smart,
+                                        copy = copy,
+                                        onOpen = {
+                                            open(Dest.Reader(surah = smart.row.number, ayah = smart.ayah, origin = Origin.SEARCH))
+                                        },
+                                        modifier = Modifier
+                                            .padding(horizontal = QhSpacing.screen, vertical = QhSpacing.x1)
+                                            .then(rowAnimation()),
+                                    )
+                                }
+                            }
+                            if (listing.rows.isEmpty() && listing.smartResult == null) {
+                                item(key = "empty", contentType = "empty") {
+                                    ListEmptyState(
+                                        isSearching = listing.isSearching,
+                                        filter = listing.filter,
+                                        copy = copy,
+                                        modifier = rowAnimation(),
+                                    )
+                                }
+                            }
+                            val rowOrigin = if (listing.isSearching) Origin.SEARCH else Origin.LIST
+                            itemsIndexed(listing.rows, key = { _, row -> row.number }, contentType = { _, _ -> "row" }) { position, row ->
+                                SurahListRow(
+                                    row = row,
+                                    origin = rowOrigin,
+                                    texts = rowTexts,
+                                    arabicStyle = rowArabicStyle,
+                                    celebration = if (celebration.surah == row.number) celebration.token else 0,
+                                    onOpen = { open(Dest.Reader(surah = it, origin = rowOrigin)) },
+                                    onLongPress = { sheetSurah = it },
+                                    modifier = Modifier
+                                        // The burst reaches into the neighbouring rows: draw this one on top of them.
+                                        .zIndex(if (celebration.surah == row.number && celebration.token != 0) 1f else 0f)
+                                        .then(rowAnimation())
+                                        .staggeredEnter(FirstRowStaggerIndex + position, stagger)
+                                        // The first row of the list is what the tour points at ("hold a surah").
+                                        .then(
+                                            if (position == 0) {
+                                                Modifier.spotlightTarget(SpotlightTargets.HomeSurahRow, SpotlightShape.Rounded(14.dp), reveal = true, inset = 10.dp)
+                                            } else {
+                                                Modifier
+                                            },
+                                        ),
+                                )
+                            }
                         }
-                    }
-                    if (listing.rows.isEmpty() && listing.smartResult == null) {
-                        item(key = "empty", contentType = "empty") {
-                            ListEmptyState(
-                                isSearching = listing.isSearching,
-                                filter = listing.filter,
-                                copy = copy,
-                                modifier = rowAnimation(),
-                            )
-                        }
-                    }
-                    val rowOrigin = if (listing.isSearching) Origin.SEARCH else Origin.LIST
-                    itemsIndexed(listing.rows, key = { _, row -> row.number }, contentType = { _, _ -> "row" }) { position, row ->
-                        SurahListRow(
-                            row = row,
-                            origin = rowOrigin,
-                            texts = rowTexts,
-                            arabicStyle = rowArabicStyle,
-                            celebration = if (celebration.surah == row.number) celebration.token else 0,
-                            onOpen = { open(Dest.Reader(surah = it, origin = rowOrigin)) },
-                            onLongPress = { sheetSurah = it },
-                            modifier = Modifier
-                                // The burst reaches into the neighbouring rows: draw this one on top of them.
-                                .zIndex(if (celebration.surah == row.number && celebration.token != 0) 1f else 0f)
-                                .then(rowAnimation())
-                                .staggeredEnter(FirstRowStaggerIndex + position, stagger)
-                                // The first row of the list is what the tour points at ("hold a surah").
-                                .then(
-                                    if (position == 0) {
-                                        Modifier.spotlightTarget(SpotlightTargets.HomeSurahRow, SpotlightShape.Rounded(14.dp), reveal = true, inset = 10.dp)
-                                    } else {
-                                        Modifier
+
+                        HomeTab.Juz -> {
+                            val juzListing = ui.juzListing
+                            if (juzListing.isEmpty()) {
+                                item(key = "juz-empty", contentType = "empty") {
+                                    ListEmptyState(
+                                        isSearching = true,
+                                        filter = SurahFilter.All,
+                                        copy = copy,
+                                        modifier = rowAnimation(),
+                                        searchBody = mushaf.juzNoResultsBody,
+                                    )
+                                }
+                            }
+                            itemsIndexed(juzListing, key = { _, row -> "juz-${row.juz}" }, contentType = { _, _ -> "juz" }) { position, row ->
+                                JuzListRow(
+                                    row = row,
+                                    copy = copy,
+                                    mushaf = mushaf,
+                                    arabicStyle = rowArabicStyle,
+                                    onOpen = { juz ->
+                                        // The start of the juz: the reader opens on that ayah (and marks it for a moment).
+                                        open(Dest.Reader(surah = juz.startSurah, ayah = juz.startAyah, origin = JuzRows.ORIGIN))
                                     },
-                                ),
-                        )
+                                    modifier = Modifier
+                                        .then(rowAnimation())
+                                        .staggeredEnter(FirstRowStaggerIndex + position, stagger),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -624,7 +691,11 @@ private fun HomeContent(
  * searching, which lifts the search field to the top of the screen without any manual scrolling.
  */
 @Composable
-private fun FoldableSection(visible: Boolean, content: @Composable () -> Unit) {
+private fun FoldableSection(
+    visible: Boolean,
+    trailingSpace: Dp = QhSpacing.section,
+    content: @Composable () -> Unit,
+) {
     val reduced = LocalReducedMotion.current
     AnimatedVisibility(
         visible = visible,
@@ -641,7 +712,7 @@ private fun FoldableSection(visible: Boolean, content: @Composable () -> Unit) {
     ) {
         Column {
             content()
-            Spacer(Modifier.height(QhSpacing.section))
+            Spacer(Modifier.height(trailingSpace))
         }
     }
 }
@@ -657,7 +728,9 @@ private fun LazyItemScope.rowAnimation(): Modifier =
 
 private val TopBarRowHeight = 56.dp
 private const val SkeletonRowCount = 9
-private const val FirstRowStaggerIndex = 4
+private const val TabsStaggerIndex = 3
+private const val SearchStaggerIndex = 4
+private const val FirstRowStaggerIndex = 5
 private const val CelebrationMillis = 1_100L
 
 /** Remembers the last lesson card between compositions (not state: it only feeds the fold-away animation). */

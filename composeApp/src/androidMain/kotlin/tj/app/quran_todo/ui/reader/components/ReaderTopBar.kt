@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -15,20 +17,25 @@ import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.QhLinearProgress
+import tj.app.quran_todo.ui.i18n.MushafCopy
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.motion.AnimatedCounter
+import tj.app.quran_todo.ui.reader.MushafPlace
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -37,11 +44,13 @@ val ReaderTopBarRowHeight = 56.dp
 
 /**
  * The reader's top bar. Over the surah header it is only the back button and the two actions; once the
- * header cartouche has scrolled under it, [collapsed] reaches 1 and a hairline, the surah name with
- * "Ayah N / M" and the 2dp reading progress appear. The bar itself is always opaque paper, status bar included.
+ * header cartouche has scrolled under it, [collapsed] reaches 1 and a hairline, the surah name with the ayah on top
+ * ("12 / 286"), the place in the mushaf under it ("Juz 2 · Hizb 3 · p. 22") and the 2dp reading progress appear. The
+ * bar itself is always opaque paper, status bar included.
  *
- * [collapsed], [ayahNumber] and [progress] are read inside draw/graphics blocks or leaf composables, so
- * scrolling does not recompose the bar.
+ * [collapsed], [ayahNumber], [place] and [progress] are read inside draw/graphics blocks or leaf composables, so
+ * scrolling does not recompose the bar; [place] is a derived state, so the line only changes when the juz, the hizb or the
+ * page of the top ayah really does.
  */
 @Composable
 fun ReaderTopBar(
@@ -49,8 +58,10 @@ fun ReaderTopBar(
     totalAyahs: Int,
     collapsed: State<Float>,
     ayahNumber: State<Int>,
+    place: State<MushafPlace?>,
     progress: State<Float>,
     copy: ReaderCopy,
+    mushaf: MushafCopy,
     onBack: () -> Unit,
     onTextSettings: () -> Unit,
     onMore: () -> Unit,
@@ -102,15 +113,21 @@ fun ReaderTopBar(
                     .graphicsLayer { alpha = collapsed.value },
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text(
-                    text = surahName,
-                    style = QhTheme.type.title2,
-                    color = colors.ink,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.semantics { heading() },
-                )
-                CompactAyahCounter(ayahNumber = ayahNumber, totalAyahs = totalAyahs, copy = copy)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = surahName,
+                        style = QhTheme.type.title2,
+                        color = colors.ink,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .semantics { heading() },
+                    )
+                    Spacer(Modifier.width(QhSpacing.x2))
+                    CompactAyahCounter(ayahNumber = ayahNumber, totalAyahs = totalAyahs, copy = copy)
+                }
+                PlaceLine(place = place, mushaf = mushaf)
             }
             QhIconButton(
                 icon = Icons.Rounded.TextFields,
@@ -138,16 +155,37 @@ fun ReaderTopBar(
     }
 }
 
-/** "Ayah 12 / 286" where the number rolls; it is the only part that recomposes while reading. */
+/** "12 / 286" (the ayah on top) where the number rolls; it recomposes while reading, so the bar stays still. */
 @Composable
 private fun CompactAyahCounter(ayahNumber: State<Int>, totalAyahs: Int, copy: ReaderCopy) {
     val style = QhTheme.type.callout
     val color = QhTheme.colors.inkSecondary
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("${copy.ayah} ", style = style, color = color)
-        AnimatedCounter(value = ayahNumber.value, style = style, color = color)
-        Text(" / $totalAyahs", style = style, color = color)
+    val number = ayahNumber.value
+    Row(
+        modifier = Modifier.clearAndSetSemantics { contentDescription = copy.ayahOf(number, totalAyahs) },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AnimatedCounter(value = number, style = style, color = color)
+        Text(" / $totalAyahs", style = style, color = color, maxLines = 1)
     }
+}
+
+/**
+ * "Juz 2 · Hizb 3 · p. 22" for the ayah on top. [place] is a derived state of the scroll position: this leaf is the only
+ * thing that recomposes, and only when the value really changed (a data class compares equal), so scrolling inside one
+ * page does not touch it.
+ */
+@Composable
+private fun PlaceLine(place: State<MushafPlace?>, mushaf: MushafCopy) {
+    val current = place.value ?: return
+    val text = remember(current, mushaf) { mushaf.placeText(current) }
+    Text(
+        text = text,
+        style = QhTheme.type.callout,
+        color = QhTheme.colors.inkSecondary,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 @Composable

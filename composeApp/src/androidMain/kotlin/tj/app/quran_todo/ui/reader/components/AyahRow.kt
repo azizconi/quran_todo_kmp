@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -48,10 +49,12 @@ import tj.app.quran_todo.ui.hifz.HifzAyahContent
 import tj.app.quran_todo.ui.hifz.HifzRosette
 import tj.app.quran_todo.ui.hifz.HifzRowState
 import tj.app.quran_todo.ui.hifz.hifzRow
+import tj.app.quran_todo.ui.i18n.MushafCopy
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.pressable
+import tj.app.quran_todo.ui.reader.AyahMarks
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -82,6 +85,8 @@ data class AyahRowModel(
     /** Briefly marked when the reader opened on this ayah. */
     val flash: Boolean,
     val range: RangePosition,
+    /** Where a juz, a quarter of a hizb or a page starts, and the sajda sign (D1); worked out once per surah. */
+    val marks: AyahMarks = AyahMarks.None,
 )
 
 /**
@@ -96,6 +101,7 @@ fun AyahRow(
     arabicStyle: TextStyle,
     translationStyle: TextStyle,
     copy: ReaderCopy,
+    mushaf: MushafCopy,
     showDivider: Boolean,
     enter: ReaderEnterState,
     onSelect: (Int) -> Unit,
@@ -150,6 +156,11 @@ fun AyahRow(
                 .padding(horizontal = QhSpacing.screen)
                 .padding(top = QhSpacing.x1, bottom = QhSpacing.x4),
         ) {
+            // Where a juz, a hizb quarter or a page begins: one quiet line above the number (the hairline under the previous
+            // ayah gives way to it, see showDivider in the list).
+            if (model.marks.hasLine) {
+                MushafMarkLine(line = remember(model.marks, mushaf) { mushaf.markLine(model.marks) })
+            }
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -171,7 +182,10 @@ fun AyahRow(
                             .size(18.dp),
                     )
                 }
-                Spacer(Modifier.weight(1f))
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                    val sajda = model.marks.sajda
+                    if (sajda != null) SajdaSign(sajda = sajda, mushaf = mushaf, modifier = Modifier.padding(start = QhSpacing.x2))
+                }
                 AnimatedVisibility(
                     visible = model.current && hifz == null,
                     enter = if (reduced) fadeIn(tween(0)) else fadeIn(tween(QhMotion.Short)) + scaleIn(QhMotion.snappy(), initialScale = 0.6f),
