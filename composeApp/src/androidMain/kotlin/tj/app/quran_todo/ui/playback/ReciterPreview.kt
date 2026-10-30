@@ -65,7 +65,7 @@ internal class ReciterPreview(
         val mine = ++request
         _state.value = PreviewState.Loading(reciter.id)
         job = scope.launch {
-            val url = reciter.audioUrl(SampleGlobalAyah)
+            val url = reciter.audioUrl(SampleSurah, SampleAyahInSurah)
             val local = files.getOrFetch(url, reciter.cacheKey(SampleSurah, SampleAyahInSurah))
             if (!isActive || mine != request) return@launch
             _state.value = PreviewState.Playing(reciter.id)
@@ -87,10 +87,9 @@ internal class ReciterPreview(
     }
 
     companion object {
-        /** Surah 112, ayah 1: "Say: He is Allah, One". The global number of the ayah is 6222. */
+        /** Surah 112, ayah 1: "Say: He is Allah, One". */
         const val SampleSurah = 112
         const val SampleAyahInSurah = 1
-        const val SampleGlobalAyah = 6222
     }
 }
 

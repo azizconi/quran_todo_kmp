@@ -83,6 +83,10 @@ import tj.app.quran_todo.ui.listen.EchoRing
 import tj.app.quran_todo.ui.listen.YourTurnLine
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.pressable
+import tj.app.quran_todo.ui.playback.FollowedArabicText
+import tj.app.quran_todo.ui.playback.PrepareWordTimings
+import tj.app.quran_todo.ui.playback.WordFollow
+import tj.app.quran_todo.ui.reader.displayWords
 import tj.app.quran_todo.ui.reader.splitBismillah
 import tj.app.quran_todo.ui.state.LESSON_AYAH_REPEATS_RANGE
 import tj.app.quran_todo.ui.state.LESSON_PASSAGE_REPEATS_RANGE
@@ -228,6 +232,7 @@ private fun ListenPhase(viewModel: LessonViewModel, copy: LessonCopy, work: Less
             arabicStyle = rememberLessonArabicStyle(),
             onTap = null,
             modifier = Modifier.weight(1f),
+            follow = remember(audio.playing) { WordFollow(playing = audio.playing) },
         )
         Column(
             Modifier
@@ -397,6 +402,7 @@ private fun ReadPhase(viewModel: LessonViewModel, copy: LessonCopy, work: Lesson
             arabicStyle = rememberLessonArabicStyle(),
             onTap = { viewModel.toggleListenAyah(work, it) },
             modifier = Modifier.weight(1f),
+            follow = remember(audio.playing) { WordFollow(playing = audio.playing) },
         )
         QhButton(
             text = copy.next,
@@ -421,7 +427,11 @@ internal fun PassageList(
     arabicStyle: TextStyle,
     onTap: ((Int) -> Unit)?,
     modifier: Modifier = Modifier,
+    /** F1a: the word that sounds is washed in the text of the [current] ayah (null: the passage is drawn without it). */
+    follow: WordFollow? = null,
 ) {
+    // The timings of the surah are read now, so that they are there when the first ayah sounds.
+    if (follow != null) ayahs.firstOrNull()?.let { PrepareWordTimings(it.surahNumber) }
     val reduced = LocalReducedMotion.current
     val listState = rememberLazyListState()
     val latestReduced by rememberUpdatedState(reduced)
@@ -435,13 +445,26 @@ internal fun PassageList(
         modifier = modifier.fillMaxWidth(),
     ) {
         items(ayahs, key = { it.number }) { ayah ->
-            PassageRow(ayah = ayah, marked = ayah.numberInSurah == current, arabicStyle = arabicStyle, onTap = onTap)
+            val marked = ayah.numberInSurah == current
+            PassageRow(
+                ayah = ayah,
+                marked = marked,
+                arabicStyle = arabicStyle,
+                onTap = onTap,
+                follow = if (marked) follow else null,
+            )
         }
     }
 }
 
 @Composable
-private fun PassageRow(ayah: AyahEntity, marked: Boolean, arabicStyle: TextStyle, onTap: ((Int) -> Unit)?) {
+private fun PassageRow(
+    ayah: AyahEntity,
+    marked: Boolean,
+    arabicStyle: TextStyle,
+    onTap: ((Int) -> Unit)?,
+    follow: WordFollow? = null,
+) {
     val colors = QhTheme.colors
     val reduced = LocalReducedMotion.current
     val highlight by animateFloatAsState(
@@ -479,13 +502,26 @@ private fun PassageRow(ayah: AyahEntity, marked: Boolean, arabicStyle: TextStyle
         verticalArrangement = Arrangement.spacedBy(QhSpacing.x2),
     ) {
         AyahRosette(number = number)
-        Text(
-            text = splitBismillah(ayah.surahNumber, number, ayah.text),
-            style = arabicStyle,
-            color = colors.ink,
-            textAlign = TextAlign.Start,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        if (follow != null) {
+            FollowedArabicText(
+                surah = ayah.surahNumber,
+                ayahInSurah = number,
+                words = remember(ayah) { displayWords(ayah.surahNumber, number, ayah.text) },
+                follow = follow,
+                style = arabicStyle,
+                color = colors.ink,
+                textAlign = TextAlign.Start,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            Text(
+                text = splitBismillah(ayah.surahNumber, number, ayah.text),
+                style = arabicStyle,
+                color = colors.ink,
+                textAlign = TextAlign.Start,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 

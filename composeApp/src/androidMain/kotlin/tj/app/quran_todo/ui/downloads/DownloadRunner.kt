@@ -30,6 +30,15 @@ internal class UseCaseTranslations(private val useCase: GetAyahTranslationsUseCa
     }
 }
 
+/**
+ * Makes sure the word timings of a surah are kept with its downloads (pinned: they are deleted only with the downloads). They are small
+ * and optional: a surah without them is downloaded all the same, only its recitation has no word highlight offline.
+ */
+internal fun interface TimingsSource {
+    /** True when the timings of [surah] for the quran.com recitation [recitationId] are pinned (they were, or have just been fetched). */
+    suspend fun ensure(recitationId: Int, surah: Int): Boolean
+}
+
 /** What the notification shows: the request that is on, how far it is, and how many requests wait behind it. */
 internal data class DownloadProgress(
     val request: DownloadRequest,
@@ -59,6 +68,7 @@ internal enum class RunOutcome {
  *    audio of the ayahs;
  *  - an ayah that is in the downloads already is skipped, so a run after an interruption (airplane mode, a killed process, a
  *    restart) simply goes on where it stopped;
+ *  - the word timings of each surah are pinned next to the audio ([TimingsSource]); a failure there is ignored;
  *  - a file is written as `<key>.mp3.download` and renamed when whole ([DownloadStorage.commit]);
  *  - an ayah is tried [attemptsPerAyah] times; [maxConsecutiveFailures] failures in a row stop the run with [RunOutcome.NO_NETWORK]
  *    (the work is retried later by WorkManager with its backoff);
@@ -79,6 +89,7 @@ internal class DownloadRunner(
     private val attemptsPerAyah: Int = 2,
     private val maxConsecutiveFailures: Int = 3,
     private val parallelism: Int = DEFAULT_PARALLELISM,
+    private val timings: TimingsSource = TimingsSource { _, _ -> true },
 ) {
     private sealed interface Pass {
         data object Cancelled : Pass
@@ -148,6 +159,18 @@ internal class DownloadRunner(
             }
         }
 
+        // The word timings of the surahs: tiny, one request each, and never a reason to fail the download.
+        for (surah in request.segments.map { it.surah }.distinct()) {
+            interruption(request)?.let { return it }
+            try {
+                timings.ensure(reciter.recitationId, surah)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Optional: the audio goes on.
+            }
+        }
+
         val doneCount = AtomicInteger(done)
         val failedCount = AtomicInteger(0)
         val consecutiveCount = AtomicInteger(consecutive)
@@ -167,10 +190,9 @@ internal class DownloadRunner(
                         stopped = reason
                         break@outer
                     }
-                    val globalAyah = QuranFacts.firstAyahNumber(segment.surah) + ayah - 1
                     launch {
                         try {
-                            if (fetchOne(reciter.audioUrl(globalAyah), key)) {
+                            if (fetchOne(reciter.audioUrl(segment.surah, ayah), key)) {
                                 consecutiveCount.set(0)
                                 report(request, doneCount.incrementAndGet(), total)
                             } else {

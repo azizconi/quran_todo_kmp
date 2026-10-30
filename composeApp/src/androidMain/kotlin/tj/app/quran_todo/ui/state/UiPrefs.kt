@@ -100,6 +100,15 @@ class UiPrefs(context: Context) {
         _keepScreenOn.value = value
     }
 
+    /** "Highlight words while listening" (the "Aa" sheet of the reader): the word that sounds is marked in the text. On by default. */
+    private val _highlightWords = MutableStateFlow(prefs.getBoolean(KEY_HIGHLIGHT_WORDS, true))
+    val highlightWords: StateFlow<Boolean> = _highlightWords.asStateFlow()
+
+    fun setHighlightWords(value: Boolean) {
+        prefs.edit().putBoolean(KEY_HIGHLIGHT_WORDS, value).apply()
+        _highlightWords.value = value
+    }
+
     /** Up to [MAX_RECENT_SURAHS] surah numbers, the most recently opened first. */
     private val _recentSurahs = MutableStateFlow(
         decodeInts(prefs.getString(KEY_RECENT_SURAHS, null)).take(MAX_RECENT_SURAHS),
@@ -359,6 +368,7 @@ class UiPrefs(context: Context) {
         const val KEY_REDUCE_MOTION = "reduce_motion"
         const val KEY_READER_LAYOUT = "reader_layout"
         const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
+        const val KEY_HIGHLIGHT_WORDS = "highlight_words"
         const val KEY_RECENT_SURAHS = "recent_surahs"
         const val KEY_PINNED_SURAHS = "pinned_surahs"
         const val KEY_LAST_READ_SURAH = "last_read_surah"

@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import tj.app.quran_todo.common.audio.timing.WordTimingsStore
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.settings.ReaderPracticeSettings
 import tj.app.quran_todo.common.settings.SettingsChangeNotifier
@@ -84,6 +86,12 @@ data class PlayerUi(
         selected -> index
         else -> null
     }
+
+    /**
+     * Index of the ayah whose words are followed (the highlight of the word that sounds, and the tap on a word): the one that sounds
+     * or is paused halfway, else the one the person picked; null when there is none.
+     */
+    val followIndex: Int? get() = if (running || selected) index else null
 }
 
 @Immutable
@@ -382,6 +390,15 @@ class ReaderViewModel(
             // Reading position: written 400 ms after the first visible ayah stops changing.
             visibleAyah.debounce(400).collect { index -> commitVisibleAyah(index) }
         }
+        viewModelScope.launch {
+            // The word timings of this surah for the reciter are read (or fetched, once) now, so that the highlight is there from the
+            // first word when the audio starts. A failure is silent: without timings there is simply no word highlight.
+            combine(uiPrefs.highlightWords, uiPrefs.reciter) { on, reciter -> if (on) reciter.recitationId else null }
+                .distinctUntilChanged()
+                .collectLatest { recitationId ->
+                    if (recitationId != null) WordTimingsStore.shared.load(recitationId, surahNumber)
+                }
+        }
     }
 
     private fun List<SurahWithAyahs>.findSurah(): SurahWithAyahs? = firstOrNull { it.surah.number == surahNumber }
@@ -627,6 +644,30 @@ class ReaderViewModel(
             }
             playback.nowPlaying.value != null && state.isPlaying -> startHere(index, autoplay = true)
             else -> readyIndex.value = index
+        }
+    }
+
+    /**
+     * A tap on a word of the ayah at [index] (F1a): its recitation goes on from the start of that word, [startMs] into the file. While
+     * the ayah sounds (or is paused halfway) the player moves to the word; in every other case the ayah starts at the word.
+     */
+    fun onWordTap(index: Int, startMs: Int) {
+        val ms = startMs.toLong()
+        selected.value = true
+        val state = playback.state.value
+        // The pause between two ayahs shows the ayah that has just ended: its player is done, so the tap starts that ayah again.
+        val sounding = isActive() && state.index == index && state.pauseRemainingSeconds == 0
+        when {
+            !isActive() -> {
+                startHere(index, autoplay = false)
+                playback.playAyahFrom(index, ms)
+            }
+            sounding && (state.isPlaying || state.isPreparing) -> playback.seekInAyah(ms)
+            sounding && state.canResume -> {
+                playback.seekInAyah(ms)
+                playback.toggle()
+            }
+            else -> playback.playAyahFrom(index, ms)
         }
     }
 

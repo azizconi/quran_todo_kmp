@@ -5,12 +5,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import tj.app.quran_todo.common.audio.ReaderAudioAyah
@@ -270,6 +272,46 @@ class PlaybackController internal constructor(
 
     fun select(index: Int) {
         if (_nowPlaying.value != null) session.select(index)
+    }
+
+    /**
+     * Where the ayah that sounds is, in milliseconds from the start of its file, read from the player at this very moment (the
+     * `positionMs` of [state] is refreshed only five times a second, too coarse to follow words). 0 when nothing is loaded.
+     */
+    fun positionMs(): Long = extras?.currentPositionMs() ?: 0L
+
+    /**
+     * The position of the player every [intervalMs] while it is collected: the clock of the word-by-word highlight. It reads the
+     * player, so collect it only while something that follows the words is on screen and audio plays.
+     */
+    fun positions(intervalMs: Long = WordClockIntervalMs): Flow<Long> = flow {
+        while (true) {
+            emit(positionMs())
+            delay(intervalMs)
+        }
+    }
+
+    /**
+     * Moves the ayah that plays (or is paused halfway) to [positionMs] of its file. An ayah that is being prepared starts there
+     * once it is ready; nothing happens when no ayah is loaded.
+     */
+    fun seekInAyah(positionMs: Long) {
+        val output = extras ?: return
+        if (_nowPlaying.value == null) return
+        if (session.state.value.isPreparing) output.startNextAt(positionMs) else output.seekTo(positionMs)
+    }
+
+    /**
+     * Plays the ayah at [index] starting at [positionMs] of its file ("play from this word"). Like [select] followed by [toggle], and
+     * the ayah begins at [positionMs] instead of its start.
+     */
+    fun playAyahFrom(index: Int, positionMs: Long) {
+        if (_nowPlaying.value == null) return
+        session.select(index)
+        session.toggle()
+        // After toggle(): the session has already stopped the player (which forgets an earlier start), and the ayah itself is
+        // started a moment later, when its file is ready.
+        extras?.startNextAt(positionMs)
     }
 
     fun updateSettings(prefs: SurahReaderPreferences, practice: ReaderPracticeSettings) {
@@ -533,5 +575,8 @@ class PlaybackController internal constructor(
         session.stopAfterAyah(limit)
     }
 }
+
+/** How often the word-by-word highlight asks the player where it is (about 16 times a second). */
+internal const val WordClockIntervalMs = 60L
 
 private fun applicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)

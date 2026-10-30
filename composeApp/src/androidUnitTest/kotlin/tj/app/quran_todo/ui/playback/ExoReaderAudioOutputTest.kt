@@ -18,8 +18,12 @@ class ExoReaderAudioOutputTest {
         var pauses = 0
         var stops = 0
         var lastSpeed = 1f
+        val seeks = mutableListOf<Long>()
         override fun load(source: String) {
             loaded += source
+        }
+        override fun seekTo(positionMs: Long) {
+            seeks += positionMs
         }
         override fun prepare() {
             prepares++
@@ -256,5 +260,74 @@ class ExoReaderAudioOutputTest {
         h.output.setPlaybackSpeed(0.1f)
         assertEquals(0.5f, h.engine.lastSpeed)
         assertTrue(DefaultRetryDelaysMs == listOf(1_000L, 2_000L))
+    }
+
+    // -- Seeking and starting inside an ayah (the tap on a word) --------------------------------
+
+    @Test
+    fun seekingMovesTheAyahThatIsLoaded() = runTest {
+        val h = Harness(backgroundScope)
+        h.play()
+        h.output.seekTo(4_200)
+        assertEquals(listOf(4_200L), h.engine.seeks)
+        h.output.seekTo(-5)
+        assertEquals(listOf(4_200L, 0L), h.engine.seeks, "never before the start")
+    }
+
+    @Test
+    fun nothingIsSoughtBeforeAnAyahIsLoadedOrAfterItEnded() = runTest {
+        val h = Harness(backgroundScope)
+        h.output.seekTo(1_000)
+        assertEquals(emptyList(), h.engine.seeks)
+        h.play()
+        h.engine.listener!!.onEnded()
+        // An ended player that is sought starts again: the ayah that is over must not.
+        h.output.seekTo(1_000)
+        assertEquals(emptyList(), h.engine.seeks)
+    }
+
+    @Test
+    fun aSampleIsNeverSought() = runTest {
+        val h = Harness(backgroundScope)
+        h.output.playSample("/cache/sample.mp3") {}
+        h.output.seekTo(1_000)
+        assertEquals(emptyList(), h.engine.seeks)
+    }
+
+    @Test
+    fun theNextAyahStartsWhereItWasAskedToAndOnlyOnce() = runTest {
+        val h = Harness(backgroundScope)
+        h.output.startNextAt(2_750)
+        h.play("/cache/a.mp3")
+        assertEquals(listOf(2_750L), h.engine.seeks)
+        h.play("/cache/b.mp3")
+        assertEquals(listOf(2_750L), h.engine.seeks, "the next ayah starts at its beginning")
+    }
+
+    @Test
+    fun anAyahThatStartsAtTheBeginningIsNotSought() = runTest {
+        val h = Harness(backgroundScope)
+        h.output.startNextAt(0)
+        h.play()
+        assertEquals(emptyList(), h.engine.seeks)
+    }
+
+    @Test
+    fun stoppingForgetsAnAskedStart() = runTest {
+        val h = Harness(backgroundScope)
+        h.output.startNextAt(2_750)
+        h.output.stop()
+        h.play()
+        assertEquals(emptyList(), h.engine.seeks)
+    }
+
+    @Test
+    fun thePositionIsTheOneOfThePlayerOnlyWhileAnAyahIsLoaded() = runTest {
+        val h = Harness(backgroundScope)
+        assertEquals(0L, h.output.currentPositionMs())
+        h.play()
+        assertEquals(250L, h.output.currentPositionMs())
+        h.engine.listener!!.onEnded()
+        assertEquals(0L, h.output.currentPositionMs())
     }
 }

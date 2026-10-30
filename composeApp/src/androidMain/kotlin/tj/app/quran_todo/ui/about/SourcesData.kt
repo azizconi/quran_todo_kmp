@@ -127,6 +127,30 @@ internal val SourceGroups: List<SourceGroup> = listOf(
                 url = "https://islamic.network",
                 note = SourceNote.ReciterRights,
             ),
+            SourceItem(
+                title = "Abdur-Rahman As-Sudais, Abu Bakr Ash-Shatri, Hani Ar-Rifai, Saud Ash-Shuraim",
+                provider = "$QuranCom · verses.quran.com",
+                url = "https://quran.com",
+                note = SourceNote.ReciterRights,
+            ),
+            SourceItem(
+                title = "Muhammad Al-Tablawi, Mahmoud Khalil Al-Husary (Muallim)",
+                provider = "quranicaudio.com · mirrors.quranicaudio.com",
+                url = "https://quranicaudio.com",
+                note = SourceNote.ReciterRights,
+            ),
+            SourceItem(
+                title = "Abdul Basit Abdus-Samad (Mujawwad), Muhammad Siddiq Al-Minshawi (Mujawwad)",
+                provider = "$QuranCom · verses.quran.com",
+                url = "https://quran.com",
+                note = SourceNote.ReciterRights,
+            ),
+            SourceItem(
+                title = "Word timings of the recitations (recitations, segments)",
+                author = "Quran Foundation",
+                provider = "$QuranCom · api.quran.com",
+                url = "https://quran.com",
+            ),
         ),
     ),
     SourceGroup(

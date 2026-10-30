@@ -1,5 +1,8 @@
 package tj.app.quran_todo.ui.reader
 
+import androidx.compose.runtime.Immutable
+import tj.app.quran_todo.common.audio.timing.wordRanges
+
 /** The Bismillah as the reader draws it on its own line above the first ayah. */
 const val BismillahText = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
 
@@ -33,6 +36,26 @@ const val RubElHizbSign = '\u06DE'
  */
 fun splitBismillah(surahNumber: Int, ayahNumberInSurah: Int, text: String): String =
     hideRubSign(cutBismillah(surahNumber, ayahNumberInSurah, text))
+
+/**
+ * The text of an ayah as the screens draw it and the words in it: [text] is what [splitBismillah] gives, [ranges] the character range of
+ * each word in reading order (what the word-by-word highlight and the tap on a word work with). The index of a range is the word index
+ * of the timing of the recitation.
+ */
+@Immutable
+class AyahWords(val text: String, val ranges: List<IntRange>) {
+    val wordCount: Int get() = ranges.size
+}
+
+/**
+ * [AyahWords] of the ayah [ayahNumberInSurah] of [surahNumber]: the display text of [splitBismillah] (the Bismillah of the first ayah
+ * is cut off, the rub el hizb sign is hidden) and the words of it. A token that has no letter (a pause mark that stands alone)
+ * is not a word. Checked against quran.com: the words of this text are the words of its recitation, one to one.
+ */
+fun displayWords(surahNumber: Int, ayahNumberInSurah: Int, text: String): AyahWords {
+    val shown = splitBismillah(surahNumber, ayahNumberInSurah, text)
+    return AyahWords(shown, wordRanges(shown))
+}
 
 /**
  * [text] without the rub el hizb sign and the space after it, for display. A text without the sign is returned as it is. The

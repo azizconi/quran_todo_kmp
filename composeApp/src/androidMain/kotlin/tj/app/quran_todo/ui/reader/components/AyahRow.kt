@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import tj.app.quran_todo.common.audio.timing.wordRanges
 import tj.app.quran_todo.data.database.entity.quran.AyahEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
 import tj.app.quran_todo.ui.components.AyahRosette
@@ -54,7 +55,10 @@ import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.pressable
+import tj.app.quran_todo.ui.playback.FollowedArabicText
+import tj.app.quran_todo.ui.playback.WordFollow
 import tj.app.quran_todo.ui.reader.AyahMarks
+import tj.app.quran_todo.ui.reader.AyahWords
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -114,6 +118,11 @@ fun AyahRow(
     /** The translation could not be loaded: "Translation not loaded · Retry" takes its place (first ayah only). */
     translationMissing: Boolean = false,
     onRetryTranslation: () -> Unit = {},
+    /**
+     * Word by word (F1a): given to the ayah that sounds, is paused halfway or was picked, and to no other. The word being recited gets
+     * a wash and the words can be tapped to play from them. Null for every other row, which is then drawn exactly as before.
+     */
+    follow: WordFollow? = null,
 ) {
     val colors = QhTheme.colors
     val reduced = LocalReducedMotion.current
@@ -200,13 +209,26 @@ fun AyahRow(
                 }
             }
             if (hifz == null) {
-                Text(
-                    text = model.arabic,
-                    style = arabicStyle,
-                    color = colors.ink,
-                    textAlign = TextAlign.Start,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                if (follow != null) {
+                    FollowedArabicText(
+                        surah = model.ayah.surahNumber,
+                        ayahInSurah = number,
+                        words = remember(model.arabic) { AyahWords(model.arabic, wordRanges(model.arabic)) },
+                        follow = follow,
+                        style = arabicStyle,
+                        color = colors.ink,
+                        textAlign = TextAlign.Start,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    Text(
+                        text = model.arabic,
+                        style = arabicStyle,
+                        color = colors.ink,
+                        textAlign = TextAlign.Start,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 if (!model.translation.isNullOrBlank()) {
                     Text(
                         text = model.translation,

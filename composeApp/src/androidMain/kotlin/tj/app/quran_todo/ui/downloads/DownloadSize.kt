@@ -27,6 +27,22 @@ import kotlin.math.roundToLong
  * | Minshawi (128) | 2856 | 2306 | 56.4 MiB |
  * | Abdul Basit (192) | 3762 | 3761 | 74.3 MiB |
  *
+ * The eight reciters that came with the quran.com recordings (task F1a, 2026-10-30) were measured the same way, from the
+ * `Content-Length` of the files on `verses.quran.com` and `mirrors.quranicaudio.com` (all 564 ayahs of Juz 30 and every ninth ayah of
+ * the rest, 630; no request failed). Their bitrates differ a lot (Ash-Shuraim is the smallest, Al-Minshawi mujawwad the largest),
+ * which is why the estimate needs a coefficient of its own for each:
+ *
+ * | reciter | bytes per character, surahs 78..114 | bytes per character, the rest | Juz 30, measured |
+ * |---|---|---|---|
+ * | Husary Muallim (128) | 4267 | 3866 | 84.2 MiB |
+ * | As-Sudais | 2849 | 2541 | 56.2 MiB |
+ * | Ash-Shatri | 2121 | 1978 | 41.9 MiB |
+ * | Ar-Rifai | 3041 | 3015 | 60.0 MiB |
+ * | Ash-Shuraim | 1528 | 1469 | 30.2 MiB |
+ * | At-Tablawi (128) | 3300 | 2380 | 65.1 MiB |
+ * | Abdul Basit mujawwad | 5121 | 4780 | 101.1 MiB |
+ * | Al-Minshawi mujawwad | 6035 | 6940 | 119.1 MiB |
+ *
  * The estimate of a juz or a surah outside Juz 30 can be off by 10-20% (the pace of a recitation changes from surah to surah); of a
  * large set (a plan, the whole Quran, about 1.6 GiB for Alafasy) by less. Inside Juz 30 the whole juz is exact (its coefficient is
  * its measured mean) and one surah is off by 11% on average (Alafasy) and by up to 37%: An-Nas is estimated at 404 KB and its six
@@ -52,6 +68,14 @@ internal object DownloadSize {
         "husary" to Coefficients(juzAmma = 3907.0, rest = 3467.0),
         "minshawi" to Coefficients(juzAmma = 2856.0, rest = 2306.0),
         "abdulbasit" to Coefficients(juzAmma = 3762.0, rest = 3761.0),
+        "husary_muallim" to Coefficients(juzAmma = 4267.0, rest = 3866.0),
+        "sudais" to Coefficients(juzAmma = 2849.0, rest = 2541.0),
+        "shatri" to Coefficients(juzAmma = 2121.0, rest = 1978.0),
+        "rifai" to Coefficients(juzAmma = 3041.0, rest = 3015.0),
+        "shuraym" to Coefficients(juzAmma = 1528.0, rest = 1469.0),
+        "tablawi" to Coefficients(juzAmma = 3300.0, rest = 2380.0),
+        "abdulbasit_mujawwad" to Coefficients(juzAmma = 5121.0, rest = 4780.0),
+        "minshawi_mujawwad" to Coefficients(juzAmma = 6035.0, rest = 6940.0),
     )
 
     /** Bytes per character of the recitation of [surah] by [reciter]. */

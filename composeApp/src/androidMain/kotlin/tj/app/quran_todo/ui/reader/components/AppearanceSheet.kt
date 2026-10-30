@@ -99,6 +99,7 @@ fun AppearanceSheet(
     val themeSwitcher = rememberThemeSwitcher()
     val uiPrefs = koinInject<UiPrefs>()
     val keepScreenOn by uiPrefs.keepScreenOn.collectAsState()
+    val highlightWords by uiPrefs.highlightWords.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val size = settings.readingFontSize.coerceIn(MinFontSize, MaxFontSize)
@@ -166,6 +167,12 @@ fun AppearanceSheet(
                     title = copy.translation,
                     checked = prefs.showTranslation,
                     onCheckedChange = onTranslation,
+                )
+                QhRowDivider(startIndent = QhSpacing.card)
+                QhSwitchRow(
+                    title = copy.highlightWords,
+                    checked = highlightWords,
+                    onCheckedChange = uiPrefs::setHighlightWords,
                 )
                 QhRowDivider(startIndent = QhSpacing.card)
                 QhSwitchRow(
