@@ -1,7 +1,6 @@
 package tj.app.quran_todo.ui.progress.components
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -21,6 +21,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +35,9 @@ import tj.app.quran_todo.ui.progress.JuzUi
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 import tj.app.quran_todo.ui.theme.tabular
+
+/** Room for "100%" at the largest font the layout is checked at, so that the bars of all the cells are equally long. */
+private val PercentWidth = 48.dp
 
 /** Above this font scale the juz go one to a row: two columns would squeeze the names. */
 private const val SingleColumnFontScale = 1.15f
@@ -94,6 +98,8 @@ private fun JuzCell(
             },
         verticalArrangement = Arrangement.Center,
     ) {
+        // The name of the juz and its traditional Arabic name on one line, the bar under them at the full width and the
+        // percentage at its end: every bar of a column is as long as the others, whatever the Arabic name is.
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = copy.juzName(item.juz),
@@ -101,14 +107,14 @@ private fun JuzCell(
                 color = colors.ink,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(1f),
             )
-            Box(Modifier.weight(1f))
             Text(
-                text = copy.percentText(item.percent),
-                style = type.label.tabular(),
-                color = if (item.percent >= 100) colors.learned else colors.inkSecondary,
+                text = item.arabicName,
+                style = arabic,
+                color = colors.inkSecondary,
                 maxLines = 1,
+                modifier = Modifier.padding(start = QhSpacing.x2),
             )
         }
         Spacer(Modifier.height(QhSpacing.x1))
@@ -121,11 +127,14 @@ private fun JuzCell(
                 trackColor = colors.surfaceMuted,
             )
             Text(
-                text = item.arabicName,
-                style = arabic,
-                color = colors.inkSecondary,
+                text = copy.percentText(item.percent),
+                style = type.label.tabular(),
+                color = if (item.percent >= 100) colors.learned else colors.inkSecondary,
                 maxLines = 1,
-                modifier = Modifier.padding(start = QhSpacing.x2),
+                textAlign = TextAlign.End,
+                modifier = Modifier
+                    .padding(start = QhSpacing.x2)
+                    .widthIn(min = PercentWidth),
             )
         }
     }

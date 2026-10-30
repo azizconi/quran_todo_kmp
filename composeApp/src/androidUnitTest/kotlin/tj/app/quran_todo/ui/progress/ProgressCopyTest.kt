@@ -170,9 +170,9 @@ class ProgressCopyTest {
     fun theTodayTileSaysDoneLeftOrNoLesson() {
         val ru = progressCopy(AppLanguage.RU)
         assertEquals("Урок выполнен", ru.todayText(TodayUi.Done))
-        assertEquals("Осталось 2 из 5", ru.todayText(TodayUi.Left(2, 5)))
+        assertEquals("Осталось 2\u00A0из\u00A05", ru.todayText(TodayUi.Left(2, 5)))
         assertEquals("Урока нет", ru.todayText(TodayUi.None))
-        assertEquals("2 of 5 left", progressCopy(AppLanguage.EN).todayText(TodayUi.Left(2, 5)))
+        assertEquals("2\u00A0of\u00A05 left", progressCopy(AppLanguage.EN).todayText(TodayUi.Left(2, 5)))
     }
 
     @Test
