@@ -89,8 +89,9 @@ val lessonUiModule = module {
 }
 
 val progressUiModule = module {
-    // The shared HomeViewModel comes in through Koin and is never put into a ViewModelStore.
-    viewModel { ProgressViewModel(home = get(), reviewDao = get()) }
+    // The progress is read from the HifzRepository (a Koin single of the common module), the day comes from the EpochDayTicker; the
+    // shared HomeViewModel only supplies the names of the surahs. None of them is ever put into a ViewModelStore.
+    viewModel { ProgressViewModel(home = get(), hifz = get(), ticker = get()) }
 }
 
 val settingsUiModule = module {

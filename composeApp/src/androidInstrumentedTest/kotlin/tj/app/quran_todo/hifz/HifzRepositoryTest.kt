@@ -530,6 +530,19 @@ class HifzRepositoryTest {
     }
 
     @Test
+    fun hardAyahsListsTheDifficultAyahsOfEverySurahInOneRead() = runBlocking {
+        assertTrue(repository.hardAyahs().first().isEmpty())
+        repository.completeNew(114, 1, 6, ReviewGrade.HARD, setOf(2, 5), day)
+        repository.completeNew(112, 1, 4, ReviewGrade.GOOD, emptySet(), day)
+        repository.logCheck(112, 1, 4, ReviewGrade.HARD, setOf(3), day + 1)
+        val hard = repository.hardAyahs().first()
+        assertEquals(setOf(112, 114), hard.keys)
+        assertEquals(setOf(2, 5), hard[114])
+        assertEquals(setOf(3), hard[112])
+        assertEquals(repository.surahCoverage(114).first().hardAyahs, hard[114])
+    }
+
+    @Test
     fun aDraftPlanForecastUsesTheCoveredAyahsButStoresNothing() = runBlocking {
         repository.completeNew(114, 1, 3, ReviewGrade.GOOD, emptySet(), day)
         val draft = tj.app.quran_todo.hifz.model.HifzPlan(

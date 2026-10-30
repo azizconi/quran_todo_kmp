@@ -464,6 +464,7 @@ private fun AppNavigation() {
                         ProgressScreen(
                             onBack = { navController.popOnce() },
                             onOpenReader = { navController.navigateOnce(it) },
+                            onOpenPlan = { navController.navigateOnce(Dest.Plan) },
                         )
                     }
                 }

@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The only folder the FileProvider of "Send a copy" can hand out: cache/transfer/ (TransferIo.SHARE_DIR). The backup file is
-  written there for an export and deleted at the next one. The cache is not part of Auto Backup.
+  The only folders the FileProvider can hand out, both in the cache (which is not part of Auto Backup):
+  - cache/transfer/ (TransferIo.SHARE_DIR): the backup file of "Send a copy", written for an export and deleted at the next one;
+  - cache/report/ (ReportShare.DIR): the picture of the progress report for the teacher, deleted when the next report is sent.
 -->
 <paths>
     <cache-path name="transfer" path="transfer/" />
+    <cache-path name="report" path="report/" />
 </paths>
