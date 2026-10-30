@@ -341,8 +341,28 @@ LessonItem(passageId, surah, startAyah, endAyah, stage, hardAyahs: Set<Int>, don
   - Reduce Motion — без перетекания и пульса.
 - **Аналитика**: `spotlight_shown` (`tour`), `spotlight_finished` (`tour`, `result` = done|skipped, `step`).
 
+### Джузы и метки мусхафа (D1)
+
+- **Общая таблица**: `ui/common/JuzIndex`:
+  - 30 джузов по границам колонки `juz` вшитого текста (`JuzIndexTest` сверяет все 6236 аятов);
+  - `range(juz)` — `JuzRange` с `ayahsOf(surah)`, `juzOf(surah, ayah)`, `ayahCount(juz)`;
+  - `coveredCount(juz, covered)` по `HifzRepository.coveredAyahs()` (покрытые аяты по сурам, одна подписка);
+  - `arabicName(juz)` — традиционные названия.
+- **Главный** (`ui/home/JuzRows.kt`, `components/JuzListRow.kt`):
+  - переключатель «Суры · Джузы» (`HomeTab`, `rememberSaveable`); фильтр статусов только у сур;
+  - строка джуза: медальон с долей выученного, «Джуз 30», арабское название, «Ан-Наба 1 — Ан-Нас 6 · 564 аята», «Выучено N из M»;
+  - поиск понимает «30», «джуз 30», «2:255», арабское название и суры джуза;
+  - касание → `Dest.Reader(startSurah, startAyah, origin = JuzRows.ORIGIN)`;
+  - `HomeUiViewModel` читает `coveredAyahs()` вместо `coveredCounts()`: счётчики по сурам выводятся из него.
+- **Ридер** (`ui/reader/MushafMarks.kt`, `components/MushafMarkViews.kt`, тексты — `ui/i18n/MushafCopy.kt`):
+  - `MushafMarks.build` считает метки один раз на суру: `AyahMarks` — джуз, четверть хизба, страница, саджда; `MushafPlace` — текущее место;
+  - шапка: «Джуз 2 · Хизб 3 · стр. 22» по верхнему видимому аяту (`derivedStateOf`);
+  - тихая строка над аятом, где начинается джуз, четверть хизба (`¼/½/¾ хизба 3`) или страница;
+  - саджда: значок-арка (`SajdaArch`, `Canvas`) и «Саджда · обязательная / желательная», касание — пояснение.
+  - Знак ۞ в интерфейсе не рисуется. Он есть в самом вшитом тексте: 199 аятов, начала четвертей хизба. Убирать ли его при показе — решение владельца.
+
 ### Что известно и ещё не сделано
 
 - `ProgressRestoreDao.replaceUserProgress` (восстановление старой копии из prefs) пишет только старые таблицы и не знает об отрывках: на Android его больше никто не вызывает (экран настроек работает через `replaceWithBackup`), на iOS он остаётся.
-- Пока старый UI пишет `surah_todo`/`ayah_todo` напрямую, эти записи после переноса не создают отрывков; ридер (B2) и главный (B3) уже на `HifzRepository`, остаётся «Прогресс» (D2).
+- Пока старый UI пишет `surah_todo`/`ayah_todo` напрямую, эти записи после переноса не создают отрывков; ридер (B2), главный (B3) и «Прогресс» (D2) уже на `HifzRepository`.
 
