@@ -29,10 +29,11 @@ internal fun selectEvictions(
 }
 
 /**
- * The audio files of the cache: one `.mp3` per ayah and reciter in [directory]. The size is limited:
+ * The audio files of the listening cache: one `.mp3` per ayah and reciter in [directory]. The size is limited:
  * when a newly written file takes the total over [limitBytes], the least recently used files go until
  * the total is at [EVICTION_TARGET_PERCENT] of the limit (so it does not rescan on every new file).
- * Files of the offline package are evicted like any other: they are downloaded again when needed.
+ * Audio that the person downloaded on purpose lives in another folder ([DownloadStorage]) and is never touched here.
+ * The files of the old offline package (before "Downloads and storage") stayed in this folder and are evicted like any other.
  *
  * "Used" is the file's modification time: it is refreshed on every cache hit by [markUsed].
  */

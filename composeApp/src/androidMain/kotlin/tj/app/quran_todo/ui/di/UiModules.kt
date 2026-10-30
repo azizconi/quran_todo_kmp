@@ -3,6 +3,8 @@ package tj.app.quran_todo.ui.di
 import org.koin.android.ext.koin.androidContext
 import org.koin.compose.viewmodel.dsl.viewModel
 import org.koin.dsl.module
+import tj.app.quran_todo.ui.downloads.DownloadsManager
+import tj.app.quran_todo.ui.downloads.DownloadsViewModel
 import tj.app.quran_todo.ui.hifz.HifzViewModel
 import tj.app.quran_todo.ui.home.HomeUiViewModel
 import tj.app.quran_todo.ui.lesson.LessonViewModel
@@ -92,8 +94,25 @@ val progressUiModule = module {
 }
 
 val settingsUiModule = module {
-    // The shared HomeViewModel and HifzRepository come in through Koin; the files of "Transfer and backup" through TransferIo.
-    viewModel { SettingsViewModel(home = get(), uiPrefs = get(), hifz = get(), io = TransferIo(androidContext())) }
+    // The HifzRepository comes in through Koin; the files of "Transfer and backup" through TransferIo.
+    viewModel { SettingsViewModel(uiPrefs = get(), hifz = get(), io = TransferIo(androidContext())) }
+}
+
+val downloadsUiModule = module {
+    // The queue, the files and the work scheduler of "Downloads and storage" are one single, shared with the worker (which finds it
+    // through Koin when WorkManager starts it). The shared Home view model (names of surahs), the HifzRepository (the plan), the
+    // text of the Quran and its metrics come in through the constructor, never through koinViewModel.
+    single { DownloadsManager.create(androidContext()) }
+    viewModel {
+        DownloadsViewModel(
+            manager = get(),
+            hifz = get(),
+            home = get(),
+            uiPrefs = get(),
+            quran = get(),
+            hifzDao = get(),
+        )
+    }
 }
 
 val onboardingUiModule = module {
@@ -132,6 +151,7 @@ val uiModules = listOf(
     lessonUiModule,
     progressUiModule,
     settingsUiModule,
+    downloadsUiModule,
     onboardingUiModule,
     whatsNewUiModule,
 )

@@ -8,18 +8,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.audio.Reciter
-import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.platform.AndroidContextHolder
 import tj.app.quran_todo.common.settings.SettingsChangeNotifier
 import tj.app.quran_todo.common.settings.SurahReaderPreferences
@@ -33,8 +28,6 @@ import tj.app.quran_todo.hifz.backup.BackupPreview
 import tj.app.quran_todo.hifz.backup.BackupSettings
 import tj.app.quran_todo.hifz.backup.VerifiedBackup
 import tj.app.quran_todo.hifz.backup.preview
-import tj.app.quran_todo.presentation.home.HomeUiState
-import tj.app.quran_todo.presentation.home.HomeViewModel
 import tj.app.quran_todo.ui.reminder.ReminderController
 import tj.app.quran_todo.ui.state.HifzHintMode
 import tj.app.quran_todo.ui.state.ReaderLayout
@@ -42,9 +35,6 @@ import tj.app.quran_todo.ui.state.UiPrefs
 
 /** Something the screen should tell the person with a toast or an Android screen. */
 internal sealed interface SettingsEvent {
-    data object OfflineStarted : SettingsEvent
-    data object QuranNotReady : SettingsEvent
-
     /** The copy is in the file the person chose. */
     data object ExportSaved : SettingsEvent
     data object ExportFailed : SettingsEvent
@@ -81,25 +71,9 @@ internal class ImportPrompt(
     fun copy(replacing: Boolean) = ImportPrompt(backup, preview, replacing)
 }
 
-/** The slice of [HomeUiState] the offline-download row draws. */
-internal data class OfflineProgress(
-    val running: Boolean,
-    val done: Int,
-    val total: Int,
-    val status: String?,
-)
-
-/** Maps the offline slice to what the row shows. */
-internal fun OfflineProgress.toUi(): OfflineUi = when {
-    running -> OfflineUi.Running(done, total)
-    status == "READY" -> OfflineUi.Ready
-    status == "PARTIAL" -> OfflineUi.Partial
-    else -> OfflineUi.Idle
-}
-
 /**
- * State and actions of the settings screen. The shared `HomeViewModel` (offline package) arrives through the constructor,
- * never through `koinViewModel`, so clearing this ViewModel does not touch it.
+ * State and actions of the settings screen. The shared view models and singletons arrive through the constructor, never through
+ * `koinViewModel`, so clearing this ViewModel does not touch them.
  *
  * Language, theme, palette, font and `AppSettings` are changed by the screen through the root's
  * `Local*Setter`s (so the whole UI follows at once); this class owns reader preferences, which have
@@ -111,7 +85,6 @@ internal fun OfflineProgress.toUi(): OfflineUi = when {
  * in [pendingSettings] until the screen has applied them through the root's setters.
  */
 internal class SettingsViewModel(
-    private val home: HomeViewModel,
     private val uiPrefs: UiPrefs,
     private val hifz: HifzRepository,
     private val io: TransferIo,
@@ -130,11 +103,6 @@ internal class SettingsViewModel(
 
     /** When a copy was last saved or sent (epoch milliseconds); null if never. */
     val lastExportAt: StateFlow<Long?> = uiPrefs.lastExportAt
-
-    val offline: StateFlow<OfflineProgress> = home.uiState
-        .map { it.offlineProgress() }
-        .distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), home.uiState.value.offlineProgress())
 
     private val _events = MutableSharedFlow<SettingsEvent>(extraBufferCapacity = 8)
     val events: SharedFlow<SettingsEvent> = _events.asSharedFlow()
@@ -195,16 +163,6 @@ internal class SettingsViewModel(
     fun setReaderLayout(value: ReaderLayout) = uiPrefs.setReaderLayout(value)
 
     fun setReciter(value: Reciter) = uiPrefs.setReciter(value)
-
-    fun startOfflineDownload(language: AppLanguage) {
-        if (home.uiState.value.completeQuran.isEmpty()) {
-            _events.tryEmit(SettingsEvent.QuranNotReady)
-            return
-        }
-        if (home.uiState.value.offlineDownloadRunning) return
-        home.startOfflinePackage(language)
-        _events.tryEmit(SettingsEvent.OfflineStarted)
-    }
 
     // ------------------------------------------------------------------------------------------------------------
     // Transfer and backup
@@ -343,11 +301,4 @@ internal class SettingsViewModel(
             }
         }
     }
-
-    private fun HomeUiState.offlineProgress() = OfflineProgress(
-        running = offlineDownloadRunning,
-        done = offlineDownloadDone,
-        total = offlineDownloadTotal,
-        status = offlineDownloadStatus,
-    )
 }

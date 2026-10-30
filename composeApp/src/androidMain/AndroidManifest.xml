@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- "Downloads and storage": the WorkManager work that downloads audio runs as a foreground service of type dataSync. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
@@ -52,6 +54,17 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
+        <!-- WorkManager's own foreground service: the download work (ui/downloads/DownloadWorker) calls setForeground with the type
+             dataSync, and Android 14+ needs the same type here. tools:node="merge" adds the type to the service of the library. -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+        <!-- The "Cancel" button of the download notification. Only our own notification starts it. -->
+        <receiver
+            android:name=".ui.downloads.DownloadActionReceiver"
+            android:enabled="true"
+            android:exported="false" />
         <!-- "Send a copy" (settings, Transfer and backup): the backup file is written to cache/transfer/ and handed to the
              chosen app by a read-only content uri; nothing else of the app is reachable through this provider. -->
         <provider
