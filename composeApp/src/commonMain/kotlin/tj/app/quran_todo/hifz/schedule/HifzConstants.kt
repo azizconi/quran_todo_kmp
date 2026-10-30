@@ -33,8 +33,17 @@ object HifzConstants {
     /** Turning to the card, opening, grading: seconds per card. */
     const val CARD_OVERHEAD_SECONDS = 15
 
-    /** A lesson never takes more than this (the estimate); the rest is moved to the next days. */
+    /**
+     * The budget of the **Recent** block of a lesson (the ladder R1...R30, the estimate): the repetitions that do not fit are
+     * moved to the next days. It does not cap the Old block (the manzil portion goes in whole) or the new passage.
+     */
     const val LESSON_BUDGET_MINUTES = 25
+
+    /**
+     * What the old circle should cost a day, in minutes (the estimate): [Manzil.suggestedDays] picks the length of the circle
+     * (`manzilDays`) that brings the daily portion of the manzil near it.
+     */
+    const val OLD_TARGET_MINUTES = 10
 
     // ---- Passages ----
 
@@ -55,6 +64,9 @@ object HifzConstants {
     const val MANZIL_DAYS_MIN = 3
     const val MANZIL_DAYS_MAX = 30
     const val MANZIL_DAYS_DEFAULT = 7
+
+    /** The suggested length of the circle ([Manzil.suggestedDays]) is never shorter than the default week and never longer than the maximum. */
+    const val MANZIL_DAYS_SUGGEST_MIN = MANZIL_DAYS_DEFAULT
 
     /** A surah of no more than `dailyNewAyahs * 1.5` ayahs that is not started is learned whole. */
     const val WHOLE_SURAH_FACTOR_NUM = 3 // 3 / 2 = 1.5

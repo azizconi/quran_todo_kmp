@@ -6,6 +6,8 @@ import tj.app.quran_todo.data.bundled.QuranDataException
 import tj.app.quran_todo.data.bundled.QuranFacts
 import tj.app.quran_todo.data.bundled.QuranTsvParser
 import tj.app.quran_todo.ui.reader.BismillahText
+import tj.app.quran_todo.ui.reader.RubElHizbSign
+import tj.app.quran_todo.ui.reader.cutBismillah
 import tj.app.quran_todo.ui.reader.splitBismillah
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -95,6 +97,28 @@ class QuranTsvParserTest {
         // Al-Fatiha and At-Tawbah are returned unchanged
         assertEquals(ayah(1, 1).text, splitBismillah(1, 1, ayah(1, 1).text))
         assertEquals(ayah(9, 1).text, splitBismillah(9, 1, ayah(9, 1).text))
+    }
+
+    @Test
+    fun theRubElHizbSignOpens199AyahsAndOnlyTheDisplayHidesIt() {
+        val withSign = quran.ayahs.filter { it.text.indexOf(RubElHizbSign) >= 0 }
+        assertEquals(199, withSign.size)
+        // Always the first character, followed by a space, once: that is what the display cleaning relies on.
+        assertTrue(withSign.all { it.text.startsWith("$RubElHizbSign ") && it.text.count { c -> c == RubElHizbSign } == 1 })
+        assertTrue(withSign.none { it.numberInSurah == 1 }, "no first ayah has both the sign and the Bismillah")
+        for (ayah in withSign) {
+            val shown = splitBismillah(ayah.surahNumber, ayah.numberInSurah, ayah.text)
+            assertEquals(ayah.text.removePrefix("$RubElHizbSign "), shown, "${ayah.surahNumber}:${ayah.numberInSurah}")
+            assertTrue(shown.isNotBlank())
+            // Copy and share: the text of the database, with the sign.
+            assertEquals(ayah.text, cutBismillah(ayah.surahNumber, ayah.numberInSurah, ayah.text))
+        }
+        // Nothing else is touched: an ayah without the sign is displayed as it was.
+        assertEquals(ayah(2, 2).text, splitBismillah(2, 2, ayah(2, 2).text))
+        // The two ayahs of the brief: 2:26 and 2:44.
+        assertFalse(splitBismillah(2, 26, ayah(2, 26).text).startsWith("$RubElHizbSign"))
+        assertTrue(ayah(2, 26).text.startsWith("$RubElHizbSign "))
+        assertFalse(splitBismillah(2, 44, ayah(2, 44).text).contains(RubElHizbSign))
     }
 
     @Test

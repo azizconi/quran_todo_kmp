@@ -9,6 +9,7 @@ import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.hifz.schedule.AyahMetric
 import tj.app.quran_todo.hifz.schedule.Coverage
 import tj.app.quran_todo.hifz.schedule.HifzConstants
+import tj.app.quran_todo.hifz.schedule.Manzil
 import tj.app.quran_todo.hifz.schedule.NewPassagePlanner
 import tj.app.quran_todo.hifz.schedule.PlanForecast
 import tj.app.quran_todo.hifz.schedule.TextMetrics
@@ -109,19 +110,27 @@ internal data class PlanDraft(
     }
 
     companion object {
-        /** A first plan: the last juz (the shortest surahs first), five ayahs a day. */
-        fun initial(): PlanDraft = PlanDraft(
+        /**
+         * A first plan: the last juz (the shortest surahs first), five ayahs a day, and a circle of the old of [manzilDays] days
+         * (the week by default; the screen passes [Manzil.suggestedDays] of the old weight, so someone who knows a lot starts
+         * with a circle that costs about ten minutes a day).
+         */
+        fun initial(manzilDays: Int = HifzConstants.MANZIL_DAYS_DEFAULT): PlanDraft = PlanDraft(
             scope = HifzScope.JUZ_30,
             customQueue = emptyList(),
             mode = PaceMode.PerDay,
             perDay = HifzConstants.DAILY_NEW_DEFAULT,
             targetDay = null,
-            manzilDays = HifzConstants.MANZIL_DAYS_DEFAULT,
+            manzilDays = manzilDays.coerceIn(HifzConstants.MANZIL_DAYS_MIN, HifzConstants.MANZIL_DAYS_MAX),
         )
 
-        /** The draft that shows [plan] (a preset only if the saved queue is exactly that preset). */
-        fun of(plan: HifzPlan?): PlanDraft {
-            plan ?: return initial()
+        /**
+         * The draft that shows [plan] (a preset only if the saved queue is exactly that preset). A saved plan keeps its own circle,
+         * whatever [suggestedManzilDays] says: it is never changed silently. Without a plan the circle starts at
+         * [suggestedManzilDays].
+         */
+        fun of(plan: HifzPlan?, suggestedManzilDays: Int = HifzConstants.MANZIL_DAYS_DEFAULT): PlanDraft {
+            plan ?: return initial(suggestedManzilDays)
             val isPreset = plan.scope != HifzScope.CUSTOM && plan.surahOrder == HifzPresets.order(plan.scope)
             return PlanDraft(
                 scope = if (isPreset) plan.scope else HifzScope.CUSTOM,
@@ -188,6 +197,25 @@ internal object PlanMath {
     fun oldPagesPerDay(oldWeight: Int, days: Int): Float? =
         if (oldWeight <= 0) null else oldWeight.toFloat() / HifzConstants.CHARS_PER_PAGE / days.coerceAtLeast(1)
 
+    /** About how many minutes a day the circle of [days] days takes ([Manzil.minutesPerDay]); null when nothing is OLD. */
+    fun oldMinutesPerDay(oldWeight: Int, days: Int): Int? = Manzil.minutesPerDay(oldWeight, days).takeIf { it > 0 }
+
+    /** A day of the circle longer than this many minutes (as shown) earns the soft hint to make the circle longer. */
+    const val OLD_HINT_MINUTES = 15
+
+    /**
+     * The hint under the circle slider: set when a day of the circle of [days] days takes more than [OLD_HINT_MINUTES] and a
+     * longer circle ([Manzil.suggestedDays]) would help. It only suggests, nothing is changed until the person taps the chip and
+     * saves.
+     */
+    fun oldHint(oldWeight: Int, days: Int): OldCircleHint? {
+        val minutes = oldMinutesPerDay(oldWeight, days) ?: return null
+        if (minutes <= OLD_HINT_MINUTES) return null
+        val suggested = Manzil.suggestedDays(oldWeight)
+        if (suggested <= days) return null
+        return OldCircleHint(minutesPerDay = minutes, suggestedDays = suggested, suggestedMinutes = Manzil.minutesPerDay(oldWeight, suggested))
+    }
+
     /**
      * The new passage [daily] ayahs would make of [surah], by the rule of the scheduler (`NewPassagePlanner`); [passages] are
      * the stored passages of that surah. Null when the whole surah is covered.
@@ -200,6 +228,12 @@ internal object PlanMath {
         return NewPassagePlanner.next(plan, Coverage(passages, metrics), metrics)
     }
 }
+
+/**
+ * "That is about 27 minutes a day. A circle of 20 days is about 10 minutes" and the chip "20 days" that sets the slider.
+ * [minutesPerDay] is the circle as it stands in the draft.
+ */
+internal data class OldCircleHint(val minutesPerDay: Int, val suggestedDays: Int, val suggestedMinutes: Int)
 
 /** What the forecast card says; the screen turns it into words. */
 internal sealed interface ForecastHeadline {
@@ -285,6 +319,10 @@ internal data class PlanUi(
     val estimate: PaceEstimate? = null,
     /** Pages of the mushaf per day of the manzil circle; null when nothing is memorized. */
     val oldPagesPerDay: Float? = null,
+    /** About how many minutes a day the circle of the draft takes; null when nothing is memorized. */
+    val oldMinutesPerDay: Int? = null,
+    /** The soft hint to make the circle longer; null when the circle is fine (or nothing is memorized). */
+    val oldHint: OldCircleHint? = null,
     /** A date to offer when the person switches to "finish by". */
     val suggestedTarget: Int = 0,
 )
@@ -323,12 +361,15 @@ internal object PlanUiBuilder {
             catalog = catalog,
             hasSavedPlan = saved != null,
             dirty = draft.differsFrom(saved),
-            edited = if (saved == null) draft != PlanDraft.initial() else draft.differsFrom(saved),
+            // The proposed first plan already has the circle suggested for what is memorized: that is not an edit.
+            edited = if (saved == null) draft != PlanDraft.initial(Manzil.suggestedDays(oldWeight)) else draft.differsFrom(saved),
             canSave = queue.isNotEmpty() && (draft.mode == PaceMode.PerDay || draft.targetDay != null),
             summary = ForecastSummary.of(draft, forecast, covered, today),
             perDay = PlanMath.effectivePerDay(draft, covered, today),
             estimate = estimate.takeIf { queue.isNotEmpty() },
             oldPagesPerDay = PlanMath.oldPagesPerDay(oldWeight, draft.manzilDays),
+            oldMinutesPerDay = PlanMath.oldMinutesPerDay(oldWeight, draft.manzilDays),
+            oldHint = PlanMath.oldHint(oldWeight, draft.manzilDays),
             suggestedTarget = PlanMath.suggestedTarget(PlanMath.remaining(queue, covered), draft.perDay, today),
         )
     }

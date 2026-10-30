@@ -64,13 +64,15 @@ data class LessonTomorrow(
  * The lesson of a day. The blocks are "New" ([newBlock]), "Recent" ([recent]) and "Old" ([old]).
  *
  * - [recent]: the repetitions done today first (in the order they were done), then the ones to do, the most overdue first.
- * - [old]: the portion of the manzil circle, in the order of the mushaf, done or not.
+ * - [old]: the whole portion of the manzil circle, in the order of the mushaf, done or not. The budget never cuts it.
  * - [newBlock]: null when there is nothing to learn (no plan, or the plan is finished and nothing was learned today).
  * - Time is the estimate (see [HifzConstants]); [totalMinutes] counts what is in the lesson (done and to do),
- *   [remainingMinutes] what is still to do. Both are rounded up.
- * - What did not fit into [HifzConstants.LESSON_BUDGET_MINUTES] is moved to the next days: [deferredCount] items
- *   (passages and the new block), [catchingUp] is true when there are any. The new block is deferred only behind a cut
- *   repetition; without a backlog it is in the lesson even if the total goes past the budget.
+ *   [remainingMinutes] what is still to do. Both are rounded up. [totalMinutes] may be past
+ *   [HifzConstants.LESSON_BUDGET_MINUTES]: the budget caps the Recent block only.
+ * - What did not fit into [HifzConstants.LESSON_BUDGET_MINUTES] of the **Recent** block is moved to the next days;
+ *   [deferredCount] counts those repetitions and the new block when it was deferred behind them, [catchingUp] is true when
+ *   there are any. The Old block never counts here. The new block is deferred only behind a cut repetition; without a
+ *   backlog it is in the lesson even if the total goes past the budget.
  * - [isComplete]: there is something in the lesson and all of it is done (deferred items do not count).
  * - [isEmpty]: nothing at all in the lesson (nothing due, no portion, nothing new).
  */
@@ -103,14 +105,18 @@ class LessonInput(
 /**
  * Builds the lesson from the state: pure, the same input gives the same lesson.
  *
- * The budget ([HifzConstants.LESSON_BUDGET_MINUTES]) caps the **repetitions**: Recent (the most overdue first) -> Old (the
- * manzil portion, the oldest first). A repetition that does not fit is moved to the next days, and so is everything after
- * it. What is done today is always in the lesson and takes its time from the budget first, so finishing a card never pulls
- * a deferred one in and never throws one out. The first repetition always fits: a lesson is not empty because of the budget.
+ * The budget ([HifzConstants.LESSON_BUDGET_MINUTES]) caps the **recent ladder** only (R1...R30): the most overdue
+ * repetition first, what does not fit is moved to the next days together with everything after it. What is done today
+ * is always in the lesson and takes its time from the budget first, so finishing a card never pulls a deferred one in and
+ * never throws one out. The first repetition always fits. The budget does not depend on the Old block or on the new
+ * passage, so the Recent block is the same before and after they are done.
  *
- * The new passage is moved to the next day **only when repetitions were cut** (a real backlog: the person has to catch up
- * first, whole passage deferred). When no repetition was cut it is in the lesson even if it takes the lesson past the
- * budget: the person chose that pace (a high `dailyNewAyahs` must not stop the learning for good).
+ * The **manzil portion** ([Manzil.portion]) goes into the lesson whole, done and not done: it is the promise that nothing
+ * learned is forgotten, and the length of the circle (`manzilDays`) is what keeps it small, not the budget.
+ *
+ * The new passage is moved to the next day **only when a recent repetition was cut** (a real backlog: the person has to catch
+ * up first, whole passage deferred). Otherwise it is in the lesson, even if the total goes past the budget: the person chose
+ * that pace, and an old circle that is long must not stop the learning for good.
  */
 object LessonBuilder {
     fun build(input: LessonInput): LessonPlan {
@@ -147,17 +153,18 @@ object LessonBuilder {
         val next = plan?.let { NewPassagePlanner.next(it, coverage, metrics) }
         val planFinished = plan != null && HifzStatuses.currentSurah(plan, coverage) == null
 
-        // --- Budget ---
+        // --- Budget: caps the Recent block only; Old goes in whole, New is deferred only behind a cut repetition ---
         fun reviewEstimate(p: Passage) = HifzConstants.reviewSeconds(metrics.weight(p))
 
+        // Everything in the lesson (for the total) and what is still to do (for the remaining time).
         var running = recentDone.sumOf { (p, _) -> reviewEstimate(p) } +
-            portion.items.filter { it.done }.sumOf { reviewEstimate(it.passage) }
-        var included = recentDone.size + portion.items.count { it.done }
+            portion.items.sumOf { reviewEstimate(it.passage) }
+        var remainingSeconds = portion.items.filter { !it.done }.sumOf { reviewEstimate(it.passage) }
+
         var newBlock: LessonNew? = null
         if (newToday != null) {
             val estimate = HifzConstants.newSeconds(metrics.chars(newToday.surah, newToday.startAyah, newToday.endAyah))
             running += estimate
-            included++
             newBlock = LessonNew(
                 surah = newToday.surah,
                 startAyah = newToday.startAyah,
@@ -168,34 +175,34 @@ object LessonBuilder {
                 estimateSeconds = estimate,
             )
         }
-        var remainingSeconds = 0
+
+        // The ladder: the time of its own cards (done ones first) against the budget, nothing else counts here.
+        var recentSeconds = recentDone.sumOf { (p, _) -> reviewEstimate(p) }
+        var recentIncluded = recentDone.size
         var deferred = 0
         var cutoff = false
-
-        fun accept(estimate: Int): Boolean {
-            if (!cutoff && (included == 0 || running + estimate <= HifzConstants.LESSON_BUDGET_SECONDS)) {
+        val recentAccepted = recentPending.filter { passage ->
+            val estimate = reviewEstimate(passage)
+            if (!cutoff && (recentIncluded == 0 || recentSeconds + estimate <= HifzConstants.LESSON_BUDGET_SECONDS)) {
+                recentSeconds += estimate
                 running += estimate
                 remainingSeconds += estimate
-                included++
-                return true
+                recentIncluded++
+                true
+            } else {
+                cutoff = true
+                deferred++
+                false
             }
-            cutoff = true
-            deferred++
-            return false
         }
-
-        val recentAccepted = recentPending.filter { accept(reviewEstimate(it)) }
-        val oldPending = portion.items.filter { !it.done }.sortedWith(Manzil.ITEM_PRIORITY)
-        val oldAcceptedIds = oldPending.filter { accept(reviewEstimate(it.passage)) }.map { it.passage.id }.toSet()
 
         if (newToday == null && next != null) {
             val estimate = HifzConstants.newSeconds(metrics.chars(next.surah, next.startAyah, next.endAyah))
-            // Deferred only behind a cut repetition (a backlog); otherwise it is in, whatever it does to the budget.
+            // Deferred only behind a cut repetition (a backlog); otherwise it is in, whatever it does to the total.
             val fits = !cutoff
             if (fits) {
                 running += estimate
                 remainingSeconds += estimate
-                included++
             } else {
                 deferred++
             }
@@ -226,9 +233,7 @@ object LessonBuilder {
 
         val recentItems = recentDone.map { (p, grade) -> item(p, done = true, grade = grade) } +
             recentAccepted.map { item(it, done = false, grade = null) }
-        val oldItems = portion.items
-            .filter { it.done || it.passage.id in oldAcceptedIds }
-            .map { item(it.passage, it.done, it.grade) }
+        val oldItems = portion.items.map { item(it.passage, it.done, it.grade) }
 
         val pendingNew = newBlock?.state == LessonNewState.PENDING
         val isEmpty = recentItems.isEmpty() && oldItems.isEmpty() &&

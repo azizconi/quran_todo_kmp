@@ -3,6 +3,7 @@ package tj.app.quran_todo.ui.onboarding
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -19,6 +20,7 @@ import tj.app.quran_todo.hifz.model.ReviewLogEntry
 import tj.app.quran_todo.hifz.model.SurahCoverage
 import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.hifz.schedule.LessonPlan
+import tj.app.quran_todo.hifz.schedule.Manzil
 import tj.app.quran_todo.hifz.schedule.PlanForecast
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,10 +34,15 @@ import kotlin.test.assertTrue
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class OnboardingFinisherTest {
-    /** Records every write; `markKnown` is idempotent like the real one (a covered surah is left alone). */
+    /**
+     * Records every write; `markKnown` is idempotent like the real one (a covered surah is left alone). The weight of the old
+     * grows with the surahs marked as known ([weightOfSurah] characters each), so a read of it before `markKnown` is seen.
+     */
     private class FakeHifz : HifzRepository {
         val calls = mutableListOf<String>()
         val known = linkedSetOf<Int>()
+        var weightOfSurah = 0
+        var failOldWeight = false
         var plan: HifzPlan? = null
         var failOn: String? = null
         var gate: CompletableDeferred<Unit>? = null
@@ -81,7 +88,10 @@ class OnboardingFinisherTest {
         override fun hardAyahs(): Flow<Map<Int, Set<Int>>> = error("unused")
         override fun surahCoverage(surah: Int): Flow<SurahCoverage> = error("unused")
         override fun reviewLog(fromDay: Int, toDay: Int): Flow<List<ReviewLogEntry>> = error("unused")
-        override fun oldWeight(): Flow<Int> = error("unused")
+        override fun oldWeight(): Flow<Int> = flow {
+            if (failOldWeight) error("boom: oldWeight")
+            emit(known.size * weightOfSurah)
+        }
         override suspend fun estimateMinutes(surah: Int, startAyah: Int, endAyah: Int, isNew: Boolean): Int = error("unused")
         override suspend fun completeNew(
             surah: Int, startAyah: Int, endAyah: Int, grade: ReviewGrade, hardAyahs: Set<Int>, today: Int,
@@ -197,5 +207,64 @@ class OnboardingFinisherTest {
         // The surahs were marked twice by the calls, but the repository leaves covered surahs alone: the state is the same.
         assertEquals(clean.known, repo.known)
         assertEquals(clean.plan, repo.plan)
+    }
+
+    // ---- the length of the circle of the old ----
+
+    @Test
+    fun theCircleIsSuggestedFromTheWeightOfWhatWasJustMarkedKnown() = runTest {
+        // Three known surahs of 11 000 characters each = 33 000 characters of old: a week would be ~29 minutes a day.
+        val repo = FakeHifz().apply { weightOfSurah = 11_000 }
+        val result = OnboardingFinisher(repo) { }.finish(OnboardingCommit(known = listOf(114, 113, 112), plan = plan), today)
+        assertEquals(FinishResult.Done, result)
+        assertEquals(Manzil.suggestedDays(33_000), repo.plan?.manzilDays)
+        assertEquals(20, repo.plan?.manzilDays)
+        assertTrue(Manzil.minutesPerDay(33_000, 20) in 9..11)
+    }
+
+    @Test
+    fun theWeightIsReadAfterMarkKnownNotBefore() = runTest {
+        // With nothing marked the weight is 0 (a week); after the three surahs it is big: the suggestion follows the later read.
+        val repo = FakeHifz().apply { weightOfSurah = 30_000 }
+        OnboardingFinisher(repo) { }.finish(OnboardingCommit(known = listOf(114, 113, 112), plan = plan), today)
+        assertEquals(30, repo.plan?.manzilDays, "90 000 characters: ten minutes would need more than a month, so the longest circle")
+    }
+
+    @Test
+    fun nothingKnownKeepsTheWeekCircle() = runTest {
+        val repo = FakeHifz().apply { weightOfSurah = 30_000 }
+        OnboardingFinisher(repo) { }.finish(OnboardingCommit(known = emptyList(), plan = plan), today)
+        assertEquals(7, repo.plan?.manzilDays)
+    }
+
+    @Test
+    fun aSmallKnownSetKeepsTheWeekCircle() = runTest {
+        // Al-Fatiha and a few short surahs: well under ten minutes a day even with a week.
+        val repo = FakeHifz().apply { weightOfSurah = 800 }
+        OnboardingFinisher(repo) { }.finish(OnboardingCommit(known = listOf(1, 114, 113, 112), plan = plan), today)
+        assertEquals(7, repo.plan?.manzilDays)
+    }
+
+    @Test
+    fun theReadPathDoesNotReadTheWeightEither() = runTest {
+        val repo = FakeHifz().apply { failOldWeight = true }
+        val result = OnboardingFinisher(repo) { }.finish(OnboardingCommit(known = emptyList(), plan = null), today)
+        assertEquals(FinishResult.Done, result)
+        assertTrue(repo.calls.isEmpty())
+    }
+
+    @Test
+    fun aFailedWeightReadFailsTheFinishAndALaterTryWorks() = runTest {
+        val repo = FakeHifz().apply { weightOfSurah = 11_000; failOldWeight = true }
+        var passed = 0
+        val finisher = OnboardingFinisher(repo) { passed++ }
+        val commit = OnboardingCommit(known = listOf(114, 113, 112), plan = plan)
+        assertIs<FinishResult.Failed>(finisher.finish(commit, today))
+        assertEquals(0, passed)
+        assertEquals(null, repo.plan)
+        repo.failOldWeight = false
+        assertEquals(FinishResult.Done, finisher.finish(commit, today))
+        assertEquals(1, passed)
+        assertEquals(20, repo.plan?.manzilDays)
     }
 }

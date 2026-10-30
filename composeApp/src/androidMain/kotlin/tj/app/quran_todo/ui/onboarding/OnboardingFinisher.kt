@@ -1,7 +1,9 @@
 package tj.app.quran_todo.ui.onboarding
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import tj.app.quran_todo.hifz.HifzRepository
+import tj.app.quran_todo.hifz.schedule.Manzil
 
 /** Everything the last screen writes. [plan] is null on the "Read and listen" path: no plan is made. */
 internal data class OnboardingCommit(
@@ -26,7 +28,10 @@ internal sealed interface FinishResult {
  * and only from the last screen. In one coroutine, in this order:
  *
  *  1. `markKnown` for each known surah (a whole surah; the ones already covered are left alone by the repository);
- *  2. `setPlan`;
+ *  2. `setPlan`, with the length of the circle of the old suggested for what was just marked: the weight of the OLD passages
+ *     (`oldWeight()`, read after `markKnown`) goes through [Manzil.suggestedDays], so a person who knows a lot does not start
+ *     with a week-long circle that takes an hour a day ([PlanToSave.manzilDays] is only the fallback of a plan made without
+ *     this step and is not used here);
  *  3. the "onboarding passed" flag ([markPassed]);
  *
  * and then the caller navigates. A failure at any point is reported and nothing after it runs; pressing again repeats the whole
@@ -47,12 +52,13 @@ internal class OnboardingFinisher(
         return try {
             commit.known.forEach { surah -> hifz.markKnown(surah = surah, today = today) }
             commit.plan?.let { plan ->
+                val manzilDays = Manzil.suggestedDays(hifz.oldWeight().first())
                 hifz.setPlan(
                     scope = plan.scope,
                     surahOrder = plan.surahOrder,
                     dailyNewAyahs = plan.dailyNewAyahs,
                     targetEpochDay = plan.targetEpochDay,
-                    manzilDays = plan.manzilDays,
+                    manzilDays = manzilDays,
                     today = today,
                 )
             }

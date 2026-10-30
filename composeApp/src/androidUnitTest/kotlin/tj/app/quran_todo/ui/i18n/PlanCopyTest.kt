@@ -127,4 +127,35 @@ class PlanCopyTest {
         assertEquals("Повторять всё выученное за 21 день", ru.oldTitle(21))
         assertEquals("Повторять всё выученное за 30 дней", ru.oldTitle(30))
     }
+
+    @Test
+    fun theHintOfALongCircleReadsLikeTheBriefInEveryLanguage() {
+        val ru = planCopy(AppLanguage.RU)
+        assertEquals("Это около 27 минут в день. Круг в 20 дней — около 10 минут.", ru.oldHint(27, 20, 10))
+        assertEquals("Это около 21 минуты в день. Круг в 21 день — около 11 минут.", ru.oldHint(21, 21, 11))
+        assertEquals("Это около 31 минуты в день. Круг в 22 дня — около 12 минут.", ru.oldHint(31, 22, 12))
+        assertEquals("Поставить круг в 20 дней", ru.oldSetDays(20))
+        assertEquals("20 дней", ru.daysLabel(20))
+        assertEquals("That is about 27 minutes a day. A circle of 20 days is about 10 minutes.", planCopy(AppLanguage.EN).oldHint(27, 20, 10))
+        assertEquals("Ин тақрибан 27 дақиқа дар як рӯз аст. Давра дар 20 рӯз — тақрибан 10 дақиқа.", planCopy(AppLanguage.TG).oldHint(27, 20, 10))
+        assertEquals("Bu kuniga taxminan 27 daqiqa. 20 kunlik doira — taxminan 10 daqiqa.", planCopy(AppLanguage.UZ).oldHint(27, 20, 10))
+        assertEquals("Bu günde yaklaşık 27 dakika. 20 günlük döngü yaklaşık 10 dakika sürer.", planCopy(AppLanguage.TR).oldHint(27, 20, 10))
+        for (language in AppLanguage.entries) {
+            val copy = planCopy(language)
+            for (text in listOf(copy.oldHint(27, 20, 10), copy.oldSetDays(20))) {
+                assertFalse(text.contains('{') || text.contains('}'), "${language.name}: $text")
+                assertTrue(text.contains("20"), "${language.name}: $text")
+            }
+            assertTrue(copy.oldHint(27, 20, 10).contains("27") && copy.oldHint(27, 20, 10).contains("10"), language.name)
+        }
+    }
+
+    @Test
+    fun theMinutesOfTheCircleADayReuseTheMinutesPattern() {
+        assertEquals("≈ 12 минут в день", planCopy(AppLanguage.RU).minutesPerDay(12))
+        assertEquals("≈ 12 minutes a day", planCopy(AppLanguage.EN).minutesPerDay(12))
+        assertEquals("≈ 12 дақиқа дар як рӯз", planCopy(AppLanguage.TG).minutesPerDay(12))
+        assertEquals("≈ kuniga 12 daqiqa", planCopy(AppLanguage.UZ).minutesPerDay(12))
+        assertEquals("≈ günde 12 dakika", planCopy(AppLanguage.TR).minutesPerDay(12))
+    }
 }

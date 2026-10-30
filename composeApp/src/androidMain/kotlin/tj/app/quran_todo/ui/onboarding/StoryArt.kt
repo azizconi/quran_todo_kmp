@@ -69,6 +69,7 @@ import tj.app.quran_todo.ui.components.Medallion
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.orSnap
+import tj.app.quran_todo.ui.reader.hideRubSign
 import tj.app.quran_todo.ui.settings.PreviewAyah
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
@@ -170,7 +171,7 @@ internal fun ReadArt(caption: String, ayahs: List<PreviewAyah>, fontStyle: Readi
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = ayah.text,
+                            text = hideRubSign(ayah.text),
                             style = QhTheme.type.quranBody(family, ayahSize),
                             color = colors.ink,
                             modifier = Modifier
@@ -369,7 +370,7 @@ internal fun MemorizeArt(ayah: PreviewAyah, fontStyle: ReadingFontStyle) {
             val veil = colors.surfaceStrong
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                 Text(
-                    text = ayah.text,
+                    text = hideRubSign(ayah.text),
                     style = QhTheme.type.quranBody(family, ayahSize),
                     color = colors.ink,
                     textAlign = TextAlign.Center,

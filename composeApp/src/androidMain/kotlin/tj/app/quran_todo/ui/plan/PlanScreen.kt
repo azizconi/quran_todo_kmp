@@ -511,11 +511,43 @@ private fun OldSection(ui: PlanUi, copy: PlanCopy, viewModel: PlanViewModel) {
         modifier = Modifier.semantics { contentDescription = copy.oldTitle(days) },
     )
     val pages = ui.oldPagesPerDay
+    val minutes = ui.oldMinutesPerDay
+    // "≈ 1,5 pages a day · ≈ 12 minutes a day": the size of the portion and what it costs.
     Text(
-        text = if (pages != null) copy.oldPages(pages) else copy.oldNone,
+        text = when {
+            pages == null -> copy.oldNone
+            minutes == null -> copy.oldPages(pages)
+            else -> "${copy.oldPages(pages)} · ${copy.minutesPerDay(minutes)}"
+        },
         style = QhTheme.type.callout.tabular(),
         color = QhTheme.colors.inkSecondary,
     )
+    // A long day of the old circle: only a hint and a chip that moves the slider; nothing is saved by it.
+    ui.oldHint?.let { hint ->
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(colors.surfaceMuted, QhTheme.shapes.md)
+                .padding(QhSpacing.x3),
+            verticalArrangement = Arrangement.spacedBy(QhSpacing.x3),
+        ) {
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(QhSpacing.x2)) {
+                Icon(Icons.Rounded.Schedule, contentDescription = null, tint = colors.inkSecondary, modifier = Modifier.size(QhSpacing.iconInline))
+                Text(
+                    text = copy.oldHint(hint.minutesPerDay, hint.suggestedDays, hint.suggestedMinutes),
+                    style = QhTheme.type.callout,
+                    color = colors.ink,
+                )
+            }
+            QhButton(
+                text = copy.daysLabel(hint.suggestedDays),
+                onClick = viewModel::applySuggestedManzilDays,
+                variant = QhButtonVariant.Tonal,
+                size = QhButtonSize.S,
+                modifier = Modifier.semantics { contentDescription = copy.oldSetDays(hint.suggestedDays) },
+            )
+        }
+    }
 }
 
 // -- Forecast -------------------------------------------------------------------------------------

@@ -5,8 +5,10 @@ import tj.app.quran_todo.hifz.model.PassageStage
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.hifz.model.ReviewKind
 import tj.app.quran_todo.hifz.model.ReviewLogEntry
+import tj.app.quran_todo.hifz.schedule.HifzConstants
 import tj.app.quran_todo.hifz.schedule.Manzil
 import tj.app.quran_todo.hifz.schedule.PassageOps
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -39,6 +41,83 @@ class ManzilTest {
         assertEquals(84, Manzil.quota(2500, 30))
         assertEquals(1, Manzil.quota(1, 30))
         assertEquals(0, Manzil.quota(0, 7))
+    }
+
+    // ---- the length of the circle ----
+
+    // Weights of the real text (in characters): Juz Amma 22 102, Juz Amma + Tabarak 46 610, Juz Amma + Al-Baqarah 78 810.
+    private val juzAmma = 22_102
+    private val ammaAndTabarak = 46_610
+    private val ammaAndBaqarah = 78_810
+
+    @Test
+    fun noOldMeansNoMinutesAndTheDefaultWeek() {
+        assertEquals(0, Manzil.minutesPerDay(0, 7))
+        assertEquals(0, Manzil.minutesPerDay(-5, 7))
+        assertEquals(7, Manzil.suggestedDays(0))
+        assertEquals(7, Manzil.suggestedDays(-1))
+    }
+
+    @Test
+    fun minutesAreAboutTheTableOfTheBrief() {
+        // Juz Amma: ~20 / ~10 / ~5 minutes for 7 / 14 / 30 days; with Al-Baqarah ~69 / ~35 / ~16; with Tabarak ~42 / ~21 / ~10.
+        assertEquals(listOf(19, 10, 5), listOf(7, 14, 30).map { Manzil.minutesPerDay(juzAmma, it) })
+        assertEquals(listOf(69, 34, 16), listOf(7, 14, 30).map { Manzil.minutesPerDay(ammaAndBaqarah, it) })
+        assertEquals(listOf(41, 20, 10), listOf(7, 14, 30).map { Manzil.minutesPerDay(ammaAndTabarak, it) })
+    }
+
+    @Test
+    fun aSmallOldIsOneMinuteAtLeastAndNeverZero() {
+        assertEquals(1, Manzil.minutesPerDay(1, 30))
+        assertEquals(1, Manzil.minutesPerDay(285, 7)) // Al-Fatiha alone
+    }
+
+    @Test
+    fun theEstimateOfADayFollowsReviewSecondsPerCardOfAboutAPage() {
+        // One card: exactly reviewSeconds of the day's characters.
+        assertEquals(HifzConstants.reviewSeconds(1_000), Manzil.dailySeconds(7_000, 7))
+        // 22 102 / 7 = 3 158 characters a day: three cards of 1 053, the overhead is paid three times.
+        assertEquals(3 * HifzConstants.reviewSeconds(1_053), Manzil.dailySeconds(juzAmma, 7))
+        assertEquals(0, Manzil.dailySeconds(0, 7))
+    }
+
+    @Test
+    fun aLongerCircleNeverCostsMoreADay() {
+        for (weight in listOf(1, 285, 5_000, juzAmma, ammaAndBaqarah, 300_000)) {
+            val minutes = (3..30).map { Manzil.minutesPerDay(weight, it) }
+            assertEquals(minutes.sortedDescending(), minutes, "weight $weight: $minutes")
+        }
+    }
+
+    @Test
+    fun theSuggestedCircleBringsADayNearTenMinutes() {
+        assertEquals(14, Manzil.suggestedDays(juzAmma))
+        assertEquals(10, Manzil.minutesPerDay(juzAmma, Manzil.suggestedDays(juzAmma)))
+        assertEquals(29, Manzil.suggestedDays(ammaAndTabarak))
+        assertEquals(10, Manzil.minutesPerDay(ammaAndTabarak, Manzil.suggestedDays(ammaAndTabarak)))
+        assertEquals(20, Manzil.suggestedDays(33_000))
+        assertEquals(10, Manzil.minutesPerDay(33_000, 20))
+    }
+
+    @Test
+    fun theSuggestionStaysBetweenAWeekAndAMonth() {
+        assertEquals(7, Manzil.suggestedDays(285), "a small circle is a week: less than ten minutes already")
+        assertEquals(7, Manzil.suggestedDays(10_000))
+        assertEquals(30, Manzil.suggestedDays(ammaAndBaqarah), "ten minutes would need more than 30 days")
+        assertEquals(30, Manzil.suggestedDays(2_000_000))
+    }
+
+    @Test
+    fun theSuggestionIsTheNearestLengthToTheTarget() {
+        val target = HifzConstants.OLD_TARGET_MINUTES * 60
+        for (weight in listOf(1, 3_000, 8_000, 12_000, 17_000, juzAmma, 33_000, 41_000, ammaAndTabarak, ammaAndBaqarah)) {
+            val suggested = Manzil.suggestedDays(weight)
+            assertTrue(suggested in 7..30, "$weight -> $suggested")
+            val gap = abs(Manzil.dailySeconds(weight, suggested) - target)
+            for (days in 7..30) {
+                assertTrue(gap <= abs(Manzil.dailySeconds(weight, days) - target), "weight $weight: $suggested is not nearer than $days")
+            }
+        }
     }
 
     @Test
