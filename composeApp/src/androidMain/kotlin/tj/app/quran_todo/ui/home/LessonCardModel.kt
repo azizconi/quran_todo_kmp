@@ -2,6 +2,7 @@ package tj.app.quran_todo.ui.home
 
 import androidx.compose.runtime.Immutable
 import tj.app.quran_todo.hifz.model.AyahRange
+import tj.app.quran_todo.hifz.schedule.HifzConstants
 import tj.app.quran_todo.hifz.schedule.LessonNewState
 import tj.app.quran_todo.hifz.schedule.LessonPlan
 
@@ -39,9 +40,22 @@ data class LessonLineUi(
     val endAyah: Int,
     val count: Int,
     val doneCount: Int,
+    /** The Old line only: every passage of the portion was listened to today ("Listened"), which changes nothing else. */
+    val listened: Boolean = false,
 ) {
     val done: Boolean get() = doneCount >= count
 }
+
+/**
+ * "Listen to the old" (task F1b) on the card: today's portion of the manzil circle as audio. [minutes] is about how long the whole
+ * portion takes to listen to once; [listened] says each passage has a "listened" record today (the card says "Listened").
+ */
+@Immutable
+data class OldListenUi(
+    val passages: Int,
+    val minutes: Int,
+    val listened: Boolean,
+)
 
 /** What waits tomorrow: the next new passage (null if none) and how many repetitions are due. */
 @Immutable
@@ -65,12 +79,14 @@ data class LessonCardUi(
     /** Part of the lesson did not fit into the budget and moved to the next days. */
     val catchingUp: Boolean = false,
     val tomorrow: LessonTomorrowUi? = null,
+    /** The portion of the circle as audio; null when today's portion has no passages. */
+    val oldListen: OldListenUi? = null,
 )
 
 /** Builds the card model from the lesson. Pure. */
 internal object LessonCardBuilder {
     /** [nameOf] gives the name of a surah in the language of the app. */
-    fun build(lesson: LessonPlan, nameOf: (Int) -> String): LessonCardUi {
+    fun build(lesson: LessonPlan, listenedToday: Set<Long> = emptySet(), nameOf: (Int) -> String): LessonCardUi {
         val tomorrow = tomorrowOf(lesson, nameOf)
         if (lesson.isEmpty) {
             val state = when {
@@ -81,6 +97,7 @@ internal object LessonCardBuilder {
             }
             return LessonCardUi(state = state, tomorrow = tomorrow.takeIf { state == LessonCardState.Done })
         }
+        val oldListen = oldListenOf(lesson, listenedToday)
 
         val lines = buildList {
             lesson.newBlock?.takeIf { it.state != LessonNewState.DEFERRED }?.let { block ->
@@ -119,6 +136,7 @@ internal object LessonCardBuilder {
                         endAyah = head.endAyah,
                         count = lesson.old.size,
                         doneCount = lesson.old.count { it.done },
+                        listened = oldListen?.listened == true,
                     ),
                 )
             }
@@ -135,6 +153,22 @@ internal object LessonCardBuilder {
             minutes = if (state == LessonCardState.Done) 0 else lesson.remainingMinutes.coerceAtLeast(1),
             catchingUp = lesson.catchingUp,
             tomorrow = tomorrow.takeIf { state == LessonCardState.Done },
+            oldListen = oldListen,
+        )
+    }
+
+    /**
+     * The portion of the circle as audio: its passages (done ones too: listening is a help for the recall of any of them) and
+     * the minutes of one calm recitation of them all. Null without passages. Display only: it reads the lesson and changes nothing.
+     */
+    fun oldListenOf(lesson: LessonPlan, listenedToday: Set<Long>): OldListenUi? {
+        val old = lesson.old
+        if (old.isEmpty()) return null
+        val seconds = old.sumOf { it.listenSeconds }
+        return OldListenUi(
+            passages = old.size,
+            minutes = HifzConstants.minutes(seconds).coerceAtLeast(1),
+            listened = old.all { it.passageId in listenedToday },
         )
     }
 

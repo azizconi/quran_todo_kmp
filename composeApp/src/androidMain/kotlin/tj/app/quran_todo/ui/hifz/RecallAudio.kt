@@ -23,8 +23,15 @@ data class RecallAudioState(
     /** Paused in the middle of the sound. */
     val paused: Boolean = false,
     val hasError: Boolean = false,
+    /** Seconds left of the silence after a reading (the echo silence, "Your turn"); 0 when there is none. */
+    val silenceSeconds: Int = 0,
+    /** The whole of that silence: the ring around play is full at this and empty at 0. */
+    val silenceTotalSeconds: Int = 0,
 ) {
     val active: Boolean get() = ayah != null && (playing || paused)
+
+    /** The reciter is silent and it is the person's turn to repeat. */
+    val yourTurn: Boolean get() = active && silenceSeconds > 0
 
     companion object {
         val Idle = RecallAudioState()
@@ -62,6 +69,8 @@ class RecallAudio(
                 playing = audio.isPlaying || audio.isPreparing,
                 paused = audio.canResume && !audio.isPlaying,
                 hasError = audio.hasError,
+                silenceSeconds = audio.pauseRemainingSeconds,
+                silenceTotalSeconds = audio.pauseTotalSeconds,
             )
         }
     }
@@ -94,20 +103,20 @@ class RecallAudio(
 
     /**
      * Plays the ayahs [inSurah] (numbers in the surah, repeats allowed) in this order; while it is on, calling this
-     * again pauses and resumes it instead.
+     * again pauses and resumes it instead. With [echo] every reading is followed by the echo silence (task F1b).
      */
-    fun toggleSequence(surah: SurahWithAyahs, inSurah: List<Int>) {
+    fun toggleSequence(surah: SurahWithAyahs, inSurah: List<Int>, echo: Boolean = false) {
         if (state.value.active) {
             playback.toggle()
             return
         }
-        begin(surah, inSurah)
+        begin(surah, inSurah, echo)
     }
 
     /** Starts the sequence over, whatever the audio is doing. */
-    fun restartSequence(surah: SurahWithAyahs, inSurah: List<Int>) = begin(surah, inSurah)
+    fun restartSequence(surah: SurahWithAyahs, inSurah: List<Int>, echo: Boolean = false) = begin(surah, inSurah, echo)
 
-    private fun begin(surah: SurahWithAyahs, inSurah: List<Int>) {
+    private fun begin(surah: SurahWithAyahs, inSurah: List<Int>, echo: Boolean = false) {
         val ayahs = surah.ayahs.sortedBy { it.numberInSurah }
         val indices = inSurah.mapNotNull { number -> ayahs.indexOfFirst { it.numberInSurah == number }.takeIf { it >= 0 } }
         if (indices.isEmpty()) return
@@ -115,7 +124,7 @@ class RecallAudio(
             SurahReaderPreferences.load(),
             ReaderPracticeSettings.load(surahNumber, ayahs.size),
         )
-        playback.playSequence(surah, indices, saved.prefs)
+        playback.playSequence(surah, indices, saved.prefs, echo = echo)
         // Set only now: while the sequence starts the audio state passes through "idle" and would look like the end.
         ours.value = saved
         seenPlaying = false

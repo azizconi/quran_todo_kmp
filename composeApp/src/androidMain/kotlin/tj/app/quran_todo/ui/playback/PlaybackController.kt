@@ -24,6 +24,39 @@ import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
 /** What the mini player and the reader dock show: the surah that currently owns the audio session. */
 data class NowPlaying(val surahNumber: Int, val ayahs: List<ReaderAudioAyah>)
 
+/**
+ * One passage of the listening queue ("Listen to the old", task F1b): the ayahs [startAyah]..[endAyah] (numbers in the surah) of
+ * [surah]. [passageId] is the stored passage it comes from (what "I repeated it by ear" is written for); [seconds] is one calm
+ * recitation, only for the estimates the screens show.
+ */
+data class ListenItem(
+    val passageId: Long,
+    val surah: Int,
+    val startAyah: Int,
+    val endAyah: Int,
+    val seconds: Int = 0,
+)
+
+/**
+ * The listening queue: passages of different surahs one after another, with the reciter and the speed of the person.
+ * [position] is the passage that plays (or stands paused) now; [heard] are the positions that were read to the end at least once
+ * (the ones "I repeated it by ear" is written for); [finished] says the last passage has ended (or the person pressed "Done").
+ * [echo] reads every ayah with its silence for the person to repeat after the reciter ([echoRepeats] times).
+ */
+data class ListenQueue(
+    val items: List<ListenItem>,
+    val position: Int,
+    val echo: Boolean,
+    val echoRepeats: Int = 1,
+    val heard: Set<Int> = emptySet(),
+    val finished: Boolean = false,
+) {
+    val current: ListenItem? get() = items.getOrNull(position)
+
+    /** The passages the person has heard to the end, in the order of the queue. */
+    val heardItems: List<ListenItem> get() = heard.sorted().mapNotNull { items.getOrNull(it) }
+}
+
 /** When playback should pause by itself. */
 sealed interface SleepTimer {
     data object Off : SleepTimer
@@ -65,6 +98,11 @@ class PlaybackController internal constructor(
     private val serviceLink: PlaybackServiceLink? = null,
     private val extras: OutputExtras? = null,
 ) {
+    init {
+        // The end of a passage of the listening queue goes on with the next one without the session going idle.
+        session.onSequenceEnd = ::onQueueSequenceEnded
+    }
+
     // Created on first use: tests that never arm a timer must not touch Dispatchers.Main.
     private val scope: CoroutineScope by lazy { timerScope ?: applicationScope() }
 
@@ -86,6 +124,20 @@ class PlaybackController internal constructor(
     /** Seconds left of a [SleepTimer.Minutes] timer, 0 for the other timers. */
     val sleepRemainingSeconds: StateFlow<Int> = _sleepRemainingSeconds.asStateFlow()
 
+    private val _listenQueue = MutableStateFlow<ListenQueue?>(null)
+
+    /**
+     * The listening queue ("Listen to the old") while there is one, null otherwise. It is dropped by [stop] and by anything
+     * else that takes the session over ([start], [playSequence]); opening a reader leaves it alone.
+     */
+    val listenQueue: StateFlow<ListenQueue?> = _listenQueue.asStateFlow()
+
+    private var queueSurahs: ((Int) -> SurahWithAyahs?)? = null
+    private var queuePrefs = SurahReaderPreferences()
+
+    /** The queue is moving to its next passage: the audio is not idle in between. */
+    private var queueSwitching = false
+
     private var sleepJob: Job? = null
     private var reciterJob: Job? = null
     private var idleJob: Job? = null
@@ -104,6 +156,17 @@ class PlaybackController internal constructor(
         fromIndex: Int,
         autoplay: Boolean = true,
     ) {
+        _listenQueue.value = null
+        startBound(surah, prefs, practice, fromIndex, autoplay)
+    }
+
+    private fun startBound(
+        surah: SurahWithAyahs,
+        prefs: SurahReaderPreferences,
+        practice: ReaderPracticeSettings,
+        fromIndex: Int,
+        autoplay: Boolean,
+    ) {
         val index = bind(surah, prefs, practice, fromIndex) ?: return
         session.select(index)
         if (autoplay) session.toggle()
@@ -116,16 +179,19 @@ class PlaybackController internal constructor(
      * the ayah being played. Nothing the person saved is touched: the repeat, range and pause settings are not
      * consulted (only [prefs] for the speed), and the next [start] of any reader puts its own settings back.
      * Pause, resume, previous and next work on the sequence; [select] or [start] end it. An empty list does nothing.
+     * With [echo] (the lesson's "I repeat after the reciter") every reading of the sequence is followed by the echo silence.
      */
     fun playSequence(
         surah: SurahWithAyahs,
         ayahIndices: List<Int>,
         prefs: SurahReaderPreferences,
         autoplay: Boolean = true,
+        echo: Boolean = false,
     ) {
         val first = ayahIndices.firstOrNull() ?: return
+        _listenQueue.value = null
         // The practice is plain on purpose (no passage, no pause); the preferences must not advance by themselves.
-        val plain = ReaderPracticeSettings(rangeEnabled = false, startAyah = 1, endAyah = 1, pauseSeconds = 0)
+        val plain = ReaderPracticeSettings(rangeEnabled = false, startAyah = 1, endAyah = 1, pauseSeconds = 0, echo = echo)
         val index = bind(surah, prefs.copy(autoAdvanceAyahs = false, repeatCount = 1), plain, first) ?: return
         session.select(index)
         if (autoplay) session.playScript(ayahIndices)
@@ -145,6 +211,8 @@ class PlaybackController internal constructor(
         serviceLink?.ensureConnected()
         watchReciter()
         watchIdle()
+        // The old passages of the listening queue are not a place to "continue" from.
+        session.savesPosition = _listenQueue.value == null
         val index = fromIndex.coerceIn(ayahs.indices)
         // Starting is always explicit here, so the "autoplay when a reader opens" preference must not
         // make configure() begin playback before the position is chosen.
@@ -161,15 +229,43 @@ class PlaybackController internal constructor(
     }
 
     fun toggle() {
-        if (_nowPlaying.value != null) session.toggle()
+        if (_nowPlaying.value == null) return
+        val queue = _listenQueue.value
+        if (queue != null && queue.finished && !session.state.value.isPlaying && !session.state.value.canResume) {
+            // The queue was over (or ended with "Done"): play restarts the last passage.
+            if (playQueueItem(queue.position)) return
+        }
+        session.toggle()
     }
 
+    /**
+     * Next ayah. In the listening queue the last ayah of a passage goes on to the next passage (a headset's "next" and its double
+     * press are the same command to Media3, so the double press cannot mean "next passage" on its own).
+     */
     fun next() {
-        if (_nowPlaying.value != null) session.next()
+        if (_nowPlaying.value == null) return
+        val queue = _listenQueue.value
+        val item = queue?.current
+        if (queue != null && item != null && session.state.value.index >= item.endAyah - 1) {
+            nextListenItem()
+        } else {
+            session.next()
+        }
     }
 
+    /**
+     * Previous ayah. In the listening queue the first ayah of a passage goes back to the passage before it (the first passage
+     * plays its first ayah again).
+     */
     fun previous() {
-        if (_nowPlaying.value != null) session.previous()
+        if (_nowPlaying.value == null) return
+        val queue = _listenQueue.value
+        val item = queue?.current
+        if (queue != null && item != null && queue.position > 0 && session.state.value.index <= item.startAyah - 1) {
+            previousListenItem()
+        } else {
+            session.previous()
+        }
     }
 
     fun select(index: Int) {
@@ -177,9 +273,16 @@ class PlaybackController internal constructor(
     }
 
     fun updateSettings(prefs: SurahReaderPreferences, practice: ReaderPracticeSettings) {
-        if (_nowPlaying.value != null) {
-            session.updateSettings(prefs.copy(autoplayOnOpen = false), practice)
+        if (_nowPlaying.value == null) return
+        val queue = _listenQueue.value
+        val item = queue?.current
+        if (queue != null && item != null) {
+            // A reader's own repeat and pause settings must not break the passage of the queue; only the speed is taken.
+            queuePrefs = prefs
+            session.updateSettings(prefs.copy(autoplayOnOpen = false, repeatCount = 1), queuePractice(queue, item))
+            return
         }
+        session.updateSettings(prefs.copy(autoplayOnOpen = false), practice)
     }
 
     /**
@@ -235,9 +338,127 @@ class PlaybackController internal constructor(
 
     /** Stops the audio, cancels the sleep timer and hides the mini player. */
     fun stop() {
+        _listenQueue.value = null
         session.stop()
         _nowPlaying.value = null
         if (_sleepTimer.value != SleepTimer.Off) setSleepTimer(SleepTimer.Off)
+    }
+
+    // -- The listening queue ("Listen to the old", task F1b) ---------------------------------------------------------
+
+    /**
+     * Plays [items] (passages of different surahs) one after another from [fromPosition], with the reciter and the speed of
+     * the person ([prefs]); each passage is played once, or with the echo silences when [echo] is on. [loadSurah] gives the
+     * text of a surah (it only needs the ayah numbers; a surah it cannot give is skipped). The queue keeps going when the
+     * screen is left, in the background, with the notification showing the surah and the ayah; it ends by itself after the last
+     * passage ([ListenQueue.finished]) and is dropped by [stop] or by any other playback that takes the session over.
+     */
+    fun startListenQueue(
+        items: List<ListenItem>,
+        loadSurah: (Int) -> SurahWithAyahs?,
+        prefs: SurahReaderPreferences,
+        echo: Boolean,
+        echoRepeats: Int = 1,
+        fromPosition: Int = 0,
+    ) {
+        if (items.isEmpty()) return
+        queueSurahs = loadSurah
+        queuePrefs = prefs
+        _listenQueue.value = ListenQueue(items, position = 0, echo = echo, echoRepeats = echoRepeats)
+        for (position in fromPosition.coerceIn(items.indices)..items.lastIndex) {
+            if (playQueueItem(position)) return
+        }
+        _listenQueue.value = null
+    }
+
+    /** The next passage of the queue; after the last one the queue is over ([ListenQueue.finished]) and the sound stops. */
+    fun nextListenItem() {
+        val queue = _listenQueue.value ?: return
+        for (position in queue.position + 1..queue.items.lastIndex) {
+            if (playQueueItem(position)) return
+        }
+        finishListenQueue()
+    }
+
+    /** The previous passage of the queue; at the first one it starts that one again. */
+    fun previousListenItem() {
+        val queue = _listenQueue.value ?: return
+        playQueueItem((queue.position - 1).coerceAtLeast(0))
+    }
+
+    /** Jumps to the passage at [position] of the queue and plays it from its start. */
+    fun seekListenItem(position: Int) {
+        val queue = _listenQueue.value ?: return
+        if (position in queue.items.indices) playQueueItem(position)
+    }
+
+    /** Jumps to the ayah [ayahInSurah] of the passage at [position] (what the media session asks for) and plays it. */
+    fun seekListenAyah(position: Int, ayahInSurah: Int) {
+        val queue = _listenQueue.value ?: return
+        val item = queue.items.getOrNull(position) ?: return
+        if (!playQueueItem(position)) return
+        if (ayahInSurah > item.startAyah && ayahInSurah <= item.endAyah) {
+            session.select(ayahInSurah - 1)
+            session.toggle()
+        }
+    }
+
+    /** Switches the echo of the queue on or off (and the rounds); the passage that plays goes on without a restart. */
+    fun setListenEcho(echo: Boolean, echoRepeats: Int = 1) {
+        val queue = _listenQueue.value ?: return
+        val next = queue.copy(echo = echo, echoRepeats = echoRepeats)
+        _listenQueue.value = next
+        val item = next.current ?: return
+        if (_nowPlaying.value != null) {
+            session.updateSettings(queuePrefs.copy(autoplayOnOpen = false, repeatCount = 1), queuePractice(next, item))
+        }
+    }
+
+    /** "Done": silences the queue and keeps it as it is, so that the person can say what they heard ([ListenQueue.heardItems]). */
+    fun finishListenQueue() {
+        val queue = _listenQueue.value ?: return
+        session.stop()
+        _listenQueue.value = queue.copy(finished = true)
+    }
+
+    /** Drops the queue (the person marked what they heard, or does not want to): the sound stops and the mini player goes. */
+    fun endListenQueue() = stop()
+
+    private fun queuePractice(queue: ListenQueue, item: ListenItem) = ReaderPracticeSettings(
+        rangeEnabled = true,
+        startAyah = item.startAyah,
+        endAyah = item.endAyah,
+        rangeRepeatCount = 1,
+        pauseSeconds = 0,
+        echo = queue.echo,
+        echoRepeats = queue.echoRepeats,
+    )
+
+    /** Binds the session to the passage at [position] and plays it from its first ayah; false when its surah is not available. */
+    private fun playQueueItem(position: Int): Boolean {
+        val queue = _listenQueue.value ?: return false
+        val item = queue.items.getOrNull(position) ?: return false
+        val surah = queueSurahs?.invoke(item.surah) ?: return false
+        val next = queue.copy(position = position, finished = false)
+        queueSwitching = true
+        try {
+            _listenQueue.value = next
+            startBound(surah, queuePrefs.copy(repeatCount = 1), queuePractice(next, item), item.startAyah - 1, autoplay = true)
+        } finally {
+            queueSwitching = false
+        }
+        return true
+    }
+
+    /** The session says its passage ended: the queue goes on with the next one (true), or is finished (false). */
+    private fun onQueueSequenceEnded(): Boolean {
+        val queue = _listenQueue.value ?: return false
+        _listenQueue.value = queue.copy(heard = queue.heard + queue.position)
+        for (position in queue.position + 1..queue.items.lastIndex) {
+            if (playQueueItem(position)) return true
+        }
+        _listenQueue.value = _listenQueue.value?.copy(finished = true)
+        return false
     }
 
     /**
@@ -271,7 +492,7 @@ class PlaybackController internal constructor(
             session.state
                 .map { it.isPlaying || it.canResume }
                 .distinctUntilChanged()
-                .collect { active -> if (!active) output.releaseFocus() }
+                .collect { active -> if (!active && !queueSwitching) output.releaseFocus() }
         }
     }
 

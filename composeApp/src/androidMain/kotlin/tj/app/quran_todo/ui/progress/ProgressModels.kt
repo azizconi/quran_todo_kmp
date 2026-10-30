@@ -74,7 +74,16 @@ data class TilesUi(
  * ayahs repeated that day (every ayah once per kind).
  */
 @Immutable
-data class ActivityDayUi(val epochDay: Int, val learned: Int, val reviewed: Int) {
+data class ActivityDayUi(
+    val epochDay: Int,
+    val learned: Int,
+    val reviewed: Int,
+    /**
+     * Passages listened to that day ("Listen to the old", task F1b). It is NOT part of [reviewed] or [total]: listening is a help,
+     * not a repetition, and the bar of the day does not grow with it. Shown as a line of its own.
+     */
+    val listened: Int = 0,
+) {
     val total: Int get() = learned + reviewed
 }
 
@@ -83,6 +92,10 @@ data class ActivityDayUi(val epochDay: Int, val learned: Int, val reviewed: Int)
 data class ActivityUi(val days: List<ActivityDayUi>) {
     val totalLearned: Int get() = days.sumOf { it.learned }
     val totalReviewed: Int get() = days.sumOf { it.reviewed }
+
+    /** Passages listened to over all the days, and on the last day (today). */
+    val totalListened: Int get() = days.sumOf { it.listened }
+    val listenedToday: Int get() = days.lastOrNull()?.listened ?: 0
     val peak: Int get() = days.maxOfOrNull { it.total } ?: 0
     val isEmpty: Boolean get() = days.all { it.total == 0 }
 }

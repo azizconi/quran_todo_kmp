@@ -37,6 +37,8 @@ internal class ProgressSources(
     val lesson: LessonPlan?,
     val plan: HifzPlan?,
     val forecast: PlanForecast?,
+    /** `listenLog(today - 29, today)`: the "listened" records of the same days ("Listen to the old"); shown, never counted as study. */
+    val listenLog: List<ReviewLogEntry> = emptyList(),
 ) {
     fun nameOf(surah: Int): String = names.getOrNull(surah - 1) ?: "№ $surah"
 }
@@ -59,7 +61,7 @@ internal object ProgressBuilder {
         val coveredCount = s.covered.values.sumOf { it.size }
         val learnedSurahs = s.statuses.values.count { it == SurahHifzStatus.LEARNED }
         val learningSurahs = s.statuses.values.count { it == SurahHifzStatus.LEARNING }
-        val nothingYet = coveredCount == 0 && s.log.isEmpty()
+        val nothingYet = coveredCount == 0 && s.log.none { it.kind.countsAsStudy }
         val retention = retention(s.log, s.today - RetentionDays + 1, s.today)
         return ProgressUi(
             phase = if (nothingYet) ProgressPhase.Empty else ProgressPhase.Content,
@@ -73,7 +75,7 @@ internal object ProgressBuilder {
                 retentionRepetitions = retention.repetitions,
                 hardAyahs = s.hard.values.sumOf { it.size },
             ),
-            activity = ActivityUi(activity(s.log, s.today)),
+            activity = ActivityUi(withListened(activity(s.log, s.today), s.listenLog)),
             juz = juz(s.covered),
             plan = planLine(s.plan, s.forecast),
             hard = hardSpots(s),
@@ -142,7 +144,8 @@ internal object ProgressBuilder {
         var total = 0
         var kept = 0
         for (entry in log) {
-            if (entry.kind == ReviewKind.NEW || entry.epochDay !in fromDay..toDay) continue
+            // A "listened" record is never a repetition (task F1b): it neither counts nor changes the share.
+            if (entry.kind == ReviewKind.NEW || !entry.kind.countsAsStudy || entry.epochDay !in fromDay..toDay) continue
             total++
             if (entry.grade != ReviewGrade.FORGOT) kept++
         }
@@ -160,7 +163,7 @@ internal object ProgressBuilder {
         val learned = HashMap<Int, HashSet<Int>>()
         val reviewed = HashMap<Int, HashSet<Int>>()
         for (entry in log) {
-            if (entry.epochDay !in first..today) continue
+            if (entry.epochDay !in first..today || !entry.kind.countsAsStudy) continue
             val bucket = if (entry.kind == ReviewKind.NEW) learned else reviewed
             val ayahs = bucket.getOrPut(entry.epochDay) { HashSet() }
             for (ayah in entry.startAyah..entry.endAyah) ayahs.add(entry.surah * AyahKeyStep + ayah)
@@ -172,7 +175,28 @@ internal object ProgressBuilder {
 
     /** How many of the days [fromDay]..[toDay] have at least one record in the log. */
     fun activeDays(log: List<ReviewLogEntry>, fromDay: Int, toDay: Int): Int =
-        log.asSequence().map { it.epochDay }.filter { it in fromDay..toDay }.distinct().count()
+        log.asSequence().filter { it.kind.countsAsStudy }.map { it.epochDay }.filter { it in fromDay..toDay }.distinct().count()
+
+    /**
+     * Per day of the [days] days ending [today] (oldest first): how many different passages were listened to ("Listen to the old").
+     * Only `LISTEN` records count; a passage listened to twice in a day is one.
+     */
+    fun listened(log: List<ReviewLogEntry>, today: Int, days: Int = ActivityDays): Map<Int, Int> {
+        val first = today - days + 1
+        val seen = HashMap<Int, HashSet<String>>()
+        for (entry in log) {
+            if (entry.kind != ReviewKind.LISTEN || entry.epochDay !in first..today) continue
+            seen.getOrPut(entry.epochDay) { HashSet() }.add(entry.passageId?.toString() ?: "${entry.surah}:${entry.startAyah}-${entry.endAyah}")
+        }
+        return seen.mapValues { it.value.size }
+    }
+
+    /** The days of the chart with their "listened" counts filled in; the bars (learned, reviewed) are untouched. */
+    fun withListened(days: List<ActivityDayUi>, log: List<ReviewLogEntry>): List<ActivityDayUi> {
+        if (days.isEmpty() || log.isEmpty()) return days
+        val counts = listened(log, days.last().epochDay, days.size)
+        return days.map { day -> counts[day.epochDay]?.let { day.copy(listened = it) } ?: day }
+    }
 
     /** The 30 juz with the share of their ayahs that are covered (`JuzIndex.coveredCount` over `coveredAyahs()`). */
     fun juz(covered: Map<Int, Set<Int>>): List<JuzUi> = JuzIndex.all.map { range ->

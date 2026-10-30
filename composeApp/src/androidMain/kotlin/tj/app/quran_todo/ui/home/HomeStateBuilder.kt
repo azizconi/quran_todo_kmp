@@ -32,6 +32,8 @@ internal class HomeSources(
     val onboardingGoals: Set<String>,
     /** The covered ayah numbers of every surah (one read for all of them): the "Juz" tab counts inside juz boundaries with it. */
     val coveredAyahSets: Map<Int, Set<Int>> = emptyMap(),
+    /** Passages with a "listened" record today ("Listen to the old"); only the lesson card shows it. */
+    val listenedToday: Set<Long> = emptySet(),
 )
 
 /** [HomeUi] without the listing, which also depends on the query and the filter. */
@@ -71,7 +73,7 @@ internal object HomeStateBuilder {
         return HomeBase(
             phase = phase,
             continueItem = if (content) HomeRows.resolveContinue(s.lastRead, s.index, rowsByNumber) else null,
-            lesson = if (content) s.lesson?.let { lesson -> LessonCardBuilder.build(lesson) { rowsByNumber[it]?.name ?: "Surah $it" } } else null,
+            lesson = if (content) s.lesson?.let { lesson -> LessonCardBuilder.build(lesson, s.listenedToday) { rowsByNumber[it]?.name ?: "Surah $it" } } else null,
             lessonFirst = lessonFirst(s.onboardingGoals),
             recent = if (content) HomeRows.recent(s.recentSurahs, s.pinnedSurahs, rowsByNumber) else emptyList(),
             rows = rows,

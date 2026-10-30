@@ -75,6 +75,15 @@ object HifzConstants {
     /** Seconds of a calm recitation of [chars] characters (the multiplier 1, no overhead). */
     fun recitationSeconds(chars: Int): Double = chars / CHARS_PER_SECOND
 
+    /**
+     * Seconds of listening to [chars] characters through the speakers (task F1b): one calm recitation, or - with the echo - every
+     * ayah followed by silence of 1.2 times its length, [echoRepeats] times (`0` means plain listening, once).
+     */
+    fun listenSeconds(chars: Int, echoRepeats: Int = 0): Int {
+        val rounds = if (echoRepeats <= 0) 1.0 else echoRepeats * 2.2
+        return ceil(recitationSeconds(chars) * rounds).toInt()
+    }
+
     /** Estimate of a new passage of [chars] characters, in seconds. */
     fun newSeconds(chars: Int): Int = ceil(recitationSeconds(chars) * NEW_MULTIPLIER).toInt() + CARD_OVERHEAD_SECONDS
 

@@ -297,6 +297,225 @@ class ReaderAudioSessionTest {
         session.close()
     }
 
+    // -- The echo mode (task F1b): the silence for the person, a ring, pause and skip -----------------------------
+
+    private val echoOnce = ReaderPracticeSettings(true, 1, 3, 1, 0, echo = true, echoRepeats = 1)
+
+    private fun TestScope.createEchoSession(
+        audio: FakeAudio,
+        practice: ReaderPracticeSettings = echoOnce,
+        preferences: SurahReaderPreferences = SurahReaderPreferences(),
+    ): ReaderAudioSession = ReaderAudioSession(
+        backgroundScope, audio,
+        source = { ayah, _ -> delay(0); ayah.numberInSurah.toString() },
+        nowMs = { testScheduler.currentTime }, persistPosition = { _, _ -> },
+    ).also { it.configure(1, (1..3).map { number -> ReaderAudioAyah(number, number) }, preferences, practice, 1) }
+
+    @Test
+    fun theEchoSilenceFollowsEveryAyahAndTheLastOneToo() = runTest {
+        val audio = FakeAudio()
+        val session = createEchoSession(audio)
+        session.toggle()
+        runCurrent()
+        audio.complete()
+        runCurrent()
+        // The ayah lasts 1 s: the silence is the 2 s minimum, and the person sees it (the ring counts it down).
+        assertTrue(session.state.value.isPlaying)
+        assertEquals(2, session.state.value.pauseRemainingSeconds)
+        assertEquals(2, session.state.value.pauseTotalSeconds)
+        assertEquals(listOf("1"), audio.played)
+        advanceTimeBy(1_900)
+        runCurrent()
+        assertEquals(listOf("1"), audio.played)
+        advanceTimeBy(200)
+        runCurrent()
+        assertEquals(listOf("1", "2"), audio.played)
+        audio.complete(); runCurrent()
+        advanceTimeBy(2_100); runCurrent()
+        assertEquals(listOf("1", "2", "3"), audio.played)
+        audio.complete(); runCurrent()
+        // The last ayah is followed by its silence as well: the sequence is not over until the person has had the turn.
+        assertTrue(session.state.value.isPlaying)
+        assertEquals(2, session.state.value.pauseRemainingSeconds)
+        advanceTimeBy(2_100); runCurrent()
+        assertFalse(session.state.value.isPlaying)
+        assertFalse(session.state.value.canResume)
+        assertEquals(0, session.state.value.pauseRemainingSeconds)
+        assertEquals(listOf("1", "2", "3"), audio.played)
+        session.close()
+    }
+
+    @Test
+    fun anEchoRoundReadsTheSameAyahAgainAfterTheSilence() = runTest {
+        val audio = FakeAudio()
+        val session = createEchoSession(audio, echoOnce.copy(echoRepeats = 2))
+        session.toggle()
+        runCurrent()
+        repeat(2) {
+            audio.complete(); runCurrent()
+            advanceTimeBy(2_100); runCurrent()
+        }
+        assertEquals(listOf("1", "1", "2"), audio.played)
+        session.close()
+    }
+
+    @Test
+    fun theSilenceIsTheLengthOfALongAyahTimesOnePointTwo() = runTest {
+        val audio = FakeAudio().apply { duration = 10_000 }
+        val session = createEchoSession(audio)
+        session.toggle()
+        runCurrent()
+        audio.complete(); runCurrent()
+        assertEquals(12, session.state.value.pauseRemainingSeconds)
+        assertEquals(12, session.state.value.pauseTotalSeconds)
+        advanceTimeBy(11_000); runCurrent()
+        assertEquals(listOf("1"), audio.played)
+        assertEquals(1, session.state.value.pauseRemainingSeconds)
+        advanceTimeBy(1_100); runCurrent()
+        assertEquals(listOf("1", "2"), audio.played)
+        session.close()
+    }
+
+    @Test
+    fun theEchoSilenceReplacesThePlainPause() = runTest {
+        val audio = FakeAudio()
+        val session = createEchoSession(audio, echoOnce.copy(pauseSeconds = 10))
+        session.toggle()
+        runCurrent()
+        audio.complete(); runCurrent()
+        assertEquals(2, session.state.value.pauseRemainingSeconds)
+        advanceTimeBy(2_100); runCurrent()
+        assertEquals(listOf("1", "2"), audio.played)
+        session.close()
+    }
+
+    @Test
+    fun theEchoSilenceCanBePausedAndResumedFromWhereItStood() = runTest {
+        val audio = FakeAudio().apply { duration = 10_000 }
+        val session = createEchoSession(audio)
+        session.toggle()
+        runCurrent()
+        audio.complete(); runCurrent()
+        advanceTimeBy(4_100); runCurrent()
+        session.toggle()
+        assertTrue(session.state.value.canResume)
+        assertFalse(session.state.value.isPlaying)
+        val left = session.state.value.pauseRemainingSeconds
+        assertTrue(left in 7..8, "left $left")
+        advanceTimeBy(30_000); runCurrent()
+        assertEquals(left, session.state.value.pauseRemainingSeconds)
+        assertEquals(listOf("1"), audio.played)
+        session.toggle()
+        advanceTimeBy(7_000); runCurrent()
+        assertEquals(listOf("1"), audio.played)
+        advanceTimeBy(1_500); runCurrent()
+        assertEquals(listOf("1", "2"), audio.played)
+        session.close()
+    }
+
+    @Test
+    fun nextSkipsTheEchoSilenceAndPreviousGoesBackDuringIt() = runTest {
+        val audio = FakeAudio().apply { duration = 10_000 }
+        val session = createEchoSession(audio)
+        session.select(1)
+        session.toggle()
+        runCurrent()
+        audio.complete(); runCurrent()
+        assertEquals(12, session.state.value.pauseRemainingSeconds)
+        session.next(); runCurrent()
+        assertEquals(listOf("2", "3"), audio.played)
+        assertEquals(0, session.state.value.pauseRemainingSeconds)
+        audio.complete(); runCurrent()
+        session.previous(); runCurrent()
+        assertEquals(listOf("2", "3", "2"), audio.played)
+        // The skipped silences do not come back later.
+        advanceTimeBy(30_000); runCurrent()
+        assertEquals(listOf("2", "3", "2"), audio.played)
+        assertEquals(1, session.state.value.index)
+        session.close()
+    }
+
+    @Test
+    fun stopAfterTheAyahEndsAtOnceWithoutTheSilence() = runTest {
+        val audio = FakeAudio()
+        val session = createEchoSession(audio)
+        session.stopAfterAyah(1)
+        session.select(1)
+        session.toggle()
+        runCurrent()
+        audio.complete(); runCurrent()
+        assertFalse(session.state.value.isPlaying)
+        assertEquals(0, session.state.value.pauseRemainingSeconds)
+        assertEquals(listOf("2"), audio.played)
+        session.close()
+    }
+
+    @Test
+    fun aScriptHasTheSilenceAfterEveryReadingOfIt() = runTest {
+        val audio = FakeAudio()
+        val session = createEchoSession(audio)
+        session.playScript(listOf(0, 0, 1))
+        runCurrent()
+        repeat(3) {
+            audio.complete(); runCurrent()
+            assertEquals(2, session.state.value.pauseRemainingSeconds)
+            advanceTimeBy(2_100); runCurrent()
+        }
+        assertEquals(listOf("1", "1", "2"), audio.played)
+        assertFalse(session.state.value.isPlaying)
+        session.close()
+    }
+
+    @Test
+    fun theOwnerIsToldWhenTheSequenceEndsAndCanContinueWithSomethingElse() = runTest {
+        val audio = FakeAudio()
+        val session = createEchoSession(audio, echoOnce.copy(startAyah = 1, endAyah = 1))
+        var ended = 0
+        session.onSequenceEnd = {
+            ended++
+            true
+        }
+        session.toggle()
+        runCurrent()
+        audio.complete(); runCurrent()
+        // The silence of the last ayah comes first; the owner is told only when it is over.
+        assertEquals(0, ended)
+        advanceTimeBy(2_100); runCurrent()
+        assertEquals(1, ended)
+        // The owner handled it: the session did not go idle by itself.
+        assertTrue(session.state.value.isPlaying)
+        session.close()
+    }
+
+    @Test
+    fun theOwnerIsNotToldWhenTheSleepTimerCutsPlayback() = runTest {
+        val audio = FakeAudio()
+        val session = createSession(audio)
+        var ended = 0
+        session.onSequenceEnd = { ended++; false }
+        session.stopAfterAyah(0)
+        session.toggle()
+        runCurrent()
+        audio.complete(); runCurrent()
+        assertEquals(0, ended)
+        assertFalse(session.state.value.isPlaying)
+        session.close()
+    }
+
+    @Test
+    fun withoutTheEchoNothingChanged() = runTest {
+        val audio = FakeAudio()
+        val session = createSession(audio, pause = 3)
+        session.toggle()
+        runCurrent()
+        audio.complete(); runCurrent()
+        assertEquals(3, session.state.value.pauseRemainingSeconds)
+        assertEquals(3, session.state.value.pauseTotalSeconds)
+        advanceTimeBy(3_100); runCurrent()
+        assertEquals(listOf("1", "2"), audio.played)
+        session.close()
+    }
+
     private fun TestScope.createSession(audio: FakeAudio, pause: Int = 0, preparationDelay: Long = 0): ReaderAudioSession {
         return ReaderAudioSession(
             backgroundScope, audio,
@@ -312,6 +531,7 @@ class ReaderAudioSessionTest {
         val played = mutableListOf<String>()
         var completion: () -> Unit = {}
         var failure: () -> Unit = {}
+        var duration = 1_000L
         fun complete() = completion()
         override fun play(url: String, onError: () -> Unit, onComplete: () -> Unit) {
             played += url
@@ -322,7 +542,7 @@ class ReaderAudioSessionTest {
         override fun resume() {}
         override fun setPlaybackSpeed(speed: Float) {}
         override fun getPositionMs() = 0L
-        override fun getDurationMs() = 1_000L
+        override fun getDurationMs() = duration
         override fun stop() {}
     }
 }

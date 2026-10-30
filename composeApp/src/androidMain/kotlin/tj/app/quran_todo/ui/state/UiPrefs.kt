@@ -239,6 +239,27 @@ class UiPrefs(context: Context) {
         _lessonPassageRepeats.value = next
     }
 
+    /**
+     * "Listen" phase of the lesson, "I repeat after the reciter" (task F1b): every reading of the phase is followed by the echo
+     * silence. Off by default.
+     */
+    private val _lessonEcho = MutableStateFlow(prefs.getBoolean(KEY_LESSON_ECHO, false))
+    val lessonEcho: StateFlow<Boolean> = _lessonEcho.asStateFlow()
+
+    fun setLessonEcho(value: Boolean) {
+        prefs.edit().putBoolean(KEY_LESSON_ECHO, value).apply()
+        _lessonEcho.value = value
+    }
+
+    /** "Listen to the old" (task F1b): the way the person last listened, with the echo silences or once. */
+    private val _listenEcho = MutableStateFlow(prefs.getBoolean(KEY_LISTEN_ECHO, false))
+    val listenEcho: StateFlow<Boolean> = _listenEcho.asStateFlow()
+
+    fun setListenEcho(value: Boolean) {
+        prefs.edit().putBoolean(KEY_LISTEN_ECHO, value).apply()
+        _listenEcho.value = value
+    }
+
     /** The reciter of the ayah audio. An unknown or missing saved id means the default reciter (Alafasy). */
     private val _reciter = MutableStateFlow(Reciters.byId(prefs.getString(KEY_RECITER, null)))
     val reciter: StateFlow<Reciter> = _reciter.asStateFlow()
@@ -351,6 +372,8 @@ class UiPrefs(context: Context) {
         const val KEY_RECITER = "reciter"
         const val KEY_LESSON_AYAH_REPEATS = "lesson_ayah_repeats"
         const val KEY_LESSON_PASSAGE_REPEATS = "lesson_passage_repeats"
+        const val KEY_LESSON_ECHO = "lesson_echo"
+        const val KEY_LISTEN_ECHO = "listen_echo"
         const val KEY_LAST_EXPORT_AT = "last_export_at"
         const val KEY_REMINDER_ENABLED = "reminder_enabled"
         const val KEY_REMINDER_MINUTE = "reminder_minute_of_day"

@@ -648,6 +648,59 @@ class HifzRepositoryTest {
         assertEquals("done", db.getHifzDao().getMeta("legacy_import"))
     }
 
+    // ---- "Listen to the old" (task F1b): a LISTEN record changes nothing but its own line ----
+
+    @Test
+    fun listeningIsWrittenToTheListenLogOnlyAndMovesNothing() = runBlocking {
+        seedProgress()
+        val ids = repository.surahCoverage(112).first().passages.map { it.id }
+        val lessonBefore = repository.lesson(day + 1).first()
+        val streakBefore = repository.streak(day + 1).first()
+        val studyBefore = repository.reviewLog(0, day + 5).first()
+        val passagesBefore = db.getHifzDao().getPassages().map { it.passage }
+        val mirrorBefore = mirrorState()
+
+        // An unknown passage is skipped, the known ones get one record each.
+        repository.logListened(ids + 9_999L, day + 1)
+
+        assertEquals(passagesBefore, db.getHifzDao().getPassages().map { it.passage }, "stage, due day, last repetition: untouched")
+        assertEquals(lessonBefore, repository.lesson(day + 1).first(), "done today, catching up, minutes, tomorrow: untouched")
+        assertEquals(streakBefore, repository.streak(day + 1).first())
+        assertEquals(studyBefore, repository.reviewLog(0, day + 5).first(), "the log of the study has no LISTEN")
+        assertEquals(mirrorBefore, mirrorState())
+        val listened = repository.listenLog(0, day + 5).first()
+        assertEquals(ids.size, listened.size)
+        assertTrue(listened.all { it.kind == ReviewKind.LISTEN && it.grade == ReviewGrade.GOOD && it.epochDay == day + 1 })
+        assertEquals(ids.toSet(), listened.mapNotNull { it.passageId }.toSet())
+        assertTrue(repository.exportBackupData().hifz.reviewLog.any { it.kind == "LISTEN" }, "the transfer file has it")
+        // And listening to nothing writes nothing.
+        repository.logListened(emptyList(), day + 1)
+        assertEquals(ids.size, repository.listenLog(0, day + 5).first().size)
+    }
+
+    @Test
+    fun aDayOfListeningAloneIsNotADayOfTheStreak() = runBlocking {
+        seedProgress() // study on `day` and `day + 1`
+        val ids = repository.surahCoverage(112).first().passages.map { it.id }
+        assertEquals(2, repository.streak(day + 1).first())
+        repository.logListened(ids, day + 2)
+        assertEquals(2, repository.streak(day + 2).first(), "alive from yesterday: listening today did not make it 3")
+        repository.logListened(ids, day + 4)
+        assertEquals(0, repository.streak(day + 4).first(), "a day of listening alone does not keep the streak")
+    }
+
+    @Test
+    fun aListenRecordSurvivesABackupRoundTrip() = runBlocking {
+        seedProgress()
+        repository.logListened(repository.surahCoverage(112).first().passages.map { it.id }, day + 1)
+        val exported = repository.exportBackupData()
+        val text = BackupCodec.encode(verifiedOf(exported))
+        repository.replaceWithBackup(assertIs<BackupParse.Ok>(BackupCodec.decode(text)).backup)
+        assertEquals(exported, repository.exportBackupData())
+        assertTrue(repository.listenLog(0, day + 5).first().isNotEmpty())
+        assertTrue(repository.reviewLog(0, day + 5).first().none { it.kind == ReviewKind.LISTEN })
+    }
+
     @Test
     fun anImportedBackupStopsTheLegacyConversionFromRunningOverIt() = runBlocking {
         seedLegacy()

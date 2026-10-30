@@ -180,6 +180,10 @@ class HifzRepositoryImpl(
         dao.getLog(fromDay, toDay).map { it.toDomain() }
     }
 
+    override fun listenLog(fromDay: Int, toDay: Int): Flow<List<ReviewLogEntry>> = observe(LOG) {
+        dao.getListenLog(fromDay, toDay).map { it.toDomain() }
+    }
+
     override fun oldWeight(): Flow<Int> = observeWithMetrics(PASSAGES) { metrics ->
         loadPassages().filter { it.stage == PassageStage.OLD }.sumOf { metrics.weight(it) }
     }
@@ -266,6 +270,17 @@ class HifzRepositoryImpl(
             val after = persist(before, PassageOps.check(before, surah, hardAyahs))
             val coveringId = PassageOps.coveringPassageId(after, surah, startAyah, endAyah)
             insertLog(coveringId, surah, startAyah, endAyah, ReviewKind.CHECK, grade, today)
+        }
+    }
+
+    override suspend fun logListened(passageIds: List<Long>, today: Int) {
+        if (passageIds.isEmpty()) return
+        write {
+            val byId = loadPassages().associateBy { it.id }
+            for (id in passageIds.distinct()) {
+                val passage = byId[id] ?: continue
+                insertLog(id, passage.surah, passage.startAyah, passage.endAyah, ReviewKind.LISTEN, ReviewGrade.GOOD, today)
+            }
         }
     }
 
