@@ -99,6 +99,13 @@ data class MiniPlayerUi(
     val hasError: Boolean,
 )
 
+/**
+ * "Listen to the old" while its queue plays or stands (task F1b): the card says "Listening to the old - 2 of 5". [position] counts
+ * from 1.
+ */
+@Immutable
+data class ListeningUi(val position: Int, val total: Int, val playing: Boolean)
+
 /** Things the screen reacts to once (a toast), not state. */
 sealed interface HomeEvent {
     data object StatusUpdateFailed : HomeEvent

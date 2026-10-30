@@ -107,6 +107,7 @@ import tj.app.quran_todo.ui.home.components.listBottomPadding
 import tj.app.quran_todo.ui.i18n.HomeCopy
 import tj.app.quran_todo.ui.i18n.homeCopy
 import tj.app.quran_todo.ui.i18n.mushafCopy
+import tj.app.quran_todo.ui.listen.ListenOldSheet
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.orSnap
@@ -158,6 +159,8 @@ fun HomeScreen(
     // under the shared element animation; fresh as soon as the screen is resumed again.
     val ui by viewModel.ui.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
     val player by viewModel.player.collectAsStateWithLifecycle()
+    // "Listen to the old" while its queue plays: the card says where it is.
+    val listening by viewModel.listening.collectAsStateWithLifecycle()
     // Not read here: only the mini player ring reads it.
     val playbackProgress = viewModel.playbackProgress.collectAsState()
 
@@ -186,6 +189,7 @@ fun HomeScreen(
         copy = copy,
         actions = actions,
         onOpenCatalog = onOpenCatalog,
+        listening = listening,
     )
 }
 
@@ -220,6 +224,7 @@ private fun HomeContent(
     copy: HomeCopy,
     actions: HomeActions,
     onOpenCatalog: (() -> Unit)?,
+    listening: ListeningUi? = null,
 ) {
     val colors = QhTheme.colors
     val type = QhTheme.type
@@ -235,6 +240,8 @@ private fun HomeContent(
     // "Surahs" / "Juz": kept for as long as the screen lives (a rotation, coming back from the reader).
     var tabOrdinal by rememberSaveable { mutableStateOf(0) }
     var sheetSurah by rememberSaveable { mutableStateOf<Int?>(null) }
+    // The sheet "Listen to the old" (task F1b); the queue itself lives in the playback controller, not in this sheet.
+    var listenOpen by rememberSaveable { mutableStateOf(false) }
     var searchFocused by remember { mutableStateOf(false) }
     var celebration by remember { mutableStateOf(Celebration()) }
     val filter = SurahFilter.entries.getOrElse(filterOrdinal) { SurahFilter.All }
@@ -438,6 +445,8 @@ private fun HomeContent(
                                             onOpenLesson = actions.openLesson,
                                             onOpenPlan = actions.openPlan,
                                             modifier = cardModifier,
+                                            onListenOld = { listenOpen = true },
+                                            listening = listening,
                                         )
                                     } else {
                                         LessonInviteRow(
@@ -645,6 +654,8 @@ private fun HomeContent(
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
+
+    if (listenOpen) ListenOldSheet(onDismiss = { listenOpen = false })
 
     val sheetRow = sheetSurah?.let { number -> ui.rows.firstOrNull { it.number == number } }
     if (sheetRow != null) {

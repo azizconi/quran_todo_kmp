@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -50,7 +51,7 @@ import tj.app.quran_todo.ui.state.UiPrefs
  * the coverage of the surahs) into immutable UI models, off the main thread. The screen changes the
  * progress only through [HifzRepository] ([applyStatus]).
  */
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class HomeUiViewModel internal constructor(
     private val home: HomeViewModel,
     private val uiPrefs: UiPrefs,
@@ -89,7 +90,11 @@ class HomeUiViewModel internal constructor(
         hifz.coveredAyahs().orFallback(emptyMap()),
         hifz.plan().map { it?.surahOrder.orEmpty() }.orFallback(emptyList()),
         hifz.lesson(ticker.day).map<LessonPlan, LessonPlan?> { it }.orFallback(null),
-    ) { statuses, covered, queue, lesson -> HifzSnapshot(statuses, covered, queue, lesson) }
+        // The passages listened to today ("Listen to the old"): the card says "Listened" and nothing else reads this.
+        ticker.day.flatMapLatest { day -> hifz.listenLog(day, day) }
+            .map { log -> log.mapNotNullTo(HashSet()) { it.passageId } }
+            .orFallback(emptySet<Long>()),
+    ) { statuses, covered, queue, lesson, listened -> HifzSnapshot(statuses, covered, queue, lesson, listened) }
 
     private val prefs: Flow<PrefsSnapshot> = combine(
         uiPrefs.lastReadPosition,
@@ -136,6 +141,19 @@ class HomeUiViewModel internal constructor(
         resumeTick,
     ) { now, core, rows, _ -> miniPlayerOf(now, core, rows) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, miniPlayerOf(playback.nowPlaying.value, playerCoreNow(), base.value.rows))
+
+    /**
+     * "Listen to the old" while the queue plays or stands (the card says "Listening to the old · 2 of 5"), null otherwise: the
+     * passage it is at (from 1), how many there are, and whether the sound is on.
+     */
+    val listening: StateFlow<ListeningUi?> = combine(
+        playback.listenQueue,
+        playback.state.map { it.isPlaying || it.isPreparing }.distinctUntilChanged(),
+    ) { queue, playing ->
+        queue?.takeIf { !it.finished }?.let { ListeningUi(position = it.position + 1, total = it.items.size, playing = playing) }
+    }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** Position inside the playing ayah, 0..1. Collected only by the mini player so nothing else recomposes. */
     val playbackProgress: StateFlow<Float> = playback.state
@@ -295,6 +313,7 @@ class HomeUiViewModel internal constructor(
         coveredAyahSets = snapshot.coveredSets,
         planQueue = snapshot.planQueue,
         lesson = snapshot.lesson,
+        listenedToday = snapshot.listened,
         chapterNames = data.chapterNames,
         loadState = data.loadState,
         lastRead = HomeStateBuilder.lastReadWithLegacy(
@@ -355,6 +374,8 @@ internal class HifzSnapshot(
     val coveredSets: Map<Int, Set<Int>> = emptyMap(),
     val planQueue: List<Int> = emptyList(),
     val lesson: LessonPlan? = null,
+    /** The passages with a "listened" record today. */
+    val listened: Set<Long> = emptySet(),
 ) {
     val covered: Map<Int, Int> = coveredSets.mapValues { it.value.size }
 }

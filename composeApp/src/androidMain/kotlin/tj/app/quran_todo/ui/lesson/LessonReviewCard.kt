@@ -17,7 +17,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
@@ -32,7 +34,10 @@ import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.components.QhCardStyle
+import tj.app.quran_todo.hifz.schedule.HifzConstants
 import tj.app.quran_todo.ui.i18n.LessonCopy
+import tj.app.quran_todo.ui.i18n.rememberListenCopy
+import tj.app.quran_todo.ui.listen.ListenOldSheet
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -67,6 +72,9 @@ private fun ReviewIntro(viewModel: LessonViewModel, copy: LessonCopy, work: Less
     val language = LocalAppLanguage.current
     val names by viewModel.chapterNames.collectAsState()
     val audio by viewModel.audioState.collectAsState()
+    val listenCopy = rememberListenCopy()
+    val listenedToday by viewModel.listenedToday.collectAsState()
+    var listenOldOpen by remember { mutableStateOf(false) }
     val range = card.range
     val title = viewModel.surahTitle(range.surah, language, names)
     val arabic = viewModel.surahArabicName(range.surah, names)
@@ -116,6 +124,18 @@ private fun ReviewIntro(viewModel: LessonViewModel, copy: LessonCopy, work: Less
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (card.block == LessonBlock.Old && item.passageId in listenedToday) {
+                // Listening is a help: the card is still to be recalled, it only says the passage was heard today.
+                Text(
+                    text = listenCopy.listenedBadge,
+                    style = type.callout,
+                    color = colors.learned,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = QhSpacing.x3),
+                )
+            }
             if (item.overdueDays > 0) {
                 Text(
                     text = copy.overdue(item.overdueDays),
@@ -154,6 +174,22 @@ private fun ReviewIntro(viewModel: LessonViewModel, copy: LessonCopy, work: Less
                 size = QhButtonSize.M,
                 icon = if (audio.playing) Icons.Rounded.Pause else Icons.Rounded.Headphones,
             )
+            if (card.block == LessonBlock.Old && work.plan.old.isNotEmpty()) {
+                // "Listen to the old": the whole portion of the circle as audio, for the road; it grades nothing.
+                val minutes = HifzConstants.minutes(work.plan.old.sumOf { it.listenSeconds }).coerceAtLeast(1)
+                QhButton(
+                    text = listenCopy.oldButton(minutes),
+                    onClick = {
+                        // The lesson's own listening gives the player to the queue.
+                        viewModel.stopAudio()
+                        listenOldOpen = true
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    variant = QhButtonVariant.Ghost,
+                    size = QhButtonSize.M,
+                    icon = Icons.Rounded.Headphones,
+                )
+            }
             QhButton(
                 text = copy.startRecall,
                 onClick = { viewModel.next(work) },
@@ -161,4 +197,5 @@ private fun ReviewIntro(viewModel: LessonViewModel, copy: LessonCopy, work: Less
             )
         }
     }
+    if (listenOldOpen) ListenOldSheet(onDismiss = { listenOldOpen = false })
 }

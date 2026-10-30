@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -62,7 +65,9 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.components.QhSectionHeader
+import tj.app.quran_todo.ui.i18n.ListenCopy
 import tj.app.quran_todo.ui.i18n.ProgressCopy
+import tj.app.quran_todo.ui.i18n.rememberListenCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.progress.ActivityDayUi
@@ -116,6 +121,7 @@ internal fun ActivitySection(
             ActivityChart(days = activity.days, copy = copy)
             Spacer(Modifier.height(QhSpacing.x3))
             ActivityLegend(copy)
+            ListenedLine(activity)
             if (activity.isEmpty) {
                 Spacer(Modifier.height(QhSpacing.x3))
                 Text(
@@ -130,11 +136,36 @@ internal fun ActivitySection(
     }
 }
 
+/**
+ * "Listened: 3 passages" (task F1b, "Listen to the old"): a line of its own under the legend, not a part of the bars and not a
+ * repetition. Today's count when there is one, otherwise the count of the 30 days; nothing when nothing was listened to.
+ */
+@Composable
+private fun ListenedLine(activity: ActivityUi) {
+    val listen = rememberListenCopy()
+    val text = when {
+        activity.listenedToday > 0 -> listen.progressListened(activity.listenedToday)
+        activity.totalListened > 0 -> listen.progressListenedMonth(activity.totalListened)
+        else -> return
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = QhSpacing.x2),
+        horizontalArrangement = Arrangement.spacedBy(QhSpacing.x2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.Headphones, contentDescription = null, tint = QhTheme.colors.inkSecondary, modifier = Modifier.size(16.dp))
+        Text(text = text, style = QhTheme.type.callout, color = QhTheme.colors.inkSecondary)
+    }
+}
+
 @Composable
 private fun ActivityChart(days: List<ActivityDayUi>, copy: ProgressCopy) {
     val colors = QhTheme.colors
     val reduced = LocalReducedMotion.current
     val density = LocalDensity.current
+    val listenCopy = rememberListenCopy()
     val count = days.size
     val peak = max(days.maxOfOrNull { it.total } ?: 0, 1)
 
@@ -250,7 +281,7 @@ private fun ActivityChart(days: List<ActivityDayUi>, copy: ProgressCopy) {
             Row(Modifier.matchParentSize()) {
                 days.forEachIndexed { index, day ->
                     val label = dayLabel(day, index == count - 1, copy)
-                    val description = "$label: ${copy.activityValue(day.learned, day.reviewed)}"
+                    val description = "$label: ${dayValue(day, copy, listenCopy)}"
                     Box(
                         Modifier
                             .weight(1f)
@@ -273,7 +304,7 @@ private fun ActivityChart(days: List<ActivityDayUi>, copy: ProgressCopy) {
                 val label = dayLabel(day, chosen == count - 1, copy)
                 val barHeight = if (day.total == 0) stubPx else max(minBarPx, day.total.toFloat() / peak * barsPx)
                 ActivityBubble(
-                    text = "$label · ${copy.activityValue(day.learned, day.reviewed)}",
+                    text = "$label · ${dayValue(day, copy, listenCopy)}",
                     anchorX = width.toFloat() / count * (chosen + 0.5f),
                     anchorTop = headroomPx + barsPx - barHeight,
                     modifier = Modifier.matchParentSize(),
@@ -283,6 +314,13 @@ private fun ActivityChart(days: List<ActivityDayUi>, copy: ProgressCopy) {
         Spacer(Modifier.height(QhSpacing.x2))
         DayLabels(days = days, copy = copy)
     }
+}
+
+/** "New 3 · Reviewed 5", and on a line of its own "Listened: 2 passages" when the day has any (never part of the bar). */
+private fun dayValue(day: ActivityDayUi, copy: ProgressCopy, listen: ListenCopy): String {
+    if (day.listened <= 0) return copy.activityValue(day.learned, day.reviewed)
+    val study = if (day.total == 0) null else copy.activityValue(day.learned, day.reviewed)
+    return listOfNotNull(study, listen.progressListened(day.listened)).joinToString("\n")
 }
 
 /** The tone of the repeated ayahs, a little softer than the new ones so the stack reads as two parts. */

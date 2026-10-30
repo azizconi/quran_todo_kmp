@@ -59,7 +59,8 @@ internal object ReportBuilder {
     fun build(s: ProgressSources, period: ReportPeriod): ProgressReport {
         val to = s.today
         val from = to - period.days + 1
-        val inPeriod = s.log.filter { it.epochDay in from..to }
+        // "Listened" records are not part of the report of the studying (task F1b).
+        val inPeriod = s.log.filter { it.epochDay in from..to && it.kind.countsAsStudy }
         val learned = inPeriod.filter { it.kind == ReviewKind.NEW }
         val repeated = inPeriod.filter { it.kind != ReviewKind.NEW }
 

@@ -92,12 +92,18 @@ class ProgressViewModel internal constructor(
         hifz.reviewLog(today - ProgressBuilder.LogDays + 1, today)
     }
 
+    /** The "listened" records of the same days ("Listen to the old"): shown as a line, never counted as repetitions. */
+    private val listenLog: Flow<List<ReviewLogEntry>> = ticker.day.flatMapLatest { today ->
+        hifz.listenLog(today - ProgressBuilder.LogDays + 1, today)
+    }
+
     private class HifzSnapshot(
         val today: Int,
         val statuses: Map<Int, SurahHifzStatus>,
         val covered: Map<Int, Set<Int>>,
         val hard: Map<Int, Set<Int>>,
         val log: List<ReviewLogEntry>,
+        val listenLog: List<ReviewLogEntry>,
         val streak: Int,
         val lesson: LessonPlan?,
         val plan: HifzPlan?,
@@ -112,7 +118,7 @@ class ProgressViewModel internal constructor(
             ::Triple,
         ),
         combine(
-            log.orFallback(emptyList()),
+            combine(log.orFallback(emptyList()), listenLog.orFallback(emptyList()), ::Pair),
             hifz.streak(ticker.day).orFallback(0),
             ticker.day,
             ::Triple,
@@ -123,8 +129,8 @@ class ProgressViewModel internal constructor(
             hifz.forecast(ticker.day).orFallback(null),
             ::Triple,
         ),
-    ) { (statuses, covered, hard), (log, streak, today), (lesson, plan, forecast) ->
-        HifzSnapshot(today, statuses, covered, hard, log, streak, lesson, plan, forecast)
+    ) { (statuses, covered, hard), (logs, streak, today), (lesson, plan, forecast) ->
+        HifzSnapshot(today, statuses, covered, hard, logs.first, logs.second, streak, lesson, plan, forecast)
     }
 
     private val sources: Flow<ProgressSources> = combine(hifzSnapshot, names, language) { snapshot, names, language ->
@@ -136,6 +142,7 @@ class ProgressViewModel internal constructor(
             covered = snapshot.covered,
             hard = snapshot.hard,
             log = snapshot.log,
+            listenLog = snapshot.listenLog,
             streak = snapshot.streak,
             lesson = snapshot.lesson,
             plan = snapshot.plan,

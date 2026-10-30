@@ -108,8 +108,17 @@ interface HifzRepository {
     /** Covered and difficult ayahs and the passages of a surah. */
     fun surahCoverage(surah: Int): Flow<SurahCoverage>
 
-    /** Records of the review log for the days [fromDay]..[toDay] inclusive, oldest first. */
+    /**
+     * Records of the study in the review log (NEW, RECENT, OLD, CHECK) for the days [fromDay]..[toDay] inclusive, oldest first.
+     * `LISTEN` records are not here: listening is not a repetition, see [listenLog].
+     */
     fun reviewLog(fromDay: Int, toDay: Int): Flow<List<ReviewLogEntry>>
+
+    /**
+     * The `LISTEN` records ("I repeated it by ear", task F1b) for the days [fromDay]..[toDay] inclusive, oldest first. They are
+     * shown ("Listened ✓", "Listened: N passages") and never counted as repetitions.
+     */
+    fun listenLog(fromDay: Int, toDay: Int): Flow<List<ReviewLogEntry>>
 
     /**
      * Total characters of the text of all OLD passages (the weight of the manzil circle). The plan screen shows "about N pages
@@ -161,6 +170,13 @@ interface HifzRepository {
         hardAyahs: Set<Int> = emptySet(),
         today: Int = EpochDays.now(),
     )
+
+    /**
+     * "Listened: I repeated it by ear" (task F1b): one `LISTEN` record per stored passage of [passageIds] (an unknown id is skipped)
+     * with the neutral grade GOOD. Nothing else changes: not the stage, the due day, `lastReviewed`, the circle, the streak or the
+     * difficult ayahs - only "Recall" grades a passage.
+     */
+    suspend fun logListened(passageIds: List<Long>, today: Int = EpochDays.now())
 
     /** "I know it by heart": the uncovered ayahs of the range become OLD passages cut by the pages of the mushaf. */
     suspend fun markKnown(

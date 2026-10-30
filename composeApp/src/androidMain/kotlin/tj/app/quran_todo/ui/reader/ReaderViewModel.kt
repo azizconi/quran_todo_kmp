@@ -48,6 +48,7 @@ import tj.app.quran_todo.ui.home.SurahStatusChange
 import tj.app.quran_todo.ui.home.SurahTarget
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.navigation.Origin
+import tj.app.quran_todo.ui.playback.ListenQueue
 import tj.app.quran_todo.ui.playback.NowPlaying
 import tj.app.quran_todo.ui.playback.PlaybackController
 import tj.app.quran_todo.ui.playback.SleepTimer
@@ -294,6 +295,14 @@ class ReaderViewModel(
     val pauseRemainingSeconds: StateFlow<Int> = combine(playback.nowPlaying, playback.state) { now, s ->
         if (now?.surahNumber == surahNumber) s.pauseRemainingSeconds else 0
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /** The whole silence the countdown above runs in (the pause, or the echo silence): the ring around play is full at this. */
+    val pauseTotalSeconds: StateFlow<Int> = combine(playback.nowPlaying, playback.state) { now, s ->
+        if (now?.surahNumber == surahNumber) s.pauseTotalSeconds else 0
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /** The listening queue ("Listen to the old") while there is one; the dock says which passage it is at. */
+    val listenQueue: StateFlow<ListenQueue?> = playback.listenQueue
 
     val sleepTimer: StateFlow<SleepTimer> = playback.sleepTimer
     val sleepRemainingSeconds: StateFlow<Int> = playback.sleepRemainingSeconds
@@ -669,6 +678,16 @@ class ReaderViewModel(
     fun setPauseSeconds(seconds: Int) {
         val surah = _surah.value ?: return
         commitSettings(_prefs.value, _practice.value.copy(pauseSeconds = seconds).normalized(surah.ayahs.size))
+    }
+
+    /**
+     * The echo of the dock: [repeats] 0 is off, 1..3 is on with that many rounds per ayah (the reciter reads, then silence for
+     * the person to repeat). It replaces the plain pause and goes on without a restart of the ayah that is playing.
+     */
+    fun setEcho(repeats: Int) {
+        val surah = _surah.value ?: return
+        val practice = if (repeats <= 0) _practice.value.copy(echo = false) else _practice.value.copy(echo = true, echoRepeats = repeats)
+        commitSettings(_prefs.value, practice.normalized(surah.ayahs.size))
     }
 
     fun setPlaybackSpeed(speed: Float) {

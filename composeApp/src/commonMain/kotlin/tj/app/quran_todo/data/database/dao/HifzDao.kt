@@ -63,14 +63,22 @@ interface HifzDao {
     @Insert
     suspend fun insertLog(entry: ReviewLogEntity): Long
 
-    @Query("SELECT * FROM review_log WHERE epochDay BETWEEN :fromDay AND :toDay ORDER BY id")
+    /**
+     * The records of the study (NEW, RECENT, OLD, CHECK) for the days: what the lesson, the progress and the report read.
+     * `LISTEN` ("Listen to the old") is NOT here on purpose: it never counts as a repetition ([getListenLog] has it).
+     */
+    @Query("SELECT * FROM review_log WHERE epochDay BETWEEN :fromDay AND :toDay AND kind != 'LISTEN' ORDER BY id")
     suspend fun getLog(fromDay: Int, toDay: Int): List<ReviewLogEntity>
+
+    /** The `LISTEN` records for the days (task F1b): only the line "Listened: N passages" and the card of the lesson read them. */
+    @Query("SELECT * FROM review_log WHERE epochDay BETWEEN :fromDay AND :toDay AND kind = 'LISTEN' ORDER BY id")
+    suspend fun getListenLog(fromDay: Int, toDay: Int): List<ReviewLogEntity>
 
     @Query("SELECT * FROM review_log WHERE kind = 'NEW' AND epochDay >= :sinceDay ORDER BY id")
     suspend fun getNewLogSince(sinceDay: Int): List<ReviewLogEntity>
 
-    /** The days (newest first) up to [toDay] with at least one record. */
-    @Query("SELECT DISTINCT epochDay FROM review_log WHERE epochDay <= :toDay ORDER BY epochDay DESC")
+    /** The days (newest first) up to [toDay] with at least one record of the study: a day of listening only is not a day of the streak. */
+    @Query("SELECT DISTINCT epochDay FROM review_log WHERE epochDay <= :toDay AND kind != 'LISTEN' ORDER BY epochDay DESC")
     suspend fun getLogDays(toDay: Int): List<Int>
 
     // Meta

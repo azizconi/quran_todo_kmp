@@ -23,8 +23,22 @@ enum class PassageStage(val intervalDays: Int?) {
 /** What the person chose as the plan: a preset (a fixed order of surahs) or their own list. */
 enum class HifzScope { JUZ_30, JUZ_29, FROM_START, CUSTOM }
 
-/** Where a record of the review log comes from. */
-enum class ReviewKind { NEW, RECENT, OLD, CHECK }
+/**
+ * Where a record of the review log comes from. The enum is stored by name in `review_log.kind`.
+ *
+ * [LISTEN] (task F1b, "Listen to the old") is "I listened to this passage again": a help, not an exam, so it moves nothing.
+ * The ladder, the manzil circle, "done today", the streak, retention, difficult ayahs, the forecast and the reminder never see
+ * it: the readers of the log that schedule or count ([tj.app.quran_todo.hifz.HifzRepository.reviewLog], `lesson`, `streak`)
+ * leave it out, and the pure functions of `hifz/schedule` ignore it by kind too. It is read only through
+ * [tj.app.quran_todo.hifz.HifzRepository.listenLog] and written through `logListened` with the neutral grade
+ * [ReviewGrade.GOOD] (a grade is required by the table; nobody reads it for this kind).
+ */
+enum class ReviewKind {
+    NEW, RECENT, OLD, CHECK, LISTEN;
+
+    /** The record is about studying (a new passage, a repetition or a check); false for [LISTEN]. */
+    val countsAsStudy: Boolean get() = this != LISTEN
+}
 
 /** How a recitation went. The order matters: worse first. */
 enum class ReviewGrade { FORGOT, HARD, GOOD, EASY }

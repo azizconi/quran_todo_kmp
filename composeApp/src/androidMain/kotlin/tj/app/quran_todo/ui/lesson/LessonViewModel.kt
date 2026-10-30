@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
@@ -103,6 +104,16 @@ class LessonViewModel(
     /** Days in a row with a record in the log, for the summary. */
     val streak: StateFlow<Int> = hifz.streak(ticker.day)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /**
+     * The passages with a "listened" record today ("Listen to the old", task F1b). Only the card of an old passage reads it, to say
+     * "Listened"; the lesson itself (what is done, what is left) never does.
+     */
+    val listenedToday: StateFlow<Set<Long>> = ticker.day
+        .flatMapLatest { day -> hifz.listenLog(day, day) }
+        .map { log -> log.mapNotNullTo(HashSet<Long>()) { it.passageId } as Set<Long> }
+        .catch { emit(emptySet()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     private val quran: StateFlow<List<SurahWithAyahs>> = home.uiState
         .map { it.completeQuran }
@@ -338,7 +349,7 @@ class LessonViewModel(
         val sequence = ListenPlan.sequence(
             range.startAyah, range.endAyah, uiPrefs.lessonAyahRepeats.value, uiPrefs.lessonPassageRepeats.value,
         )
-        audioFor(range.surah).toggleSequence(surah, sequence)
+        audioFor(range.surah).toggleSequence(surah, sequence, echo = uiPrefs.lessonEcho.value)
     }
 
     /** "Listen first" of a repetition: the passage once. */
@@ -361,7 +372,7 @@ class LessonViewModel(
         val sequence = ListenPlan.sequence(
             range.startAyah, range.endAyah, uiPrefs.lessonAyahRepeats.value, uiPrefs.lessonPassageRepeats.value,
         )
-        audioFor(range.surah).restartSequence(surah, sequence)
+        audioFor(range.surah).restartSequence(surah, sequence, echo = uiPrefs.lessonEcho.value)
     }
 
     /** Silences the lesson's own sound (a phase or a card is over). */

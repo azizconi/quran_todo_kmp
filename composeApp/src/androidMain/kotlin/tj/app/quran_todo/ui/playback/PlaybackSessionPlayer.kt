@@ -70,6 +70,38 @@ internal fun sessionSnapshotOf(now: NowPlaying?, state: ReaderAudioState): Sessi
 }
 
 /**
+ * The playlist the media session shows while the listening queue ("Listen to the old") plays: the ayahs of every passage of the
+ * queue in a row, so that "next" always has a next item (the last ayah of a surah included) and the notification names the surah and
+ * the ayah of the passage that sounds. Pure; [flat] is a position in that list.
+ */
+internal object QueuePlaylist {
+    /** How many items the passages [upTo] (exclusive) have in front of them: the position of the first ayah of that passage. */
+    fun offsetOf(queue: ListenQueue, upTo: Int): Int =
+        queue.items.take(upTo.coerceIn(0, queue.items.size)).sumOf { it.endAyah - it.startAyah + 1 }
+
+    fun size(queue: ListenQueue): Int = offsetOf(queue, queue.items.size)
+
+    /** The position of the ayah [ayahInSurah] of the passage the queue is at; an ayah outside the passage is held inside it. */
+    fun flatIndex(queue: ListenQueue, ayahInSurah: Int): Int {
+        val item = queue.current ?: return 0
+        val inside = (ayahInSurah - item.startAyah).coerceIn(0, item.endAyah - item.startAyah)
+        return offsetOf(queue, queue.position) + inside
+    }
+
+    /** The passage (position in the queue) and the ayah of the item at [flat]; null when there is no such item. */
+    fun locate(queue: ListenQueue, flat: Int): Pair<Int, Int>? {
+        if (flat < 0) return null
+        var left = flat
+        queue.items.forEachIndexed { position, item ->
+            val count = item.endAyah - item.startAyah + 1
+            if (left < count) return position to (item.startAyah + left)
+            left -= count
+        }
+        return null
+    }
+}
+
+/**
  * The player the media session (notification, lock screen, headset, Bluetooth) talks to. It plays nothing:
  * it mirrors [PlaybackController] (the ayahs of the surah are its playlist, the current ayah its current
  * item) and turns the commands it receives into calls to the controller.
@@ -103,7 +135,8 @@ internal class PlaybackSessionPlayer(
                 controller.state.map { sessionSnapshotOf(controller.nowPlaying.value, it).withoutPosition() }
                     .distinctUntilChanged(),
                 reciter,
-            ) { _, _, _ -> }.collect { invalidateState() }
+                controller.listenQueue,
+            ) { _, _, _, _ -> }.collect { invalidateState() }
         }
         scope.launch {
             controller.state
@@ -124,8 +157,17 @@ internal class PlaybackSessionPlayer(
         if (now == null || !snapshot.hasMedia) {
             return State.Builder().setAvailableCommands(IdleCommands).setPlaybackState(Player.STATE_IDLE).build()
         }
-        val playlist = itemsFor(now).toMutableList()
-        playlist[snapshot.index] = playlist[snapshot.index].buildUpon()
+        // "Listen to the old": the playlist is the whole queue, so "next" goes on to the next passage and its surah.
+        val queue = controller.listenQueue.value
+        val queueItem = queue?.current
+        val inQueue = queue != null && queueItem != null && queueItem.surah == now.surahNumber
+        val playlist = (if (inQueue) queueItemsFor(queue!!) else itemsFor(now)).toMutableList()
+        val current = if (inQueue) {
+            QueuePlaylist.flatIndex(queue!!, snapshot.index + 1).coerceIn(0, playlist.lastIndex)
+        } else {
+            snapshot.index
+        }
+        playlist[current] = playlist[current].buildUpon()
             .setDurationUs(if (snapshot.durationMs > 0) snapshot.durationMs * 1_000L else androidx.media3.common.C.TIME_UNSET)
             .build()
         val playbackSpeed = speed()
@@ -134,7 +176,7 @@ internal class PlaybackSessionPlayer(
             .setPlayWhenReady(snapshot.playWhenReady, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
             .setPlaybackState(if (snapshot.buffering) Player.STATE_BUFFERING else Player.STATE_READY)
             .setPlaylist(playlist)
-            .setCurrentMediaItemIndex(snapshot.index)
+            .setCurrentMediaItemIndex(current)
             .setPlaybackParameters(PlaybackParameters(playbackSpeed))
             .setContentPositionMs(
                 if (snapshot.advancing) {
@@ -144,6 +186,42 @@ internal class PlaybackSessionPlayer(
                 },
             )
             .build()
+    }
+
+    private var queueItems: List<MediaItemData> = emptyList()
+    private var queueItemsFor: QueueItemsKey? = null
+
+    private class QueueItemsKey(val items: List<ListenItem>, val titles: List<String>, val reciter: String)
+
+    /** The ayahs of every passage of the queue, each titled with its own surah ("An-Naba - 5"). */
+    private fun queueItemsFor(queue: ListenQueue): List<MediaItemData> {
+        val titles = queue.items.map { metadata.surahTitle(it.surah) }
+        val reciter = metadata.reciterName()
+        val cached = queueItemsFor
+        if (cached != null && cached.items == queue.items && cached.titles == titles && cached.reciter == reciter) return queueItems
+        val artwork = metadata.artwork()
+        queueItems = queue.items.flatMapIndexed { position, passage ->
+            val count = passage.endAyah - passage.startAyah + 1
+            (passage.startAyah..passage.endAyah).map { ayah ->
+                val id = "q$position:${passage.surah}:$ayah"
+                val mediaMetadata = MediaMetadata.Builder()
+                    .setTitle("${titles[position]} · $ayah")
+                    .setArtist(reciter)
+                    .setAlbumTitle(titles[position])
+                    .setTrackNumber(ayah - passage.startAyah + 1)
+                    .setTotalTrackCount(count)
+                    .setIsPlayable(true)
+                    .setIsBrowsable(false)
+                    .apply { if (artwork != null) setArtworkData(artwork, MediaMetadata.PICTURE_TYPE_FRONT_COVER) }
+                    .build()
+                MediaItemData.Builder(id)
+                    .setMediaItem(MediaItem.Builder().setMediaId(id).setMediaMetadata(mediaMetadata).build())
+                    .setIsSeekable(false)
+                    .build()
+            }
+        }
+        queueItemsFor = QueueItemsKey(queue.items, titles, reciter)
+        return queueItems
     }
 
     private fun itemsFor(now: NowPlaying): List<MediaItemData> {
@@ -188,6 +266,17 @@ internal class PlaybackSessionPlayer(
     }
 
     override fun handleSeek(mediaItemIndex: Int, positionMs: Long, seekCommand: Int): ListenableFuture<*> {
+        val queue = controller.listenQueue.value
+        if (queue != null && queue.current != null) {
+            val current = QueuePlaylist.flatIndex(queue, controller.state.value.index + 1)
+            when (mediaItemIndex) {
+                // Next ayah; at the last ayah of a passage the controller goes on to the next passage.
+                current + 1 -> controller.next()
+                current - 1 -> controller.previous()
+                else -> QueuePlaylist.locate(queue, mediaItemIndex)?.let { (position, ayah) -> controller.seekListenAyah(position, ayah) }
+            }
+            return Futures.immediateVoidFuture()
+        }
         val current = controller.state.value.index
         when (mediaItemIndex) {
             current + 1 -> controller.next()

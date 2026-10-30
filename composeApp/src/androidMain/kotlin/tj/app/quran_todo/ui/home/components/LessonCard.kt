@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Eco
+import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -44,6 +45,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import tj.app.quran_todo.ui.components.QhButton
+import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.components.QhCardStyle
@@ -54,7 +56,11 @@ import tj.app.quran_todo.ui.home.LessonCardUi
 import tj.app.quran_todo.ui.home.LessonLineKind
 import tj.app.quran_todo.ui.home.LessonLineUi
 import tj.app.quran_todo.ui.home.LessonTomorrowUi
+import tj.app.quran_todo.ui.home.ListeningUi
+import tj.app.quran_todo.ui.home.OldListenUi
 import tj.app.quran_todo.ui.i18n.HomeCopy
+import tj.app.quran_todo.ui.i18n.ListenCopy
+import tj.app.quran_todo.ui.i18n.rememberListenCopy
 import tj.app.quran_todo.ui.i18n.passageRangeLabel
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.SharedKeys
@@ -79,6 +85,9 @@ internal fun LessonCard(
     onOpenLesson: () -> Unit,
     onOpenPlan: () -> Unit,
     modifier: Modifier = Modifier,
+    /** "Listen to the old": opens the queue; the button shows only when today's portion of the circle has passages. */
+    onListenOld: () -> Unit = {},
+    listening: ListeningUi? = null,
 ) {
     when (card.state) {
         LessonCardState.NoPlan -> PlanInvitation(
@@ -100,7 +109,7 @@ internal fun LessonCard(
         )
 
         LessonCardState.Start, LessonCardState.Continue, LessonCardState.Done ->
-            LessonBody(card, copy, onOpenLesson, onOpenPlan, modifier)
+            LessonBody(card, copy, onOpenLesson, onOpenPlan, modifier, onListenOld, listening)
     }
 }
 
@@ -111,9 +120,12 @@ private fun LessonBody(
     onOpenLesson: () -> Unit,
     onOpenPlan: () -> Unit,
     modifier: Modifier,
+    onListenOld: () -> Unit,
+    listening: ListeningUi?,
 ) {
     val colors = QhTheme.colors
     val type = QhTheme.type
+    val listen = rememberListenCopy()
     val done = card.state == LessonCardState.Done
     QhCard(
         modifier = modifier
@@ -145,7 +157,7 @@ private fun LessonBody(
         }
         Column(Modifier.padding(end = QhSpacing.x3)) {
             Spacer(Modifier.height(QhSpacing.x1))
-            card.lines.forEach { line -> LessonLine(line, copy) }
+            card.lines.forEach { line -> LessonLine(line, copy, listen) }
             if (card.catchingUp) {
                 Spacer(Modifier.height(QhSpacing.x2))
                 Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(QhSpacing.x2)) {
@@ -179,8 +191,26 @@ private fun LessonBody(
                     icon = Icons.Rounded.PlayArrow,
                 )
             }
+            card.oldListen?.let { old -> ListenOldButton(old, listening, listen, onListenOld) }
         }
     }
+}
+
+/**
+ * "Listen to the old - about 10 min" (task F1b): today's portion of the circle as audio, for the road or with the screen off. It is
+ * a help, not a repetition: it never moves the lesson or the circle. While the queue plays it says where it is.
+ */
+@Composable
+private fun ListenOldButton(old: OldListenUi, listening: ListeningUi?, listen: ListenCopy, onClick: () -> Unit) {
+    Spacer(Modifier.height(QhSpacing.x2))
+    QhButton(
+        text = if (listening != null) listen.oldPlaying(listening.position, listening.total) else listen.oldButton(old.minutes),
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        variant = QhButtonVariant.Ghost,
+        size = QhButtonSize.M,
+        icon = Icons.Rounded.Headphones,
+    )
 }
 
 /** The "..." button of the card and its menu with one entry, "My plan". */
@@ -214,9 +244,10 @@ private fun PlanMenu(copy: HomeCopy, onOpenPlan: () -> Unit) {
 }
 
 @Composable
-private fun LessonLine(line: LessonLineUi, copy: HomeCopy) {
+private fun LessonLine(line: LessonLineUi, copy: HomeCopy, listen: ListenCopy) {
     val colors = QhTheme.colors
-    val text = lineText(line, copy)
+    // "Old: Al-Mulk 1-15 +2 - Listened": listening is shown, it does not make the line done.
+    val text = lineText(line, copy).let { if (line.kind == LessonLineKind.Old && line.listened) "$it · ${listen.listenedBadge}" else it }
     Row(
         Modifier
             .fillMaxWidth()

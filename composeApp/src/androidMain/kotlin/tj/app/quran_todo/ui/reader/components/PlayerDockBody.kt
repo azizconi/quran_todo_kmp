@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.imageResource
 import qurantodo.composeapp.generated.resources.Res
 import qurantodo.composeapp.generated.resources.player_guide_art
+import tj.app.quran_todo.common.audio.EchoPlan
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.playerFeatureCopy
 import tj.app.quran_todo.common.settings.LocalAppSettings
@@ -81,6 +82,7 @@ import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
 import tj.app.quran_todo.ui.components.spotlight.SpotlightTargets
 import tj.app.quran_todo.ui.components.spotlight.spotlightTarget
 import tj.app.quran_todo.ui.i18n.ReaderCopy
+import tj.app.quran_todo.ui.i18n.rememberListenCopy
 import tj.app.quran_todo.ui.playback.SleepTimer
 import tj.app.quran_todo.ui.reader.PlayerUi
 import tj.app.quran_todo.ui.reader.ReaderViewModel
@@ -137,6 +139,7 @@ internal fun DockBody(
             hint = copy.pauseHint,
             modifier = Modifier.spotlightTarget(SpotlightTargets.PlayerPause, SpotlightShape.Rounded(16.dp), reveal = true, inset = 4.dp),
         )
+        EchoSection(viewModel = viewModel, practice = practice, copy = copy)
         ChipSection(
             title = copy.speed,
             options = listOf(0.75f, 1f, 1.25f, 1.5f, 2f).map { it to speedLabel(it) },
@@ -248,6 +251,7 @@ private fun TransportRow(
     onPlay: () -> Unit,
 ) {
     val pauseRemaining = viewModel.pauseRemainingSeconds.collectAsState()
+    val pauseTotal by viewModel.pauseTotalSeconds.collectAsState()
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -263,7 +267,7 @@ private fun TransportRow(
         DockPlayButton(
             ui = ui,
             pauseRemaining = pauseRemaining,
-            pauseTotal = practice.pauseSeconds,
+            pauseTotal = pauseTotal,
             size = 72.dp,
             copy = copy,
             shared = false,
@@ -384,6 +388,22 @@ private fun <T> ChipSection(
             }
         }
     }
+}
+
+/**
+ * "Echo" (task F1b), next to the passage repeat and the pause: the reciter reads an ayah, then comes silence a little longer than
+ * the ayah for the person to repeat it. Off, or 1, 2 or 3 rounds per ayah. The silence takes the place of the plain pause.
+ */
+@Composable
+private fun EchoSection(viewModel: ReaderViewModel, practice: ReaderPracticeSettings, copy: ReaderCopy) {
+    val listen = rememberListenCopy()
+    ChipSection(
+        title = listen.echoTitle,
+        options = listOf(0 to copy.none) + EchoPlan.Repeats.sorted().map { it to repeatLabel(it) },
+        selected = if (practice.echo) practice.echoRepeats else 0,
+        onSelect = viewModel::setEcho,
+        hint = listen.echoHint,
+    )
 }
 
 @Composable

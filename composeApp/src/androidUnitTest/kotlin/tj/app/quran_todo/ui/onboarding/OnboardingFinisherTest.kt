@@ -88,6 +88,8 @@ class OnboardingFinisherTest {
         override fun hardAyahs(): Flow<Map<Int, Set<Int>>> = error("unused")
         override fun surahCoverage(surah: Int): Flow<SurahCoverage> = error("unused")
         override fun reviewLog(fromDay: Int, toDay: Int): Flow<List<ReviewLogEntry>> = error("unused")
+        override fun listenLog(fromDay: Int, toDay: Int): Flow<List<ReviewLogEntry>> = error("unused")
+        override suspend fun logListened(passageIds: List<Long>, today: Int): Unit = error("unused")
         override fun oldWeight(): Flow<Int> = flow {
             if (failOldWeight) error("boom: oldWeight")
             emit(known.size * weightOfSurah)

@@ -95,7 +95,9 @@ import tj.app.quran_todo.ui.components.AyahRosette
 import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.haptics.HapticKind
 import tj.app.quran_todo.ui.haptics.LocalHaptics
+import tj.app.quran_todo.ui.i18n.ListenCopy
 import tj.app.quran_todo.ui.i18n.ReaderCopy
+import tj.app.quran_todo.ui.i18n.rememberListenCopy
 import tj.app.quran_todo.ui.motion.AnimatedCounter
 import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
 import tj.app.quran_todo.ui.components.spotlight.SpotlightTargets
@@ -108,6 +110,7 @@ import tj.app.quran_todo.ui.motion.pressable
 import tj.app.quran_todo.ui.motion.sharedBoundsKey
 import tj.app.quran_todo.ui.motion.sharedElementKey
 import tj.app.quran_todo.ui.navigation.Origin
+import tj.app.quran_todo.ui.playback.ListenQueue
 import tj.app.quran_todo.ui.playback.SleepTimer
 import tj.app.quran_todo.ui.reader.PlayerUi
 import tj.app.quran_todo.ui.reader.ReaderViewModel
@@ -276,6 +279,7 @@ private fun DockHeader(
     val shape = QhTheme.shapes.xlTop
     val audioProgress = viewModel.audioProgress.collectAsState()
     val pauseRemaining = viewModel.pauseRemainingSeconds.collectAsState()
+    val pauseTotal by viewModel.pauseTotalSeconds.collectAsState()
     val showControls by remember { derivedStateOf { state.progress < 0.5f } }
     val shared = origin == Origin.PLAYER
     val number = ui.index + 1
@@ -376,7 +380,7 @@ private fun DockHeader(
                         DockPlayButton(
                             ui = ui,
                             pauseRemaining = pauseRemaining,
-                            pauseTotal = practice.pauseSeconds,
+                            pauseTotal = pauseTotal,
                             size = 48.dp,
                             copy = copy,
                             shared = shared,
@@ -424,6 +428,8 @@ private fun DockStatusLine(
     val waiting = pauseRemaining.value
     val reciter by koinInject<UiPrefs>().reciter.collectAsState()
     val reciterName = reciter.shortName(LocalAppLanguage.current)
+    val listen = rememberListenCopy()
+    val queue by viewModel.listenQueue.collectAsState()
     when {
         ui.hasError -> Row(
             Modifier
@@ -460,7 +466,7 @@ private fun DockStatusLine(
         )
         else -> Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = statusSummary(prefs, practice, copy, reciterName),
+                text = statusSummary(prefs, practice, copy, reciterName, listen, queue.takeIf { ui.active }),
                 style = style,
                 color = colors.inkSecondary,
                 maxLines = 1,
@@ -498,10 +504,22 @@ private fun statusSummary(
     practice: ReaderPracticeSettings,
     copy: ReaderCopy,
     reciterName: String,
+    listen: ListenCopy? = null,
+    queue: ListenQueue? = null,
 ): String =
     buildString {
+        // "Listen to the old": the dock shows the queue that plays, its passage and its echo, not the reader's own settings.
+        if (queue != null && listen != null) {
+            append(listen.dockQueue(queue.position + 1, queue.items.size)).append(" · ").append(reciterName)
+            if (prefs.playbackSpeed != 1f) append(" · ").append(speedLabel(prefs.playbackSpeed))
+            if (queue.echo) append(" · ").append(listen.echoChip).append(" ").append(repeatLabel(queue.echoRepeats))
+            return@buildString
+        }
         append(reciterName)
         if (prefs.playbackSpeed != 1f) append(" · ").append(speedLabel(prefs.playbackSpeed))
+        if (practice.echo && listen != null) {
+            append(" · ").append(listen.echoChip).append(" ").append(repeatLabel(practice.echoRepeats))
+        }
         if (practice.rangeEnabled) {
             append(" · ").append(copy.repeatLabel("${practice.startAyah}–${practice.endAyah}", repeatLabel(practice.rangeRepeatCount)))
         } else if (prefs.repeatCount != 1) {

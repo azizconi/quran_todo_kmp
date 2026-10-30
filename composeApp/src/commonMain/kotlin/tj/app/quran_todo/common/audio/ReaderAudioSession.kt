@@ -25,6 +25,8 @@ data class ReaderAudioState(
     val canResume: Boolean = false,
     val isPreparing: Boolean = false,
     val pauseRemainingSeconds: Int = 0,
+    /** The whole silence [pauseRemainingSeconds] counts down in (the pause, or the echo silence): the ring around play is full at this. */
+    val pauseTotalSeconds: Int = 0,
     val positionMs: Long = 0,
     val durationMs: Long = 0,
     val hasError: Boolean = false,
@@ -51,10 +53,26 @@ class ReaderAudioSession internal constructor(
     private var pendingJob: Job? = null
     private var generation = 0L
     private var repeatsRemaining = 1
+
+    /** The round of the echo mode of the reading that is playing (see [EchoPlan]); 0 outside the echo mode. */
+    private var echoRound = 0
     private var sequenceCompleted = false
     private var pendingStep: ReaderPlaybackStep? = null
+
+    /** The silence that is running (or paused) is the last one: when it is over the sequence is over (the echo mode). */
+    private var pendingEnd = false
     private var gapRemainingMs = 0L
     private var stopAfterIndex: Int? = null
+
+    /** The silence between two readings (a pause or the echo silence) is running or is paused. */
+    private val inGap: Boolean get() = pendingStep != null || pendingEnd
+
+    /**
+     * Told when the sequence ends by itself (the last ayah has been read, the echo silence after it included), before the state
+     * says "stopped". Returning `true` means the owner has started something else at once (the next passage of a listening
+     * queue), so the session is not to go idle. The sleep timer's "end of surah" does not call it: that is a stop, not an end.
+     */
+    var onSequenceEnd: (() -> Boolean)? = null
 
     /**
      * An explicit order of ayah indices ([playScript]); while it is set, the position in it travels in
@@ -66,7 +84,7 @@ class ReaderAudioSession internal constructor(
         state.map { it.isPlaying }.distinctUntilChanged().collectLatest { playing ->
             if (playing) {
                 while (currentCoroutineContext().isActive) {
-                    if (pendingStep == null) {
+                    if (!inGap) {
                         mutableState.value = state.value.copy(
                             positionMs = player.getPositionMs(), durationMs = player.getDurationMs(),
                         )
@@ -110,7 +128,7 @@ class ReaderAudioSession internal constructor(
     fun toggle() {
         when {
             state.value.isPlaying -> pause()
-            state.value.canResume && pendingStep != null -> {
+            state.value.canResume && inGap -> {
                 mutableState.value = state.value.copy(isPlaying = true, canResume = false)
                 waitForNext()
             }
@@ -146,7 +164,7 @@ class ReaderAudioSession internal constructor(
         val bounds = playbackBounds()
         val index = if (practice.rangeEnabled && sequenceCompleted) bounds.first else
             state.value.index.takeIf { it in bounds } ?: bounds.first
-        start(ReaderPlaybackStep(index, if (practice.rangeEnabled) practice.rangeRepeatCount else preferences.repeatCount))
+        start(freshStep(index, preferences, practice))
     }
 
     /**
@@ -169,7 +187,7 @@ class ReaderAudioSession internal constructor(
         }
         val bounds = playbackBounds()
         val index = (state.value.index + delta).coerceIn(bounds.first, bounds.last)
-        start(ReaderPlaybackStep(index, if (practice.rangeEnabled) practice.rangeRepeatCount else preferences.repeatCount))
+        start(freshStep(index, preferences, practice))
     }
 
     fun updateSettings(preferences: SurahReaderPreferences, practice: ReaderPracticeSettings) {
@@ -186,7 +204,7 @@ class ReaderAudioSession internal constructor(
             val index = if (rangeChanged && normalized.rangeEnabled) normalized.startAyah - 1 else state.value.index
             select(index)
             if (wasPlaying) play()
-        } else if (wasPlaying && pendingStep == null) {
+        } else if (wasPlaying && !inGap) {
             player.setPlaybackSpeed(preferences.playbackSpeed)
         }
     }
@@ -197,8 +215,10 @@ class ReaderAudioSession internal constructor(
         val request = generation
         player.stop()
         pendingStep = null
+        pendingEnd = false
         gapRemainingMs = 0
         repeatsRemaining = step.repeatsRemaining
+        echoRound = step.echoRound
         sequenceCompleted = false
         mutableState.value = ReaderAudioState(index = step.index, isPlaying = true, isPreparing = true)
         savePosition(step.index)
@@ -225,35 +245,65 @@ class ReaderAudioSession internal constructor(
 
     private fun finishedAyah() {
         val order = script
+        val limited = state.value.index == stopAfterIndex
         val step = when {
-            state.value.index == stopAfterIndex -> null
+            limited -> null
             order != null -> order.getOrNull(repeatsRemaining + 1)?.let { ReaderPlaybackStep(it, repeatsRemaining + 1) }
-            else -> nextReaderPlaybackStep(state.value.index, repeatsRemaining, ayahs.size, preferences, practice)
+            else -> nextReaderPlaybackStep(state.value.index, repeatsRemaining, ayahs.size, preferences, practice, echoRound)
         }
-        if (step == null) {
-            sequenceCompleted = true
-            mutableState.value = state.value.copy(isPlaying = false, canResume = false, positionMs = state.value.durationMs)
+        // The echo silence takes the place of the pause and also follows the last reading: the person repeats it before the end.
+        val echoing = practice.echo && !limited
+        val gapMs = when {
+            echoing -> EchoPlan.silenceMs(maxOf(state.value.durationMs, player.getDurationMs()), preferences.playbackSpeed)
+            else -> practice.pauseSeconds * 1000L
+        }
+        if (step == null && !(echoing && gapMs > 0)) {
+            completeSequence(natural = !limited)
             return
         }
         pendingStep = step
-        gapRemainingMs = practice.pauseSeconds * 1000L
+        pendingEnd = step == null
+        gapRemainingMs = gapMs
+        val total = EchoPlan.seconds(gapMs)
         if (state.value.isPlaying) waitForNext() else {
-            mutableState.value = state.value.copy(pauseRemainingSeconds = practice.pauseSeconds)
+            mutableState.value = state.value.copy(pauseRemainingSeconds = total, pauseTotalSeconds = total)
         }
+    }
+
+    /** The sequence is over: the owner may carry on with something else, otherwise the state says "stopped". */
+    private fun completeSequence(natural: Boolean) {
+        pendingStep = null
+        pendingEnd = false
+        gapRemainingMs = 0
+        if (state.value.pauseRemainingSeconds != 0 || state.value.pauseTotalSeconds != 0) {
+            mutableState.value = state.value.copy(pauseRemainingSeconds = 0, pauseTotalSeconds = 0)
+        }
+        if (natural && onSequenceEnd?.invoke() == true) return
+        sequenceCompleted = true
+        mutableState.value = state.value.copy(
+            isPlaying = false, canResume = false, positionMs = state.value.durationMs,
+            pauseRemainingSeconds = 0, pauseTotalSeconds = 0,
+        )
     }
 
     private fun waitForNext() {
         pendingJob?.cancel()
         val request = generation
+        val total = EchoPlan.seconds(gapRemainingMs)
         pendingJob = scope.launch {
             var tick = nowMs()
             while (gapRemainingMs > 0) {
-                mutableState.value = state.value.copy(pauseRemainingSeconds = ((gapRemainingMs + 999) / 1000).toInt())
+                mutableState.value = state.value.copy(
+                    pauseRemainingSeconds = ((gapRemainingMs + 999) / 1000).toInt(),
+                    pauseTotalSeconds = maxOf(total, state.value.pauseTotalSeconds),
+                )
                 delay(minOf(100L, gapRemainingMs))
                 gapRemainingMs = (gapRemainingMs - (nowMs() - tick)).coerceAtLeast(0)
                 tick = nowMs()
             }
-            if (request == generation && state.value.isPlaying) pendingStep?.let(::start)
+            if (request == generation && state.value.isPlaying) {
+                if (pendingEnd) completeSequence(natural = true) else pendingStep?.let(::start)
+            }
         }
     }
 
@@ -272,6 +322,7 @@ class ReaderAudioSession internal constructor(
         invalidate()
         player.stop()
         pendingStep = null
+        pendingEnd = false
         gapRemainingMs = 0
         sequenceCompleted = false
         mutableState.value = ReaderAudioState(index = state.value.index)
@@ -292,7 +343,14 @@ class ReaderAudioSession internal constructor(
         (practice.startAyah - 1)..(practice.endAyah - 1)
     } else ayahs.indices
 
+    /**
+     * Whether the ayah that plays is remembered as "where the person stopped" (the "Continue" of the home screen). The listening
+     * queue of "Listen to the old" turns it off: old passages are not a place to continue from.
+     */
+    var savesPosition: Boolean = true
+
     private fun savePosition(index: Int) {
+        if (!savesPosition) return
         ayahs.getOrNull(index)?.let { persistPosition(surahNumber, it.globalNumber) }
     }
 }

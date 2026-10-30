@@ -8,6 +8,7 @@ import tj.app.quran_todo.ui.downloads.DownloadsViewModel
 import tj.app.quran_todo.ui.hifz.HifzViewModel
 import tj.app.quran_todo.ui.home.HomeUiViewModel
 import tj.app.quran_todo.ui.lesson.LessonViewModel
+import tj.app.quran_todo.ui.listen.ListenOldViewModel
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.onboarding.OnboardingViewModel
 import tj.app.quran_todo.ui.plan.PlanViewModel
@@ -88,6 +89,21 @@ val lessonUiModule = module {
     }
 }
 
+val listenUiModule = module {
+    // "Listen to the old": the queue lives in the shared PlaybackController; this view model only reads the lesson and writes the
+    // "listened" records through the HifzRepository (singletons come in through the constructor, never koinViewModel).
+    viewModel {
+        ListenOldViewModel(
+            hifz = get(),
+            ticker = get(),
+            home = get(),
+            surahViewModel = get(),
+            uiPrefs = get(),
+            playback = get(),
+        )
+    }
+}
+
 val progressUiModule = module {
     // The progress is read from the HifzRepository (a Koin single of the common module), the day comes from the EpochDayTicker; the
     // shared HomeViewModel only supplies the names of the surahs. None of them is ever put into a ViewModelStore.
@@ -150,6 +166,7 @@ val uiModules = listOf(
     readerUiModule,
     hifzUiModule,
     lessonUiModule,
+    listenUiModule,
     progressUiModule,
     settingsUiModule,
     downloadsUiModule,

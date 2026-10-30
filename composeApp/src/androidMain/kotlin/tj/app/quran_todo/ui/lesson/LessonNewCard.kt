@@ -65,6 +65,8 @@ import tj.app.quran_todo.data.database.entity.quran.AyahEntity
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.ui.components.AyahRosette
 import tj.app.quran_todo.ui.components.QhButton
+import tj.app.quran_todo.ui.components.QhCard
+import tj.app.quran_todo.ui.components.QhSwitchRow
 import tj.app.quran_todo.ui.components.QhSegmentedControl
 import tj.app.quran_todo.ui.components.QhSheet
 import tj.app.quran_todo.ui.components.Skeleton
@@ -76,6 +78,9 @@ import tj.app.quran_todo.ui.hifz.RecallHost
 import tj.app.quran_todo.ui.hifz.RecallPassage
 import tj.app.quran_todo.ui.i18n.HifzCopy
 import tj.app.quran_todo.ui.i18n.LessonCopy
+import tj.app.quran_todo.ui.i18n.rememberListenCopy
+import tj.app.quran_todo.ui.listen.EchoRing
+import tj.app.quran_todo.ui.listen.YourTurnLine
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.pressable
 import tj.app.quran_todo.ui.reader.splitBismillah
@@ -206,6 +211,8 @@ private fun ListenPhase(viewModel: LessonViewModel, copy: LessonCopy, work: Less
     val audio by viewModel.audioState.collectAsState()
     val ayahRepeats by uiPrefs.lessonAyahRepeats.collectAsState()
     val passageRepeats by uiPrefs.lessonPassageRepeats.collectAsState()
+    val echo by uiPrefs.lessonEcho.collectAsState()
+    val listenCopy = rememberListenCopy()
     var settingsOpen by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
@@ -231,16 +238,26 @@ private fun ListenPhase(viewModel: LessonViewModel, copy: LessonCopy, work: Less
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(QhSpacing.x3),
         ) {
+            // The echo ("I repeat after the reciter"): while the reciter is silent it is the person's turn, with a thin ring.
+            YourTurnLine(
+                yourTurn = listenCopy.yourTurn,
+                secondsShort = listenCopy.secondsShort,
+                remaining = audio.silenceSeconds,
+                active = audio.yourTurn,
+            )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(QhSpacing.x6),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 RoundAction(Icons.Rounded.Tune, copy.listenSettings, onClick = { settingsOpen = true })
-                PlayButton(
-                    playing = audio.playing,
-                    label = if (audio.playing) copy.listenPause else copy.listenPlay,
-                    onClick = { viewModel.toggleListen(work) },
-                )
+                Box(Modifier.size(PlayButtonSize + 12.dp), contentAlignment = Alignment.Center) {
+                    EchoRing(remaining = audio.silenceSeconds, total = audio.silenceTotalSeconds, active = audio.yourTurn)
+                    PlayButton(
+                        playing = audio.playing,
+                        label = if (audio.playing) copy.listenPause else copy.listenPlay,
+                        onClick = { viewModel.toggleListen(work) },
+                    )
+                }
                 RoundAction(Icons.Rounded.Replay, copy.listenReplay, onClick = { viewModel.replayListen(work) })
             }
             QhButton(
@@ -255,8 +272,10 @@ private fun ListenPhase(viewModel: LessonViewModel, copy: LessonCopy, work: Less
             copy = copy,
             ayahRepeats = ayahRepeats,
             passageRepeats = passageRepeats,
+            echo = echo,
             onAyahRepeats = uiPrefs::setLessonAyahRepeats,
             onPassageRepeats = uiPrefs::setLessonPassageRepeats,
+            onEcho = uiPrefs::setLessonEcho,
             onDismiss = { settingsOpen = false },
         )
     }
@@ -304,11 +323,14 @@ private fun ListenSettingsSheet(
     copy: LessonCopy,
     ayahRepeats: Int,
     passageRepeats: Int,
+    echo: Boolean,
     onAyahRepeats: (Int) -> Unit,
     onPassageRepeats: (Int) -> Unit,
+    onEcho: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val colors = QhTheme.colors
+    val listenCopy = rememberListenCopy()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     QhSheet(onDismiss = onDismiss, sheetState = sheetState) {
         Column(verticalArrangement = Arrangement.spacedBy(QhSpacing.x3)) {
@@ -341,8 +363,17 @@ private fun ListenSettingsSheet(
                 text = copy.listenHint(ayahRepeats, passageRepeats),
                 style = QhTheme.type.callout,
                 color = colors.inkSecondary,
-                modifier = Modifier.padding(top = QhSpacing.x1, bottom = QhSpacing.x2),
+                modifier = Modifier.padding(top = QhSpacing.x1),
             )
+            // "I repeat after the reciter": silence for the person after every reading (task F1b).
+            QhCard(contentPadding = PaddingValues(0.dp), modifier = Modifier.padding(top = QhSpacing.x2, bottom = QhSpacing.x2)) {
+                QhSwitchRow(
+                    title = listenCopy.echoSwitch,
+                    checked = echo,
+                    onCheckedChange = onEcho,
+                    description = listenCopy.echoSwitchHint,
+                )
+            }
         }
     }
 }

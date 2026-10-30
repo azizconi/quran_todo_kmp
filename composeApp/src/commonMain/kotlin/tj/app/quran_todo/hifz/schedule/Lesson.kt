@@ -24,6 +24,8 @@ data class LessonItem(
     val estimateSeconds: Int,
     /** For the ladder: how many days after the due day it is; 0 when it is due today (or for OLD). */
     val overdueDays: Int,
+    /** Seconds of one calm recitation of the passage (the audio of "Listen to the old", task F1b); display only. */
+    val listenSeconds: Int = 0,
 )
 
 enum class LessonNewState {
@@ -122,13 +124,15 @@ object LessonBuilder {
     fun build(input: LessonInput): LessonPlan {
         val metrics = input.metrics
         val today = input.today
+        // "Listen to the old" (LISTEN) is a help, not a repetition: it must not change anything of the lesson.
+        val todayLog = input.todayLog.filter { it.kind.countsAsStudy }
         val byId = input.passages.associateBy { it.id }
         val coverage = Coverage(input.passages, metrics)
         val plan = input.plan
 
         // --- Repetitions done today (the last record of a passage wins) ---
         val lastReviewEntry = LinkedHashMap<Long, ReviewLogEntry>()
-        for (entry in input.todayLog) {
+        for (entry in todayLog) {
             if ((entry.kind == ReviewKind.RECENT || entry.kind == ReviewKind.OLD) && entry.passageId != null) {
                 lastReviewEntry.remove(entry.passageId)
                 lastReviewEntry[entry.passageId] = entry
@@ -139,7 +143,7 @@ object LessonBuilder {
         // Without a plan nobody chose the circle length: it is suggested from the weight of the old passages, as onboarding does.
         val manzilDays = plan?.manzilDays
             ?: Manzil.suggestedDays(input.passages.filter { it.stage == PassageStage.OLD }.sumOf { metrics.weight(it) })
-        val portion = Manzil.portion(input.passages, input.todayLog, manzilDays, metrics, today)
+        val portion = Manzil.portion(input.passages, todayLog, manzilDays, metrics, today)
         val portionIds = portion.items.map { it.passage.id }.toSet()
 
         // --- Recent: done today + due ---
@@ -152,7 +156,7 @@ object LessonBuilder {
             .sortedWith(compareBy({ it.nextDueEpochDay }, { it.surah }, { it.startAyah }))
 
         // --- New ---
-        val newToday = input.todayLog.lastOrNull { it.kind == ReviewKind.NEW }
+        val newToday = todayLog.lastOrNull { it.kind == ReviewKind.NEW }
         val next = plan?.let { NewPassagePlanner.next(it, coverage, metrics) }
         val planFinished = plan != null && HifzStatuses.currentSurah(plan, coverage) == null
 
@@ -232,6 +236,7 @@ object LessonBuilder {
             grade = grade,
             estimateSeconds = reviewEstimate(p),
             overdueDays = if (done) 0 else maxOf(0, today - (p.nextDueEpochDay ?: today)),
+            listenSeconds = HifzConstants.listenSeconds(metrics.weight(p)),
         )
 
         val recentItems = recentDone.map { (p, grade) -> item(p, done = true, grade = grade) } +
