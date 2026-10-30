@@ -429,4 +429,14 @@ class LessonBuilderTest {
         val lesson = lesson(Fx.plan(listOf(112), manzilDays = 1), old)
         assertEquals(listOf(2L, 3L, 1L), lesson.old.map { it.passageId })
     }
+
+    @Test
+    fun withoutAPlanTheCircleLengthIsSuggestedFromTheOldWeight() {
+        // 50 old passages of 500 characters: a 7-day circle would put about 8 of them in a day; the suggested one far fewer.
+        val old = (1..50).map { Fx.passage(it.toLong(), 2, 5 * (it - 1) + 1, 5 * it) }
+        val suggested = tj.app.quran_todo.hifz.schedule.Manzil.suggestedDays(old.sumOf { m.weight(it) })
+        assertTrue(suggested > HifzConstants.MANZIL_DAYS_DEFAULT)
+        val lesson = lesson(null, old)
+        assertEquals((50 + suggested - 1) / suggested, lesson.old.size)
+    }
 }

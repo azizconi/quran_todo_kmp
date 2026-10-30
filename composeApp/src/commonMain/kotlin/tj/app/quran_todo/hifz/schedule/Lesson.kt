@@ -136,7 +136,10 @@ object LessonBuilder {
         }
 
         // --- Old: the manzil portion ---
-        val portion = Manzil.portion(input.passages, input.todayLog, plan?.manzilDays ?: HifzConstants.MANZIL_DAYS_DEFAULT, metrics, today)
+        // Without a plan nobody chose the circle length: it is suggested from the weight of the old passages, as onboarding does.
+        val manzilDays = plan?.manzilDays
+            ?: Manzil.suggestedDays(input.passages.filter { it.stage == PassageStage.OLD }.sumOf { metrics.weight(it) })
+        val portion = Manzil.portion(input.passages, input.todayLog, manzilDays, metrics, today)
         val portionIds = portion.items.map { it.passage.id }.toSet()
 
         // --- Recent: done today + due ---
@@ -241,7 +244,7 @@ object LessonBuilder {
         val isComplete = !isEmpty && recentItems.all { it.done } && oldItems.all { it.done } && !pendingNew
 
         val tomorrowLadder = input.passages.count { it.stage != PassageStage.OLD && (it.nextDueEpochDay ?: Int.MAX_VALUE) <= today + 1 }
-        val tomorrowOld = Manzil.portion(input.passages, emptyList(), plan?.manzilDays ?: HifzConstants.MANZIL_DAYS_DEFAULT, metrics, today + 1).items.size
+        val tomorrowOld = Manzil.portion(input.passages, emptyList(), manzilDays, metrics, today + 1).items.size
         val tomorrowDue = tomorrowLadder + tomorrowOld
 
         return LessonPlan(
