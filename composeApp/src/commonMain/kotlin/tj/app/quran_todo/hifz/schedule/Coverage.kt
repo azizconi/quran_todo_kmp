@@ -77,6 +77,18 @@ object HifzStatuses {
         return result
     }
 
+    /**
+     * The difficult ayahs of every surah that has any (numbers in the surah, ascending), the surahs in mushaf order. An ayah
+     * marked in more than one passage of a surah is listed once.
+     */
+    fun hardAyahs(passages: List<Passage>): Map<Int, Set<Int>> =
+        passages
+            .filter { it.hard.isNotEmpty() }
+            .groupBy { it.surah }
+            .toList()
+            .sortedBy { (surah, _) -> surah }
+            .associate { (surah, own) -> surah to own.flatMap { it.hard.keys }.distinct().sorted().toSet() }
+
     fun surahCoverage(surah: Int, passages: List<Passage>, plan: HifzPlan?, metrics: TextMetrics): SurahCoverage {
         val coverage = Coverage(passages, metrics)
         val current = currentSurah(plan, coverage)

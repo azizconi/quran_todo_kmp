@@ -170,6 +170,8 @@ class HifzRepositoryImpl(
         ayahs
     }
 
+    override fun hardAyahs(): Flow<Map<Int, Set<Int>>> = observe(PASSAGES, HARD) { HifzStatuses.hardAyahs(loadPassages()) }
+
     override fun surahCoverage(surah: Int): Flow<SurahCoverage> = observeWithMetrics(PASSAGES, HARD, PLAN) { metrics ->
         HifzStatuses.surahCoverage(surah, loadPassages(), loadPlan(), metrics)
     }

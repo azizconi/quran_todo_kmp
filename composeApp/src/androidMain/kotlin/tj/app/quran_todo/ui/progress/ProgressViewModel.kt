@@ -8,104 +8,151 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.LanguageStorage
-import tj.app.quran_todo.common.settings.weakAyahKeySet
-import tj.app.quran_todo.common.utils.currentLocalDate
-import tj.app.quran_todo.common.utils.localDateFromEpoch
-import tj.app.quran_todo.data.database.dao.AyahReviewDao
+import tj.app.quran_todo.data.bundled.QuranFacts
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
-import tj.app.quran_todo.data.database.entity.todo.AyahReviewEntity
-import tj.app.quran_todo.data.database.entity.todo.AyahTodoEntity
-import tj.app.quran_todo.data.database.entity.todo.SurahTodoEntity
 import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.domain.model.SurahModel
-import tj.app.quran_todo.presentation.home.HomeUiState
+import tj.app.quran_todo.hifz.EpochDayTicker
+import tj.app.quran_todo.hifz.HifzRepository
+import tj.app.quran_todo.hifz.model.HifzPlan
+import tj.app.quran_todo.hifz.model.ReviewLogEntry
+import tj.app.quran_todo.hifz.model.SurahHifzStatus
+import tj.app.quran_todo.hifz.schedule.LessonPlan
+import tj.app.quran_todo.hifz.schedule.PlanForecast
 import tj.app.quran_todo.presentation.home.HomeViewModel
 import tj.app.quran_todo.ui.common.SurahNames
+import tj.app.quran_todo.ui.progress.report.ProgressReport
+import tj.app.quran_todo.ui.progress.report.ReportBuilder
+import tj.app.quran_todo.ui.progress.report.ReportComposer
+import tj.app.quran_todo.ui.progress.report.ReportDoc
+import tj.app.quran_todo.ui.progress.report.ReportPeriod
+import tj.app.quran_todo.ui.progress.report.toPlainText
+
+/** The report of a period made of what the screen shows right now: the words, the text for the messenger and the last day. */
+internal class PreparedReport(
+    val period: ReportPeriod,
+    val doc: ReportDoc,
+    val text: String,
+    val toDay: Int,
+)
 
 /**
- * State of the progress screen. The shared [HomeViewModel] (injected through Koin, never obtained with
- * `koinViewModel`: see docs/redesign/API.md) is the source of surah statuses, ayah statuses, due
- * reviews and surah names; weak ayahs are re-read from storage, the review table gives the days on
- * which something was reviewed.
+ * State of the progress screen, all of it from [HifzRepository]: the derived statuses, the covered and the difficult ayahs,
+ * the review log, the streak, the lesson of the day, the plan and its forecast; the day is [EpochDayTicker.day]. The old tables
+ * (`ayah_todo`, `ayah_review`) and the weak-ayah keys of the preferences are not read any more.
  *
- * `StatsViewModel` is deliberately not used: it freezes "today" inside its last snapshot (the 14-day
- * window and the streak would be a day old when the app was left open overnight), ignores reviews
- * (the home screen's "done today" counts them) and names weak ayahs by their global number.
- * [ProgressCalculator] applies the same definitions (activity = ayahs with `updatedAt` on a day) and
- * fixes those three points.
+ * The shared [HomeViewModel] (injected through Koin, never obtained with `koinViewModel`: see docs/redesign/API.md) is only the
+ * source of the names of the surahs; the screen's language is forwarded by [setLanguage].
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProgressViewModel internal constructor(
     private val home: HomeViewModel,
-    private val reviewDao: AyahReviewDao,
+    private val hifz: HifzRepository,
+    private val ticker: EpochDayTicker,
 ) : ViewModel() {
 
     private val language = MutableStateFlow(LanguageStorage.getSavedLanguage() ?: LanguageStorage.getDeviceLanguage())
-    private val today = MutableStateFlow(currentLocalDate().toEpochDays())
-    private val weakTick = MutableStateFlow(0)
 
     @Volatile
     private var cachedEnglishNames: Pair<List<SurahWithAyahs>, Map<Int, String>>? = null
 
-    private val data: Flow<ProgressData> = home.uiState
-        .map { it.toData() }
-        .distinctUntilChanged(::sameData)
+    @Volatile
+    private var latest: ProgressSources? = null
 
-    /** The review table, re-read when the ayah table or the due reviews change; empty until the first read. */
-    private val reviews: Flow<List<AyahReviewEntity>> = home.uiState
-        .map { it.ayahTodos to it.dueReviews }
-        .distinctUntilChanged { a, b -> a.first === b.first && a.second === b.second }
-        .mapLatest { withContext(Dispatchers.IO) { runCatching { reviewDao.getAll() }.getOrDefault(emptyList()) } }
-        .onStart { emit(emptyList()) }
+    /** What the names are made of; compared by reference so unrelated updates of the shared view model are ignored. */
+    private class NameData(
+        val surahList: List<SurahModel>,
+        val chapterNames: Map<Int, ChapterNameModel>,
+        val completeQuran: List<SurahWithAyahs>,
+    )
 
-    /** Weak ayah keys straight from storage: the home state refreshes them only when the ayah table changes. */
-    private val weakKeys: Flow<Set<String>> = combine(
-        home.uiState.map { it.weakAyahKeys }.distinctUntilChanged(),
-        weakTick,
-    ) { keys, _ -> keys }
-        .mapLatest { fromHome ->
-            withContext(Dispatchers.IO) { runCatching { weakAyahKeySet().toSet() }.getOrDefault(fromHome) }
-        }
-        .onStart { emit(home.uiState.value.weakAyahKeys) }
+    private val names: Flow<List<String>> = combine(
+        home.uiState
+            .map { NameData(it.surahList, it.chapterNames, it.completeQuran) }
+            .distinctUntilChanged { a, b ->
+                a.surahList === b.surahList && a.chapterNames === b.chapterNames && a.completeQuran === b.completeQuran
+            },
+        language,
+        ::surahNames,
+    )
 
-    /** False while the shared view model is still reading the database (after a process restore). */
-    private val ready: Flow<Boolean> = flow {
-        if (home.uiState.value.hasProgressData()) {
-            emit(true)
-            return@flow
-        }
-        emit(false)
-        withTimeoutOrNull(LoadGraceMillis) { home.uiState.first { it.hasProgressData() } }
-        emit(true)
+    /** The review log of the last [ProgressBuilder.LogDays] days; it follows the day. */
+    private val log: Flow<List<ReviewLogEntry>> = ticker.day.flatMapLatest { today ->
+        hifz.reviewLog(today - ProgressBuilder.LogDays + 1, today)
     }
 
-    private val sources: Flow<ProgressSources> = combine(
-        combine(data, language, ready, ::Triple),
-        combine(weakKeys, reviews, today, ::Triple),
-    ) { (data, language, ready), (weak, reviews, today) ->
-        ProgressSources(data, language, ready, weak, reviews, today)
+    private class HifzSnapshot(
+        val today: Int,
+        val statuses: Map<Int, SurahHifzStatus>,
+        val covered: Map<Int, Set<Int>>,
+        val hard: Map<Int, Set<Int>>,
+        val log: List<ReviewLogEntry>,
+        val streak: Int,
+        val lesson: LessonPlan?,
+        val plan: HifzPlan?,
+        val forecast: PlanForecast?,
+    )
+
+    private val hifzSnapshot: Flow<HifzSnapshot> = combine(
+        combine(
+            hifz.surahStatuses().orFallback(emptyMap()),
+            hifz.coveredAyahs().orFallback(emptyMap()),
+            hifz.hardAyahs().orFallback(emptyMap()),
+            ::Triple,
+        ),
+        combine(
+            log.orFallback(emptyList()),
+            hifz.streak(ticker.day).orFallback(0),
+            ticker.day,
+            ::Triple,
+        ),
+        combine(
+            hifz.lesson(ticker.day).map<LessonPlan, LessonPlan?> { it }.orFallback(null),
+            hifz.plan().orFallback(null),
+            hifz.forecast(ticker.day).orFallback(null),
+            ::Triple,
+        ),
+    ) { (statuses, covered, hard), (log, streak, today), (lesson, plan, forecast) ->
+        HifzSnapshot(today, statuses, covered, hard, log, streak, lesson, plan, forecast)
     }
 
+    private val sources: Flow<ProgressSources> = combine(hifzSnapshot, names, language) { snapshot, names, language ->
+        ProgressSources(
+            today = snapshot.today,
+            language = language,
+            names = names,
+            statuses = snapshot.statuses,
+            covered = snapshot.covered,
+            hard = snapshot.hard,
+            log = snapshot.log,
+            streak = snapshot.streak,
+            lesson = snapshot.lesson,
+            plan = snapshot.plan,
+            forecast = snapshot.forecast,
+        )
+    }
+
+    /** The screen: a skeleton until the repository has answered, then the content (or the invitation when nothing was started). */
     val ui: StateFlow<ProgressUi> = sources
-        .map { build(it) }
+        .onEach { latest = it }
+        .map { ProgressBuilder.build(it) }
         .flowOn(Dispatchers.Default)
-        .stateIn(viewModelScope, SharingStarted.Eagerly, initialUi())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(StopTimeoutMillis), ProgressUi())
 
     init {
         home.loadChapterNames(language.value)
+        AppTelemetry.logEvent("progress_opened")
     }
 
     /** The app language lives in the app root; the screen forwards it. */
@@ -115,92 +162,43 @@ class ProgressViewModel internal constructor(
         home.loadChapterNames(value)
     }
 
-    /** Back on screen: a new day may have begun, reviews may have come due, weak ayahs may have changed. */
+    /** Back on screen: a new day may have begun (the timer may have slept; the date or the time zone may have changed). */
     fun onResume() {
-        today.value = currentLocalDate().toEpochDays()
-        weakTick.value += 1
-        home.refreshDueReviewsNow()
+        ticker.refresh()
     }
 
-    // -- Assembly ----------------------------------------------------------------------------------
-
-    private fun initialUi(): ProgressUi {
-        val state = home.uiState.value
-        if (!state.hasProgressData()) return ProgressUi()
-        return build(
-            ProgressSources(
-                data = state.toData(),
-                language = language.value,
-                ready = true,
-                weakKeys = state.weakAyahKeys,
-                reviews = emptyList(),
-                today = today.value,
-            ),
-        )
+    /**
+     * The report of [period] as the screen sees things now, in the language of the app; null while nothing has been read yet.
+     * Pure arithmetic over what is on the screen ([ReportBuilder], [ReportComposer]), cheap enough for the main thread.
+     */
+    internal fun prepareReport(period: ReportPeriod): PreparedReport? {
+        val sources = latest ?: return null
+        val report: ProgressReport = ReportBuilder.build(sources, period)
+        val doc = ReportComposer.compose(report, sources.language, sources.names)
+        return PreparedReport(period, doc, doc.toPlainText(), report.toDay)
     }
 
-    private fun build(s: ProgressSources): ProgressUi {
-        if (!s.ready) return ProgressUi()
-        val statuses = s.data.todoSurahs.associate { it.surahNumber to it.status }
-        val progress = ProgressCalculator.surahProgress(statuses, s.data.ayahTodos)
-        val totals = ProgressCalculator.totals(progress)
-        val names = surahNames(s)
-
-        val cells = progress.mapIndexed { index, surah ->
-            MapCellUi(
-                number = surah.number,
-                name = names[index],
-                ayahCount = surah.ayahCount,
-                learnedAyahs = surah.learnedAyahs,
-                state = surah.state,
-            )
-        }
-        val weak = ProgressCalculator.weakSpots(s.weakKeys).map { spot ->
-            WeakSpotUi(surah = spot.surah, name = names[spot.surah - 1], ayahs = spot.ayahs)
-        }
-        val byDay = ProgressCalculator.activityByDay(s.data.ayahTodos, s.reviews) { millis ->
-            localDateFromEpoch(millis).toEpochDays()
-        }
-        val activity = ActivityUi(ProgressCalculator.lastDays(byDay, s.today))
-        val tiles = TilesUi(
-            streakDays = ProgressCalculator.streak(byDay, s.today),
-            dueToday = s.data.dueReviews.distinctBy { it.ayahNumber }.size,
-            weakAyahs = weak.sumOf { it.ayahs.size },
-            learningAyahs = totals.learningAyahs,
-        )
-        val nothingYet = totals.isUntouched && weak.isEmpty() && tiles.dueToday == 0 && activity.total == 0
-        return ProgressUi(
-            phase = if (nothingYet) ProgressPhase.Empty else ProgressPhase.Content,
-            hero = HeroUi(
-                learnedAyahs = totals.learnedAyahs,
-                totalAyahs = totals.totalAyahs,
-                learnedSurahs = totals.learnedSurahs,
-                learningSurahs = totals.learningSurahs,
-                percent = totals.percent,
-                belowOnePercent = totals.belowOnePercent,
-                fraction = totals.fraction,
-            ),
-            cells = cells,
-            tiles = tiles,
-            activity = activity,
-            weak = weak,
-        )
+    /** The report went to the chooser of the system. Only the period is recorded, never text. */
+    internal fun onReportShared(period: ReportPeriod) {
+        AppTelemetry.logEvent("report_shared", mapOf("period" to period.analyticsName))
     }
+
+    // -- Names ---------------------------------------------------------------------------------------
 
     /** Names of the 114 surahs by the same rule as the home list and the reader header. */
-    private fun surahNames(s: ProgressSources): List<String> {
-        val russian = s.data.surahList.associateBy { it.surahNumber }
-        val english = englishNames(s.data.completeQuran)
-        return List(ProgressCalculator.StandardAyahCounts.size) { index ->
+    private fun surahNames(data: NameData, language: AppLanguage): List<String> {
+        val russian = data.surahList.associateBy { it.surahNumber }
+        val english = englishNames(data.completeQuran)
+        return List(QuranFacts.SURAH_COUNT) { index ->
             val number = index + 1
             val ru = russian[number]
             val fallback = english[number]?.takeIf { it.isNotBlank() }
                 ?: ru?.name?.let(SurahNames::cleanRussianName)
                 ?: "Surah $number"
             SurahNames.displayName(
-                language = s.language,
+                language = language,
                 russianName = ru?.name,
-                transliteration = s.data.chapterNames[number]?.transliteration,
+                transliteration = data.chapterNames[number]?.transliteration,
                 fallback = fallback,
             )
         }
@@ -214,53 +212,12 @@ class ProgressViewModel internal constructor(
     }
 
     private companion object {
-        /** How long to wait for the database before concluding that there is nothing in it. */
-        const val LoadGraceMillis = 700L
+        const val StopTimeoutMillis = 5_000L
     }
 }
 
-/** The parts of [HomeUiState] this screen reads; compared by reference so unrelated updates are ignored. */
-internal class ProgressData(
-    val surahList: List<SurahModel>,
-    val todoSurahs: List<SurahTodoEntity>,
-    val ayahTodos: List<AyahTodoEntity>,
-    val completeQuran: List<SurahWithAyahs>,
-    val chapterNames: Map<Int, ChapterNameModel>,
-    val dueReviews: List<AyahReviewEntity>,
-)
-
-internal class ProgressSources(
-    val data: ProgressData,
-    val language: AppLanguage,
-    val ready: Boolean,
-    val weakKeys: Set<String>,
-    val reviews: List<AyahReviewEntity>,
-    val today: Int,
-)
-
-private fun HomeUiState.toData() = ProgressData(
-    surahList = surahList,
-    todoSurahs = todoSurahs,
-    ayahTodos = ayahTodos,
-    completeQuran = completeQuran,
-    chapterNames = chapterNames,
-    dueReviews = dueReviews,
-)
-
-private fun sameData(a: ProgressData, b: ProgressData): Boolean =
-    a.surahList === b.surahList &&
-        a.todoSurahs === b.todoSurahs &&
-        a.ayahTodos === b.ayahTodos &&
-        a.completeQuran === b.completeQuran &&
-        a.chapterNames === b.chapterNames &&
-        a.dueReviews === b.dueReviews
-
-/**
- * The shared view model starts with empty lists and fills them from the database; a list that is no
- * longer the initial empty one means the database answered (also when the answer is "nothing").
- */
-private fun HomeUiState.hasProgressData(): Boolean =
-    todoSurahs !== InitialTodoSurahs && ayahTodos !== InitialAyahTodos
-
-private val InitialTodoSurahs: List<SurahTodoEntity> = emptyList()
-private val InitialAyahTodos: List<AyahTodoEntity> = emptyList()
+/** A read of the hifz model that does not end the stream when it fails: it reports and continues with [fallback]. */
+private fun <T> Flow<T>.orFallback(fallback: T): Flow<T> = catch { error ->
+    AppTelemetry.logError(throwable = error, context = "progress_hifz_read_failed")
+    emit(fallback)
+}

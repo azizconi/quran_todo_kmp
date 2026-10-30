@@ -42,8 +42,8 @@ internal val BigRingSize = 160.dp
 private val BigRingStroke = 14.dp
 
 /**
- * The hero of the screen: a big ring with the memorized share of the Quran counting up in its middle,
- * and one line of totals under it. The ring is the shared element that the small ring in the home
+ * The hero of the screen: a big ring with the covered share of the Quran counting up in its middle,
+ * "412 of 6236 ayahs" and the surahs known / being learned under it. The ring is the shared element that the small ring in the home
  * top bar flies into (`SharedKeys.ProgressRing`).
  */
 @Composable
@@ -61,11 +61,21 @@ internal fun RingHero(
             BigRing(hero = hero, copy = copy)
             Spacer(Modifier.height(QhSpacing.x5))
             Text(
-                text = copy.summary(hero.learnedAyahs, hero.learnedSurahs, hero.learningSurahs),
+                text = copy.ayahsOf(hero.learnedAyahs, hero.totalAyahs),
                 style = QhTheme.type.callout.copy(fontWeight = FontWeight.SemiBold),
                 color = QhTheme.colors.ink,
                 textAlign = TextAlign.Center,
             )
+            // "I know by heart: 3 surahs · Learning: 5 surahs"; a part that is zero is left out.
+            copy.surahsLine(hero.learnedSurahs, hero.learningSurahs)?.let { line ->
+                Spacer(Modifier.height(QhSpacing.x1))
+                Text(
+                    text = line,
+                    style = QhTheme.type.callout,
+                    color = QhTheme.colors.inkSecondary,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }
@@ -78,7 +88,7 @@ internal fun BigRing(
     modifier: Modifier = Modifier,
 ) {
     val colors = QhTheme.colors
-    val description = copy.ringDescription(hero.percent, hero.learnedAyahs, hero.totalAyahs)
+    val description = copy.ringDescription(hero.percent, hero.belowOnePercent, hero.learnedAyahs, hero.totalAyahs)
     val percent = rememberRollingValue(target = hero.percent, startDelayMillis = CounterStartMillis)
     ProgressRing(
         progress = hero.fraction,

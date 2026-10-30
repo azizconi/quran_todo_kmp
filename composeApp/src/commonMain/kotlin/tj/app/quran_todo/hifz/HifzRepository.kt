@@ -99,6 +99,12 @@ interface HifzRepository {
      */
     fun coveredAyahs(): Flow<Map<Int, Set<Int>>>
 
+    /**
+     * The difficult ayahs of every surah (numbers in the surah, ascending): only the surahs with at least one are in the map. One
+     * subscription for the whole Quran: the progress screen counts and lists the difficult ayahs without 114 `surahCoverage`.
+     */
+    fun hardAyahs(): Flow<Map<Int, Set<Int>>>
+
     /** Covered and difficult ayahs and the passages of a surah. */
     fun surahCoverage(surah: Int): Flow<SurahCoverage>
 
