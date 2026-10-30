@@ -109,6 +109,7 @@ data class ReaderCopy(
     val fontStyle: String,
     val translation: String,
     val theme: String,
+    val highlightWords: String,
     val keepScreenOn: String,
 ) {
     /** "286 ayahs", with the plural forms of the language. */
@@ -214,6 +215,7 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         knowThisAyah = "Знаю этот аят", removeFromLearned = "Убрать из выученных",
         copyAction = "Копировать", copied = "Скопировано", share = "Поделиться", quranRef = "Коран",
         textSize = "Размер текста", fontStyle = "Шрифт", translation = "Перевод", theme = "Тема",
+        highlightWords = "Подсветка слов при слушании",
         keepScreenOn = "Не гасить экран",
     )
     AppLanguage.EN -> ReaderCopy(
@@ -252,6 +254,7 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         knowThisAyah = "I know this ayah", removeFromLearned = "Remove from learned",
         copyAction = "Copy", copied = "Copied", share = "Share", quranRef = "Quran",
         textSize = "Text size", fontStyle = "Font", translation = "Translation", theme = "Theme",
+        highlightWords = "Highlight words while listening",
         keepScreenOn = "Keep screen on",
     )
     AppLanguage.TG -> ReaderCopy(
@@ -290,6 +293,7 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         knowThisAyah = "Ин оятро медонам", removeFromLearned = "Аз оятҳои аз баршуда баровардан",
         copyAction = "Нусха бардоштан", copied = "Нусха бардошта шуд", share = "Мубодила кардан", quranRef = "Қуръон",
         textSize = "Андозаи матн", fontStyle = "Ҳуруф", translation = "Тарҷума", theme = "Мавзӯъ",
+        highlightWords = "Равшан кардани калима ҳангоми шунидан",
         keepScreenOn = "Экранро хомӯш накардан",
     )
     AppLanguage.UZ -> ReaderCopy(
@@ -328,6 +332,7 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         knowThisAyah = "Bu oyatni bilaman", removeFromLearned = "Yodlanganlardan olib tashlash",
         copyAction = "Nusxalash", copied = "Nusxalandi", share = "Ulashish", quranRef = "Qur’on",
         textSize = "Matn o‘lchami", fontStyle = "Shrift", translation = "Tarjima", theme = "Mavzu",
+        highlightWords = "Tinglaganda so‘zlarni ajratib ko‘rsatish",
         keepScreenOn = "Ekranni o‘chirmaslik",
     )
     AppLanguage.TR -> ReaderCopy(
@@ -366,6 +371,7 @@ fun readerCopy(language: AppLanguage): ReaderCopy = when (language) {
         knowThisAyah = "Bu ayeti biliyorum", removeFromLearned = "Ezberlenenlerden çıkar",
         copyAction = "Kopyala", copied = "Kopyalandı", share = "Paylaş", quranRef = "Kur’an",
         textSize = "Metin boyutu", fontStyle = "Yazı tipi", translation = "Çeviri", theme = "Tema",
+        highlightWords = "Dinlerken kelimeyi vurgula",
         keepScreenOn = "Ekranı açık tut",
     )
 }

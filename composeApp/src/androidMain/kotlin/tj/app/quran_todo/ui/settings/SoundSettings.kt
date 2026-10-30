@@ -49,10 +49,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.koin.compose.koinInject
 import tj.app.quran_todo.common.audio.Reciter
+import tj.app.quran_todo.common.audio.ReciterGroup
 import tj.app.quran_todo.common.audio.Reciters
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.ui.components.DotSpinner
 import tj.app.quran_todo.ui.components.LocalToaster
+import tj.app.quran_todo.ui.components.QhSectionHeader
 import tj.app.quran_todo.ui.components.QhSheet
 import tj.app.quran_todo.ui.components.QhValueRow
 import tj.app.quran_todo.ui.components.ToastKind
@@ -102,9 +104,9 @@ internal fun SoundVoiceRows(language: AppLanguage, reciterTitle: String) {
 }
 
 /**
- * The four reciters as cards: name, a short line about the style and tempo, a sample button (Surah 112,
- * ayah 1) and a check on the chosen one. The choice applies at once; the sheet stays open so the voices
- * can be compared.
+ * The twelve reciters as cards in three groups (for memorizing, murattal, mujawwad): name, a short line about the style and tempo, a
+ * sample button (Surah 112, ayah 1) and a check on the chosen one. The choice applies at once; the sheet stays open so the voices can be
+ * compared.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -129,17 +131,28 @@ private fun ReciterSheet(
         ) {
             Text(text = title, style = QhTheme.type.title1, color = QhTheme.colors.ink)
             Text(text = copy.reciterSheetHint, style = QhTheme.type.callout, color = QhTheme.colors.inkSecondary)
-            Spacer(Modifier.height(QhSpacing.x2))
-            Reciters.all.forEach { reciter ->
-                ReciterCard(
-                    reciter = reciter,
-                    language = language,
-                    copy = copy,
-                    selected = reciter == selected,
-                    sample = previewState.glyphFor(reciter),
-                    onSelect = { onSelect(reciter) },
-                    onSample = { preview.toggle(reciter) },
-                )
+            // The list is in groups: for learning by heart first, then murattal, then mujawwad.
+            ReciterGroup.entries.forEach { group ->
+                val members = Reciters.inGroup(group)
+                if (members.isEmpty()) return@forEach
+                Spacer(Modifier.height(QhSpacing.x2))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    QhSectionHeader(copy.groupTitle(group))
+                    if (group == ReciterGroup.Teaching) {
+                        Text(text = copy.groupTeachingHint, style = QhTheme.type.callout, color = QhTheme.colors.inkSecondary)
+                    }
+                }
+                members.forEach { reciter ->
+                    ReciterCard(
+                        reciter = reciter,
+                        language = language,
+                        copy = copy,
+                        selected = reciter == selected,
+                        sample = previewState.glyphFor(reciter),
+                        onSelect = { onSelect(reciter) },
+                        onSample = { preview.toggle(reciter) },
+                    )
+                }
             }
         }
     }

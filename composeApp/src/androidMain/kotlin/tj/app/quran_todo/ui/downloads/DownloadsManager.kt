@@ -7,6 +7,7 @@ import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.audio.AudioFetch
 import tj.app.quran_todo.common.audio.DownloadStorage
 import tj.app.quran_todo.common.audio.httpAudioFetch
+import tj.app.quran_todo.common.audio.timing.WordTimingsStore
 import tj.app.quran_todo.domain.use_case.GetAyahTranslationsUseCase
 import java.io.File
 
@@ -24,6 +25,7 @@ internal class DownloadsManager(
     private val scheduler: DownloadScheduler,
     private val translations: () -> TranslationSource,
     private val fetch: AudioFetch = ::httpAudioFetch,
+    private val timings: () -> TimingsSource = { TimingsSource { recitationId, surah -> WordTimingsStore.shared.pin(recitationId, surah) } },
 ) {
     /** What the work is doing: running, waiting for the network, or not scheduled. */
     val phase: Flow<WorkPhase> get() = scheduler.phase
@@ -95,7 +97,7 @@ internal class DownloadsManager(
 
     /** Called by the worker. */
     suspend fun run(finalAttempt: Boolean, onProgress: (DownloadProgress) -> Unit): RunOutcome =
-        DownloadRunner(queue, storage, fetch, translations(), onProgress).run(finalAttempt)
+        DownloadRunner(queue, storage, fetch, translations(), onProgress, timings = timings()).run(finalAttempt)
 
     private fun schedule() {
         scheduler.schedule(wifiOnly = prefs.wifiOnly.value)

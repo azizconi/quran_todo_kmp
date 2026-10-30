@@ -47,7 +47,7 @@ internal class AyahAudioSource(
 
     suspend fun resolve(ayah: ReaderAudioAyah, surahNumber: Int): String {
         val reciter = reciter()
-        val remote = reciter.audioUrl(ayah.globalNumber)
+        val remote = reciter.audioUrl(surahNumber, ayah.numberInSurah, ayah.globalNumber)
         val local = files.getOrFetch(remote, reciter.cacheKey(surahNumber, ayah.numberInSurah))
         if (local != null) prefetchAfter(reciter, ayah, surahNumber)
         return local ?: remote
@@ -63,7 +63,10 @@ internal class AyahAudioSource(
         prefetchJob = scope.launch {
             for (next in upcoming) {
                 ensureActive()
-                files.prefetch(reciter.audioUrl(next.globalNumber), reciter.cacheKey(surahNumber, next.numberInSurah))
+                files.prefetch(
+                    reciter.audioUrl(surahNumber, next.numberInSurah, next.globalNumber),
+                    reciter.cacheKey(surahNumber, next.numberInSurah),
+                )
             }
         }
     }

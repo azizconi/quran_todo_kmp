@@ -33,6 +33,9 @@ internal interface PlayerEngine {
     val positionMs: Long
     val durationMs: Long
 
+    /** Moves the loaded source to [positionMs]; before the source is ready it becomes the place where it starts. */
+    fun seekTo(positionMs: Long) {}
+
     interface Listener {
         /** The source played to its end. */
         fun onEnded()
@@ -58,6 +61,18 @@ internal interface OutputExtras {
 
     /** The ayah sequence is over: gives the audio focus back so that other apps can play again. */
     fun releaseFocus()
+
+    /** Where the file that sounds now is, in milliseconds, read from the player at this very moment; 0 when nothing is loaded. */
+    fun currentPositionMs(): Long = 0L
+
+    /** Moves the file that sounds (or is paused) now to [positionMs]. Does nothing when no ayah is loaded or a sample plays. */
+    fun seekTo(positionMs: Long) {}
+
+    /**
+     * The ayah that starts next begins at [positionMs] instead of its start (a tap on a word of an ayah that is not playing). It is
+     * applied once, and dropped when the player is stopped before the ayah has started.
+     */
+    fun startNextAt(positionMs: Long) {}
 }
 
 /**
@@ -86,6 +101,7 @@ internal class ExoReaderAudioOutput(
     private var source: String? = null
     private var failures = 0
     private var retryJob: Job? = null
+    private var pendingStartMs = NoStart
 
     init {
         engine.listener = this
@@ -99,6 +115,8 @@ internal class ExoReaderAudioOutput(
         source = url
         failures = 0
         engine.load(url)
+        if (pendingStartMs > 0L) engine.seekTo(pendingStartMs)
+        pendingStartMs = NoStart
     }
 
     override fun pause() = engine.pause()
@@ -111,7 +129,20 @@ internal class ExoReaderAudioOutput(
 
     override fun getDurationMs(): Long = engine.durationMs.coerceAtLeast(0L)
 
+    override fun currentPositionMs(): Long = if (source != null) engine.positionMs.coerceAtLeast(0L) else 0L
+
+    override fun seekTo(positionMs: Long) {
+        // No source: nothing is loaded yet, or the ayah has ended (seeking an ended player would start it again).
+        if (source == null || sampleCallback != null) return
+        engine.seekTo(positionMs.coerceAtLeast(0L))
+    }
+
+    override fun startNextAt(positionMs: Long) {
+        pendingStartMs = positionMs
+    }
+
     override fun stop() {
+        pendingStartMs = NoStart
         cancelRetry()
         forget()
         dropSample()
@@ -198,6 +229,7 @@ internal class ExoReaderAudioOutput(
     private companion object {
         const val MinSpeed = 0.5f
         const val MaxSpeed = 2f
+        const val NoStart = -1L
     }
 }
 

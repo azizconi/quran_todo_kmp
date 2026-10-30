@@ -33,9 +33,14 @@ class DownloadSizeTest {
         for (reciter in Reciters.all) {
             val rest = DownloadSize.bytesPerChar(reciter, 2)
             val amma = DownloadSize.bytesPerChar(reciter, 112)
-            assertTrue(rest in 2_000.0..4_500.0, "${reciter.id}: $rest")
-            assertTrue(amma >= rest, "${reciter.id}: Juz 30 $amma, the rest $rest")
+            // Ash-Shuraim (about 1.5 KB per character) to Al-Minshawi mujawwad (about 7 KB).
+            assertTrue(rest in 1_000.0..7_500.0, "${reciter.id}: $rest")
+            // Measured: Juz 30 is recited more slowly for every reciter except Al-Minshawi mujawwad, who draws the long surahs out most.
+            if (reciter != Reciters.MinshawiMujawwad) assertTrue(amma >= rest, "${reciter.id}: Juz 30 $amma, the rest $rest")
         }
+        // Every reciter has a coefficient of its own: none falls back to the Alafasy one.
+        val coefficients = Reciters.all.map { DownloadSize.bytesPerChar(it, 2) }
+        assertEquals(coefficients.size, coefficients.toSet().size)
         // The 192 kbit/s edition is bigger than the 128 kbit/s one with the same pace.
         assertTrue(DownloadSize.bytesPerChar(Reciters.AbdulBasit, 2) > DownloadSize.bytesPerChar(Reciters.Alafasy, 2))
         // The first surah of Juz 30 and the last use the same coefficient; the one before does not.
@@ -74,7 +79,12 @@ class DownloadSizeTest {
     @Test
     fun juzAmmaOfEveryReciterIsCloseToItsMeasuredSize() {
         // The sizes of the files of Juz 30 as the CDN reported them (Content-Length), in MiB.
-        val measured = mapOf(Reciters.Alafasy to 51.0, Reciters.Husary to 77.1, Reciters.Minshawi to 56.4, Reciters.AbdulBasit to 74.3)
+        val measured = mapOf(
+            Reciters.Alafasy to 51.0, Reciters.Husary to 77.1, Reciters.Minshawi to 56.4, Reciters.AbdulBasit to 74.3,
+            Reciters.HusaryMuallim to 84.2, Reciters.Sudais to 56.2, Reciters.Shatri to 41.9, Reciters.Rifai to 60.0,
+            Reciters.Shuraym to 30.2, Reciters.Tablawi to 65.1, Reciters.AbdulBasitMujawwad to 101.1,
+            Reciters.MinshawiMujawwad to 119.1,
+        )
         for ((reciter, expected) in measured) {
             val bytes = DownloadSize.segmentsBytes(metrics, DownloadSelection.juz(30), reciter)
             assertTrue(abs(bytes / mib - expected) / expected < 0.03, "${reciter.id}: ${bytes / mib} MiB, measured $expected")

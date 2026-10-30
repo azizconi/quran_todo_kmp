@@ -77,6 +77,7 @@ class DownloadRunnerTest {
         attempts: Int = 2,
         maxFailures: Int = 3,
         parallelism: Int = 1,
+        timings: TimingsSource = TimingsSource { _, _ -> true },
     ) = DownloadRunner(
         queue = queue,
         storage = storage,
@@ -87,6 +88,7 @@ class DownloadRunnerTest {
         attemptsPerAyah = attempts,
         maxConsecutiveFailures = maxFailures,
         parallelism = parallelism,
+        timings = timings,
     )
 
     private fun url(surah: Int, ayah: Int, edition: String = "128/ar.alafasy"): String {
@@ -484,5 +486,74 @@ class DownloadRunnerTest {
         assertTrue(storage.snapshot().isEmpty())
         assertEquals(1, queue.state.value.requests.size)
         assertFalse(queue.state.value.hasFailures)
+    }
+
+    // -- Reciters of quran.com and the word timings (F1a) --------------------------------------
+
+    @Test
+    fun aReciterOfQuranComIsFetchedFromTheAddressOfItsTemplate() = runTest {
+        val queue = newQueue()
+        queue.enqueue(request(112, reciter = "sudais"))
+        runner(queue).run()
+        assertEquals((1..4).map { "https://verses.quran.com/Sudais/mp3/112%03d.mp3".format(it) }, fetched)
+        assertEquals(setOf("sudais_112_1", "sudais_112_2", "sudais_112_3", "sudais_112_4"), storage.snapshot().keys)
+    }
+
+    @Test
+    fun aReciterOfAnotherHostIsFetchedFromThereOverHttps() = runTest {
+        val queue = newQueue()
+        queue.enqueue(request(112, reciter = "husary_muallim"))
+        runner(queue).run()
+        assertEquals(
+            (1..4).map { "https://mirrors.quranicaudio.com/everyayah/Husary_Muallim_128kbps/112%03d.mp3".format(it) },
+            fetched,
+        )
+        assertTrue(storage.snapshot().keys.all { it.startsWith("husary_muallim_112_") })
+    }
+
+    @Test
+    fun theWordTimingsOfEverySurahAreKeptWithItsAudio() = runTest {
+        val pinned = mutableListOf<Pair<Int, Int>>()
+        val queue = newQueue()
+        queue.enqueue(request(112, reciter = "husary_muallim"))
+        val outcome = runner(queue, timings = TimingsSource { recitation, surah -> pinned += recitation to surah; true }).run()
+        assertEquals(RunOutcome.FINISHED, outcome)
+        // The recitation of quran.com that belongs to the reciter (Husary Muallim is 12), once for the surah.
+        assertEquals(listOf(12 to 112), pinned)
+    }
+
+    @Test
+    fun aJuzAsksForTheTimingsOfEachOfItsSurahsOnce() = runTest {
+        val pinned = mutableListOf<Pair<Int, Int>>()
+        val queue = newQueue()
+        queue.enqueue(
+            DownloadRequest(
+                id = "two", kind = DownloadKind.PLAN, title = "t", reciterId = "alafasy",
+                segments = listOf(Segment(112, 1, 2), Segment(113, 1, 2), Segment(112, 3, 4)),
+            ),
+        )
+        runner(queue, timings = TimingsSource { recitation, surah -> pinned += recitation to surah; true }).run()
+        assertEquals(listOf(7 to 112, 7 to 113), pinned)
+    }
+
+    @Test
+    fun timingsThatCannotBeFetchedNeverFailTheDownload() = runTest {
+        val queue = newQueue()
+        queue.enqueue(request(112))
+        var asked = 0
+        val outcome = runner(queue, timings = TimingsSource { _, _ -> asked++; false }).run()
+        assertEquals(RunOutcome.FINISHED, outcome)
+        assertEquals(1, asked)
+        assertEquals(4, storage.snapshot().size)
+        assertEquals(listOf("surah-112-alafasy" to FinishResult.DONE), finished)
+    }
+
+    @Test
+    fun anExceptionWhileFetchingTimingsIsIgnored() = runTest {
+        val queue = newQueue()
+        queue.enqueue(request(112))
+        val outcome = runner(queue, timings = TimingsSource { _, _ -> error("disk full") }).run()
+        assertEquals(RunOutcome.FINISHED, outcome)
+        assertEquals(4, storage.snapshot().size)
     }
 }

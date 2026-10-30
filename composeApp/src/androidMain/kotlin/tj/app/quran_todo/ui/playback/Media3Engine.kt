@@ -78,6 +78,10 @@ internal class Media3Engine(private val context: Context) : PlayerEngine, Player
         player.clearMediaItems()
     }
 
+    override fun seekTo(positionMs: Long) {
+        if (created) player.seekTo(positionMs)
+    }
+
     override fun setSpeed(speed: Float) {
         this.speed = speed
         if (created) player.setPlaybackSpeed(speed)

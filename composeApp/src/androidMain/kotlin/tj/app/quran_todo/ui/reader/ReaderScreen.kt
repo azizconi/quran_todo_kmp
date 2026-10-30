@@ -108,6 +108,7 @@ import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.navigation.Origin
 import tj.app.quran_todo.ui.reader.components.AppearanceSheet
+import tj.app.quran_todo.ui.playback.WordFollow
 import tj.app.quran_todo.ui.reader.components.AyahRow
 import tj.app.quran_todo.ui.reader.components.AyahRowModel
 import tj.app.quran_todo.ui.reader.components.AyahSheet
@@ -510,6 +511,12 @@ private fun ReaderContent(
                 following = true
                 viewModel.selectAyah(index)
             },
+            followIndex = if (hifz.active) null else player.followIndex,
+            followPlaying = player.active && player.isPlaying,
+            onWordTap = { index, startMs ->
+                following = true
+                viewModel.onWordTap(index, startMs)
+            },
             onMore = { index -> sheet = ReaderSheet.Ayah(index) },
             onOpenStatus = { sheet = ReaderSheet.Surah(SurahSheetPage.Status) },
             onOpenNext = { onOpenReader(Dest.Reader(surah = surahNumber + 1, origin = Origin.NEXT)) },
@@ -746,6 +753,9 @@ private fun ReaderList(
     passage: IntRange?,
     nextSurah: NextSurahDisplay?,
     onSelect: (Int) -> Unit,
+    followIndex: Int?,
+    followPlaying: Boolean,
+    onWordTap: (index: Int, startMs: Int) -> Unit,
     onMore: (Int) -> Unit,
     onOpenStatus: () -> Unit,
     onOpenNext: () -> Unit,
@@ -807,6 +817,11 @@ private fun ReaderList(
                 hifzControls = if (hifzRow != null) hifz.controlsFor(index) else null,
                 translationMissing = translationMissing && index == 0,
                 onRetryTranslation = onRetryTranslation,
+                follow = if (index == followIndex) {
+                    remember(index, followPlaying, onWordTap) { WordFollow(followPlaying) { startMs -> onWordTap(index, startMs) } }
+                } else {
+                    null
+                },
             )
         }
         item(key = "end", contentType = "end") {

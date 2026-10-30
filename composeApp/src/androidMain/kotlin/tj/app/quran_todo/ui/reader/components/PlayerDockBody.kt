@@ -84,10 +84,12 @@ import tj.app.quran_todo.ui.components.spotlight.spotlightTarget
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.i18n.rememberListenCopy
 import tj.app.quran_todo.ui.playback.SleepTimer
+import tj.app.quran_todo.ui.playback.FollowedArabicText
+import tj.app.quran_todo.ui.playback.WordFollow
 import tj.app.quran_todo.ui.reader.PlayerUi
 import tj.app.quran_todo.ui.reader.ReaderViewModel
+import tj.app.quran_todo.ui.reader.displayWords
 import tj.app.quran_todo.ui.reader.formatAudioTime
-import tj.app.quran_todo.ui.reader.splitBismillah
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 import tj.app.quran_todo.ui.theme.tabular
@@ -179,8 +181,12 @@ private fun NowPlayingCard(
             val ayah = surah.ayahs.getOrNull(index)
             if (ayah != null) {
                 Column(Modifier.fillMaxWidth()) {
-                    Text(
-                        text = splitBismillah(surah.surah.number, ayah.numberInSurah, ayah.text),
+                    // The word that sounds is washed here too (the same clock and timings as in the list); words are not tappable.
+                    FollowedArabicText(
+                        surah = surah.surah.number,
+                        ayahInSurah = ayah.numberInSurah,
+                        words = remember(ayah) { displayWords(surah.surah.number, ayah.numberInSurah, ayah.text) },
+                        follow = if (ui.running && index == ui.index) WordFollow(playing = ui.isPlaying) else null,
                         style = arabicStyle,
                         color = colors.ink,
                         maxLines = 4,
