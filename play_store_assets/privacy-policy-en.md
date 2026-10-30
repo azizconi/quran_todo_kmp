@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Effective date: October 28, 2026
+Effective date: October 30, 2026
 
 This Privacy Policy explains how **Quran Hifz** (package `tj.app.quran_todo`, "the App", "we", "us") handles information when you use the Android application. The short version: there are no accounts, your study data stays on your phone, and the only data that leaves the device is what is needed to download the Quran content and, unless you turn it off, anonymous usage statistics and crash reports.
 
@@ -29,8 +29,10 @@ The App **does not use the Android advertising ID** (the `AD_ID` permission is r
 To download the Quran text, translations, surah names and recitation audio, the App contacts the following servers:
 
 - `api.alquran.cloud` (translations, Islamic Network; the Quran text itself is bundled with the app);
-- `api.quran.com` (surah names and some translations, Quran.com);
-- `cdn.islamic.network` (recitation audio, Islamic Network).
+- `api.quran.com` (surah names, some translations and the word timings of recitations, Quran.com);
+- `cdn.islamic.network` (recitation audio, Islamic Network);
+- `verses.quran.com` (recitation audio, Quran.com);
+- `mirrors.quranicaudio.com` (recitation audio, QuranicAudio).
 
 These servers receive the technical data every internet request contains, in particular your **IP address**, and a description of what is requested (for example a surah or an audio file). We do not send them your progress, notes, settings or any other study data.
 
