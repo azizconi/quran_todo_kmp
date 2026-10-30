@@ -16,7 +16,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
@@ -47,7 +49,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -308,35 +313,36 @@ internal fun OnboardingScreen(onFinished: (OnboardingExit) -> Unit) {
                 }
             }
 
-            // The footer: the main button is always at the bottom, whatever the font size.
+            // The footer: the main button is always at the bottom, whatever the font size. One call for every step, so
+            // the label crossfades, the colours animate and the second button / the note grow and shrink instead of popping.
             val known = ui.selection.known
-            when (step) {
+            val footer = when (step) {
                 // "Skip" on a slide leads to the goal; it sits under the main button, where the thumb is and where a long word fits.
-                OnboardingStep.Story -> OnboardingFooter(
+                OnboardingStep.Story -> FooterSpec(
                     primary = copy.next,
                     onPrimary = ::next,
                     secondary = copy.skip,
                     onSecondary = viewModel::skipStory,
                 )
 
-                OnboardingStep.Goal -> OnboardingFooter(copy.next, enabled = ui.goal != null, onPrimary = ::next)
+                OnboardingStep.Goal -> FooterSpec(copy.next, onPrimary = ::next, enabled = ui.goal != null)
 
-                OnboardingStep.Known -> OnboardingFooter(
+                OnboardingStep.Known -> FooterSpec(
                     primary = if (known.isEmpty()) copy.knownNone else copy.next,
                     note = if (known.isEmpty()) null else copy.knownCount(known.size),
                     onPrimary = ::next,
                 )
 
-                OnboardingStep.Preset -> OnboardingFooter(
+                OnboardingStep.Preset -> FooterSpec(
                     primary = copy.next,
                     enabled = ui.selection.preset != null && OnboardingPlanMath.canLearn(ui.selection),
                     onPrimary = ::next,
                 )
 
                 OnboardingStep.Reminder -> if (ui.reminder == ReminderChoice.Denied) {
-                    OnboardingFooter(copy.next, onPrimary = ::next)
+                    FooterSpec(copy.next, onPrimary = ::next)
                 } else {
-                    OnboardingFooter(
+                    FooterSpec(
                         primary = copy.reminderOn,
                         showArrow = false,
                         onPrimary = {
@@ -351,7 +357,7 @@ internal fun OnboardingScreen(onFinished: (OnboardingExit) -> Unit) {
                     )
                 }
 
-                OnboardingStep.Ready -> OnboardingFooter(
+                OnboardingStep.Ready -> FooterSpec(
                     primary = if (memorize) copy.readyStart else copy.readyReadOpen,
                     showArrow = false,
                     loading = ui.finishing,
@@ -361,8 +367,9 @@ internal fun OnboardingScreen(onFinished: (OnboardingExit) -> Unit) {
                     onSecondary = { viewModel.finish(OnboardingExit.Later) },
                 )
 
-                else -> OnboardingFooter(copy.next, onPrimary = ::next)
+                else -> FooterSpec(copy.next, onPrimary = ::next)
             }
+            OnboardingFooter(footer)
         }
     }
 }
@@ -474,45 +481,78 @@ private fun SegmentBar(count: Int, index: Int, currentFill: Float, label: String
 
 // -- Footer ------------------------------------------------------------------------------------------
 
-/** The bottom of every step: an optional line of text, the main button, and an optional quiet second one. */
+/** What the footer shows for one step. */
+private class FooterSpec(
+    val primary: String,
+    val onPrimary: () -> Unit,
+    val enabled: Boolean = true,
+    val loading: Boolean = false,
+    val showArrow: Boolean = true,
+    val note: String? = null,
+    val secondary: String? = null,
+    val secondaryEnabled: Boolean = true,
+    val onSecondary: () -> Unit = {},
+)
+
+/**
+ * The bottom of every step: an optional line of text, the main button, and an optional quiet second one. The line and the second
+ * button open and close with a spring (a step that has one slides the main button up smoothly instead of jumping), and keep their
+ * last text while they leave.
+ */
 @Composable
-private fun OnboardingFooter(
-    primary: String,
-    onPrimary: () -> Unit,
-    enabled: Boolean = true,
-    loading: Boolean = false,
-    showArrow: Boolean = true,
-    note: String? = null,
-    secondary: String? = null,
-    secondaryEnabled: Boolean = true,
-    onSecondary: () -> Unit = {},
-) {
+private fun OnboardingFooter(spec: FooterSpec) {
+    val reduced = LocalReducedMotion.current
+    val expand = if (reduced) {
+        fadeIn(snap()) + expandVertically(snap())
+    } else {
+        fadeIn(QhMotion.gentle()) + expandVertically(QhMotion.gentle())
+    }
+    val shrink = if (reduced) {
+        fadeOut(snap()) + shrinkVertically(snap())
+    } else {
+        fadeOut(tween(QhMotion.Short)) + shrinkVertically(QhMotion.gentle())
+    }
+    // The text and the handler of a slot that is leaving stay as they were.
+    var lastNote by remember { mutableStateOf("") }
+    spec.note?.let { lastNote = it }
+    var lastSecondary by remember { mutableStateOf("") }
+    spec.secondary?.let { lastSecondary = it }
+    val latestOnSecondary by rememberUpdatedState(spec.onSecondary)
     Column(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = QhSpacing.screen)
             .padding(top = QhSpacing.x3, bottom = QhSpacing.x4),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(QhSpacing.x2),
     ) {
-        if (note != null) {
+        AnimatedVisibility(visible = spec.note != null, enter = expand, exit = shrink) {
             Text(
-                text = note,
+                text = lastNote,
                 style = QhTheme.type.callout,
                 color = QhTheme.colors.inkSecondary,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = QhSpacing.x2),
             )
         }
-        OnboardingCta(text = primary, showArrow = showArrow, enabled = enabled, loading = loading, onClick = onPrimary)
-        if (secondary != null) {
+        OnboardingCta(
+            text = spec.primary,
+            showArrow = spec.showArrow,
+            enabled = spec.enabled,
+            loading = spec.loading,
+            onClick = spec.onPrimary,
+        )
+        AnimatedVisibility(visible = spec.secondary != null, enter = expand, exit = shrink) {
             QhButton(
-                text = secondary,
-                onClick = onSecondary,
-                modifier = Modifier.fillMaxWidth(),
+                text = lastSecondary,
+                onClick = { latestOnSecondary() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = QhSpacing.x2),
                 variant = QhButtonVariant.Ghost,
                 size = QhButtonSize.M,
-                enabled = secondaryEnabled,
+                enabled = spec.secondaryEnabled,
             )
         }
     }

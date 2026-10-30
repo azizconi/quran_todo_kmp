@@ -1,6 +1,7 @@
 package tj.app.quran_todo.ui.motion
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.cos
@@ -22,10 +24,11 @@ import tj.app.quran_todo.ui.haptics.LocalHaptics
 import tj.app.quran_todo.ui.theme.QhTheme
 
 private const val ParticleCount = 14
-private const val BurstMillis = 700
+private const val BurstMillis = 1100
+private const val FadeStart = 0.45f
 
 /**
- * A small celebration: 14 gold and emerald particles fly out radially and fade in 700ms. Use it for
+ * A small celebration: 14 gold and emerald particles fly out radially and fade over about a second. Use it for
  * "memorized" and at the end of a memorization session, no more often than it really happens.
  *
  * Draws centered in its bounds and may overflow them, so give it a small box around the thing that
@@ -55,7 +58,8 @@ fun CelebrationBurst(
         if (reduced) return@LaunchedEffect
         seed = trigger
         progress.snapTo(0f)
-        progress.animateTo(1f, tween(BurstMillis, easing = QhMotion.EmphasizedDecelerate))
+        // Linear time: the flight is eased and the fade is timed below, so particles stay visible for most of the burst.
+        progress.animateTo(1f, tween(BurstMillis, easing = LinearEasing))
     }
 
     val particles = remember(seed) {
@@ -64,7 +68,7 @@ fun CelebrationBurst(
             Particle(
                 angle = (index / ParticleCount.toFloat()) * 2f * Math.PI.toFloat() + random.nextFloat() * 0.35f,
                 distance = 0.6f + random.nextFloat() * 0.4f,
-                size = 2.5f + random.nextFloat() * 2.5f,
+                size = 3.5f + random.nextFloat() * 3f,
                 gold = index % 2 == 0,
             )
         }
@@ -74,9 +78,19 @@ fun CelebrationBurst(
         val t = progress.value
         if (t <= 0f || t >= 1f) return@Canvas
         val maxDistance = radius.toPx()
-        val alpha = (1f - t).let { it * it }
+        // The flight decelerates (most of the way in the first third), the particles stay opaque until 45 % of the time
+        // and then fade out: the old curve squared the fade on an eased time and left only ~100 ms of visible particles.
+        val flight = QhMotion.EmphasizedDecelerate.transform(t)
+        val alpha = (1f - ((t - FadeStart) / (1f - FadeStart)).coerceIn(0f, 1f)).let { it * it * (3f - 2f * it) }
+        // A soft ring spreads with the particles.
+        drawCircle(
+            color = colors.gold.copy(alpha = 0.5f * alpha),
+            radius = maxDistance * 0.9f * flight,
+            center = Offset(size.width / 2f, size.height / 2f),
+            style = Stroke(width = 2.dp.toPx() * (1f - 0.5f * t)),
+        )
         particles.forEach { particle ->
-            val distance = maxDistance * particle.distance * t
+            val distance = maxDistance * particle.distance * flight
             val center = Offset(
                 x = size.width / 2f + cos(particle.angle) * distance,
                 y = size.height / 2f + sin(particle.angle) * distance,

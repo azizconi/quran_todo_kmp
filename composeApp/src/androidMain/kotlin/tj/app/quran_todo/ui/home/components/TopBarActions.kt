@@ -39,6 +39,7 @@ import tj.app.quran_todo.ui.motion.SharedKeys
 import tj.app.quran_todo.ui.motion.SharedResize
 import tj.app.quran_todo.ui.motion.orSnap
 import tj.app.quran_todo.ui.motion.pressable
+import tj.app.quran_todo.ui.motion.rememberSharedSettled
 import tj.app.quran_todo.ui.motion.sharedBoundsKey
 import tj.app.quran_todo.ui.motion.sharedElementKey
 import tj.app.quran_todo.ui.theme.QhSpacing
@@ -67,8 +68,12 @@ internal fun ProgressAction(
             .pressable(onClick = onClick, shape = CircleShape),
         contentAlignment = Alignment.Center,
     ) {
+        // Back from the progress screen the ring starts at its value (the big one it flies from is full), not from 0.
+        val settledAtFirstFrame = rememberSharedSettled()
+        val startFull = remember { !settledAtFirstFrame }
         ProgressRing(
             progress = progress,
+            startFull = startFull,
             size = 36.dp,
             strokeWidth = 3.5.dp,
             modifier = Modifier
