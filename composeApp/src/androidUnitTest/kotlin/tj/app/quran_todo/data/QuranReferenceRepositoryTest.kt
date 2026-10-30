@@ -270,4 +270,30 @@ class QuranReferenceRepositoryTest {
         repository.getChapterNames(AppLanguage.RU)
         assertEquals(1, requests.size)
     }
+
+    @Test
+    fun withoutTheNetworkAndACacheTheNamesComeFromTheAppAsQuranComWritesThem() = runBlocking {
+        respondWith = { json("{}", HttpStatusCode.ServiceUnavailable) }
+        val ru = repository.getChapterNames(AppLanguage.RU)
+        val tr = repository.getChapterNames(AppLanguage.TR)
+
+        assertEquals(114, ru.size)
+        assertEquals("Al-Fatihah", ru.getValue(1).transliteration)
+        assertEquals("Открывающая Коран", ru.getValue(1).translated)
+        assertEquals("الفاتحة", ru.getValue(1).arabic)
+        assertEquals("Fâtiha", tr.getValue(1).translated)
+        assertTrue(chapterNameDao.rows.isEmpty(), "the offline copy is not cached: quran.com is asked again next time")
+    }
+
+    @Test
+    fun aStaleCacheIsPreferredToTheOfflineCopy() = runBlocking {
+        respondWith = {
+            json("""{"chapters":[{"id":1,"name_simple":"Al-Fatihah","name_arabic":"الفاتحة","translated_name":{"name":"Кэш"}}]}""")
+        }
+        repository.getChapterNames(AppLanguage.RU)
+        now += 40L * 24 * 60 * 60 * 1000
+        respondWith = { json("{}", HttpStatusCode.ServiceUnavailable) }
+
+        assertEquals(mapOf(1 to "Кэш"), repository.getChapterNames(AppLanguage.RU).mapValues { it.value.translated })
+    }
 }

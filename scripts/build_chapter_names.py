@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds the bundled surah names for Tajik (Cyrillic) and Uzbek (Latin).
+"""Builds the bundled surah names: Tajik (Cyrillic) and Uzbek (Latin) by hand, Russian, English and Turkish from quran.com.
 
 quran.com v4 answers `chapters?language=tg` and `language=uz` in English (all 114 names), so the app
 ships its own names:
@@ -8,6 +8,12 @@ ships its own names:
     composeApp/src/commonMain/composeResources/files/quran/chapter_names_uz.json
     docs/redesign/review/chapter-names-tg-uz.md   (the table for a native speaker to check)
 
+Russian, English and Turkish are copied from quran.com as they are (`chapters?language=ru|en|tr`): the app
+still asks quran.com for them, and the files are only what it shows while it has neither the network nor a cache
+(the first launch offline), so that the names look the same before and after:
+
+    composeApp/src/commonMain/composeResources/files/quran/chapter_names_{ru,en,tr}.json
+
 The Tajik and Uzbek names are written by hand in NAMES below (transliteration of the Arabic name and the
 meaning of the name); the Arabic name is taken from quran.com (`name_arabic`, language=en). They have NOT been
 checked by a native speaker yet: after the review, fix NAMES and run this script again.
@@ -15,6 +21,7 @@ checked by a native speaker yet: after the review, fix NAMES and run this script
 Usage:
     python3 scripts/build_chapter_names.py                  # fetch the Arabic names and write everything
     python3 scripts/build_chapter_names.py --arabic a.json  # use a saved quran.com response instead of the network
+    python3 scripts/build_chapter_names.py --quran-com DIR  # saved responses DIR/ru.json, DIR/en.json, DIR/tr.json
 
 Only the standard library is used.
 
@@ -38,6 +45,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(ROOT, "composeApp", "src", "commonMain", "composeResources", "files", "quran")
 REVIEW = os.path.join(ROOT, "docs", "redesign", "review", "chapter-names-tg-uz.md")
 CHAPTERS_URL = "https://api.quran.com/api/v4/chapters?language=en"
+CHAPTERS_URL_FOR = "https://api.quran.com/api/v4/chapters?language=%s"
+# language code -> translated_name.language_name quran.com must answer with (otherwise it fell back to English)
+QURAN_COM_LANGUAGES = {"ru": "russian", "en": "english", "tr": "turkish"}
 
 # (number, tg name, tg meaning, uz name, uz meaning)
 NAMES = [
@@ -158,6 +168,35 @@ NAMES = [
 ]
 
 
+def fetch_json(url):
+    request = urllib.request.Request(url, headers={"User-Agent": "quran-hifz-asset-builder"})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def write_quran_com(path, language, payload):
+    chapters = sorted(payload["chapters"], key=lambda chapter: chapter["id"])
+    if [chapter["id"] for chapter in chapters] != list(range(1, 115)):
+        raise ValueError("quran.com did not return 114 chapters for %s" % language)
+    expected = QURAN_COM_LANGUAGES[language]
+    for chapter in chapters:
+        if chapter["translated_name"]["language_name"] != expected:
+            raise ValueError("quran.com answered %s chapter %d in %s" % (language, chapter["id"], chapter["translated_name"]["language_name"]))
+    rows = [
+        {
+            "number": chapter["id"],
+            "arabic": chapter["name_arabic"].strip(),
+            "transliteration": chapter["name_simple"].strip(),
+            "translated": chapter["translated_name"]["name"].strip(),
+        }
+        for chapter in chapters
+    ]
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        json.dump({"language": language, "chapters": rows}, handle, ensure_ascii=False, indent=1)
+        handle.write("\n")
+    print("wrote", path)
+
+
 def load_arabic(path):
     if path:
         with open(path, encoding="utf-8") as handle:
@@ -226,6 +265,7 @@ def write_review(path, arabic):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--arabic", help="a saved response of %s" % CHAPTERS_URL)
+    parser.add_argument("--quran-com", help="a folder with saved responses ru.json, en.json, tr.json of %s" % CHAPTERS_URL_FOR)
     args = parser.parse_args()
 
     check_names()
@@ -233,6 +273,13 @@ def main():
     write_json(os.path.join(RES, "chapter_names_tg.json"), "tg", arabic, 1)
     write_json(os.path.join(RES, "chapter_names_uz.json"), "uz", arabic, 3)
     write_review(REVIEW, arabic)
+    for language in QURAN_COM_LANGUAGES:
+        if args.quran_com:
+            with open(os.path.join(args.quran_com, language + ".json"), encoding="utf-8") as handle:
+                payload = json.load(handle)
+        else:
+            payload = fetch_json(CHAPTERS_URL_FOR % language)
+        write_quran_com(os.path.join(RES, "chapter_names_%s.json" % language), language, payload)
     return 0
 
 

@@ -60,6 +60,20 @@ class ChapterNamesFilesTest {
     }
 
     @Test
+    fun theOfflineCopiesOfQuranComNameAll114SurahsWithTheSameArabic() {
+        val arabic = names(AppLanguage.TG).mapValues { it.value.arabic }
+        listOf(AppLanguage.RU, AppLanguage.EN, AppLanguage.TR).forEach { language ->
+            val names = names(language)
+            assertEquals((1..114).toList(), names.keys.sorted(), "surahs of $language")
+            assertTrue(names.values.all { it.transliteration.isNotBlank() && it.translated.isNotBlank() }, "$language")
+            assertEquals(arabic, names.mapValues { it.value.arabic }, "arabic of $language")
+        }
+        assertEquals("Корова", names(AppLanguage.RU).getValue(2).translated)
+        assertEquals("The Cow", names(AppLanguage.EN).getValue(2).translated)
+        assertEquals("Bakara", names(AppLanguage.TR).getValue(2).translated)
+    }
+
+    @Test
     fun aFileThatDoesNotCoverTheWholeQuranIsRejected() {
         assertFailsWith<QuranDataException> {
             BundledChapterNames.parse("""{"language":"tg","chapters":[{"number":1,"arabic":"a","transliteration":"b","translated":"c"}]}""")

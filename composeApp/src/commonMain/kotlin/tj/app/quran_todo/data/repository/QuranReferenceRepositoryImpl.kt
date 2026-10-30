@@ -104,8 +104,22 @@ class QuranReferenceRepositoryImpl(
                 context = "chapter_names_load_failed",
                 params = mapOf("language" to language.name.lowercase())
             )
-            cachedMap
+            cachedMap.ifEmpty { offlineChapterNames(language) }
         }
+    }
+
+    /** Nothing cached and quran.com unreachable (the first launch offline): the copy of its names in the app. */
+    private suspend fun offlineChapterNames(language: AppLanguage): Map<Int, ChapterNameModel> = try {
+        bundledChapterNames.get(language)
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        AppTelemetry.logError(
+            throwable = error,
+            context = "bundled_chapter_names_failed",
+            params = mapOf("language" to language.name.lowercase())
+        )
+        emptyMap()
     }
 
     /**

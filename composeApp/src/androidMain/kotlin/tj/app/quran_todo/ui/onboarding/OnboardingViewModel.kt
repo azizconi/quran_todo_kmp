@@ -126,7 +126,7 @@ internal val OnboardingViewModelFactory: ViewModelProvider.Factory = viewModelFa
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 internal class OnboardingViewModel(
     private val handle: SavedStateHandle,
-    home: HomeViewModel,
+    private val home: HomeViewModel,
     private val hifz: HifzRepository,
     private val ticker: EpochDayTicker,
     private val uiPrefs: UiPrefs,
@@ -223,10 +223,14 @@ internal class OnboardingViewModel(
         // From now on a half-passed onboarding is not mistaken for an old install that only updated.
         uiPrefs.markOnboardingStarted()
         logStep(choices.value.position)
+        // The surah grid shows the names of the app language, as Home does; Home is not open yet to load them.
+        home.loadChapterNames(language.value)
     }
 
     fun setLanguage(next: AppLanguage) {
+        if (language.value == next) return
         language.value = next
+        home.loadChapterNames(next)
     }
 
     /** "System" in the theme control; light and dark go through the root's mode setter. */
