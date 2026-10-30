@@ -87,6 +87,7 @@ import tj.app.quran_todo.ui.components.rememberToaster
 import tj.app.quran_todo.ui.components.spotlight.SpotlightNavigationEffect
 import tj.app.quran_todo.ui.components.spotlight.SpotlightHost
 import tj.app.quran_todo.ui.components.spotlight.rememberSpotlightController
+import tj.app.quran_todo.ui.downloads.DownloadsScreen
 import tj.app.quran_todo.ui.home.HomeScreen
 import tj.app.quran_todo.ui.lesson.LessonScreen
 import tj.app.quran_todo.ui.motion.LocalNavAnimatedVisibilityScope
@@ -474,7 +475,13 @@ private fun AppNavigation() {
                             onOpenPrivacy = { navController.navigateOnce(Dest.Privacy) },
                             onOpenSources = { navController.navigateOnce(Dest.Sources) },
                             onOpenPlan = { navController.navigateOnce(Dest.Plan) },
+                            onOpenDownloads = { navController.navigateOnce(Dest.Downloads) },
                         )
+                    }
+                }
+                composable<Dest.Downloads> {
+                    ProvideNavScope {
+                        DownloadsScreen(onBack = { navController.popOnce() })
                     }
                 }
                 composable<Dest.Privacy> {
@@ -570,6 +577,7 @@ private fun NavDestination.screenName(): String? = when {
     hasRoute<Dest.Plan>() -> "plan"
     hasRoute<Dest.Progress>() -> "progress"
     hasRoute<Dest.Settings>() -> "settings"
+    hasRoute<Dest.Downloads>() -> "downloads"
     hasRoute<Dest.Privacy>() -> "privacy"
     hasRoute<Dest.Sources>() -> "sources"
     hasRoute<Dest.Catalog>() -> "catalog"

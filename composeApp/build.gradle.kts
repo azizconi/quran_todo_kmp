@@ -50,6 +50,8 @@ kotlin {
             implementation(libs.navigation.compose)
             implementation(libs.androidx.media3.exoplayer)
             implementation(libs.androidx.media3.session)
+            // Downloads and storage (task D3): a worker that survives the app and resumes after a break.
+            implementation(libs.androidx.work.runtime)
 
             implementation(libs.koin.android)
             implementation(libs.koin.androidx.compose)

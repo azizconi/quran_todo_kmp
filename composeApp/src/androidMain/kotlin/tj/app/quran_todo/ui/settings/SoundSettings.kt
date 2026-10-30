@@ -23,10 +23,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.RecordVoiceOver
-import androidx.compose.material.icons.rounded.Sd
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -38,7 +36,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,25 +45,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
-import tj.app.quran_todo.common.audio.AudioCacheStorage
 import tj.app.quran_todo.common.audio.Reciter
 import tj.app.quran_todo.common.audio.Reciters
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.ui.components.DotSpinner
 import tj.app.quran_todo.ui.components.LocalToaster
-import tj.app.quran_todo.ui.components.QhButton
-import tj.app.quran_todo.ui.components.QhButtonSize
-import tj.app.quran_todo.ui.components.QhButtonVariant
-import tj.app.quran_todo.ui.components.QhIconTile
-import tj.app.quran_todo.ui.components.QhRowDivider
 import tj.app.quran_todo.ui.components.QhSheet
 import tj.app.quran_todo.ui.components.QhValueRow
 import tj.app.quran_todo.ui.components.ToastKind
@@ -83,8 +69,8 @@ import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /**
- * The reciter and audio-storage rows of the "Sound" section. They keep their own state (the reciter
- * sheet, the size of the cache, the confirmation) so the settings screen only places them.
+ * The reciter row of the "Sound" section. It keeps its own state (the reciter sheet) so the settings screen only places it. The
+ * audio on the phone (downloads and the listening cache) moved to "Downloads and storage".
  *
  * @param reciterTitle the title of the reciter row ("Reciter") in the language of the screen.
  */
@@ -102,8 +88,6 @@ internal fun SoundVoiceRows(language: AppLanguage, reciterTitle: String) {
         icon = Icons.Rounded.RecordVoiceOver,
         iconTint = QhTheme.colors.gold,
     )
-    QhRowDivider()
-    AudioStorageRow(copy)
 
     if (sheetOpen) {
         ReciterSheet(
@@ -114,110 +98,6 @@ internal fun SoundVoiceRows(language: AppLanguage, reciterTitle: String) {
             onSelect = prefs::setReciter,
             onDismiss = { sheetOpen = false },
         )
-    }
-}
-
-/** "Audio on this device · 230 MB" with a clear button that asks first. */
-@Composable
-private fun AudioStorageRow(copy: AudioCopy) {
-    val colors = QhTheme.colors
-    val toaster = LocalToaster.current
-    val scope = rememberCoroutineScope()
-    var bytes by remember { mutableStateOf<Long?>(null) }
-    var confirming by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        bytes = withContext(Dispatchers.IO) { AudioCacheStorage.shared.totalBytes() }
-    }
-
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .padding(horizontal = QhSpacing.card, vertical = QhSpacing.x2),
-        horizontalArrangement = Arrangement.spacedBy(QhSpacing.x3),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        QhIconTile(Icons.Rounded.Sd, tint = colors.learned)
-        Column(Modifier.weight(1f)) {
-            Text(text = copy.audioOnDevice, style = QhTheme.type.title2, color = colors.ink)
-            Text(
-                text = bytes?.let(copy::sizeLabel) ?: "…",
-                style = QhTheme.type.callout,
-                color = colors.inkSecondary,
-                maxLines = 1,
-            )
-        }
-        QhButton(
-            text = copy.audioClear,
-            onClick = { confirming = true },
-            variant = QhButtonVariant.Tonal,
-            size = QhButtonSize.S,
-            enabled = (bytes ?: 0L) > 0L,
-        )
-    }
-
-    if (confirming) {
-        ClearAudioDialog(
-            copy = copy,
-            onConfirm = {
-                confirming = false
-                scope.launch {
-                    withContext(Dispatchers.IO) { AudioCacheStorage.shared.clear() }
-                    bytes = 0L
-                    toaster.show(copy.audioCleared, ToastKind.Success)
-                }
-            },
-            onDismiss = { confirming = false },
-        )
-    }
-}
-
-/** Confirms deleting the cached audio: the danger action on top, a quiet cancel under it. */
-@Composable
-private fun ClearAudioDialog(copy: AudioCopy, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    val colors = QhTheme.colors
-    val shape = QhTheme.shapes.xl
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .background(colors.surface)
-                .border(1.dp, colors.hairline, shape)
-                .padding(QhSpacing.x6),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(QhSpacing.x3),
-        ) {
-            QhIconTile(Icons.Rounded.DeleteSweep, tint = colors.danger)
-            Text(
-                text = copy.audioClearTitle,
-                style = QhTheme.type.title1,
-                color = colors.ink,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                text = copy.audioClearMessage,
-                style = QhTheme.type.body,
-                color = colors.inkSecondary,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(QhSpacing.x1))
-            QhButton(
-                text = copy.audioClearConfirm,
-                onClick = onConfirm,
-                modifier = Modifier.fillMaxWidth(),
-                variant = QhButtonVariant.Danger,
-                size = QhButtonSize.M,
-            )
-            QhButton(
-                text = copy.cancel,
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth(),
-                variant = QhButtonVariant.Ghost,
-                size = QhButtonSize.M,
-            )
-        }
     }
 }
 

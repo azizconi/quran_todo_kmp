@@ -55,14 +55,6 @@ data class SettingsCopy(
     val increase: String,
     val language: String,
     val languageSheetTitle: String,
-    val offlineTitle: String,
-    val offlineDescription: String,
-    /** Template with `{done}` and `{total}`. */
-    val offlineProgress: String,
-    val offlineReady: String,
-    val offlinePartial: String,
-    val offlineGet: String,
-    val offlineQuranNotReady: String,
     val haptics: String,
     val hapticsDescription: String,
     val reduceMotion: String,
@@ -77,10 +69,7 @@ data class SettingsCopy(
     val rateAppDescription: String,
     val storeUnavailable: String,
     val linkUnavailable: String,
-) {
-    fun offlineProgressLabel(done: Int, total: Int): String =
-        offlineProgress.replace("{done}", done.toString()).replace("{total}", total.toString())
-}
+)
 
 @Composable
 fun rememberSettingsCopy(language: AppLanguage = LocalAppLanguage.current): SettingsCopy =
@@ -111,10 +100,6 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             hintFirstWord = "First-word hint", hintFirstWordDescription = "In memorize mode the first word stays visible.",
             decrease = "Decrease", increase = "Increase",
             language = "Language", languageSheetTitle = "App language",
-            offlineTitle = "Download for offline", offlineDescription = "Audio of your surahs, so you can listen offline.",
-            offlineProgress = "Downloading {done} of {total}", offlineReady = "Ready — works without a connection",
-            offlinePartial = "Not everything downloaded — tap to retry", offlineGet = "Download",
-            offlineQuranNotReady = "The Quran is still loading. Try again in a moment.",
             haptics = "Haptic feedback", hapticsDescription = "A light vibration on taps.",
             reduceMotion = "Reduce motion", reduceMotionDescription = "No springs, particles or parallax.",
             showTipsAgain = "Show tips again", showTipsAgainDescription = "The short hints on the screens will appear again.",
@@ -145,10 +130,6 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             hintFirstWord = "Подсказка первого слова", hintFirstWordDescription = "В режиме заучивания первое слово остаётся видимым.",
             decrease = "Уменьшить", increase = "Увеличить",
             language = "Язык", languageSheetTitle = "Язык приложения",
-            offlineTitle = "Скачать для офлайн", offlineDescription = "Аудио ваших сур — чтобы слушать без сети.",
-            offlineProgress = "Скачиваем {done} из {total}", offlineReady = "Готово — работает без сети",
-            offlinePartial = "Скачано не всё — нажмите, чтобы повторить", offlineGet = "Скачать",
-            offlineQuranNotReady = "Коран ещё загружается. Попробуйте чуть позже.",
             haptics = "Тактильный отклик", hapticsDescription = "Лёгкая вибрация при нажатиях.",
             reduceMotion = "Меньше анимаций", reduceMotionDescription = "Без пружин, частиц и параллакса.",
             showTipsAgain = "Показать подсказки снова", showTipsAgainDescription = "Короткие подсказки на экранах появятся снова.",
@@ -179,10 +160,6 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             hintFirstWord = "Маслиҳати калимаи аввал", hintFirstWordDescription = "Дар реҷаи ҳифз калимаи аввал намоён мемонад.",
             decrease = "Кам кардан", increase = "Зиёд кардан",
             language = "Забон", languageSheetTitle = "Забони барнома",
-            offlineTitle = "Барои офлайн боргирӣ кардан", offlineDescription = "Аудиои сураҳои шумо — барои гӯш кардан бе интернет.",
-            offlineProgress = "Боргирӣ: {done} аз {total}", offlineReady = "Омода — бе интернет кор мекунад",
-            offlinePartial = "На ҳама боргирӣ шуд — барои такрор зер кунед", offlineGet = "Боргирӣ",
-            offlineQuranNotReady = "Қуръон ҳоло бор мешавад. Баъдтар кӯшиш кунед.",
             haptics = "Вокуниши ламсӣ", hapticsDescription = "Ларзиши сабук ҳангоми зер кардан.",
             reduceMotion = "Анимацияи камтар", reduceMotionDescription = "Бе пружина, зарраҳо ва параллакс.",
             showTipsAgain = "Намоиши дубораи маслиҳатҳо", showTipsAgainDescription = "Маслиҳатҳои кӯтоҳ дар экранҳо дубора пайдо мешаванд.",
@@ -213,10 +190,6 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             hintFirstWord = "Birinchi so‘z ishorasi", hintFirstWordDescription = "Yodlash rejimida birinchi so‘z ko‘rinib turadi.",
             decrease = "Kamaytirish", increase = "Ko‘paytirish",
             language = "Til", languageSheetTitle = "Ilova tili",
-            offlineTitle = "Oflayn uchun yuklash", offlineDescription = "Suralaringiz audiosi — internetsiz tinglash uchun.",
-            offlineProgress = "Yuklanmoqda: {done} / {total}", offlineReady = "Tayyor — internetsiz ishlaydi",
-            offlinePartial = "Hammasi yuklanmadi — qayta urinish uchun bosing", offlineGet = "Yuklash",
-            offlineQuranNotReady = "Qur’on hali yuklanmoqda. Birozdan so‘ng urinib ko‘ring.",
             haptics = "Tebranish javobi", hapticsDescription = "Bosganda yengil tebranish.",
             reduceMotion = "Kamroq animatsiya", reduceMotionDescription = "Prujinasiz, zarrachalarsiz va parallakssiz.",
             showTipsAgain = "Maslahatlarni qayta ko‘rsatish", showTipsAgainDescription = "Ekranlardagi qisqa maslahatlar yana paydo bo‘ladi.",
@@ -247,10 +220,6 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             hintFirstWord = "İlk kelime ipucu", hintFirstWordDescription = "Ezber modunda ilk kelime görünür kalır.",
             decrease = "Azalt", increase = "Artır",
             language = "Dil", languageSheetTitle = "Uygulama dili",
-            offlineTitle = "Çevrimdışı indir", offlineDescription = "Surelerinizin sesi — internetsiz dinlemek için.",
-            offlineProgress = "İndiriliyor: {done} / {total}", offlineReady = "Hazır — internetsiz çalışır",
-            offlinePartial = "Hepsi inmedi — tekrar denemek için dokunun", offlineGet = "İndir",
-            offlineQuranNotReady = "Kur’an hâlâ yükleniyor. Biraz sonra tekrar deneyin.",
             haptics = "Dokunsal geri bildirim", hapticsDescription = "Dokunuşlarda hafif titreşim.",
             reduceMotion = "Daha az animasyon", reduceMotionDescription = "Yay efekti, parçacık ve paralaks olmadan.",
             showTipsAgain = "İpuçlarını yeniden göster", showTipsAgainDescription = "Ekranlardaki kısa ipuçları yeniden görünecek.",

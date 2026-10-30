@@ -144,7 +144,13 @@ private val RepeatOptions = listOf(1, 3, 5, SurahReaderPreferences.RepeatForever
  */
 @OptIn(KoinExperimentalAPI::class, ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources: () -> Unit, onOpenPlan: () -> Unit) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+    onOpenSources: () -> Unit,
+    onOpenPlan: () -> Unit,
+    onOpenDownloads: () -> Unit,
+) {
     val viewModel = koinViewModel<SettingsViewModel>()
     val language = LocalAppLanguage.current
     val setLanguage = LocalAppLanguageSetter.current
@@ -219,8 +225,6 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources:
         viewModel.events.collect { event ->
             val text = latestCopy
             when (event) {
-                SettingsEvent.OfflineStarted -> toaster.show(text.native.downloadStarted, ToastKind.Info)
-                SettingsEvent.QuranNotReady -> toaster.show(text.offlineQuranNotReady, ToastKind.Error)
                 SettingsEvent.ExportSaved -> toaster.show(text.transfer.exportSaved, ToastKind.Success)
                 SettingsEvent.ExportFailed -> toaster.show(text.transfer.exportFailed, ToastKind.Error)
                 is SettingsEvent.ShareReady -> {
@@ -292,6 +296,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPrivacy: () -> Unit, onOpenSources:
                 onOpenPrivacy = onOpenPrivacy,
                 onOpenSources = onOpenSources,
                 onOpenPlan = onOpenPlan,
+                onOpenDownloads = onOpenDownloads,
             )
         }
         QhLargeTopBar(
@@ -375,6 +380,7 @@ private fun SettingsContent(
     onOpenPrivacy: () -> Unit,
     onOpenSources: () -> Unit,
     onOpenPlan: () -> Unit,
+    onOpenDownloads: () -> Unit,
 ) {
     val copy = rememberSettingsCopy(language)
     val transfer = copy.transfer
@@ -398,7 +404,6 @@ private fun SettingsContent(
     val reduceMotion by viewModel.reduceMotion.collectAsState()
     val hintMode by viewModel.hifzHintMode.collectAsState()
     val followsSystem by viewModel.themeFollowsSystem.collectAsState()
-    val offline by viewModel.offline.collectAsState()
     val analyticsEnabled by viewModel.analyticsEnabled.collectAsState()
     val lastExportAt by viewModel.lastExportAt.collectAsState()
     val transferBusy by viewModel.transferBusy.collectAsState()
@@ -568,11 +573,8 @@ private fun SettingsContent(
             title = copy.sectionData,
             modifier = Modifier.staggeredEnter(6, stagger),
         ) {
-            OfflineDownloadRow(
-                state = offline.toUi(),
-                copy = copy,
-                onClick = { viewModel.startOfflineDownload(language) },
-            )
+            // One row for what is on the phone: downloaded audio and the listening cache. The screen behind it does the rest.
+            DownloadsRow(language = language, onClick = onOpenDownloads)
         }
 
         // 8. Transfer and backup: the copy is a file the person keeps or sends, not a hidden copy on this phone.

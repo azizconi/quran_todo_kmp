@@ -21,3 +21,11 @@
 # change of those rules cannot turn every import into "the file is damaged" in a release build only.
 -keep @kotlinx.serialization.Serializable class tj.app.quran_todo.hifz.backup.** { *; }
 -keep class tj.app.quran_todo.hifz.backup.**$$serializer { *; }
+
+# "Downloads and storage" (ui/downloads). The queue file is JSON written and read with kotlinx.serialization: kept explicitly as well,
+# like the backup classes above, so that R8 cannot turn a restart in the middle of a download into an empty queue in a release build only.
+-keep @kotlinx.serialization.Serializable class tj.app.quran_todo.ui.downloads.** { *; }
+-keep class tj.app.quran_todo.ui.downloads.**$$serializer { *; }
+# WorkManager creates the worker by reflection with this constructor (the library's consumer rules keep it too: explicit on purpose,
+# a shrunk worker would silently stop every download in the background). The receiver is in the manifest, which R8 keeps.
+-keep class tj.app.quran_todo.ui.downloads.DownloadWorker { public <init>(android.content.Context, androidx.work.WorkerParameters); }

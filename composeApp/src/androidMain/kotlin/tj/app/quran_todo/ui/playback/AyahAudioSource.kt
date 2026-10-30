@@ -8,7 +8,7 @@ import tj.app.quran_todo.common.audio.AudioCache
 import tj.app.quran_todo.common.audio.ReaderAudioAyah
 import tj.app.quran_todo.common.audio.Reciter
 
-/** The part of [AudioCache] that [AyahAudioSource] needs; a fake in tests. */
+/** The part of [AudioCache] that [AyahAudioSource] needs (downloads, then cache, then network); a fake in tests. */
 internal interface AyahFiles {
     /** Path of the cached file for [cacheKey], downloading [url] first when needed; null when that fails. */
     suspend fun getOrFetch(url: String, cacheKey: String): String?
@@ -24,9 +24,11 @@ internal class AudioCacheFiles(private val cache: AudioCache = AudioCache()) : A
 }
 
 /**
- * Tells the reader session what to play for an ayah: the cached file of the current reciter (downloaded
- * on the spot when it is not cached), or the remote URL as a fallback so that ExoPlayer can stream it
- * (and report a network error that the output retries).
+ * Tells the reader session what to play for an ayah: the file of the current reciter that is on the phone
+ * (first the downloads of "Downloads and storage", then the listening cache; an ayah that is in neither is
+ * downloaded into the cache on the spot), or the remote URL as a fallback so that ExoPlayer can stream it
+ * (and report a network error that the output retries). The order is decided by [AudioCache] (`AudioFileStore`);
+ * downloaded files are never evicted and never counted against the cache limit.
  *
  * Once an ayah is ready, the next [prefetchCount] ayahs of the playlist are downloaded in the background,
  * so the next ayah starts from a file right away and there is no audible gap between ayahs.
