@@ -23,14 +23,6 @@ class SettingsLogicTest {
     }
 
     @Test
-    fun offlineProgressMapsToTheRowState() {
-        assertEquals(OfflineUi.Running(3, 10), OfflineProgress(true, 3, 10, "DOWNLOADING").toUi())
-        assertEquals(OfflineUi.Ready, OfflineProgress(false, 10, 10, "READY").toUi())
-        assertEquals(OfflineUi.Partial, OfflineProgress(false, 7, 10, "PARTIAL").toUi())
-        assertEquals(OfflineUi.Idle, OfflineProgress(false, 0, 0, null).toUi())
-    }
-
-    @Test
     fun segmentIconsAreKeptOnlyWhenEveryLabelFitsNextToThem() {
         // 300px control, 4px insets: 97.3px per segment; padding 16 + icon 18 + gap 6 + margin 2 = 42px.
         assertTrue(segmentsFitWithIcons(listOf(50f, 40f, 55f), controlWidthPx = 300f, density = 1f))
@@ -60,9 +52,6 @@ class SettingsLogicTest {
     @Test
     fun templatesKeepTheirPlaceholdersInEveryLanguage() {
         AppLanguage.entries.forEach { language ->
-            val settings = settingsCopy(language)
-            assertTrue("{done}" in settings.offlineProgress && "{total}" in settings.offlineProgress, "offlineProgress/$language")
-            assertTrue("12" in settings.offlineProgressLabel(12, 114) && "114" in settings.offlineProgressLabel(12, 114))
             val onboarding = onboardingCopy(language)
             assertTrue("{n}" in onboarding.stepOf && "{total}" in onboarding.stepOf, "stepOf/$language")
             assertTrue("2" in onboarding.stepLabel(2, 4) && "4" in onboarding.stepLabel(2, 4))
@@ -76,7 +65,7 @@ class SettingsLogicTest {
             val other = settingsCopy(language)
             assertTrue(other.sectionAppearance != english.sectionAppearance, "sectionAppearance/$language")
             assertTrue(other.myPlanDescription != english.myPlanDescription, "myPlanDescription/$language")
-            assertTrue(other.offlineTitle != english.offlineTitle, "offlineTitle/$language")
+            assertTrue(other.hintFirstWord != english.hintFirstWord, "hintFirstWord/$language")
         }
     }
 

@@ -37,6 +37,10 @@ sealed interface Dest {
     @Serializable
     data object Settings : Dest
 
+    /** "Downloads and storage": audio and translations on the phone, the download queue, the listening cache; opened from the settings (task D3). */
+    @Serializable
+    data object Downloads : Dest
+
     /** Short privacy summary, opened from the settings. */
     @Serializable
     data object Privacy : Dest
