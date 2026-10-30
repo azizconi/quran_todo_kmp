@@ -76,6 +76,7 @@ class DownloadRunnerTest {
         translations: TranslationSource = goodTranslations,
         attempts: Int = 2,
         maxFailures: Int = 3,
+        parallelism: Int = 1,
     ) = DownloadRunner(
         queue = queue,
         storage = storage,
@@ -85,6 +86,7 @@ class DownloadRunnerTest {
         pause = {},
         attemptsPerAyah = attempts,
         maxConsecutiveFailures = maxFailures,
+        parallelism = parallelism,
     )
 
     private fun url(surah: Int, ayah: Int, edition: String = "128/ar.alafasy"): String {
@@ -385,5 +387,102 @@ class DownloadRunnerTest {
         assertEquals(RunOutcome.FINISHED, runner(queue).run())
         assertEquals(4, storage.snapshot().size)
         assertTrue(queue.state.value.requests.isEmpty())
+    }
+
+    // -- Several files at once --------------------------------------------------------------------
+
+    private val ayahsOfTwoSurahs = listOf(Segment(114, 1, 6), Segment(113, 1, 5)) // 11 files
+
+    private fun twoSurahs() = DownloadRequest(
+        id = "juz-30-alafasy", kind = DownloadKind.JUZ, title = "Juz", reciterId = "alafasy", segments = ayahsOfTwoSurahs,
+    )
+
+    @Test
+    fun severalFilesAreOnTheWayAtOnceButNeverMoreThanTheLimit() = runTest {
+        val queue = newQueue()
+        queue.enqueue(twoSurahs())
+        var inFlight = 0
+        var most = 0
+        val slow: AudioFetch = { _, target ->
+            inFlight++
+            most = maxOf(most, inFlight)
+            kotlinx.coroutines.delay(10)
+            target.writeBytes(ByteArray(4_000))
+            inFlight--
+            true
+        }
+        assertEquals(RunOutcome.FINISHED, runner(queue, slow, parallelism = 3).run())
+        assertEquals(3, most)
+        assertEquals(11, storage.snapshot().size)
+        assertTrue(queue.state.value.requests.isEmpty())
+    }
+
+    @Test
+    fun theProgressOfParallelDownloadsEndsAtTheTotalWithoutGoingBack() = runTest {
+        val queue = newQueue()
+        queue.enqueue(twoSurahs())
+        val slow: AudioFetch = { _, target ->
+            kotlinx.coroutines.delay(10)
+            target.writeBytes(ByteArray(4_000))
+            true
+        }
+        runner(queue, slow, parallelism = 3).run()
+        val done = progress.map { it.done }
+        assertEquals(0, done.first())
+        assertEquals(11, done.last())
+        assertEquals(done.sorted(), done, "the count only grows")
+        assertEquals(12, done.size)
+    }
+
+    @Test
+    fun pausingWhileSeveralFilesAreOnTheWayLetsThemFinishAndStartsNoNewOne() = runTest {
+        val queue = newQueue()
+        queue.enqueue(twoSurahs())
+        val slow: AudioFetch = { url, target ->
+            fetched += url
+            if (fetched.size == 2) queue.pause()
+            kotlinx.coroutines.delay(10)
+            target.writeBytes(ByteArray(4_000))
+            true
+        }
+        assertEquals(RunOutcome.PAUSED, runner(queue, slow, parallelism = 3).run())
+        // Three were started before the pause was seen; each of them finished and was kept.
+        assertEquals(3, fetched.size)
+        assertEquals(3, storage.snapshot().size)
+
+        queue.resume()
+        fetched.clear()
+        assertEquals(RunOutcome.FINISHED, runner(queue, parallelism = 3).run())
+        assertEquals(8, fetched.size, "only the files that are missing")
+        assertEquals(fetched.size, fetched.toSet().size, "none twice")
+        assertEquals(11, storage.snapshot().size)
+    }
+
+    @Test
+    fun cancellingWhileSeveralFilesAreOnTheWayStopsStartingNewOnes() = runTest {
+        val queue = newQueue()
+        queue.enqueue(twoSurahs())
+        val slow: AudioFetch = { url, target ->
+            fetched += url
+            if (fetched.size == 1) queue.cancelAll()
+            kotlinx.coroutines.delay(10)
+            target.writeBytes(ByteArray(4_000))
+            true
+        }
+        assertEquals(RunOutcome.FINISHED, runner(queue, slow, parallelism = 3).run())
+        assertTrue(fetched.size <= 3, "at most the files that were already on the way: ${fetched.size}")
+        assertTrue(queue.state.value.requests.isEmpty())
+    }
+
+    @Test
+    fun withoutANetworkTheParallelRunStopsAfterTheFirstFailuresToo() = runTest {
+        val queue = newQueue()
+        queue.enqueue(twoSurahs())
+        val outcome = runner(queue, network(failWhen = { true }), parallelism = 3).run()
+        assertEquals(RunOutcome.NO_NETWORK, outcome)
+        assertTrue(fetched.size <= 3 * 2 + 3, "no endless tries: ${fetched.size}")
+        assertTrue(storage.snapshot().isEmpty())
+        assertEquals(1, queue.state.value.requests.size)
+        assertFalse(queue.state.value.hasFailures)
     }
 }

@@ -1,13 +1,17 @@
 package tj.app.quran_todo.ui.downloads
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
 import tj.app.quran_todo.common.audio.AudioFetch
 import tj.app.quran_todo.common.audio.DownloadStorage
 import tj.app.quran_todo.common.audio.Reciters
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.data.bundled.QuranFacts
 import tj.app.quran_todo.domain.use_case.GetAyahTranslationsUseCase
+import java.util.concurrent.atomic.AtomicInteger
 
 /** Makes sure the translation of a surah is in the database, the way the reader gets it. */
 internal fun interface TranslationSource {
@@ -58,7 +62,10 @@ internal enum class RunOutcome {
  *  - a file is written as `<key>.mp3.download` and renamed when whole ([DownloadStorage.commit]);
  *  - an ayah is tried [attemptsPerAyah] times; [maxConsecutiveFailures] failures in a row stop the run with [RunOutcome.NO_NETWORK]
  *    (the work is retried later by WorkManager with its backoff);
- *  - the queue is read again before every file, so "Pause all" and "Cancel" take effect at once.
+ *  - up to [parallelism] files are on the way at once (the files are small and the time goes into the round trips of the network,
+ *    not into the bytes: one at a time, a juz took a quarter of an hour on a slow connection);
+ *  - the queue is read again before every file is started, so "Pause all" and "Cancel" take effect at once: files that are on
+ *    the way finish, no new ones start.
  *
  * It has no Android in it: the storage is a folder, the fetch and the translations are parameters.
  */
@@ -71,6 +78,7 @@ internal class DownloadRunner(
     private val pause: suspend (millis: Long) -> Unit = { delay(it) },
     private val attemptsPerAyah: Int = 2,
     private val maxConsecutiveFailures: Int = 3,
+    private val parallelism: Int = DEFAULT_PARALLELISM,
 ) {
     private sealed interface Pass {
         data object Cancelled : Pass
@@ -113,10 +121,9 @@ internal class DownloadRunner(
         val reciter = Reciters.byId(request.reciterId)
         val keys = request.keys()
         val total = keys.size
-        var done = keys.count { storage.contains(it) }
+        val done = keys.count { storage.contains(it) }
         report(request, done, total)
 
-        var failedAyahs = 0
         var failedTranslations = 0
         var consecutive = 0
 
@@ -141,23 +148,46 @@ internal class DownloadRunner(
             }
         }
 
-        for (segment in request.segments) {
-            for (ayah in segment.first..segment.last) {
-                interruption(request)?.let { return it }
-                val key = reciter.cacheKey(segment.surah, ayah)
-                if (storage.contains(key)) continue
-                val globalAyah = QuranFacts.firstAyahNumber(segment.surah) + ayah - 1
-                if (fetchOne(reciter.audioUrl(globalAyah), key)) {
-                    consecutive = 0
-                    done++
-                    report(request, done, total)
-                } else {
-                    failedAyahs++
-                    if (++consecutive >= maxConsecutiveFailures) return Pass.NoNetwork
+        val doneCount = AtomicInteger(done)
+        val failedCount = AtomicInteger(0)
+        val consecutiveCount = AtomicInteger(consecutive)
+        val gate = Semaphore(parallelism.coerceAtLeast(1))
+        var stopped: Pass? = null
+        coroutineScope {
+            outer@ for (segment in request.segments) {
+                for (ayah in segment.first..segment.last) {
+                    val key = reciter.cacheKey(segment.surah, ayah)
+                    if (storage.contains(key)) continue
+                    // A free place first: the queue is looked at when a file is about to start, not when it was planned.
+                    gate.acquire()
+                    val reason = interruption(request)
+                        ?: Pass.NoNetwork.takeIf { consecutiveCount.get() >= maxConsecutiveFailures }
+                    if (reason != null) {
+                        gate.release()
+                        stopped = reason
+                        break@outer
+                    }
+                    val globalAyah = QuranFacts.firstAyahNumber(segment.surah) + ayah - 1
+                    launch {
+                        try {
+                            if (fetchOne(reciter.audioUrl(globalAyah), key)) {
+                                consecutiveCount.set(0)
+                                report(request, doneCount.incrementAndGet(), total)
+                            } else {
+                                failedCount.incrementAndGet()
+                                consecutiveCount.incrementAndGet()
+                            }
+                        } finally {
+                            gate.release()
+                        }
+                    }
                 }
             }
         }
-        return Pass.Ended(failedAyahs, failedTranslations)
+        // The files that were on the way have finished here, also when the loop stopped.
+        stopped?.let { return it }
+        if (consecutiveCount.get() >= maxConsecutiveFailures) return Pass.NoNetwork
+        return Pass.Ended(failedCount.get(), failedTranslations)
     }
 
     /** The person cancelled this request or paused the queue since the last file. */
@@ -192,7 +222,10 @@ internal class DownloadRunner(
         onProgress(DownloadProgress(request, done, total, queue.state.value.waiting))
     }
 
-    private companion object {
-        const val RETRY_PAUSE_MS = 1_000L
+    companion object {
+        private const val RETRY_PAUSE_MS = 1_000L
+
+        /** Files on the way at once. */
+        const val DEFAULT_PARALLELISM = 3
     }
 }

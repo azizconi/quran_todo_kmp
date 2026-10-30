@@ -28,7 +28,11 @@ import kotlin.math.roundToLong
  * | Abdul Basit (192) | 3762 | 3761 | 74.3 MiB |
  *
  * The estimate of a juz or a surah outside Juz 30 can be off by 10-20% (the pace of a recitation changes from surah to surah); of a
- * large set (a plan, the whole Quran, about 1.6 GiB for Alafasy) by less. The screen always writes "about" ("≈ 54 MB").
+ * large set (a plan, the whole Quran, about 1.6 GiB for Alafasy) by less. Inside Juz 30 the whole juz is exact (its coefficient is
+ * its measured mean) and one surah is off by 11% on average (Alafasy) and by up to 37%: An-Nas is estimated at 404 KB and its six
+ * files are 642 KB, because that surah is recited slowly. A per-ayah overhead (bytes = a + b x characters) was tried and is not
+ * better per surah, so the model stays one coefficient. On the emulator Juz 1 came to 48 MB (estimate 53) and Juz 2 to 46 MB
+ * (estimate 55). The screen always writes "about" ("≈ 54 MB") and, once files are there, their real size.
  */
 internal object DownloadSize {
     /**

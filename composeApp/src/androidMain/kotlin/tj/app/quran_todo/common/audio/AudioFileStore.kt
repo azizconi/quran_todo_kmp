@@ -15,9 +15,16 @@ import java.net.URL
 /** Writes the answer of [url] into [target] (a temporary file); true only when the whole file arrived. */
 internal typealias AudioFetch = suspend (url: String, target: File) -> Boolean
 
-/** The plain HTTP download of one recording. Cancelling the coroutine stops it between two chunks. */
+/**
+ * The plain HTTP download of one recording. Cancelling the coroutine stops it between two chunks.
+ *
+ * The connection is only disconnected when the download did not finish: after a whole body that was read to the end, closing the
+ * stream returns the connection to the keep-alive pool, so the next file of the same host skips the DNS lookup and the TLS handshake
+ * (`disconnect()` would close the socket; on a slow network that made every file of a download take seconds).
+ */
 internal suspend fun httpAudioFetch(url: String, target: File): Boolean = withContext(Dispatchers.IO) {
     val connection = URL(url).openConnection() as HttpURLConnection
+    var finished = false
     try {
         connection.connectTimeout = CONNECT_TIMEOUT_MS
         connection.readTimeout = READ_TIMEOUT_MS
@@ -37,13 +44,14 @@ internal suspend fun httpAudioFetch(url: String, target: File): Boolean = withCo
             }
         }
         // A body that stopped early is not a recording.
-        expected < 0 || written == expected
+        finished = expected < 0 || written == expected
+        finished
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (_: Exception) {
         false
     } finally {
-        connection.disconnect()
+        if (!finished) connection.disconnect()
     }
 }
 
