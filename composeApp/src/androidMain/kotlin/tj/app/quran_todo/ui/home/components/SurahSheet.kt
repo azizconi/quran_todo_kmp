@@ -23,7 +23,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import tj.app.quran_todo.ui.components.QhDialogButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -212,15 +212,13 @@ internal fun SurahSheet(
             title = { Text(copy.forgetTitle(pending.lostAyahs), style = type.title1, color = colors.ink) },
             text = { Text(copy.forgetBody, style = type.body, color = colors.inkSecondary) },
             confirmButton = {
-                TextButton(
-                    onClick = {
+                QhDialogButton(text = copy.forgetConfirm, color = colors.danger, onClick = {
                         confirm = null
                         commit(pending.target)
-                    },
-                ) { Text(copy.forgetConfirm, style = type.title2, color = colors.danger) }
+                    })
             },
             dismissButton = {
-                TextButton(onClick = { confirm = null }) { Text(copy.cancel, style = type.title2, color = colors.primary) }
+                QhDialogButton(text = copy.cancel, color = colors.primary, onClick = { confirm = null })
             },
         )
     }

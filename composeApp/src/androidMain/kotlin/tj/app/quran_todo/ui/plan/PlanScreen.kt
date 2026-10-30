@@ -38,7 +38,7 @@ import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import tj.app.quran_todo.ui.components.QhDialogButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -217,15 +217,13 @@ fun PlanScreen(onBack: () -> Unit) {
             title = { Text(copy.deleteTitle, style = QhTheme.type.title1, color = QhTheme.colors.ink) },
             text = { Text(copy.deleteBody, style = QhTheme.type.body, color = QhTheme.colors.inkSecondary) },
             confirmButton = {
-                TextButton(
-                    onClick = {
+                QhDialogButton(text = copy.deleteConfirm, color = QhTheme.colors.danger, onClick = {
                         askDelete = false
                         viewModel.clear()
-                    },
-                ) { Text(copy.deleteConfirm, style = QhTheme.type.title2, color = QhTheme.colors.danger) }
+                    })
             },
             dismissButton = {
-                TextButton(onClick = { askDelete = false }) { Text(copy.cancel, style = QhTheme.type.title2, color = QhTheme.colors.primary) }
+                QhDialogButton(text = copy.cancel, color = QhTheme.colors.primary, onClick = { askDelete = false })
             },
         )
     }
@@ -237,21 +235,16 @@ fun PlanScreen(onBack: () -> Unit) {
             title = { Text(copy.unsavedTitle, style = QhTheme.type.title1, color = QhTheme.colors.ink) },
             text = { Text(copy.unsavedBody, style = QhTheme.type.body, color = QhTheme.colors.inkSecondary) },
             confirmButton = {
-                TextButton(
-                    onClick = {
+                QhDialogButton(text = copy.save, color = QhTheme.colors.primary, onClick = {
                         askUnsaved = false
                         if (ui.canSave) viewModel.save()
-                    },
-                    enabled = ui.canSave,
-                ) { Text(copy.save, style = QhTheme.type.title2, color = QhTheme.colors.primary) }
+                    }, enabled = ui.canSave)
             },
             dismissButton = {
-                TextButton(
-                    onClick = {
+                QhDialogButton(text = copy.discard, color = QhTheme.colors.danger, onClick = {
                         askUnsaved = false
                         onBack()
-                    },
-                ) { Text(copy.discard, style = QhTheme.type.title2, color = QhTheme.colors.danger) }
+                    })
             },
         )
     }

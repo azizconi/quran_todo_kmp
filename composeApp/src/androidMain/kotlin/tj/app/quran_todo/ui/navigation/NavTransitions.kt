@@ -33,6 +33,10 @@ object NavTransitions {
     private const val ReducedMillis = 150
     private const val SlideFraction = 0.06f
     private const val ScaleFraction = 0.96f
+    private const val PopExitScale = 0.92f
+
+    /** Corner radius a screen takes on while it leaves (forward or back, or under the back gesture). */
+    const val LeavingCornerDp = 28
 
     private fun slideDistance(width: Int): Int = (width * SlideFraction).toInt()
 
@@ -67,7 +71,10 @@ object NavTransitions {
         { fadeOut(tween(ReducedMillis)) }
     } else {
         {
+            // Shrinks while it leaves, so the predictive back gesture (which drives this transition) shows the screen
+            // pulling away; its corners round with it (see `ProvideNavScope`).
             fadeOut(tween(FadeOutMillis)) +
+                scaleOut(tween(MoveMillis, easing = Emphasized), targetScale = PopExitScale) +
                 slideOutHorizontally(tween(MoveMillis, easing = Emphasized), ::slideDistance)
         }
     }

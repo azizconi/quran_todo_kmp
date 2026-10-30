@@ -10,7 +10,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.core.animateDp
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.dp
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -517,7 +523,24 @@ private fun AppNavigation() {
 /** Gives the screen of a NavHost entry its [LocalNavAnimatedVisibilityScope] for shared elements. */
 @Composable
 private fun AnimatedContentScope.ProvideNavScope(content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this, content = content)
+    val reduced = LocalReducedMotion.current
+    // The screen that is leaving (a forward push, a pop, the back gesture) rounds its corners as the transition runs.
+    // The value follows the transition, so under the predictive back gesture it follows the finger.
+    val corner by transition.animateDp(label = "leaving-corner", transitionSpec = { tween(380) }) { state ->
+        if (state == EnterExitState.PostExit && !reduced) NavTransitions.LeavingCornerDp.dp else 0.dp
+    }
+    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    if (corner > 0.dp) {
+                        shape = RoundedCornerShape(corner)
+                        clip = true
+                    }
+                },
+        ) { content() }
+    }
 }
 
 /**

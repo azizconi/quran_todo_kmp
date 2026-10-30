@@ -207,3 +207,32 @@ internal fun DotSpinner(color: Color, modifier: Modifier = Modifier) {
         }
     }
 }
+
+/**
+ * A text button for system dialogs (`AlertDialog`, `DatePickerDialog`): the same press squeeze, veil and tick as every other
+ * pressable, instead of the grey Material ripple. [color] is the text colour (the danger colour for a destructive choice).
+ */
+@Composable
+fun QhDialogButton(
+    text: String,
+    onClick: () -> Unit,
+    color: Color,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val shape = QhTheme.shapes.full
+    Box(
+        modifier
+            .pressable(onClick = onClick, enabled = enabled, shape = shape)
+            .minimumInteractiveComponentSize()
+            .clip(shape)
+            .padding(horizontal = QhSpacing.x3, vertical = QhSpacing.x2),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            style = QhTheme.type.title2,
+            color = if (enabled) color else QhTheme.colors.inkTertiary,
+        )
+    }
+}

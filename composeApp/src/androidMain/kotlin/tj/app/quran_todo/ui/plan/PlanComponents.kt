@@ -28,7 +28,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import tj.app.quran_todo.ui.components.QhDialogButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -409,16 +409,13 @@ internal fun TargetDateDialog(
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(
-                onClick = {
+            QhDialogButton(text = copy.ok, color = colors.primary, onClick = {
                     state.selectedDateMillis?.let { onPick(Math.floorDiv(it, DayMillis).toInt()) }
                     onDismiss()
-                },
-                enabled = state.selectedDateMillis != null,
-            ) { Text(copy.ok, style = QhTheme.type.title2, color = colors.primary) }
+                }, enabled = state.selectedDateMillis != null)
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(copy.cancel, style = QhTheme.type.title2, color = colors.primary) }
+            QhDialogButton(text = copy.cancel, color = colors.primary, onClick = onDismiss)
         },
         colors = androidx.compose.material3.DatePickerDefaults.colors(containerColor = colors.surface),
     ) {

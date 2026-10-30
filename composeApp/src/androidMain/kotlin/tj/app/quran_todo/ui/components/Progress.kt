@@ -38,9 +38,9 @@ import tj.app.quran_todo.ui.theme.QhTheme
  * reduced motion). Returns a [State] so the drawing code can read it without recomposing.
  */
 @Composable
-internal fun animatedProgress(progress: Float, label: String): State<Float> {
+internal fun animatedProgress(progress: Float, label: String, startFull: Boolean = false): State<Float> {
     val reduced = LocalReducedMotion.current
-    var target by remember { mutableFloatStateOf(if (reduced) progress else 0f) }
+    var target by remember { mutableFloatStateOf(if (reduced || startFull) progress else 0f) }
     LaunchedEffect(progress) { target = progress }
     return animateFloatAsState(
         targetValue = target.coerceIn(0f, 1f),
@@ -51,7 +51,7 @@ internal fun animatedProgress(progress: Float, label: String): State<Float> {
 
 /**
  * A circular progress indicator with round caps. [progress] (0..1) is animated and grows from 0 on
- * first show. [content] is centered inside (a number, an icon). Share it across screens with
+ * first show (unless [startFull]: the ring that a shared flight lands on starts at its value, so it does not show an empty ring over the full one it replaces). [content] is centered inside (a number, an icon). Share it across screens with
  * `Modifier.sharedElementKey(SharedKeys.ProgressRing)`.
  */
 @Composable
@@ -62,9 +62,10 @@ fun ProgressRing(
     strokeWidth: Dp = 4.dp,
     color: Color = QhTheme.colors.primary,
     trackColor: Color = QhTheme.colors.surfaceMuted,
+    startFull: Boolean = false,
     content: (@Composable BoxScope.() -> Unit)? = null,
 ) {
-    val animated = animatedProgress(progress, "ring")
+    val animated = animatedProgress(progress, "ring", startFull)
     Box(
         modifier
             .size(size)
