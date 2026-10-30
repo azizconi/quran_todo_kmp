@@ -100,7 +100,9 @@ import tj.app.quran_todo.ui.hifz.HifzOverlays
 import tj.app.quran_todo.ui.hifz.HifzTopBar
 import tj.app.quran_todo.ui.hifz.rememberHifzMode
 import tj.app.quran_todo.ui.haptics.LocalHaptics
+import tj.app.quran_todo.ui.i18n.MushafCopy
 import tj.app.quran_todo.ui.i18n.ReaderCopy
+import tj.app.quran_todo.ui.i18n.mushafCopy
 import tj.app.quran_todo.ui.i18n.readerCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.navigation.Dest
@@ -341,6 +343,14 @@ private fun ReaderContent(
         }
     }
     val ayahNumber = remember(firstVisibleAyah) { derivedStateOf { firstVisibleAyah.value.coerceAtLeast(0) + 1 } }
+    // The mushaf marks (D1) were worked out once when the surah arrived. The place in the top bar ("Juz 2 · Hizb 3 · p. 22") is
+    // derived from the ayah on top: it only changes when the juz, hizb or page really changes (a data class compares equal).
+    val mushaf = remember(language) { mushafCopy(language) }
+    val marks = viewModel.marks
+    val places = viewModel.places
+    val place = remember(firstVisibleAyah, places) {
+        derivedStateOf { places.getOrNull(firstVisibleAyah.value.coerceAtLeast(0)) }
+    }
     val readingProgress = remember(firstVisibleAyah, total) {
         derivedStateOf {
             val index = firstVisibleAyah.value
@@ -492,6 +502,8 @@ private fun ReaderContent(
             hifz = hifz,
             flashIndex = flashIndex,
             tourAyah = tourAyah,
+            marks = marks,
+            mushaf = mushaf,
             passage = if (practice.rangeEnabled) (practice.startAyah - 1)..(practice.endAyah - 1) else null,
             nextSurah = if (surahNumber < 114) viewModel.nextSurahDisplay(surahNumber + 1, language, chapterNames, russianNames) else null,
             onSelect = { index ->
@@ -509,8 +521,10 @@ private fun ReaderContent(
             totalAyahs = total,
             collapsed = collapsed,
             ayahNumber = ayahNumber,
+            place = place,
             progress = readingProgress,
             copy = copy,
+            mushaf = mushaf,
             onBack = onBack,
             onTextSettings = { sheet = ReaderSheet.Appearance },
             onMore = { sheet = ReaderSheet.Surah(SurahSheetPage.Menu) },
@@ -719,6 +733,8 @@ private fun ReaderList(
     hifz: HifzMode,
     flashIndex: Int?,
     tourAyah: Int,
+    marks: List<AyahMarks>,
+    mushaf: MushafCopy,
     passage: IntRange?,
     nextSurah: NextSurahDisplay?,
     onSelect: (Int) -> Unit,
@@ -761,6 +777,7 @@ private fun ReaderList(
                 current = markedIndex == index,
                 flash = flashIndex == index,
                 range = rangePositionOf(index, passage),
+                marks = marks.getOrElse(index) { AyahMarks.None },
             )
             AyahRow(
                 model = model,
@@ -772,7 +789,9 @@ private fun ReaderList(
                 arabicStyle = arabicStyle,
                 translationStyle = translationStyle,
                 copy = copy,
-                showDivider = index != ayahs.lastIndex,
+                mushaf = mushaf,
+                // The line of a juz / hizb / page mark above the next ayah is its own separator: no second hairline before it.
+                showDivider = index != ayahs.lastIndex && marks.getOrNull(index + 1)?.hasLine != true,
                 enter = enter,
                 onSelect = onSelect,
                 onMore = onMore,

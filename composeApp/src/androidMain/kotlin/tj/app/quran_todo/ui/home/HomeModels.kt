@@ -80,6 +80,10 @@ data class HomeUi(
     val listing: ListingUi = ListingUi(),
     /** Memorized ayahs / 6236 for the ring in the top bar. */
     val overallProgress: Float = 0f,
+    /** The 30 rows of the "Juz" tab with the memorized share of each (D1). */
+    val juzRows: List<JuzRowUi> = emptyList(),
+    /** [juzRows] after the query (the "Juz" tab has no status filter). */
+    val juzListing: List<JuzRowUi> = emptyList(),
 )
 
 /** The floating mini player. Position inside the ayah is a separate flow so this changes rarely. */

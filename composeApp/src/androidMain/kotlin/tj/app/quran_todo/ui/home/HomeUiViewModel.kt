@@ -79,13 +79,14 @@ class HomeUiViewModel internal constructor(
         .distinctUntilChanged(::sameData)
 
     /**
-     * What the hifz model says: the derived statuses, how many ayahs of each surah are memorized, the queue of
-     * the plan and the lesson of the day (it follows the changing day through the ticker). A failing read
-     * leaves the previous kind of answer ("nothing") instead of freezing the whole screen.
+     * What the hifz model says: the derived statuses, which ayahs of each surah are memorized (one read: the surah rows take
+     * the counts, the "Juz" tab counts inside the juz), the queue of the plan and the lesson of the day (it follows the
+     * changing day through the ticker). A failing read leaves the previous kind of answer ("nothing") instead of freezing
+     * the whole screen.
      */
     private val hifzSnapshot: Flow<HifzSnapshot> = combine(
         hifz.surahStatuses().orFallback(emptyMap()),
-        hifz.coveredCounts().orFallback(emptyMap()),
+        hifz.coveredAyahs().orFallback(emptyMap()),
         hifz.plan().map { it?.surahOrder.orEmpty() }.orFallback(emptyList()),
         hifz.lesson(ticker.day).map<LessonPlan, LessonPlan?> { it }.orFallback(null),
     ) { statuses, covered, queue, lesson -> HifzSnapshot(statuses, covered, queue, lesson) }
@@ -267,6 +268,8 @@ class HomeUiViewModel internal constructor(
         rows = base.rows,
         listing = HomeStateBuilder.buildListing(base.rows, searchIndexFor(base.rows), query, filter),
         overallProgress = base.overallProgress,
+        juzRows = base.juzRows,
+        juzListing = JuzRows.search(base.juzRows, query),
     )
 
     private fun initialBase(): HomeBase = HomeStateBuilder.buildBase(
@@ -289,6 +292,7 @@ class HomeUiViewModel internal constructor(
         index = indexFor(data.completeQuran),
         statuses = snapshot.statuses,
         coveredAyahs = snapshot.covered,
+        coveredAyahSets = snapshot.coveredSets,
         planQueue = snapshot.planQueue,
         lesson = snapshot.lesson,
         chapterNames = data.chapterNames,
@@ -347,10 +351,13 @@ private fun <T> Flow<T>.orFallback(fallback: T): Flow<T> = catch { error ->
 /** What the home screen reads from the hifz model; empty until the first answer. */
 internal class HifzSnapshot(
     val statuses: Map<Int, SurahHifzStatus> = emptyMap(),
-    val covered: Map<Int, Int> = emptyMap(),
+    /** The covered ayahs of each surah (numbers in the surah); the counts per surah are derived from them. */
+    val coveredSets: Map<Int, Set<Int>> = emptyMap(),
     val planQueue: List<Int> = emptyList(),
     val lesson: LessonPlan? = null,
-)
+) {
+    val covered: Map<Int, Int> = coveredSets.mapValues { it.value.size }
+}
 
 /** The parts of [HomeUiState] this screen reads; compared by reference so progress updates do not recompute. */
 private class HomeData(

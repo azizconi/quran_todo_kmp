@@ -70,6 +70,14 @@ internal fun SearchHeader(
     onFocusChange: (Boolean) -> Unit,
     stuck: () -> Boolean,
     modifier: Modifier = Modifier,
+    /** The hint of the field; null is the surah hint (the "Juz" tab says "Juz number or name"). */
+    placeholder: String? = null,
+    /**
+     * While the person searches the tabs above the list have folded away, and the filters ([showFilters]) have no meaning:
+     * the "Surahs / Juz" switch takes their place under the field ([showTabs]), so a query can be tried on both lists.
+     */
+    showTabs: Boolean = false,
+    tabs: @Composable () -> Unit = {},
 ) {
     val colors = QhTheme.colors
     val keyboard = LocalSoftwareKeyboardController.current
@@ -94,7 +102,7 @@ internal fun SearchHeader(
         QhSearchField(
             value = query,
             onValueChange = onQueryChange,
-            placeholder = copy.searchPlaceholder,
+            placeholder = placeholder ?: copy.searchPlaceholder,
             clearContentDescription = copy.clearSearch,
             focusRequester = focusRequester,
             onFocusChange = onFocusChange,
@@ -120,6 +128,24 @@ internal fun SearchHeader(
                     selectedIndex = filter.ordinal,
                     onSelect = { onFilterChange(SurahFilter.entries[it]) },
                 )
+            }
+        }
+        AnimatedVisibility(
+            visible = showTabs,
+            enter = if (reduced) {
+                EnterTransition.None
+            } else {
+                expandVertically(QhMotion.gentle<IntSize>()) + fadeIn(QhMotion.snappy())
+            },
+            exit = if (reduced) {
+                ExitTransition.None
+            } else {
+                shrinkVertically(QhMotion.gentle<IntSize>()) + fadeOut(QhMotion.snappy())
+            },
+        ) {
+            Column {
+                Spacer(Modifier.height(QhSpacing.x3))
+                tabs()
             }
         }
     }
@@ -186,9 +212,11 @@ internal fun ListEmptyState(
     filter: SurahFilter,
     copy: HomeCopy,
     modifier: Modifier = Modifier,
+    /** Replaces the hint of an empty search (the "Juz" tab hints at juz numbers, not at surah names). */
+    searchBody: String? = null,
 ) {
     val (title, body) = when {
-        isSearching -> copy.noResultsTitle to copy.noResultsBody
+        isSearching -> copy.noResultsTitle to (searchBody ?: copy.noResultsBody)
         filter == SurahFilter.Learning -> copy.emptyLearningTitle to copy.emptyLearningBody
         else -> copy.emptyLearnedTitle to copy.emptyLearnedBody
     }

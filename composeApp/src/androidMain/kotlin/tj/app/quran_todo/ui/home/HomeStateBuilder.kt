@@ -30,6 +30,8 @@ internal class HomeSources(
     val recentSurahs: List<Int>,
     val pinnedSurahs: Set<Int>,
     val onboardingGoals: Set<String>,
+    /** The covered ayah numbers of every surah (one read for all of them): the "Juz" tab counts inside juz boundaries with it. */
+    val coveredAyahSets: Map<Int, Set<Int>> = emptyMap(),
 )
 
 /** [HomeUi] without the listing, which also depends on the query and the filter. */
@@ -41,6 +43,7 @@ internal class HomeBase(
     val recent: List<RecentUi>,
     val rows: List<SurahRowUi>,
     val overallProgress: Float,
+    val juzRows: List<JuzRowUi>,
 )
 
 internal object HomeStateBuilder {
@@ -73,6 +76,7 @@ internal object HomeStateBuilder {
             recent = if (content) HomeRows.recent(s.recentSurahs, s.pinnedSurahs, rowsByNumber) else emptyList(),
             rows = rows,
             overallProgress = HomeRows.overallProgress(s.coveredAyahs),
+            juzRows = if (content) JuzRows.build(s.language, rowsByNumber, s.coveredAyahSets) else emptyList(),
         )
     }
 
