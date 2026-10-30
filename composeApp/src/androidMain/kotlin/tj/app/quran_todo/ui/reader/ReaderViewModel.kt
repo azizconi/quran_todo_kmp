@@ -150,6 +150,17 @@ class ReaderViewModel(
     var initialFlashIndex: Int? = null
         private set
 
+    /**
+     * Where a juz, a quarter of a hizb or a page starts at each ayah, and the sajda signs (D1): one entry per ayah of [surah], in
+     * its order. Worked out once, when the surah arrives, so the rows only read it. Valid once [surah] is not null.
+     */
+    var marks: List<AyahMarks> = emptyList()
+        private set
+
+    /** The juz, hizb and page of each ayah of [surah] (the "Juz 2 · Hizb 3 · p. 22" line of the top bar); valid with [marks]. */
+    var places: List<MushafPlace> = emptyList()
+        private set
+
     private val lastReadAtOpen = uiPrefs.lastReadPosition.value
 
     val chapterNames: StateFlow<Map<Int, ChapterNameModel>> = surahViewModel.chapterNames
@@ -379,6 +390,8 @@ class ReaderViewModel(
         )
         initialFlashIndex = if (route.ayah != null) initialAyahIndex else null
         readyIndex.value = initialAyahIndex
+        marks = MushafMarks.marksOfSurah(surahNumber, ayahs, homeViewModel.uiState.value.completeQuran)
+        places = ayahs.map(MushafMarks::placeOf)
         _practice.value = ReaderPracticeSettings.load(surahNumber, ayahs.size)
         _surah.value = sorted
         // The language may have been reported before the Quran was there.
