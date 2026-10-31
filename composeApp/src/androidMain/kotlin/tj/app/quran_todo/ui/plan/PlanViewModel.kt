@@ -33,6 +33,7 @@ import tj.app.quran_todo.hifz.EpochDayTicker
 import tj.app.quran_todo.hifz.HifzRepository
 import tj.app.quran_todo.hifz.model.HifzPlan
 import tj.app.quran_todo.hifz.model.HifzScope
+import tj.app.quran_todo.hifz.model.PlanPause
 import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.hifz.schedule.HifzConstants
 import tj.app.quran_todo.hifz.schedule.Manzil
@@ -52,6 +53,15 @@ internal sealed interface PlanEvent {
     data object Cleared : PlanEvent
 
     data object Failed : PlanEvent
+
+    /** The plan was paused (or the pause extended): the toast says until when. The screen stays. */
+    data class Paused(val untilEpochDay: Int) : PlanEvent
+
+    /** "Continue now": the pause ended. */
+    data object Resumed : PlanEvent
+
+    /** Pausing or continuing did not work. */
+    data object PauseFailed : PlanEvent
 }
 
 /**
@@ -144,6 +154,14 @@ internal class PlanViewModel(
         .distinctUntilChanged()
         .debounce(ComputeDebounceMillis)
         .mapLatest { key -> estimateOf(key) }
+
+    /** The pause of the plan (task F2b) that is on or still ahead of today; null when there is none. It follows the changing day. */
+    val pause: StateFlow<PlanPause?> = hifz.pause(ticker.day)
+        .catch { error ->
+            AppTelemetry.logError(throwable = error, context = "plan_pause_read_failed")
+            emit(null)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(StopTimeoutMillis), null)
 
     val ui: StateFlow<PlanUi> = combine(
         draftData,
@@ -255,6 +273,45 @@ internal class PlanViewModel(
             } catch (error: Exception) {
                 AppTelemetry.logError(throwable = error, context = "plan_save_failed")
                 eventChannel.trySend(PlanEvent.Failed)
+            }
+        }
+    }
+
+    // -- Pause --------------------------------------------------------------------------------
+
+    /**
+     * Pauses the plan for [days] from today, or extends the pause that is on (task F2b): the lessons stop and the calendar of the
+     * plan moves (`HifzRepository.pausePlan`, one transaction). Not part of the draft: it is an action of its own.
+     */
+    fun pausePlan(days: Int) {
+        viewModelScope.launch {
+            try {
+                val today = ticker.day.value
+                hifz.pausePlan(days, today)
+                AppTelemetry.logEvent("plan_paused", mapOf("days" to days.toString()))
+                val until = hifz.pause(today).first()?.untilEpochDay ?: (today + days - 1)
+                eventChannel.trySend(PlanEvent.Paused(until))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                AppTelemetry.logError(throwable = error, context = "plan_pause_failed")
+                eventChannel.trySend(PlanEvent.PauseFailed)
+            }
+        }
+    }
+
+    /** "Continue now": the pause ends today and the calendar moves back by the days that were left. */
+    fun resumePlan() {
+        viewModelScope.launch {
+            try {
+                hifz.resumePlan(ticker.day.value)
+                AppTelemetry.logEvent("plan_resumed_early")
+                eventChannel.trySend(PlanEvent.Resumed)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                AppTelemetry.logError(throwable = error, context = "plan_resume_failed")
+                eventChannel.trySend(PlanEvent.PauseFailed)
             }
         }
     }

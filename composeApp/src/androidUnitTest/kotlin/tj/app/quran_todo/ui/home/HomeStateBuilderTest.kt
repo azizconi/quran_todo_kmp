@@ -92,6 +92,24 @@ class HomeStateBuilderTest {
             isPinned = pinned,
         )
 
+    // -- The quiz row (task F2b) ----------------------------------------------------------------------
+
+    @Test
+    fun theQuizRowShowsFromFiveMemorizedAyahs() {
+        assertFalse(HomeStateBuilder.buildBase(sources(covered = emptyMap())).quizReady)
+        assertFalse(HomeStateBuilder.buildBase(sources(covered = mapOf(1 to 4))).quizReady)
+        assertTrue(HomeStateBuilder.buildBase(sources(covered = mapOf(1 to 5))).quizReady)
+        // The ayahs of several surahs add up.
+        assertTrue(HomeStateBuilder.buildBase(sources(covered = mapOf(1 to 3, 2 to 2))).quizReady)
+        assertFalse(HomeStateBuilder.buildBase(sources(covered = mapOf(1 to 3, 2 to 1))).quizReady)
+        // While the Quran is not there, nothing but the rows is built.
+        assertFalse(
+            HomeStateBuilder.buildBase(
+                sources(index = QuranIndex.Empty, loadState = QuranLoadState.Loading, covered = mapOf(1 to 7)),
+            ).quizReady,
+        )
+    }
+
     // -- Phase ------------------------------------------------------------------------------------
 
     @Test

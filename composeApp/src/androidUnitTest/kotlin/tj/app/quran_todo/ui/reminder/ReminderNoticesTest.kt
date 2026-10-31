@@ -7,6 +7,7 @@ import tj.app.quran_todo.hifz.model.HifzPlan
 import tj.app.quran_todo.hifz.model.HifzScope
 import tj.app.quran_todo.hifz.model.Passage
 import tj.app.quran_todo.hifz.model.PassageStage
+import tj.app.quran_todo.hifz.model.PlanPause
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.hifz.model.ReviewKind
 import tj.app.quran_todo.hifz.model.ReviewLogEntry
@@ -24,6 +25,7 @@ import tj.app.quran_todo.ui.state.LastReadPosition
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -291,6 +293,32 @@ class ReminderNoticesTest {
         assertEquals(ReminderKind.READING, notice.kind)
         assertEquals("Continue reading: S18, ayah 12", notice.body)
         assertNull(ReminderNotices.build(AppLanguage.EN, lesson, null) { "S$it" })
+    }
+
+    // ---- A pause of the plan (task F2b): silence ----
+
+    @Test
+    fun aPausedDaySendsNothingNeitherTheLessonNorContinueReading() {
+        val pause = PlanPause(today - 1, today + 2)
+        val passages = listOf(passage(1, 113, 1, 3))
+        val lastRead = LastReadPosition(18, 12, null)
+        // The same day without the pause has a lesson ...
+        val without = LessonBuilder.build(LessonInput(today, plan(), passages, emptyList(), metrics()))
+        assertEquals(ReminderKind.LESSON, ReminderNotices.build(AppLanguage.EN, without, lastRead) { "S$it" }!!.kind)
+        // ... and inside the pause there is no notification at all, in any of the five languages, with or without a reading position.
+        val paused = LessonBuilder.build(LessonInput(today, plan(), passages, emptyList(), metrics(), pause))
+        assertNotNull(paused.paused)
+        AppLanguage.entries.forEach { language ->
+            assertNull(build(language, paused, lastRead), language.name)
+            assertNull(build(language, paused, null), language.name)
+        }
+        // A plan that is not there: still silence (the "continue reading" fallback must not wake a rest either).
+        val noPlan = LessonBuilder.build(LessonInput(today, null, emptyList(), emptyList(), metrics(), pause))
+        assertNull(ReminderNotices.build(AppLanguage.EN, noPlan, lastRead) { "S$it" })
+        // The first day after the pause is an ordinary day again.
+        val after = LessonBuilder.build(LessonInput(today + 3, plan(), passages, emptyList(), metrics(), pause))
+        assertNull(after.paused)
+        assertEquals(ReminderKind.LESSON, ReminderNotices.build(AppLanguage.EN, after, lastRead) { "S$it" }!!.kind)
     }
 
     // ---- The reading position ----

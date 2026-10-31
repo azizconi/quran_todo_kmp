@@ -7,6 +7,7 @@ import tj.app.quran_todo.hifz.model.HifzPlan
 import tj.app.quran_todo.hifz.model.HifzScope
 import tj.app.quran_todo.hifz.model.NewPassageResult
 import tj.app.quran_todo.hifz.model.PassageStage
+import tj.app.quran_todo.hifz.model.PlanPause
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.hifz.model.ReviewKind
 import tj.app.quran_todo.hifz.model.ReviewLogEntry
@@ -79,10 +80,19 @@ interface HifzRepository {
      */
     fun forecast(plan: HifzPlan, today: Int): Flow<PlanForecast>
 
-    /** Days in a row with a record in the review log, ending today or yesterday. */
+    /** Days in a row with a record in the review log, ending today or yesterday; the days of a pause (task F2b) are a bridge. */
     fun streak(today: Int): Flow<Int>
 
     fun streak(today: Flow<Int>): Flow<Int>
+
+    /**
+     * The pause of the plan (task F2b) that is on or still ahead of [today]; null when there is none (a pause that is over is null
+     * too). `lesson(today).paused` says whether [today] itself is inside the pause.
+     */
+    fun pause(today: Int): Flow<PlanPause?>
+
+    /** The pause that follows a changing day, e.g. `EpochDayTicker.day`. */
+    fun pause(today: Flow<Int>): Flow<PlanPause?>
 
     /** The derived statuses of the surahs that have one (a surah that is not in the map is not started). */
     fun surahStatuses(): Flow<Map<Int, SurahHifzStatus>>
@@ -210,6 +220,28 @@ interface HifzRepository {
 
     /** Deletes the plan (passages stay). */
     suspend fun clearPlan()
+
+    /**
+     * "Quiz" (task F2b): marks the ayahs [ayahs] (numbers in the surah) as difficult (`clearsAfter = 2`, a mark that is there starts
+     * over) in the passages that cover them; an ayah that is not covered is skipped. One transaction, the mirror of the surah is
+     * rewritten. Nothing else changes: no stage, no due day, no `lastReviewed`, and **no record in the review log** (the lesson, the
+     * streak and the retention do not see a quiz). [today] is accepted for symmetry with the other actions and is not used.
+     */
+    suspend fun markHard(surah: Int, ayahs: Set<Int>, today: Int = EpochDays.now())
+
+    /**
+     * Pauses the plan for [days] (1..14, forced into the range) from [today] (task F2b): the lessons stop, the calendar of the plan
+     * moves by [days] (due days of the ladder, `lastReviewed` of every passage that has one, the target and the start day of the plan;
+     * a null stays null) and the pause is stored in `hifz_meta`. A pause that is on already is extended: its end becomes
+     * `today + days - 1` (never further than `today + 13`) and the calendar moves only by the difference. One transaction.
+     */
+    suspend fun pausePlan(days: Int, today: Int = EpochDays.now())
+
+    /**
+     * "Continue now" (task F2b): the pause that is on ends yesterday (one that started today is removed whole) and the calendar moves
+     * back by the days that were left; what was done today before the pause stays done. Does nothing when there is no pause.
+     */
+    suspend fun resumePlan(today: Int = EpochDays.now())
 
     /** The one-time conversion of the old data (see `LegacyImport`); does nothing when it has run already. */
     suspend fun importLegacyIfNeeded()

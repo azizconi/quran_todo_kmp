@@ -5,6 +5,7 @@ import tj.app.quran_todo.hifz.model.HifzPlan
 import tj.app.quran_todo.hifz.model.HifzScope
 import tj.app.quran_todo.hifz.model.Passage
 import tj.app.quran_todo.hifz.model.PassageStage
+import tj.app.quran_todo.hifz.model.PlanPause
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.hifz.model.ReviewKind
 import tj.app.quran_todo.hifz.model.ReviewLogEntry
@@ -69,6 +70,37 @@ class LessonCardBuilderTest {
     ): LessonPlan = LessonBuilder.build(LessonInput(today, plan, passages, todayLog, metrics))
 
     private fun card(lesson: LessonPlan): LessonCardUi = LessonCardBuilder.build(lesson) { "S$it" }
+
+    @Test
+    fun aPausedDayIsTheCardOfAPausedPlanWhateverElseTheDayHolds() {
+        // A plan with a passage due today and something new: on an ordinary day this is a lesson to start.
+        val passages = listOf(passage(1, 113, 1, 3))
+        assertEquals(LessonCardState.Start, card(lesson(passages = passages)).state)
+
+        val pause = PlanPause(today - 1, today + 3)
+        val paused = LessonCardBuilder.build(
+            LessonBuilder.build(LessonInput(today, plan(), passages, emptyList(), metrics(), pause)),
+        ) { "S$it" }
+        assertEquals(LessonCardState.Paused, paused.state)
+        assertEquals(today + 3, paused.pausedUntilEpochDay)
+        assertTrue(paused.lines.isEmpty())
+        assertNull(paused.tomorrow)
+        assertNull(paused.oldListen)
+        assertEquals(0, paused.minutes)
+        assertFalse(paused.catchingUp)
+
+        // Without a plan the paused card is still the paused card, not "make a plan".
+        val noPlan = LessonCardBuilder.build(
+            LessonBuilder.build(LessonInput(today, null, emptyList(), emptyList(), metrics(), pause)),
+        ) { "S$it" }
+        assertEquals(LessonCardState.Paused, noPlan.state)
+
+        // The day after the pause ends is an ordinary day again.
+        val after = LessonCardBuilder.build(
+            LessonBuilder.build(LessonInput(today + 4, plan(), passages, emptyList(), metrics(), pause)),
+        ) { "S$it" }
+        assertEquals(LessonCardState.Start, after.state)
+    }
 
     @Test
     fun noPlanAndNothingToRepeatInvitesToMakeAPlan() {

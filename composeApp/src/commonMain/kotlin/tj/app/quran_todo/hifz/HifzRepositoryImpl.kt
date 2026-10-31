@@ -27,6 +27,7 @@ import tj.app.quran_todo.hifz.model.HifzScope
 import tj.app.quran_todo.hifz.model.NewPassageResult
 import tj.app.quran_todo.hifz.model.Passage
 import tj.app.quran_todo.hifz.model.PassageStage
+import tj.app.quran_todo.hifz.model.PlanPause
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.hifz.model.ReviewKind
 import tj.app.quran_todo.hifz.model.ReviewLogEntry
@@ -41,7 +42,9 @@ import tj.app.quran_todo.hifz.schedule.LessonBuilder
 import tj.app.quran_todo.hifz.schedule.LessonInput
 import tj.app.quran_todo.hifz.schedule.LessonPlan
 import tj.app.quran_todo.hifz.schedule.PassageOps
+import tj.app.quran_todo.hifz.schedule.PauseStep
 import tj.app.quran_todo.hifz.schedule.PlanForecast
+import tj.app.quran_todo.hifz.schedule.PlanPauses
 import tj.app.quran_todo.hifz.schedule.Streak
 import tj.app.quran_todo.hifz.schedule.TextMetrics
 
@@ -108,7 +111,23 @@ class HifzRepositoryImpl(
 
     private suspend fun loadPlan(): HifzPlan? = dao.getPlan()?.toDomain()
 
-    override fun lesson(today: Int): Flow<LessonPlan> = observeWithMetrics(PASSAGES, HARD, PLAN, LOG) { metrics ->
+    /** The stored pauses (task F2b): the current one and the history of the last 400 days. */
+    private suspend fun loadPauses(): List<PlanPause> = PlanPauses.decode(dao.getMeta(PlanPauses.META_KEY))
+
+    /**
+     * The day the new passages of [plan] are counted from for its forecast: the day it really started, which a pause moved away from
+     * `startedEpochDay` ([PlanPauses.BASE_START_KEY]). [saved] is the stored plan: a draft that moves the start has nothing to do with it.
+     */
+    private suspend fun learnedFromDay(plan: HifzPlan, saved: HifzPlan?): Int {
+        val base = dao.getMeta(PlanPauses.BASE_START_KEY)?.toIntOrNull()
+        return if (base != null && saved != null && plan.startedEpochDay == saved.startedEpochDay) {
+            minOf(base, plan.startedEpochDay)
+        } else {
+            plan.startedEpochDay
+        }
+    }
+
+    override fun lesson(today: Int): Flow<LessonPlan> = observeWithMetrics(PASSAGES, HARD, PLAN, LOG, META) { metrics ->
         LessonBuilder.build(
             LessonInput(
                 today = today,
@@ -116,6 +135,7 @@ class HifzRepositoryImpl(
                 passages = loadPassages(),
                 todayLog = dao.getLog(today, today).map { it.toDomain() },
                 metrics = metrics,
+                pause = PlanPauses.covering(loadPauses(), today),
             ),
         )
     }
@@ -125,27 +145,33 @@ class HifzRepositoryImpl(
 
     override fun plan(): Flow<HifzPlan?> = observe(PLAN) { loadPlan() }
 
-    override fun forecast(today: Int): Flow<PlanForecast?> = observeWithMetrics(PASSAGES, PLAN, LOG) { metrics ->
+    override fun forecast(today: Int): Flow<PlanForecast?> = observeWithMetrics(PASSAGES, PLAN, LOG, META) { metrics ->
         val plan = loadPlan()
         if (plan == null) {
             null
         } else {
-            val log = dao.getNewLogSince(plan.startedEpochDay).map { it.toDomain() }
-            Forecast.compute(plan, Coverage(loadPassages(), metrics), log, today)
+            val from = learnedFromDay(plan, plan)
+            val log = dao.getNewLogSince(from).map { it.toDomain() }
+            Forecast.compute(plan, Coverage(loadPassages(), metrics), log, today, PlanPauses.covering(loadPauses(), today), from)
         }
     }
 
     override fun forecast(today: Flow<Int>): Flow<PlanForecast?> =
         today.distinctUntilChanged().flatMapLatest { forecast(it) }
 
-    override fun forecast(plan: HifzPlan, today: Int): Flow<PlanForecast> = observeWithMetrics(PASSAGES, LOG) { metrics ->
-        val log = dao.getNewLogSince(plan.startedEpochDay).map { it.toDomain() }
-        Forecast.compute(plan, Coverage(loadPassages(), metrics), log, today)
+    override fun forecast(plan: HifzPlan, today: Int): Flow<PlanForecast> = observeWithMetrics(PASSAGES, LOG, PLAN, META) { metrics ->
+        val from = learnedFromDay(plan, loadPlan())
+        val log = dao.getNewLogSince(from).map { it.toDomain() }
+        Forecast.compute(plan, Coverage(loadPassages(), metrics), log, today, PlanPauses.covering(loadPauses(), today), from)
     }
 
-    override fun streak(today: Int): Flow<Int> = observe(LOG) { Streak.compute(dao.getLogDays(today), today) }
+    override fun streak(today: Int): Flow<Int> = observe(LOG, META) { Streak.compute(dao.getLogDays(today), today, loadPauses()) }
 
     override fun streak(today: Flow<Int>): Flow<Int> = today.distinctUntilChanged().flatMapLatest { streak(it) }
+
+    override fun pause(today: Int): Flow<PlanPause?> = observe(META) { PlanPauses.active(loadPauses(), today) }
+
+    override fun pause(today: Flow<Int>): Flow<PlanPause?> = today.distinctUntilChanged().flatMapLatest { pause(it) }
 
     override fun surahStatuses(): Flow<Map<Int, SurahHifzStatus>> = observeWithMetrics(PASSAGES, PLAN) { metrics ->
         HifzStatuses.all(loadPassages(), loadPlan(), metrics)
@@ -330,7 +356,10 @@ class HifzRepositoryImpl(
         write {
             val passages = loadPassages()
             val old = loadPlan()
-            val started = if (old != null && old.surahOrder == order) old.startedEpochDay else today
+            val keepsStart = old != null && old.surahOrder == order
+            val started = if (old != null && keepsStart) old.startedEpochDay else today
+            // The start of the plan is set again: what a pause moved is forgotten.
+            if (!keepsStart) dao.deleteMeta(PlanPauses.BASE_START_KEY)
             val new = HifzPlan(
                 scope = scope,
                 surahOrder = order,
@@ -351,6 +380,7 @@ class HifzRepositoryImpl(
             val passages = loadPassages()
             val old = loadPlan()
             val new = if (old == null) {
+                dao.deleteMeta(PlanPauses.BASE_START_KEY)
                 HifzPlan(
                     scope = HifzScope.CUSTOM,
                     surahOrder = listOf(surah),
@@ -373,7 +403,60 @@ class HifzRepositoryImpl(
             val passages = loadPassages()
             val old = loadPlan() ?: return@write
             dao.deletePlan()
+            dao.deleteMeta(PlanPauses.BASE_START_KEY)
             mirror(affectedSurahs(passages, passages, old, null, metrics), passages, null, metrics)
+        }
+    }
+
+    override suspend fun markHard(surah: Int, ayahs: Set<Int>, today: Int) {
+        if (ayahs.isEmpty()) return
+        val metrics = metrics()
+        require(metrics.ayahCount(surah) > 0) { "no such surah: $surah" }
+        write {
+            val before = loadPassages()
+            val plan = loadPlan()
+            // The very rule of "Check yourself", without its record in the log: only the marks of the covering passages change.
+            val after = persist(before, PassageOps.check(before, surah, ayahs))
+            mirror(setOf(surah), after, plan, metrics)
+        }
+    }
+
+    override suspend fun pausePlan(days: Int, today: Int) {
+        write { applyPauseStep(PlanPauses.start(loadPauses(), days, today)) }
+    }
+
+    override suspend fun resumePlan(today: Int) {
+        write {
+            val step = PlanPauses.resume(loadPauses(), today) ?: return@write
+            applyPauseStep(step)
+        }
+    }
+
+    /**
+     * Writes a step of a pause inside a transaction: the calendar of the passages and of the plan moves by `shiftDays`, the list of
+     * pauses is stored. Nothing of the coverage changes, so the mirror stays as it is.
+     */
+    private suspend fun applyPauseStep(step: PauseStep) {
+        if (step.shiftDays != 0) {
+            val passages = loadPassages()
+            persist(passages, PlanPauses.shiftPassages(passages, step.shiftDays))
+            val plan = loadPlan()
+            if (plan != null) {
+                // The first pause of a plan remembers the day it really started; the forecast counts what was learned from that day.
+                val base = dao.getMeta(PlanPauses.BASE_START_KEY)?.toIntOrNull() ?: plan.startedEpochDay
+                val moved = PlanPauses.shiftPlan(plan, step.shiftDays)
+                dao.upsertPlan(moved.toEntity())
+                if (base == moved.startedEpochDay) {
+                    dao.deleteMeta(PlanPauses.BASE_START_KEY)
+                } else {
+                    dao.upsertMeta(HifzMetaEntity(PlanPauses.BASE_START_KEY, base.toString()))
+                }
+            }
+        }
+        if (step.pauses.isEmpty()) {
+            dao.deleteMeta(PlanPauses.META_KEY)
+        } else {
+            dao.upsertMeta(HifzMetaEntity(PlanPauses.META_KEY, PlanPauses.encode(step.pauses)))
         }
     }
 
@@ -569,5 +652,6 @@ class HifzRepositoryImpl(
         const val HARD = "passage_hard"
         const val PLAN = "hifz_plan"
         const val LOG = "review_log"
+        const val META = "hifz_meta"
     }
 }

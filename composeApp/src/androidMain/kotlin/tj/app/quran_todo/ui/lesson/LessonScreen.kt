@@ -52,6 +52,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.hifz.EpochDayTicker
+import tj.app.quran_todo.hifz.HifzRepository
 import tj.app.quran_todo.ui.components.EmptyState
 import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.QhButton
@@ -71,6 +72,7 @@ import tj.app.quran_todo.ui.i18n.HifzCopy
 import tj.app.quran_todo.ui.i18n.LessonCopy
 import tj.app.quran_todo.ui.i18n.hifzCopy
 import tj.app.quran_todo.ui.i18n.lessonCopy
+import tj.app.quran_todo.ui.i18n.rememberPauseCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.SharedKeys
@@ -84,7 +86,9 @@ import tj.app.quran_todo.ui.theme.QhTheme
  * works on (the new passage in three phases, then the repetitions one by one) and the summary.
  *
  * - [onBack] leaves the lesson; with ayahs opened in "Recall" it asks first ("What you did is saved").
- * - [onOpenPlan] is the action of the empty state ("Make a plan"), [onHome] the button of the summary.
+ * - [onOpenPlan] is the action of the empty state ("Make a plan"), [onHome] the button of the summary, [onOpenQuiz] its button
+ *   "Check yourself" (the quiz, task F2b).
+ * - On a day inside a pause of the plan the screen says "Plan paused until ..." instead of "All done today".
  *
  * The root carries the shared bounds [SharedKeys.LessonCard] of the "Today's lesson" card of Home.
  */
@@ -93,10 +97,17 @@ import tj.app.quran_todo.ui.theme.QhTheme
 fun LessonScreen(
     onBack: () -> Unit,
     onOpenPlan: () -> Unit,
+    onOpenQuiz: () -> Unit,
     onHome: () -> Unit,
 ) {
     val viewModel = koinViewModel<LessonViewModel>()
     val ticker = koinInject<EpochDayTicker>()
+    val hifz = koinInject<HifzRepository>()
+    val pauseCopy = rememberPauseCopy(LocalAppLanguage.current)
+    // A pause of today: the lesson is empty then, and the screen says why (the view model only knows "nothing today").
+    val pause by remember(hifz, ticker) { hifz.pause(ticker.day) }.collectAsState(initial = null)
+    val today by ticker.day.collectAsState()
+    val pausedNow = pause?.takeIf { today in it }
     val language = LocalAppLanguage.current
     val copy = remember(language) { lessonCopy(language) }
     val toaster = LocalToaster.current
@@ -135,7 +146,17 @@ fun LessonScreen(
             .sharedBoundsKey(SharedKeys.LessonCard)
             .background(QhTheme.colors.bg),
     ) {
-        when (val state = ui) {
+        val emptyAndPaused = pausedNow != null && (ui is LessonUi.NoPlan || ui is LessonUi.NothingToday)
+        if (emptyAndPaused && pausedNow != null) {
+            LessonEmpty(
+                copy = copy,
+                onBack = onBack,
+                title = pauseCopy.cardTitle(formatDay(pausedNow.untilEpochDay, language)),
+                message = pauseCopy.lessonBody(formatDay(pausedNow.resumeEpochDay, language)),
+                actionLabel = copy.toHome,
+                onAction = onHome,
+            )
+        } else when (val state = ui) {
             LessonUi.Loading -> LessonLoading(copy = copy, onBack = onBack)
             LessonUi.NoPlan -> LessonEmpty(
                 copy = copy,
@@ -164,6 +185,7 @@ fun LessonScreen(
                 ui = state,
                 onBack = onBackPressed,
                 onHome = onHome,
+                onOpenQuiz = onOpenQuiz,
             )
         }
 
@@ -184,6 +206,7 @@ private fun LessonBody(
     ui: LessonUi,
     onBack: () -> Unit,
     onHome: () -> Unit = {},
+    onOpenQuiz: () -> Unit = {},
 ) {
     val plan = when (ui) {
         is LessonUi.Working -> ui.plan
@@ -235,7 +258,7 @@ private fun LessonBody(
                     is LessonCard.New -> NewPassageCard(viewModel = viewModel, copy = copy, work = state)
                     is LessonCard.Review -> ReviewCard(viewModel = viewModel, copy = copy, work = state)
                 }
-                is LessonUi.Summary -> LessonSummary(viewModel = viewModel, copy = copy, summary = state, onHome = onHome)
+                is LessonUi.Summary -> LessonSummary(viewModel = viewModel, copy = copy, summary = state, onHome = onHome, onOpenQuiz = onOpenQuiz)
                 else -> Unit
             }
         }

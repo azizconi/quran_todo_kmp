@@ -4,6 +4,7 @@ import tj.app.quran_todo.hifz.model.AyahRange
 import tj.app.quran_todo.hifz.model.HifzPlan
 import tj.app.quran_todo.hifz.model.Passage
 import tj.app.quran_todo.hifz.model.PassageStage
+import tj.app.quran_todo.hifz.model.PlanPause
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.hifz.model.ReviewKind
 import tj.app.quran_todo.hifz.model.ReviewLogEntry
@@ -77,6 +78,8 @@ data class LessonTomorrow(
  *   backlog it is in the lesson even if the total goes past the budget.
  * - [isComplete]: there is something in the lesson and all of it is done (deferred items do not count).
  * - [isEmpty]: nothing at all in the lesson (nothing due, no portion, nothing new).
+ * - [paused]: the plan is on pause today (task F2b): the lesson is empty (`isEmpty`, nothing new, recent or old) and this is the
+ *   pause; [tomorrow] then describes the first day with a lesson again. Null on every other day.
  */
 data class LessonPlan(
     val today: Int,
@@ -93,6 +96,7 @@ data class LessonPlan(
     val isComplete: Boolean,
     val isEmpty: Boolean,
     val tomorrow: LessonTomorrow,
+    val paused: PlanPause? = null,
 )
 
 class LessonInput(
@@ -102,6 +106,8 @@ class LessonInput(
     /** The review log of [today] only. */
     val todayLog: List<ReviewLogEntry>,
     val metrics: TextMetrics,
+    /** The pause of the plan that [today] is inside of, if any (`PlanPauses.covering`): the lesson of such a day is empty. */
+    val pause: PlanPause? = null,
 )
 
 /**
@@ -124,6 +130,7 @@ object LessonBuilder {
     fun build(input: LessonInput): LessonPlan {
         val metrics = input.metrics
         val today = input.today
+        input.pause?.takeIf { today in it }?.let { return paused(input, it) }
         // "Listen to the old" (LISTEN) is a help, not a repetition: it must not change anything of the lesson.
         val todayLog = input.todayLog.filter { it.kind.countsAsStudy }
         val byId = input.passages.associateBy { it.id }
@@ -269,4 +276,38 @@ object LessonBuilder {
         )
     }
 
+    /**
+     * The lesson of a day inside a pause (task F2b): nothing new, recent or old, no minutes, `isEmpty`. The plan itself is read as on
+     * any day (whether it exists, whether it is finished), and "tomorrow" is what waits on the first day after the pause (the
+     * calendar of the plan has been moved by the pause, so these are the passages that were waiting).
+     */
+    private fun paused(input: LessonInput, pause: PlanPause): LessonPlan {
+        val metrics = input.metrics
+        val plan = input.plan
+        val coverage = Coverage(input.passages, metrics)
+        val manzilDays = plan?.manzilDays
+            ?: Manzil.suggestedDays(input.passages.filter { it.stage == PassageStage.OLD }.sumOf { metrics.weight(it) })
+        val back = pause.resumeEpochDay
+        val dueLadder = input.passages.count { it.stage != PassageStage.OLD && (it.nextDueEpochDay ?: Int.MAX_VALUE) <= back }
+        val dueOld = Manzil.portion(input.passages, emptyList(), manzilDays, metrics, back).items.size
+        return LessonPlan(
+            today = input.today,
+            hasPlan = plan != null,
+            planFinished = plan != null && HifzStatuses.currentSurah(plan, coverage) == null,
+            newBlock = null,
+            recent = emptyList(),
+            old = emptyList(),
+            totalMinutes = 0,
+            remainingMinutes = 0,
+            catchingUp = false,
+            deferredCount = 0,
+            isComplete = false,
+            isEmpty = true,
+            tomorrow = LessonTomorrow(
+                newPassage = plan?.let { NewPassagePlanner.next(it, coverage, metrics) },
+                dueCount = dueLadder + dueOld,
+            ),
+            paused = pause,
+        )
+    }
 }

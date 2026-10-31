@@ -15,6 +15,7 @@ import tj.app.quran_todo.hifz.backup.VerifiedBackup
 import tj.app.quran_todo.hifz.model.HifzPlan
 import tj.app.quran_todo.hifz.model.HifzScope
 import tj.app.quran_todo.hifz.model.NewPassageResult
+import tj.app.quran_todo.hifz.model.PlanPause
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.hifz.model.ReviewLogEntry
 import tj.app.quran_todo.hifz.model.SurahCoverage
@@ -82,6 +83,8 @@ class OnboardingFinisherTest {
         override fun forecast(plan: HifzPlan, today: Int): Flow<PlanForecast> = error("unused")
         override fun streak(today: Int): Flow<Int> = error("unused")
         override fun streak(today: Flow<Int>): Flow<Int> = error("unused")
+        override fun pause(today: Int): Flow<PlanPause?> = error("unused")
+        override fun pause(today: Flow<Int>): Flow<PlanPause?> = error("unused")
         override fun surahStatuses(): Flow<Map<Int, SurahHifzStatus>> = error("unused")
         override fun coveredCounts(): Flow<Map<Int, Int>> = error("unused")
         override fun coveredAyahs(): Flow<Map<Int, Set<Int>>> = error("unused")
@@ -105,6 +108,9 @@ class OnboardingFinisherTest {
         override suspend fun forget(surah: Int, startAyah: Int, endAyah: Int): Unit = error("unused")
         override suspend fun learnNext(surah: Int, today: Int): Unit = error("unused")
         override suspend fun clearPlan(): Unit = error("unused")
+        override suspend fun markHard(surah: Int, ayahs: Set<Int>, today: Int): Unit = error("unused")
+        override suspend fun pausePlan(days: Int, today: Int): Unit = error("unused")
+        override suspend fun resumePlan(today: Int): Unit = error("unused")
         override suspend fun importLegacyIfNeeded(): Unit = error("unused")
         override suspend fun exportBackupData(): BackupData = error("unused")
         override suspend fun replaceWithBackup(backup: VerifiedBackup): Unit = error("unused")

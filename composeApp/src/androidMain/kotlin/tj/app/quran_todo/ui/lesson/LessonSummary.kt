@@ -36,6 +36,14 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import org.koin.compose.koinInject
+import tj.app.quran_todo.hifz.HifzRepository
+import tj.app.quran_todo.hifz.quiz.QuizBuilder
+import tj.app.quran_todo.ui.components.QhButtonSize
+import tj.app.quran_todo.ui.components.QhButtonVariant
+import tj.app.quran_todo.ui.i18n.rememberQuizCopy
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.hifz.model.AyahRange
@@ -58,9 +66,15 @@ internal fun LessonSummary(
     copy: LessonCopy,
     summary: LessonUi.Summary,
     onHome: () -> Unit,
+    onOpenQuiz: () -> Unit = {},
 ) {
     val colors = QhTheme.colors
     val language = LocalAppLanguage.current
+    // "Check yourself · 5 questions" (task F2b): offered when enough is memorized for the quiz.
+    val hifz = koinInject<HifzRepository>()
+    val quizCopy = rememberQuizCopy(language)
+    val quizReady by remember(hifz) { hifz.coveredAyahs().map { QuizBuilder.isAvailable(it) }.distinctUntilChanged() }
+        .collectAsState(initial = false)
     val plan = summary.plan
     val steps = remember(plan) { LessonCards.steps(plan) }
     val done = steps.sumOf { it.done }
@@ -152,12 +166,21 @@ internal fun LessonSummary(
             modifier = Modifier.fillMaxWidth(),
         )
 
+        if (quizReady) {
+            QhButton(
+                text = quizCopy.lessonButton(QuizBuilder.DEFAULT_COUNT),
+                onClick = onOpenQuiz,
+                modifier = Modifier.fillMaxWidth(),
+                variant = QhButtonVariant.Tonal,
+                size = QhButtonSize.M,
+            )
+        }
         QhButton(
             text = copy.toHome,
             onClick = onHome,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = QhSpacing.x2)
+                .padding(top = if (quizReady) 0.dp else QhSpacing.x2)
                 .navigationBarsPadding(),
         )
     }

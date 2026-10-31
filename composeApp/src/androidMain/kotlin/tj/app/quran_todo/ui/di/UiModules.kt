@@ -14,6 +14,7 @@ import tj.app.quran_todo.ui.onboarding.OnboardingViewModel
 import tj.app.quran_todo.ui.plan.PlanViewModel
 import tj.app.quran_todo.ui.playback.createPlaybackController
 import tj.app.quran_todo.ui.progress.ProgressViewModel
+import tj.app.quran_todo.ui.quiz.QuizViewModel
 import tj.app.quran_todo.ui.reader.ReaderViewModel
 import tj.app.quran_todo.ui.reminder.ReminderController
 import tj.app.quran_todo.ui.settings.SettingsViewModel
@@ -104,6 +105,12 @@ val listenUiModule = module {
     }
 }
 
+val quizUiModule = module {
+    // The quiz "Check": the covered ayahs come from the HifzRepository, the text and the names from the shared view models (singletons,
+    // injected through the constructor, never koinViewModel). It writes only the difficult marks (markHard), never the review log.
+    viewModel { QuizViewModel(hifz = get(), home = get(), surahViewModel = get()) }
+}
+
 val progressUiModule = module {
     // The progress is read from the HifzRepository (a Koin single of the common module), the day comes from the EpochDayTicker; the
     // shared HomeViewModel only supplies the names of the surahs. None of them is ever put into a ViewModelStore.
@@ -167,6 +174,7 @@ val uiModules = listOf(
     hifzUiModule,
     lessonUiModule,
     listenUiModule,
+    quizUiModule,
     progressUiModule,
     settingsUiModule,
     downloadsUiModule,

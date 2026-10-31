@@ -24,9 +24,11 @@ import androidx.compose.material.icons.rounded.Eco
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -35,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +52,7 @@ import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.components.QhCardStyle
+import tj.app.quran_todo.ui.components.QhDialogButton
 import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.QhIconTile
 import tj.app.quran_todo.ui.home.LessonCardState
@@ -58,7 +62,10 @@ import tj.app.quran_todo.ui.home.LessonLineUi
 import tj.app.quran_todo.ui.home.LessonTomorrowUi
 import tj.app.quran_todo.ui.home.ListeningUi
 import tj.app.quran_todo.ui.home.OldListenUi
+import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.ui.i18n.HomeCopy
+import tj.app.quran_todo.ui.i18n.rememberPauseCopy
+import tj.app.quran_todo.ui.lesson.formatDay
 import tj.app.quran_todo.ui.i18n.ListenCopy
 import tj.app.quran_todo.ui.i18n.rememberListenCopy
 import tj.app.quran_todo.ui.i18n.passageRangeLabel
@@ -88,8 +95,12 @@ internal fun LessonCard(
     /** "Listen to the old": opens the queue; the button shows only when today's portion of the circle has passages. */
     onListenOld: () -> Unit = {},
     listening: ListeningUi? = null,
+    /** "Continue now" of a paused plan (asked to confirm first). */
+    onResumePlan: () -> Unit = {},
 ) {
     when (card.state) {
+        LessonCardState.Paused -> PausedCard(card = card, onResume = onResumePlan, onOpenPlan = onOpenPlan, modifier = modifier)
+
         LessonCardState.NoPlan -> PlanInvitation(
             icon = Icons.Rounded.School,
             title = copy.lessonInviteTitle,
@@ -110,6 +121,46 @@ internal fun LessonCard(
 
         LessonCardState.Start, LessonCardState.Continue, LessonCardState.Done ->
             LessonBody(card, copy, onOpenLesson, onOpenPlan, modifier, onListenOld, listening)
+    }
+}
+
+/**
+ * The card of a paused plan (task F2b): "Plan paused until 11 November", when the lessons return, and "Continue now" (which asks to
+ * confirm: it moves the calendar back). A tap on the card opens "My plan" (where the pause is extended). The quiz row stays under
+ * it: checking yourself is possible during a pause.
+ */
+@Composable
+private fun PausedCard(card: LessonCardUi, onResume: () -> Unit, onOpenPlan: () -> Unit, modifier: Modifier = Modifier) {
+    val pause = rememberPauseCopy()
+    val language = LocalAppLanguage.current
+    val colors = QhTheme.colors
+    var confirm by rememberSaveable { mutableStateOf(false) }
+    PlanInvitation(
+        icon = Icons.Rounded.Pause,
+        title = pause.cardTitle(formatDay(card.pausedUntilEpochDay, language)),
+        body = pause.cardBody(formatDay(card.pausedUntilEpochDay + 1, language)),
+        action = pause.resumeNow,
+        onAction = { confirm = true },
+        modifier = modifier,
+        // A tap on the card leads to "My plan", where the pause can be extended.
+        onClick = onOpenPlan,
+    )
+    if (confirm) {
+        AlertDialog(
+            onDismissRequest = { confirm = false },
+            containerColor = colors.surface,
+            title = { Text(pause.resumeTitle, style = QhTheme.type.title1, color = colors.ink) },
+            text = { Text(pause.resumeBody, style = QhTheme.type.body, color = colors.inkSecondary) },
+            confirmButton = {
+                QhDialogButton(text = pause.resumeConfirm, color = colors.primary, onClick = {
+                    confirm = false
+                    onResume()
+                })
+            },
+            dismissButton = {
+                QhDialogButton(text = pause.cancel, color = colors.inkSecondary, onClick = { confirm = false })
+            },
+        )
     }
 }
 
@@ -302,10 +353,12 @@ private fun PlanInvitation(
     action: String,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
 ) {
     val colors = QhTheme.colors
     QhCard(
         modifier = modifier.fillMaxWidth(),
+        onClick = onClick,
         style = QhCardStyle.Hero,
         contentPadding = PaddingValues(QhSpacing.cardLarge),
     ) {
@@ -343,8 +396,10 @@ internal fun LessonInviteRow(
     modifier: Modifier = Modifier,
 ) {
     val colors = QhTheme.colors
+    val language = LocalAppLanguage.current
     val opensLesson = card.state == LessonCardState.Start || card.state == LessonCardState.Continue || card.state == LessonCardState.Done
     val subtitle = when (card.state) {
+        LessonCardState.Paused -> rememberPauseCopy().rowActive(formatDay(card.pausedUntilEpochDay, language))
         LessonCardState.Start -> copy.lessonMinutes(card.minutes)
         LessonCardState.Continue -> "${copy.lessonContinue} · ${copy.lessonMinutesLeft(card.minutes)}"
         LessonCardState.Done -> copy.lessonDone
