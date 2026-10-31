@@ -139,6 +139,10 @@ internal class SettingsViewModel(
 
     fun setTajweed(value: Boolean) = uiPrefs.setTajweed(value)
 
+    fun setWordMeanings(value: Boolean) = uiPrefs.setWordMeanings(value)
+
+    fun setTafsirSource(key: String) = uiPrefs.setTafsirSource(key)
+
     fun setHifzHintMode(value: HifzHintMode) = uiPrefs.setHifzHintMode(value)
 
     fun setLessonAyahRepeats(value: Int) = uiPrefs.setLessonAyahRepeats(value)

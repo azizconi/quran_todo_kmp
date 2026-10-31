@@ -141,6 +141,30 @@ class UiPrefs(context: Context) {
         _tajweed.value = value
     }
 
+    /**
+     * "Word meanings (English)" (the "Aa" sheet of the text reader, task F4b): a tap on an Arabic word shows its meaning. Off by default;
+     * the meanings of a surah are fetched at the first tap in it. It is in the backup file (`BackupSettings.wordMeanings`, optional).
+     */
+    private val _wordMeanings = MutableStateFlow(prefs.getBoolean(KEY_WORD_MEANINGS, false))
+    val wordMeanings: StateFlow<Boolean> = _wordMeanings.asStateFlow()
+
+    fun setWordMeanings(value: Boolean) {
+        prefs.edit().putBoolean(KEY_WORD_MEANINGS, value).apply()
+        _wordMeanings.value = value
+    }
+
+    /**
+     * The commentary the person chose last (`TafsirSource.key`, task F4b); null while none was chosen, and the screen then takes the one of
+     * the language of the app. It is in the backup file (`BackupSettings.tafsir`, optional).
+     */
+    private val _tafsirSource = MutableStateFlow(prefs.getString(KEY_TAFSIR_SOURCE, null))
+    val tafsirSource: StateFlow<String?> = _tafsirSource.asStateFlow()
+
+    fun setTafsirSource(key: String?) {
+        prefs.edit().apply { if (key == null) remove(KEY_TAFSIR_SOURCE) else putString(KEY_TAFSIR_SOURCE, key) }.apply()
+        _tafsirSource.value = key
+    }
+
     /** Up to [MAX_RECENT_SURAHS] surah numbers, the most recently opened first. */
     private val _recentSurahs = MutableStateFlow(
         decodeInts(prefs.getString(KEY_RECENT_SURAHS, null)).take(MAX_RECENT_SURAHS),
@@ -402,6 +426,8 @@ class UiPrefs(context: Context) {
         const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
         const val KEY_HIGHLIGHT_WORDS = "highlight_words"
         const val KEY_TAJWEED = "tajweed"
+        const val KEY_WORD_MEANINGS = "word_meanings"
+        const val KEY_TAFSIR_SOURCE = "tafsir_source"
         const val KEY_RECENT_SURAHS = "recent_surahs"
         const val KEY_PINNED_SURAHS = "pinned_surahs"
         const val KEY_LAST_READ_SURAH = "last_read_surah"

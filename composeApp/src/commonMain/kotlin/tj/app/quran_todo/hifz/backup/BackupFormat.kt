@@ -183,6 +183,10 @@ data class BackupSettings(
     val reduceMotion: Boolean? = null,
     /** "Tajweed" in the "Aa" sheet of the reader (Android, task F3b): the rules of recitation are coloured. The markup itself is not in the file. */
     val tajweed: Boolean? = null,
+    /** "Word meanings (English)" in the "Aa" sheet of the reader (Android, task F4b): a tap on a word shows its meaning. */
+    val wordMeanings: Boolean? = null,
+    /** The commentary chosen last (Android, task F4b): `TafsirSource.key`, an unknown key is dropped on import. */
+    val tafsir: String? = null,
     /** The daily lesson reminder (Android): on or off. */
     val reminderEnabled: Boolean? = null,
     /** When the reminder comes: minutes after midnight, 0..1439 (20:00 is 1200). */

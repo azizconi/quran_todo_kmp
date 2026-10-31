@@ -192,6 +192,8 @@ class TransferLogicTest {
         override fun setHapticsEnabled(value: Boolean) { calls += "haptics=$value" }
         override fun setReduceMotion(value: Boolean) { calls += "reduce=$value" }
         override fun setTajweed(value: Boolean) { calls += "tajweed=$value" }
+        override fun setWordMeanings(value: Boolean) { calls += "wordMeanings=$value" }
+        override fun setTafsirSource(key: String) { calls += "tafsir=$key" }
         override fun setReminderMinuteOfDay(value: Int) { calls += "reminderAt=$value" }
         override fun setReminderEnabled(value: Boolean) { calls += "reminder=$value" }
     }
@@ -211,13 +213,14 @@ class TransferLogicTest {
             readingFontSize = 34, dailyGoal = 9, showTranslation = true, highlightPlayingAyah = false, autoplayOnOpen = true,
             autoAdvanceAyahs = false, playbackSpeed = 1.5f, repeatCount = 3, readerLayout = "MUSHAF", keepScreenOn = false,
             reciter = "husary", lessonAyahRepeats = 4, lessonPassageRepeats = 3, hifzHint = "FIRST_WORD",
-            hapticsEnabled = false, reduceMotion = true, tajweed = true, reminderEnabled = true, reminderMinuteOfDay = 1230,
+            hapticsEnabled = false, reduceMotion = true, tajweed = true, wordMeanings = true, tafsir = "ibn_kathir_en",
+            reminderEnabled = true, reminderMinuteOfDay = 1230,
         ).applyTo(target)
         assertEquals(
             listOf(
                 "language=TG", "mode=DARK", "follows=false", "palette=OCEAN", "font=AMIRI_QURAN", "app=9/34", "reader",
                 "layout=MUSHAF", "keepOn=false", "reciter=husary", "hint=FIRST_WORD", "lessonAyah=4", "lessonPassage=3", "haptics=false",
-                "reduce=true", "tajweed=true", "reminderAt=1230", "reminder=true",
+                "reduce=true", "tajweed=true", "wordMeanings=true", "tafsir=ibn_kathir_en", "reminderAt=1230", "reminder=true",
             ),
             target.calls,
         )

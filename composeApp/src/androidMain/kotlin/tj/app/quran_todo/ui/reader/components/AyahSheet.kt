@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Visibility
@@ -55,6 +56,8 @@ import tj.app.quran_todo.ui.components.QhIconTile
 import tj.app.quran_todo.ui.components.QhSectionHeader
 import tj.app.quran_todo.ui.components.QhSheet
 import tj.app.quran_todo.ui.i18n.ReaderCopy
+import tj.app.quran_todo.ui.i18n.rememberTafsirCopy
+import tj.app.quran_todo.ui.navigation.LocalTafsirOpener
 import tj.app.quran_todo.ui.motion.pressable
 import tj.app.quran_todo.ui.reader.AyahSchedule
 import tj.app.quran_todo.ui.theme.QhSpacing
@@ -151,6 +154,14 @@ fun AyahSheet(
             SheetActionRow(Icons.Rounded.Visibility, copy.checkFromHere) {
                 onCheckFromHere()
                 close()
+            }
+            // The commentary (F4b): a full screen, so the sheet closes behind it. The text reader and the pages share this sheet.
+            val openTafsir = LocalTafsirOpener.current
+            if (openTafsir != null) {
+                SheetActionRow(Icons.AutoMirrored.Rounded.MenuBook, rememberTafsirCopy().sheetRow) {
+                    openTafsir(model.ayah.surahNumber, number)
+                    close()
+                }
             }
 
             Spacer(Modifier.height(QhSpacing.x5))

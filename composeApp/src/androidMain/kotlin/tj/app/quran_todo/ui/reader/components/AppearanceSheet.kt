@@ -72,6 +72,7 @@ import tj.app.quran_todo.ui.motion.themeRevealOriginTracker
 import tj.app.quran_todo.ui.reader.BismillahText
 import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.tajweed.TajweedSettingsRows
+import tj.app.quran_todo.ui.words.WordMeaningsSwitchRow
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -178,6 +179,8 @@ fun AppearanceSheet(
                 QhRowDivider(startIndent = QhSpacing.card)
                 // Tajweed colours (F3b): the switch, the state of the markup file and "What the colours mean".
                 TajweedSettingsRows()
+                QhRowDivider(startIndent = QhSpacing.card)
+                WordMeaningsSwitchRow() // F4b: "Word meanings (English)", off by default.
                 QhRowDivider(startIndent = QhSpacing.card)
                 QhSwitchRow(
                     title = copy.keepScreenOn,
