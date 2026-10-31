@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,6 +52,7 @@ import tj.app.quran_todo.ui.components.ToastKind
 import tj.app.quran_todo.ui.components.rememberQhTopBarState
 import tj.app.quran_todo.ui.i18n.DownloadsCopy
 import tj.app.quran_todo.ui.i18n.rememberDownloadsCopy
+import tj.app.quran_todo.ui.i18n.rememberPagesCopy
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -248,6 +250,7 @@ private fun DownloadsList(
     contentPadding: PaddingValues,
 ) {
     val language = LocalAppLanguage.current
+    val pagesText = rememberPagesCopy(language)
     val type = QhTheme.type
     val arabicStyle = type.quranInline(getQuranFontFamily())
     val shownSurahs = remember(ui.surahs, ui.searchIndex, query) {
@@ -315,6 +318,19 @@ private fun DownloadsList(
 
         item(key = "juz-header") { SectionHeader(copy.sectionJuz) }
         items(ui.juz, key = { it.id }) { row -> DownloadRow(row, copy, language, arabicStyle, actions) }
+
+        // "Mushaf pages" (task F3a): the layout and the fonts of the mode "Pages", all of them or the pages of one juz.
+        item(key = "pages-header") { SectionHeader(pagesText.downloadsSection) }
+        item(key = "pages-hint") {
+            Text(
+                text = pagesText.downloadsHint,
+                style = QhTheme.type.callout,
+                color = QhTheme.colors.inkSecondary,
+                modifier = Modifier.padding(start = QhSpacing.screen, end = QhSpacing.screen, bottom = QhSpacing.x2),
+            )
+        }
+        ui.pagesAll?.let { row -> item(key = row.id) { DownloadRow(row, copy, language, arabicStyle, actions) } }
+        items(ui.pagesJuz, key = { it.id }) { row -> DownloadRow(row, copy, language, arabicStyle, actions) }
 
         item(key = "surahs-header") { SectionHeader(copy.sectionSurahs) }
         item(key = "search") {

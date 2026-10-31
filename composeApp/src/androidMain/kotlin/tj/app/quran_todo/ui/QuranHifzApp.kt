@@ -104,8 +104,10 @@ import tj.app.quran_todo.ui.motion.ThemeReveal
 import tj.app.quran_todo.ui.motion.ThemeRevealHost
 import tj.app.quran_todo.ui.motion.rememberSystemReducedMotion
 import tj.app.quran_todo.ui.motion.rememberThemeReveal
+import tj.app.quran_todo.ui.mushaf.MushafScreen
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.navigation.NavTransitions
+import tj.app.quran_todo.ui.navigation.ReaderRouting
 import tj.app.quran_todo.ui.onboarding.OnboardingExit
 import tj.app.quran_todo.ui.onboarding.OnboardingGate
 import tj.app.quran_todo.ui.onboarding.OnboardingScreen
@@ -370,6 +372,9 @@ private fun AppNavigation() {
     val reducedMotion = LocalReducedMotion.current
     val startDestination = remember { if (needsOnboarding()) Dest.Onboarding else Dest.Home }
     val navController = rememberNavController()
+    // Every entrance of the app asks for a Dest.Reader and gets the reader of the mode the person chose: the text or the pages (F3a).
+    val uiPrefs = koinInject<UiPrefs>()
+    val openReader: (Dest.Reader) -> Unit = remember(navController, uiPrefs) { { dest -> navController.openReader(dest, uiPrefs) } }
 
     val currentEntry by navController.currentBackStackEntryAsState()
     val screenName = currentEntry?.destination?.screenName()
@@ -390,7 +395,7 @@ private fun AppNavigation() {
             true
         }
         ReminderOpenRequests.consume(request)
-        if (ready == true) navController.openFromReminder(request.target)
+        if (ready == true) navController.openFromReminder(request.target, uiPrefs)
     }
 
     // "What's new: the lesson of the day" for people who updated: decided once, now that needsOnboarding() has marked them. A link from
@@ -420,7 +425,9 @@ private fun AppNavigation() {
                                 // The first lesson or Al-Fatihah opens over Home, so back lands on Home.
                                 when (exit) {
                                     OnboardingExit.Lesson -> navController.navigate(Dest.Lesson)
-                                    OnboardingExit.Reader -> navController.navigate(Dest.Reader(surah = 1, origin = OnboardingOrigin))
+                                    OnboardingExit.Reader -> navController.navigate(
+                                        ReaderRouting.route(Dest.Reader(surah = 1, origin = OnboardingOrigin), uiPrefs.readerLayout.value, uiPrefs.lastReadPosition.value),
+                                    )
                                     OnboardingExit.Later -> Unit
                                 }
                             },
@@ -430,7 +437,7 @@ private fun AppNavigation() {
                 composable<Dest.Home> {
                     ProvideNavScope {
                         HomeScreen(
-                            onOpenReader = { navController.navigateOnce(it) },
+                            onOpenReader = openReader,
                             onOpenSettings = { navController.navigateOnce(Dest.Settings) },
                             onOpenProgress = { navController.navigateOnce(Dest.Progress) },
                             onOpenLesson = { navController.navigateOnce(Dest.Lesson) },
@@ -450,7 +457,27 @@ private fun AppNavigation() {
                         ReaderScreen(
                             route = route,
                             onBack = { navController.popOnce() },
+                            // The next surah and the chip "playing elsewhere" are the text reader's own moves: they stay in the text.
                             onOpenReader = { navController.navigateOnce(it) },
+                            onOpenPages = { surah, ayah ->
+                                // The switch "Text to Pages": the page of the first ayah on screen replaces the reader.
+                                navController.navigateOnce(ReaderRouting.pagesFor(surah, ayah)) {
+                                    popUpTo<Dest.Reader> { inclusive = true }
+                                }
+                            },
+                        )
+                    }
+                }
+                composable<Dest.Mushaf> { entry ->
+                    val route = entry.toRoute<Dest.Mushaf>()
+                    ProvideNavScope {
+                        MushafScreen(
+                            route = route,
+                            onBack = { navController.popOnce() },
+                            onOpenText = { reader ->
+                                // The switch "Pages to Text" (and "Open as text"): the text reader replaces the pages.
+                                navController.navigateOnce(reader) { popUpTo<Dest.Mushaf> { inclusive = true } }
+                            },
                         )
                     }
                 }
@@ -474,7 +501,7 @@ private fun AppNavigation() {
                     ProvideNavScope {
                         QuizScreen(
                             onBack = { navController.popOnce() },
-                            onOpenReader = { navController.navigateOnce(it) },
+                            onOpenReader = openReader,
                         )
                     }
                 }
@@ -482,7 +509,7 @@ private fun AppNavigation() {
                     ProvideNavScope {
                         ProgressScreen(
                             onBack = { navController.popOnce() },
-                            onOpenReader = { navController.navigateOnce(it) },
+                            onOpenReader = openReader,
                             onOpenPlan = { navController.navigateOnce(Dest.Plan) },
                             onOpenDrill = { navController.navigateOnce(Dest.HardDrill) },
                         )
@@ -577,6 +604,14 @@ private fun NavController.popOnce() {
     if (isIdle()) popBackStack()
 }
 
+/**
+ * The one place that opens the reader (F3a): [dest] goes through [ReaderRouting.route], so it opens the text or the page of the ayah by
+ * the mode the person chose ([UiPrefs.readerLayout]). Like every navigation it is taken only while the screen is still.
+ */
+private fun NavController.openReader(dest: Dest.Reader, uiPrefs: UiPrefs) {
+    navigateOnce(ReaderRouting.route(dest, uiPrefs.readerLayout.value, uiPrefs.lastReadPosition.value))
+}
+
 /** Back to Home from deep inside (the lesson summary); when Home is not on the stack it becomes the root. */
 private fun NavController.goHome() {
     if (!isIdle()) return
@@ -598,14 +633,20 @@ private const val ReminderOrigin = "reminder"
  * Opens what the daily reminder points at over Home: everything above Home is dropped first, so back always lands on Home. During
  * onboarding (no Home on the stack) nothing happens, and a lesson that is already open stays as it is.
  */
-private fun NavController.openFromReminder(target: ReminderTarget) {
+private fun NavController.openFromReminder(target: ReminderTarget, uiPrefs: UiPrefs) {
     if (currentBackStack.value.none { it.destination.hasRoute<Dest.Home>() }) return
     when (target) {
         ReminderTarget.Lesson -> {
             if (currentDestination?.hasRoute<Dest.Lesson>() == true) return
             navigate(Dest.Lesson) { popUpTo<Dest.Home> { inclusive = false } }
         }
-        is ReminderTarget.Reader -> navigate(Dest.Reader(surah = target.surah, ayah = target.ayah, origin = ReminderOrigin)) {
+        is ReminderTarget.Reader -> navigate(
+            ReaderRouting.route(
+                Dest.Reader(surah = target.surah, ayah = target.ayah, origin = ReminderOrigin),
+                uiPrefs.readerLayout.value,
+                uiPrefs.lastReadPosition.value,
+            ),
+        ) {
             popUpTo<Dest.Home> { inclusive = false }
         }
     }
@@ -615,6 +656,7 @@ private fun NavDestination.screenName(): String? = when {
     hasRoute<Dest.Onboarding>() -> "onboarding"
     hasRoute<Dest.Home>() -> "home"
     hasRoute<Dest.Reader>() -> "reader"
+    hasRoute<Dest.Mushaf>() -> "mushaf"
     hasRoute<Dest.Lesson>() -> "lesson"
     hasRoute<Dest.Plan>() -> "plan"
     hasRoute<Dest.Quiz>() -> "quiz"

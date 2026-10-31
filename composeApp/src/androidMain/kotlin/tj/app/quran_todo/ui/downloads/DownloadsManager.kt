@@ -9,6 +9,7 @@ import tj.app.quran_todo.common.audio.DownloadStorage
 import tj.app.quran_todo.common.audio.httpAudioFetch
 import tj.app.quran_todo.common.audio.timing.WordTimingsStore
 import tj.app.quran_todo.domain.use_case.GetAyahTranslationsUseCase
+import tj.app.quran_todo.ui.mushaf.data.MushafPageStore
 import java.io.File
 
 /**
@@ -26,6 +27,8 @@ internal class DownloadsManager(
     private val translations: () -> TranslationSource,
     private val fetch: AudioFetch = ::httpAudioFetch,
     private val timings: () -> TimingsSource = { TimingsSource { recitationId, surah -> WordTimingsStore.shared.pin(recitationId, surah) } },
+    /** The pages of the mushaf that are pinned next to the audio ("Mushaf pages", task F3a). */
+    val pages: MushafPageStore = MushafPageStore.shared,
 ) {
     /** What the work is doing: running, waiting for the network, or not scheduled. */
     val phase: Flow<WorkPhase> get() = scheduler.phase
@@ -88,16 +91,25 @@ internal class DownloadsManager(
         return freed
     }
 
-    /** "Delete all downloads": every downloaded file goes, the queue stays as it is. */
+    /** Deletes the pinned copies of mushaf [pageNumbers]; returns the bytes that were freed. */
+    fun deletePages(pageNumbers: Collection<Int>): Long {
+        val freed = pages.deletePinned(pageNumbers)
+        AppTelemetry.logEvent("downloads_deleted")
+        return freed
+    }
+
+    /** "Delete all downloads": every downloaded file goes (the audio, the timings and the pinned pages), the queue stays as it is. */
     fun deleteAll(): Long {
+        // The pinned pages live in the folder of the downloads: the storage deletes their files with the rest; the store is told.
         val freed = storage.deleteAll()
+        pages.changed()
         AppTelemetry.logEvent("downloads_deleted")
         return freed
     }
 
     /** Called by the worker. */
     suspend fun run(finalAttempt: Boolean, onProgress: (DownloadProgress) -> Unit): RunOutcome =
-        DownloadRunner(queue, storage, fetch, translations(), onProgress, timings = timings()).run(finalAttempt)
+        DownloadRunner(queue, storage, fetch, translations(), onProgress, timings = timings(), pages = pages).run(finalAttempt)
 
     private fun schedule() {
         scheduler.schedule(wifiOnly = prefs.wifiOnly.value)

@@ -11,6 +11,7 @@ import tj.app.quran_todo.common.audio.Reciters
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.data.bundled.QuranFacts
 import tj.app.quran_todo.domain.use_case.GetAyahTranslationsUseCase
+import tj.app.quran_todo.ui.mushaf.data.PagesSource
 import java.util.concurrent.atomic.AtomicInteger
 
 /** Makes sure the translation of a surah is in the database, the way the reader gets it. */
@@ -90,12 +91,14 @@ internal class DownloadRunner(
     private val maxConsecutiveFailures: Int = 3,
     private val parallelism: Int = DEFAULT_PARALLELISM,
     private val timings: TimingsSource = TimingsSource { _, _ -> true },
+    private val pages: PagesSource = PagesSource.None,
+    private val pageParallelism: Int = PAGE_PARALLELISM,
 ) {
     private sealed interface Pass {
         data object Cancelled : Pass
         data object Paused : Pass
         data object NoNetwork : Pass
-        data class Ended(val ayahs: Int, val translations: Int) : Pass
+        data class Ended(val ayahs: Int, val translations: Int, val pages: Int = 0) : Pass
     }
 
     /**
@@ -104,6 +107,7 @@ internal class DownloadRunner(
      */
     suspend fun run(finalAttempt: Boolean = false): RunOutcome {
         storage.deleteUnfinished()
+        pages.deleteUnfinished()
         var didWork = false
         while (true) {
             val state = queue.state.value
@@ -115,20 +119,86 @@ internal class DownloadRunner(
                 Pass.Paused -> return RunOutcome.PAUSED
                 Pass.NoNetwork -> {
                     if (!finalAttempt) return RunOutcome.NO_NETWORK
-                    queue.fail(request.id, ayahs = missing(request), translations = 0)
+                    val left = missing(request)
+                    if (request.kind == DownloadKind.PAGES) {
+                        queue.fail(request.id, ayahs = 0, translations = 0, pages = left)
+                    } else {
+                        queue.fail(request.id, ayahs = left, translations = 0)
+                    }
                 }
-                is Pass.Ended -> if (pass.ayahs == 0 && pass.translations == 0) {
+                is Pass.Ended -> if (pass.ayahs == 0 && pass.translations == 0 && pass.pages == 0) {
                     queue.complete(request.id)
                 } else {
-                    queue.fail(request.id, pass.ayahs, pass.translations)
+                    queue.fail(request.id, pass.ayahs, pass.translations, pass.pages)
                 }
             }
         }
     }
 
-    private fun missing(request: DownloadRequest): Int = request.keys().count { !storage.contains(it) }
+    /** What a request still lacks: ayahs of audio, or pages of the mushaf for a pages request. */
+    private fun missing(request: DownloadRequest): Int =
+        if (request.kind == DownloadKind.PAGES) request.pages.count { !pages.has(it) } else request.keys().count { !storage.contains(it) }
+
+    /**
+     * A pages request ([DownloadKind.PAGES]): the layout and the font of every page that is not pinned yet, [pageParallelism] pages at a
+     * time, the same rules as for audio (the queue is read before each page, a page is tried twice, several failures in a row mean no
+     * network, a page that is pinned already is skipped so a run after an interruption carries on).
+     */
+    private suspend fun processPages(request: DownloadRequest): Pass {
+        val total = request.pages.size
+        val doneCount = AtomicInteger(request.pages.count { pages.has(it) })
+        report(request, doneCount.get(), total)
+        val failedCount = AtomicInteger(0)
+        val consecutiveCount = AtomicInteger(0)
+        val gate = Semaphore(pageParallelism.coerceAtLeast(1))
+        var stopped: Pass? = null
+        coroutineScope {
+            for (page in request.pages) {
+                if (pages.has(page)) continue
+                gate.acquire()
+                val reason = interruption(request)
+                    ?: Pass.NoNetwork.takeIf { consecutiveCount.get() >= maxConsecutiveFailures }
+                if (reason != null) {
+                    gate.release()
+                    stopped = reason
+                    break
+                }
+                launch {
+                    try {
+                        if (pinOne(page)) {
+                            consecutiveCount.set(0)
+                            report(request, doneCount.incrementAndGet(), total)
+                        } else {
+                            failedCount.incrementAndGet()
+                            consecutiveCount.incrementAndGet()
+                        }
+                    } finally {
+                        gate.release()
+                    }
+                }
+            }
+        }
+        stopped?.let { return it }
+        if (consecutiveCount.get() >= maxConsecutiveFailures) return Pass.NoNetwork
+        return Pass.Ended(ayahs = 0, translations = 0, pages = failedCount.get())
+    }
+
+    private suspend fun pinOne(page: Int): Boolean {
+        for (attempt in 0 until attemptsPerAyah) {
+            try {
+                if (pages.pin(page)) return true
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Counted as a failed attempt below.
+            }
+            if (attempt < attemptsPerAyah - 1) pause(RETRY_PAUSE_MS shl attempt)
+        }
+        return false
+    }
 
     private suspend fun process(request: DownloadRequest): Pass {
+        if (request.kind == DownloadKind.PAGES) return processPages(request)
         val reciter = Reciters.byId(request.reciterId)
         val keys = request.keys()
         val total = keys.size
@@ -249,5 +319,8 @@ internal class DownloadRunner(
 
         /** Files on the way at once. */
         const val DEFAULT_PARALLELISM = 3
+
+        /** Pages on the way at once (a page is two requests: its layout and its font). */
+        const val PAGE_PARALLELISM = 2
     }
 }

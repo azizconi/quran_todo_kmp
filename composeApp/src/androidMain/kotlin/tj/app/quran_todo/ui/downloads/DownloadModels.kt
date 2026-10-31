@@ -8,6 +8,9 @@ enum class DownloadKind(val analyticsName: String) {
     PLAN("plan"),
     JUZ("juz"),
     SURAH("surah"),
+
+    /** The layout and the fonts of mushaf pages ("Mushaf pages", task F3a): a juz of them or all 604. */
+    PAGES("pages"),
 }
 
 /** A continuous part of one surah: ayahs [first]..[last] (numbers in the surah). */
@@ -24,6 +27,8 @@ data class Segment(val surah: Int, val first: Int, val last: Int) {
  * @property title what the notification and the queue card call it ("Juz Amma"), in the language at the time of the request.
  * @property language the app language whose translation is downloaded before the audio ([tj.app.quran_todo.common.i18n.AppLanguage]
  *   name), null for audio only.
+ * @property pages the pages of the mushaf of a [DownloadKind.PAGES] request (1..604), empty for every other kind; such a request has no
+ *   segments and no reciter. Pages are fetched into the pinned folder by [tj.app.quran_todo.ui.mushaf.data.MushafPageStore.pin].
  */
 @Serializable
 data class DownloadRequest(
@@ -33,11 +38,13 @@ data class DownloadRequest(
     val reciterId: String,
     val language: String? = null,
     val segments: List<Segment>,
+    val pages: List<Int> = emptyList(),
 ) {
     val ayahCount: Int get() = segments.sumOf { it.count }
 
-    /** The audio cache keys of its ayahs, in reading order. */
+    /** The files this request is about, in reading order: the audio cache keys of its ayahs, or the keys of its pages ([PageKeys]). */
     fun keys(): List<String> {
+        if (kind == DownloadKind.PAGES) return pages.map(PageKeys::of)
         val reciter = Reciters.byId(reciterId)
         return segments.flatMap { segment ->
             (segment.first..segment.last).map { ayah -> reciter.cacheKey(segment.surah, ayah) }
@@ -47,7 +54,23 @@ data class DownloadRequest(
     companion object {
         fun idOf(kind: DownloadKind, number: Int?, reciterId: String): String =
             listOfNotNull(kind.analyticsName, number?.toString(), reciterId).joinToString("-")
+
+        /** The id of the pages request of [juz] (1..30), or of all pages when it is null; a reciter plays no part in it. */
+        fun pagesId(juz: Int?): String = if (juz == null) "pages-all" else "pages-juz-$juz"
     }
+}
+
+/**
+ * The key of a pinned page in the map of downloaded files (`DownloadsViewModel`), next to the keys of the audio: `mushaf-page-3`. An
+ * audio key never looks like it (`ayah_78_1`, `husary_78_1`).
+ */
+object PageKeys {
+    private const val PREFIX = "mushaf-page-"
+
+    fun of(page: Int): String = "$PREFIX$page"
+
+    /** The page of a key made by [of], or null for any other key. */
+    fun pageOf(key: String): Int? = key.takeIf { it.startsWith(PREFIX) }?.removePrefix(PREFIX)?.toIntOrNull()
 }
 
 /** How much of a row is on the device (computed from the files, see [rowState]). */

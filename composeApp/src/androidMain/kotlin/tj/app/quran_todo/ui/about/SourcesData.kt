@@ -172,6 +172,13 @@ internal val SourceGroups: List<SourceGroup> = listOf(
                 author = "King Fahd Glorious Quran Printing Complex",
                 url = "https://qurancomplex.gov.sa",
             ),
+            // The pages of the mushaf (task F3a): the lines of every page come from quran.com, the glyphs from the page fonts it serves.
+            SourceItem(
+                title = "Mushaf pages: layout and page fonts (KFGQPC, v1)",
+                author = "King Fahd Glorious Quran Printing Complex",
+                provider = "$QuranCom · api.quran.com (layout) · verses.quran.com (fonts)",
+                url = "https://quran.com",
+            ),
             SourceItem(
                 title = "Manrope",
                 author = "Mikhail Sharanda",

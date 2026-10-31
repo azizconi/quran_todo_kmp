@@ -48,6 +48,8 @@ import tj.app.quran_todo.ui.home.RowsInput
 import tj.app.quran_todo.ui.home.SurahRowUi
 import tj.app.quran_todo.ui.home.SurahSearch
 import tj.app.quran_todo.ui.i18n.downloadsCopy
+import tj.app.quran_todo.ui.i18n.pagesCopy
+import tj.app.quran_todo.common.mushaf.MushafPages
 import tj.app.quran_todo.ui.state.UiPrefs
 
 /**
@@ -133,12 +135,19 @@ internal class DownloadsViewModel(
         DownloadSelection::planSurahs,
     ).distinctUntilChanged()
 
-    /** The files that are downloaded, read again (off the main thread) when the set changes; at most about three times a second. */
-    private val files: Flow<Map<String, Long>> = manager.storage.revision
+    /**
+     * The files that are downloaded, read again (off the main thread) when the set changes; at most about three times a second: the
+     * audio by its cache key, and next to it the pinned pages of the mushaf by [PageKeys] (task F3a).
+     */
+    private val files: Flow<Map<String, Long>> = combine(manager.storage.revision, manager.pages.revision) { audio, pages -> audio xor pages }
         .sample(FILES_SAMPLE_MS)
-        .onStart { emit(manager.storage.revision.value) }
-        .mapLatest { manager.storage.snapshot() }
+        .onStart { emit(0L) }
+        .mapLatest { filesNow() }
         .flowOn(Dispatchers.IO)
+
+    /** Every downloaded file now: the audio by its cache key and the pinned pages by [PageKeys]. */
+    private fun filesNow(): Map<String, Long> =
+        manager.storage.snapshot() + manager.pages.pinnedSnapshot().mapKeys { (page, _) -> PageKeys.of(page) }
 
     /** The work is "waiting" only when it has been for a moment: a work that is about to start is not "waiting for Wi-Fi". */
     private val phase: Flow<WorkPhase> = manager.phase
@@ -166,19 +175,23 @@ internal class DownloadsViewModel(
         val lastSurah: Int,
         val keys: List<String>,
         val estimate: Long?,
+        /** The pages of a pages row ([DownloadKind.PAGES]); empty for the others. */
+        val pages: List<Int> = emptyList(),
     )
 
     private class Defs(
         val reciter: Reciter,
         val plan: RowDef?,
         val planRows: List<RowDef>,
+        val pagesAll: RowDef,
+        val pagesJuz: List<RowDef>,
         val juz: List<RowDef>,
         val surahs: List<RowDef>,
         val searchIndex: SurahSearch.Index?,
     ) {
         val all: Map<String, RowDef> = buildMap {
             plan?.let { put(it.id, it) }
-            (juz + surahs).forEach { put(it.id, it) }
+            (juz + surahs + pagesJuz + pagesAll).forEach { put(it.id, it) }
         }
     }
 
@@ -224,10 +237,29 @@ internal class DownloadsViewModel(
         val plan = planRows.takeIf { it.isNotEmpty() }?.let {
             def(DownloadKind.PLAN, 0, "", "", DownloadSelection.surahs(it.map { row -> row.number }), it.minOf { row -> row.number }, it.maxOf { row -> row.number })
         }
+        // "Mushaf pages" (task F3a): all 604 and the pages of each juz; the size is one estimate for every page ([PagesSize]).
+        fun pagesDef(juz: Int?): RowDef {
+            val pages = if (juz == null) (1..MushafPages.COUNT).toList() else MushafPages.pagesOfJuz(juz).toList()
+            return RowDef(
+                id = DownloadRequest.pagesId(juz),
+                kind = DownloadKind.PAGES,
+                number = juz ?: 0,
+                name = "",
+                arabic = juz?.let(JuzIndex::arabicName).orEmpty(),
+                segments = emptyList(),
+                firstSurah = 0,
+                lastSurah = 0,
+                keys = pages.map(PageKeys::of),
+                estimate = PagesSize.estimateBytes(pages),
+                pages = pages,
+            )
+        }
         return Defs(
             reciter = reciter,
             plan = plan,
             planRows = planRows,
+            pagesAll = pagesDef(null),
+            pagesJuz = (1..JuzIndex.COUNT).map { pagesDef(it) },
             juz = juzDefs,
             surahs = surahDefs,
             searchIndex = if (rows.isEmpty()) null else HomeStateBuilder.searchIndex(rows),
@@ -271,16 +303,23 @@ internal class DownloadsViewModel(
                 active?.id == def.id -> RowQueue.Active(doneNow, def.keys.size)
                 else -> RowQueue.Waiting
             }
+            val pagesText = if (def.kind == DownloadKind.PAGES) pagesCopy(language.value) else null
             return RowUi(
                 id = def.id,
                 kind = def.kind,
                 number = def.number,
-                name = def.name,
+                // The title of a pages row is made here, in the language of the app; the others are named by the screen.
+                name = when {
+                    pagesText == null -> def.name
+                    def.number == 0 -> pagesText.downloadsAllTitle
+                    else -> pagesText.juzRowTitle(def.number)
+                },
                 arabicName = def.arabic,
                 firstSurah = def.firstSurah,
                 lastSurah = def.lastSurah,
                 surahCount = if (def.kind == DownloadKind.PLAN) def.segments.size else def.lastSurah - def.firstSurah + 1,
-                ayahCount = def.keys.size,
+                ayahCount = if (def.kind == DownloadKind.PAGES) 0 else def.keys.size,
+                pageCount = def.pages.size,
                 estimateBytes = def.estimate,
                 state = state,
                 queue = rowQueue,
@@ -298,11 +337,12 @@ internal class DownloadsViewModel(
                 done = keys.count { it in files },
                 total = keys.size,
                 waiting = queue.waiting,
-                remainingBytes = metrics?.let { DownloadSize.remainingBytes(pending, files, it) },
+                remainingBytes = metrics?.let { DownloadSize.remainingBytes(pending, files, it) + PagesSize.remainingBytes(pending, files) },
                 paused = queue.paused,
                 phase = status.phase,
                 failedAyahs = queue.failedAyahs,
                 failedTranslations = queue.failedTranslations,
+                failedPages = queue.failedPages,
                 hasActive = active != null,
             )
         }
@@ -321,6 +361,8 @@ internal class DownloadsViewModel(
             ),
             planAll = defs.plan?.let(::rowOf),
             planRows = defs.planRows.map(::rowOf),
+            pagesAll = rowOf(defs.pagesAll),
+            pagesJuz = defs.pagesJuz.map(::rowOf),
             juz = defs.juz.map(::rowOf),
             surahs = defs.surahs.map(::rowOf),
             searchIndex = defs.searchIndex,
@@ -333,7 +375,7 @@ internal class DownloadsViewModel(
     fun download(rowId: String) {
         val defs = latest ?: return
         val def = defs.all[rowId] ?: return
-        val state = rowState(def.keys, manager.storage.snapshot())
+        val state = rowState(def.keys, filesNow())
         if (state is RowState.Complete) return
         val have = (state as? RowState.Partial)?.bytes ?: 0L
         val missing = ((def.estimate ?: 0L) - have).coerceAtLeast(0L)
@@ -342,18 +384,22 @@ internal class DownloadsViewModel(
             return
         }
         val copy = downloadsCopy(language.value)
+        val pagesText = pagesCopy(language.value)
         val title = when (def.kind) {
             DownloadKind.SURAH -> def.name
             DownloadKind.JUZ -> copy.juzTitleLabel(def.number)
             DownloadKind.PLAN -> copy.sectionPlan
+            DownloadKind.PAGES -> if (def.number == 0) pagesText.downloadsAllTitle else pagesText.juzRowTitle(def.number)
         }
         val request = DownloadRequest(
             id = def.id,
             kind = def.kind,
             title = title,
             reciterId = defs.reciter.id,
-            language = language.value.name.takeIf { manager.prefs.withTranslation.value },
+            // The pages of the mushaf have no translation and no reciter.
+            language = language.value.name.takeIf { manager.prefs.withTranslation.value && def.kind != DownloadKind.PAGES },
             segments = def.segments,
+            pages = def.pages,
         )
         manager.enqueue(request, def.estimate ?: 0L)
     }
@@ -386,7 +432,9 @@ internal class DownloadsViewModel(
     fun delete(rowId: String) {
         val def = latest?.all?.get(rowId) ?: return
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { manager.delete(def.keys) }
+            withContext(Dispatchers.IO) {
+                if (def.kind == DownloadKind.PAGES) manager.deletePages(def.pages) else manager.delete(def.keys)
+            }
             eventChannel.trySend(DownloadsEvent.Deleted)
         }
     }
@@ -403,7 +451,10 @@ internal class DownloadsViewModel(
     /** "Clear" the listening cache (the downloads are not touched). */
     fun clearCache() {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { cache.clear() }
+            withContext(Dispatchers.IO) {
+                cache.clear()
+                manager.pages.clearCache()
+            }
             cacheBytes.value = 0L
             eventChannel.trySend(DownloadsEvent.CacheCleared)
         }
@@ -421,7 +472,8 @@ internal class DownloadsViewModel(
     /** Reads the size of the cache and of the recordings again (the cache grows while the person listens). */
     fun refreshCache() {
         viewModelScope.launch {
-            cacheBytes.value = withContext(Dispatchers.IO) { cache.totalBytes() }
+            // The listening cache and the cache of the pages the person has read: both go with "Clear".
+            cacheBytes.value = withContext(Dispatchers.IO) { cache.totalBytes() + manager.pages.cacheBytes() }
             recordingsBytes.value = voice.totalBytes()
         }
     }
