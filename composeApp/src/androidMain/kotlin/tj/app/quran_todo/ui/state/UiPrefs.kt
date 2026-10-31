@@ -128,6 +128,19 @@ class UiPrefs(context: Context) {
         _highlightWords.value = value
     }
 
+    /**
+     * "Tajweed" (the "Aa" sheet of the reader, task F3b): the rules of recitation are coloured in the text of the reader and of the
+     * lesson. Off by default. The markup is fetched the first time it is turned on (`ui/tajweed/TajweedStore`); the switch stays on without
+     * network and the colours come when the file does. It is in the backup file (`BackupSettings.tajweed`, optional).
+     */
+    private val _tajweed = MutableStateFlow(prefs.getBoolean(KEY_TAJWEED, false))
+    val tajweed: StateFlow<Boolean> = _tajweed.asStateFlow()
+
+    fun setTajweed(value: Boolean) {
+        prefs.edit().putBoolean(KEY_TAJWEED, value).apply()
+        _tajweed.value = value
+    }
+
     /** Up to [MAX_RECENT_SURAHS] surah numbers, the most recently opened first. */
     private val _recentSurahs = MutableStateFlow(
         decodeInts(prefs.getString(KEY_RECENT_SURAHS, null)).take(MAX_RECENT_SURAHS),
@@ -388,6 +401,7 @@ class UiPrefs(context: Context) {
         const val KEY_READER_LAYOUT = "reader_layout"
         const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
         const val KEY_HIGHLIGHT_WORDS = "highlight_words"
+        const val KEY_TAJWEED = "tajweed"
         const val KEY_RECENT_SURAHS = "recent_surahs"
         const val KEY_PINNED_SURAHS = "pinned_surahs"
         const val KEY_LAST_READ_SURAH = "last_read_surah"

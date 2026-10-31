@@ -216,6 +216,7 @@ fun SettingsScreen(
                 override fun setLessonPassageRepeats(value: Int) = viewModel.setLessonPassageRepeats(value)
                 override fun setHapticsEnabled(value: Boolean) = viewModel.setHapticsEnabled(value)
                 override fun setReduceMotion(value: Boolean) = viewModel.setReduceMotion(value)
+                override fun setTajweed(value: Boolean) = viewModel.setTajweed(value)
                 override fun setReminderMinuteOfDay(value: Int) = viewModel.setReminderMinuteOfDay(value)
                 override fun setReminderEnabled(value: Boolean) = viewModel.setReminderEnabled(value)
             },

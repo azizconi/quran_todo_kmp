@@ -59,6 +59,7 @@ import tj.app.quran_todo.ui.playback.FollowedArabicText
 import tj.app.quran_todo.ui.playback.WordFollow
 import tj.app.quran_todo.ui.reader.AyahMarks
 import tj.app.quran_todo.ui.reader.AyahWords
+import tj.app.quran_todo.ui.tajweed.TajweedArabicText
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -221,7 +222,10 @@ fun AyahRow(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 } else {
-                    Text(
+                    // Tajweed (F3b): the colours of the rules over this very text when the setting is on, the plain text when it is off.
+                    TajweedArabicText(
+                        surah = model.ayah.surahNumber,
+                        ayahInSurah = number,
                         text = model.arabic,
                         style = arabicStyle,
                         color = colors.ink,

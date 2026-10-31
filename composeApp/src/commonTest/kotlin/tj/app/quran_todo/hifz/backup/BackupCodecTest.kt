@@ -28,7 +28,7 @@ class BackupCodecTest {
         readingFontSize = 30, dailyGoal = 7, showTranslation = true, highlightPlayingAyah = true, autoplayOnOpen = false,
         autoAdvanceAyahs = true, playbackSpeed = 1.25f, repeatCount = -1, readerLayout = "MUSHAF", keepScreenOn = true,
         reciter = "husary", lessonAyahRepeats = 3, lessonPassageRepeats = 2, hifzHint = "FIRST_WORD", hapticsEnabled = false,
-        reduceMotion = true, reminderEnabled = true, reminderMinuteOfDay = 1200,
+        reduceMotion = true, tajweed = true, reminderEnabled = true, reminderMinuteOfDay = 1200,
     )
 
     private val passages = listOf(
@@ -356,6 +356,19 @@ class BackupCodecTest {
         assertEquals("ru", parsed.language)
         assertNull(parsed.reminderEnabled)
         assertNull(parsed.reminderMinuteOfDay)
+    }
+
+    @Test
+    fun theTajweedSwitchIsOptionalAndTravelsAsABoolean() {
+        // F3b: a copy written before the tajweed colours existed leaves the switch of the phone as it is; a new one carries it.
+        val old = BackupCodec.encode(verified(file.copy(settings = BackupSettings(language = "ru"))))
+        assertNull((BackupCodec.decode(old) as BackupParse.Ok).backup.settings.tajweed)
+        assertTrue(old.contains("tajweed").not())
+
+        val on = BackupCodec.encode(verified(file.copy(settings = BackupSettings(tajweed = true))))
+        assertEquals(true, (BackupCodec.decode(on) as BackupParse.Ok).backup.settings.tajweed)
+        val off = BackupCodec.encode(verified(file.copy(settings = BackupSettings(tajweed = false))))
+        assertEquals(false, (BackupCodec.decode(off) as BackupParse.Ok).backup.settings.tajweed)
     }
 
     @Test

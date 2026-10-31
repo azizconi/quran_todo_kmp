@@ -98,9 +98,16 @@ class TrustContentTest {
 
     @Test
     fun theTanzilRowCarriesTheNoChangeCondition() {
-        val tanzil = SourceGroups.first { it.id == SourceGroupId.QuranText }.items.single()
+        val tanzil = SourceGroups.first { it.id == SourceGroupId.QuranText }.items.first { it.url == "https://tanzil.net" }
         assertEquals(SourceNote.TanzilTerms, tanzil.note)
-        assertEquals("https://tanzil.net", tanzil.url)
+    }
+
+    @Test
+    fun theTajweedMarkupIsListedWithItsSource() {
+        // Task F3b: "Tajweed: the markup of alquran.cloud (Islamic Network)".
+        val markup = SourceGroups.first { it.id == SourceGroupId.QuranText }.items.single { "quran-tajweed" in it.title }
+        assertTrue("Islamic Network" in markup.provider.orEmpty() && "api.alquran.cloud" in markup.provider.orEmpty())
+        assertEquals("https://alquran.cloud", markup.url)
     }
 
     @Test

@@ -181,6 +181,8 @@ data class BackupSettings(
     val hifzHint: String? = null,
     val hapticsEnabled: Boolean? = null,
     val reduceMotion: Boolean? = null,
+    /** "Tajweed" in the "Aa" sheet of the reader (Android, task F3b): the rules of recitation are coloured. The markup itself is not in the file. */
+    val tajweed: Boolean? = null,
     /** The daily lesson reminder (Android): on or off. */
     val reminderEnabled: Boolean? = null,
     /** When the reminder comes: minutes after midnight, 0..1439 (20:00 is 1200). */

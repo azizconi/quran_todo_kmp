@@ -44,6 +44,11 @@ internal val SourceGroups: List<SourceGroup> = listOf(
                 url = "https://tanzil.net",
                 note = SourceNote.TanzilTerms,
             ),
+            SourceItem(
+                title = "Tajweed markup (quran-tajweed)",
+                provider = "$IslamicNetwork · api.alquran.cloud · quran-tajweed",
+                url = "https://alquran.cloud",
+            ),
         ),
     ),
     SourceGroup(

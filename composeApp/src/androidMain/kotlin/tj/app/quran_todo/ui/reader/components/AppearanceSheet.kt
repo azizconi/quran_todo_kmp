@@ -71,6 +71,7 @@ import tj.app.quran_todo.ui.motion.rememberThemeSwitcher
 import tj.app.quran_todo.ui.motion.themeRevealOriginTracker
 import tj.app.quran_todo.ui.reader.BismillahText
 import tj.app.quran_todo.ui.state.UiPrefs
+import tj.app.quran_todo.ui.tajweed.TajweedSettingsRows
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -79,8 +80,8 @@ private const val MaxFontSize = 40
 
 /**
  * "Aa": a live preview of the text, its size (22-40, the list behind the sheet changes as the thumb
- * moves), a carousel of Arabic fonts, the translation, light/dark and keep-screen-on. Everything applies at
- * once through the app root's setters.
+ * moves), a carousel of Arabic fonts, the translation, word highlight, tajweed colours (with "What the colours mean"), light/dark and
+ * keep-screen-on. Everything applies at once through the app root's setters.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -174,6 +175,9 @@ fun AppearanceSheet(
                     checked = highlightWords,
                     onCheckedChange = uiPrefs::setHighlightWords,
                 )
+                QhRowDivider(startIndent = QhSpacing.card)
+                // Tajweed colours (F3b): the switch, the state of the markup file and "What the colours mean".
+                TajweedSettingsRows()
                 QhRowDivider(startIndent = QhSpacing.card)
                 QhSwitchRow(
                     title = copy.keepScreenOn,

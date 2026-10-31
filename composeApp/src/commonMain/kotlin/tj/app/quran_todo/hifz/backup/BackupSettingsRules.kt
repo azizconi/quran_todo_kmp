@@ -55,6 +55,7 @@ fun BackupSettings.sanitized(): BackupSettings = BackupSettings(
     hifzHint = hifzHint?.takeIf { it in BackupSettingsRules.HINT_MODES },
     hapticsEnabled = hapticsEnabled,
     reduceMotion = reduceMotion,
+    tajweed = tajweed,
     reminderEnabled = reminderEnabled,
     reminderMinuteOfDay = reminderMinuteOfDay?.takeIf { it in BackupSettingsRules.REMINDER_MINUTE_OF_DAY },
 )
