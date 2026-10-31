@@ -150,6 +150,13 @@ val hasReleaseSigning = releaseStoreFile != null &&
     releaseStorePassword != null && releaseKeyAlias != null && releaseKeyPassword != null
 
 android {
+    // The code and manifest entries of the voice check (src/voiceproto) belong to the debug build only when the module is included.
+    if (findProject(":voiceproto") != null) {
+        sourceSets.getByName("debug") {
+            java.srcDir("src/voiceproto/kotlin")
+            manifest.srcFile("src/voiceproto/AndroidManifest.xml")
+        }
+    }
     namespace = "tj.app.quran_todo"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
@@ -210,6 +217,9 @@ android {
 
 dependencies {
     debugImplementation(compose.uiTooling)
+    // F7 prototype: whisper.cpp and the PCM recorder. Debug only and only with -Pvoiceproto=true (see settings.gradle.kts):
+    // the release APK must not contain any of it, and a normal debug build is the same as before F7.
+    if (findProject(":voiceproto") != null) debugImplementation(project(":voiceproto"))
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 }
 
