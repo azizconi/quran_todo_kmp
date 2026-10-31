@@ -20,6 +20,7 @@ import tj.app.quran_todo.domain.repository.QuranRemoteRepository
 import tj.app.quran_todo.hifz.backup.BackupData
 import tj.app.quran_todo.hifz.backup.BackupMapping
 import tj.app.quran_todo.hifz.backup.VerifiedBackup
+import tj.app.quran_todo.hifz.drill.HardDrill
 import tj.app.quran_todo.hifz.legacy.LegacyImport
 import tj.app.quran_todo.hifz.legacy.LegacyInput
 import tj.app.quran_todo.hifz.model.HifzPlan
@@ -296,6 +297,20 @@ class HifzRepositoryImpl(
             val after = persist(before, PassageOps.check(before, surah, hardAyahs))
             val coveringId = PassageOps.coveringPassageId(after, surah, startAyah, endAyah)
             insertLog(coveringId, surah, startAyah, endAyah, ReviewKind.CHECK, grade, today)
+        }
+    }
+
+    override suspend fun drillHard(surah: Int, remembered: Set<Int>, stillHard: Set<Int>, today: Int) {
+        if (remembered.isEmpty() && stillHard.isEmpty()) return
+        val metrics = metrics()
+        require(metrics.ayahCount(surah) > 0) { "no such surah: $surah" }
+        write {
+            val before = loadPassages()
+            val plan = loadPlan()
+            val outcome = HardDrill.apply(before, surah, remembered, stillHard) ?: return@write
+            val after = persist(before, outcome.passages)
+            insertLog(outcome.passageId, surah, outcome.range.startAyah, outcome.range.endAyah, ReviewKind.CHECK, outcome.grade, today)
+            mirror(setOf(surah), after, plan, metrics)
         }
     }
 

@@ -5,6 +5,7 @@ import org.koin.compose.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 import tj.app.quran_todo.ui.downloads.DownloadsManager
 import tj.app.quran_todo.ui.downloads.DownloadsViewModel
+import tj.app.quran_todo.ui.drill.DrillViewModel
 import tj.app.quran_todo.ui.hifz.HifzViewModel
 import tj.app.quran_todo.ui.home.HomeUiViewModel
 import tj.app.quran_todo.ui.lesson.LessonViewModel
@@ -16,6 +17,8 @@ import tj.app.quran_todo.ui.playback.createPlaybackController
 import tj.app.quran_todo.ui.progress.ProgressViewModel
 import tj.app.quran_todo.ui.quiz.QuizViewModel
 import tj.app.quran_todo.ui.reader.ReaderViewModel
+import tj.app.quran_todo.ui.recording.RecordingStore
+import tj.app.quran_todo.ui.recording.VoiceController
 import tj.app.quran_todo.ui.reminder.ReminderController
 import tj.app.quran_todo.ui.settings.SettingsViewModel
 import tj.app.quran_todo.ui.settings.TransferIo
@@ -135,6 +138,21 @@ val downloadsUiModule = module {
             uiPrefs = get(),
             quran = get(),
             hifzDao = get(),
+            voice = get(),
+        )
+    }
+}
+
+val drillUiModule = module {
+    // The drill of the difficult ayahs: the shared Home/Surah view models, the HifzRepository and the ticker come in through the constructor.
+    viewModel {
+        DrillViewModel(
+            hifz = get(),
+            ticker = get(),
+            home = get(),
+            surahViewModel = get(),
+            uiPrefs = get(),
+            playback = get(),
         )
     }
 }
@@ -164,6 +182,8 @@ val whatsNewUiModule = module {
 val appUiModule = module {
     single { UiPrefs(androidContext()) }
     single { createPlaybackController(androidContext(), get<UiPrefs>()) }
+    // The microphone of "My reading" (task F2a): the recordings never leave the phone.
+    single { VoiceController(androidContext(), RecordingStore.shared, get()) }
 }
 
 val uiModules = listOf(
@@ -178,6 +198,7 @@ val uiModules = listOf(
     progressUiModule,
     settingsUiModule,
     downloadsUiModule,
+    drillUiModule,
     onboardingUiModule,
     whatsNewUiModule,
 )

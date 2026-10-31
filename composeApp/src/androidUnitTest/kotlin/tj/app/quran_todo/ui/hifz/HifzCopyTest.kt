@@ -7,6 +7,7 @@ import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.ui.i18n.HifzCopy
 import tj.app.quran_todo.ui.i18n.hifzCopy
+import tj.app.quran_todo.ui.state.HifzHintMode
 
 class HifzCopyTest {
     private fun HifzCopy.strings(): Map<String, String> =
@@ -70,6 +71,49 @@ class HifzCopyTest {
         assertEquals("Трудно", hifzCopy(AppLanguage.RU).label(AyahMark.HARD))
         assertEquals("I remember", hifzCopy(AppLanguage.EN).label(AyahMark.REMEMBERED))
         assertEquals("Hard", hifzCopy(AppLanguage.EN).label(AyahMark.HARD))
+    }
+
+    @Test
+    fun theFiveHintLevelsHaveAFilledNameAndLineInEveryLanguage() {
+        val stars = listOf('★', '☆', '✦', '✧', '✩', '✪', '⭐', '۞', '✶', '✷')
+        AppLanguage.entries.forEach { language ->
+            val copy = hifzCopy(language)
+            val names = HintLevels.map { copy.hintName(it) }
+            assertEquals(5, names.toSet().size, "$language: the five levels are told apart: $names")
+            HintLevels.forEach { mode ->
+                assertTrue(copy.hintName(mode).isNotBlank() && copy.hintDescription(mode).isNotBlank(), "$language $mode")
+                assertTrue(stars.none { it in copy.hintDescription(mode) }, "$language $mode has a star")
+            }
+            val chip = copy.hintChip(HintLevels[1])
+            assertTrue(copy.hintName(HintLevels[1]) in chip && '{' !in chip, "$language chip: $chip")
+            assertTrue('{' !in copy.hiddenShare(25) && "25" in copy.hiddenShare(25), "$language share: ${copy.hiddenShare(25)}")
+            assertTrue('{' !in copy.peeked(2) && '2' in copy.peeked(2), "$language peeked: ${copy.peeked(2)}")
+        }
+    }
+
+    @Test
+    fun theLevelsAreNamedAsTheBriefNamesThemInRussian() {
+        val ru = hifzCopy(AppLanguage.RU)
+        assertEquals(
+            listOf("Нет", "Первое слово", "Первые буквы", "Каждое второе слово", "Постепенно скрывать"),
+            HintLevels.map { ru.hintName(it) },
+        )
+        assertEquals("Подсказка: Первое слово", ru.hintChip(HifzHintMode.FIRST_WORD))
+        assertEquals("Скрыть ещё", ru.hideMore)
+        assertEquals("Скрыто 50 %", ru.hiddenShare(50))
+    }
+
+    @Test
+    fun theLineAboutPeekedWordsInflectsLikeTheLanguage() {
+        val ru = hifzCopy(AppLanguage.RU)
+        assertEquals("Подсмотрено: 1 слово", ru.peeked(1))
+        assertEquals("Подсмотрено: 2 слова", ru.peeked(2))
+        assertEquals("Подсмотрено: 5 слов", ru.peeked(5))
+        assertEquals("Подсмотрено: 11 слов", ru.peeked(11))
+        assertEquals("Подсмотрено: 21 слово", ru.peeked(21))
+        assertEquals("Peeked: 1 word", hifzCopy(AppLanguage.EN).peeked(1))
+        assertEquals("Peeked: 2 words", hifzCopy(AppLanguage.EN).peeked(2))
+        assertEquals("Göz atıldı: 2 kelime", hifzCopy(AppLanguage.TR).peeked(2))
     }
 
     @Test

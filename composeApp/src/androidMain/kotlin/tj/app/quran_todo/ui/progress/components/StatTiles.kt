@@ -29,12 +29,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.i18n.ProgressCopy
+import tj.app.quran_todo.ui.i18n.rememberDrillCopy
 import tj.app.quran_todo.ui.motion.AnimatedCounter
 import tj.app.quran_todo.ui.progress.TilesUi
 import tj.app.quran_todo.ui.progress.TodayUi
@@ -52,9 +56,11 @@ import tj.app.quran_todo.ui.theme.tabular
 internal fun StatTiles(
     tiles: TilesUi,
     copy: ProgressCopy,
+    onOpenDrill: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = QhTheme.colors
+    val drill = rememberDrillCopy()
     val today = tiles.today
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(QhSpacing.x3)) {
         TileRow {
@@ -80,6 +86,8 @@ internal fun StatTiles(
                 value = tiles.hardAyahs,
                 label = copy.tileHard,
                 delayMillis = TileStartMillis + 3 * TileStepMillis,
+                // With difficult ayahs the tile opens their drill (task F2a).
+                action = if (tiles.hardAyahs > 0) TileAction(drill.tileTrain, onOpenDrill) else null,
             )
         }
     }
@@ -105,9 +113,10 @@ private fun RowScope.NumberTile(
     value: Int,
     label: String,
     delayMillis: Long,
+    action: TileAction? = null,
 ) {
     val shown = rememberRollingValue(target = value, startDelayMillis = delayMillis)
-    TileFrame(icon = icon, tint = tint, label = label, description = "$label: $value") {
+    TileFrame(icon = icon, tint = tint, label = label, description = "$label: $value", action = action) {
         AnimatedCounter(value = shown, style = QhTheme.type.headline, color = QhTheme.colors.ink)
     }
 }
@@ -163,14 +172,26 @@ private fun RowScope.TileFrame(
     tint: Color,
     label: String,
     description: String,
+    action: TileAction? = null,
     value: @Composable () -> Unit,
 ) {
     val colors = QhTheme.colors
+    val onAction = action?.onClick
     QhCard(
         modifier = Modifier
             .weight(1f)
             .fillMaxHeight()
-            .clearAndSetSemantics { contentDescription = description },
+            .clearAndSetSemantics {
+                contentDescription = if (action != null) "$description. ${action.label}" else description
+                if (action != null) {
+                    role = Role.Button
+                    onClick(label = action.label) {
+                        action.onClick()
+                        true
+                    }
+                }
+            },
+        onClick = onAction,
         contentPadding = PaddingValues(QhSpacing.card),
     ) {
         Box(
@@ -194,8 +215,21 @@ private fun RowScope.TileFrame(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (action != null) {
+            // "Practice": the tile is a button, and says so.
+            Text(
+                text = action.label,
+                style = QhTheme.type.label,
+                color = colors.due,
+                maxLines = 1,
+                modifier = Modifier.padding(top = QhSpacing.x1),
+            )
+        }
     }
 }
+
+/** What a tile that opens something says ([label]) and does ([onClick]). */
+private class TileAction(val label: String, val onClick: () -> Unit)
 
 private const val TileStartMillis = 250L
 private const val TileStepMillis = 90L

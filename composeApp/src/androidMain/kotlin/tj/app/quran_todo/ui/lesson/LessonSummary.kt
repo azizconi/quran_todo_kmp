@@ -51,6 +51,7 @@ import tj.app.quran_todo.ui.components.ProgressRing
 import tj.app.quran_todo.ui.components.QhButton
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.i18n.LessonCopy
+import tj.app.quran_todo.ui.i18n.rememberDrillCopy
 import tj.app.quran_todo.ui.motion.AnimatedCounter
 import tj.app.quran_todo.ui.motion.CelebrationBurst
 import tj.app.quran_todo.ui.theme.QhSpacing
@@ -66,6 +67,7 @@ internal fun LessonSummary(
     copy: LessonCopy,
     summary: LessonUi.Summary,
     onHome: () -> Unit,
+    onOpenDrill: () -> Unit = {},
     onOpenQuiz: () -> Unit = {},
 ) {
     val colors = QhTheme.colors
@@ -82,6 +84,8 @@ internal fun LessonSummary(
     val streak by viewModel.streak.collectAsState()
     val forecast by viewModel.forecast.collectAsState()
     val names by viewModel.chapterNames.collectAsState()
+    val hardCount by viewModel.hardCount.collectAsState()
+    val drillCopy = rememberDrillCopy()
 
     // The ring fills and its number rolls up; a small burst follows when the lesson was closed just now.
     var shown by remember { mutableIntStateOf(0) }
@@ -166,6 +170,16 @@ internal fun LessonSummary(
             modifier = Modifier.fillMaxWidth(),
         )
 
+        if (hardCount > 0) {
+            // The difficult ayahs have a drill of their own (task F2a).
+            QhButton(
+                text = drillCopy.train(hardCount),
+                onClick = onOpenDrill,
+                modifier = Modifier.fillMaxWidth(),
+                variant = QhButtonVariant.Tonal,
+                size = QhButtonSize.M,
+            )
+        }
         if (quizReady) {
             QhButton(
                 text = quizCopy.lessonButton(QuizBuilder.DEFAULT_COUNT),
@@ -180,7 +194,7 @@ internal fun LessonSummary(
             onClick = onHome,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = if (quizReady) 0.dp else QhSpacing.x2)
+                .padding(top = if (quizReady || hardCount > 0) 0.dp else QhSpacing.x2)
                 .navigationBarsPadding(),
         )
     }

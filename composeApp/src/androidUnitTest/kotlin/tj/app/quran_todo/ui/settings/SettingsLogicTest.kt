@@ -6,6 +6,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.settings.SurahReaderPreferences
+import tj.app.quran_todo.ui.i18n.hifzCopy
 import tj.app.quran_todo.ui.i18n.onboardingCopy
 import tj.app.quran_todo.ui.i18n.settingsCopy
 
@@ -65,8 +66,24 @@ class SettingsLogicTest {
             val other = settingsCopy(language)
             assertTrue(other.sectionAppearance != english.sectionAppearance, "sectionAppearance/$language")
             assertTrue(other.myPlanDescription != english.myPlanDescription, "myPlanDescription/$language")
-            assertTrue(other.hintFirstWord != english.hintFirstWord, "hintFirstWord/$language")
+            assertTrue(other.hintRowFmt != english.hintRowFmt, "hintRowFmt/$language")
+            assertTrue(other.hintRowDescription != english.hintRowDescription, "hintRowDescription/$language")
         }
+    }
+
+    @Test
+    fun theHintRowNamesTheLevelInForceInEveryLanguage() {
+        // Task F2a: the row of the memorization section says "Hint in Recall: <level>" and opens the sheet of the five levels.
+        AppLanguage.entries.forEach { language ->
+            val copy = settingsCopy(language)
+            assertTrue("{level}" in copy.hintRowFmt, "hintRowFmt/$language")
+            val recall = hifzCopy(language)
+            tj.app.quran_todo.ui.state.HifzHintMode.entries.forEach { mode ->
+                val row = copy.hintRow(recall.hintName(mode))
+                assertTrue(recall.hintName(mode) in row && '{' !in row && '}' !in row, "$language $mode: $row")
+            }
+        }
+        assertEquals("Подсказка в «Вспомни»: Первое слово", settingsCopy(AppLanguage.RU).hintRow(hifzCopy(AppLanguage.RU).hintFirstWord))
     }
 
     private fun assertNoBlankStrings(copy: Any, where: String) {

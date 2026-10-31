@@ -126,6 +126,8 @@ import tj.app.quran_todo.ui.motion.sharedElementKey
 import tj.app.quran_todo.ui.motion.staggeredEnter
 import tj.app.quran_todo.ui.reminder.ReminderSection
 import tj.app.quran_todo.ui.state.HifzHintMode
+import tj.app.quran_todo.ui.hifz.HintSheet
+import tj.app.quran_todo.ui.i18n.hifzCopy
 import tj.app.quran_todo.ui.state.ReaderLayout
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
@@ -542,16 +544,25 @@ private fun SettingsContent(
                 iconTint = colors.gold,
             )
             QhRowDivider()
-            QhSwitchRow(
-                title = copy.hintFirstWord,
-                description = copy.hintFirstWordDescription,
-                checked = hintMode == HifzHintMode.FIRST_WORD,
-                onCheckedChange = { on ->
-                    viewModel.setHifzHintMode(if (on) HifzHintMode.FIRST_WORD else HifzHintMode.NONE)
-                },
+            // The five levels of the hint of "Recall" (task F2a): the same sheet as the chip under the buttons of "Recall".
+            val recallCopy = remember(language) { hifzCopy(language) }
+            var hintOpen by remember { mutableStateOf(false) }
+            QhNavRow(
+                title = copy.hintRow(recallCopy.hintName(hintMode)),
+                description = copy.hintRowDescription,
+                onClick = { hintOpen = true },
                 icon = Icons.Rounded.Lightbulb,
                 iconTint = colors.primary,
             )
+            if (hintOpen) {
+                HintSheet(
+                    copy = recallCopy,
+                    current = hintMode,
+                    ayah = null,
+                    onPick = viewModel::setHifzHintMode,
+                    onDismiss = { hintOpen = false },
+                )
+            }
         }
 
         // 5. Reminder

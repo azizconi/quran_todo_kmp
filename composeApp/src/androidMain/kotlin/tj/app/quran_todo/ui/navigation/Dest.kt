@@ -45,6 +45,10 @@ sealed interface Dest {
     @Serializable
     data object Downloads : Dest
 
+    /** The drill of the difficult ayahs: the ayahs marked as hard, one by one, at most 20 at a time (task F2a); opened from "Progress" and the end of the lesson. */
+    @Serializable
+    data object HardDrill : Dest
+
     /** Short privacy summary, opened from the settings. */
     @Serializable
     data object Privacy : Dest

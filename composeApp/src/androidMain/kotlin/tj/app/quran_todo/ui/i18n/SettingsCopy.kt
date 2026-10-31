@@ -49,8 +49,9 @@ data class SettingsCopy(
     val reciterName: String,
     /** The row that opens "My plan" (its title is the title of the plan screen). */
     val myPlanDescription: String,
-    val hintFirstWord: String,
-    val hintFirstWordDescription: String,
+    /** The row that opens the sheet of the hint levels of "Recall": "Hint in Recall: First word". */
+    val hintRowFmt: String,
+    val hintRowDescription: String,
     val decrease: String,
     val increase: String,
     val language: String,
@@ -69,7 +70,10 @@ data class SettingsCopy(
     val rateAppDescription: String,
     val storeUnavailable: String,
     val linkUnavailable: String,
-)
+) {
+    /** "Hint in Recall: First word": the row of the memorization section; [level] is the name of the level in force. */
+    fun hintRow(level: String): String = hintRowFmt.replace("{level}", level)
+}
 
 @Composable
 fun rememberSettingsCopy(language: AppLanguage = LocalAppLanguage.current): SettingsCopy =
@@ -97,7 +101,7 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             speed = "Speed", repeatAyah = "Ayah repeat",
             reciter = "Reciter", reciterName = "Mishary Alafasy",
             myPlanDescription = "What you learn, ayahs per day and the review circle.",
-            hintFirstWord = "First-word hint", hintFirstWordDescription = "In memorize mode the first word stays visible.",
+            hintRowFmt = "Hint in Recall: {level}", hintRowDescription = "How much of the ayah stays on screen while you recall.",
             decrease = "Decrease", increase = "Increase",
             language = "Language", languageSheetTitle = "App language",
             haptics = "Haptic feedback", hapticsDescription = "A light vibration on taps.",
@@ -127,7 +131,7 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             speed = "Скорость", repeatAyah = "Повтор аята",
             reciter = "Чтец", reciterName = "Мишари Аль-Афаси",
             myPlanDescription = "Что учите, сколько аятов в день и круг повторения.",
-            hintFirstWord = "Подсказка первого слова", hintFirstWordDescription = "В режиме заучивания первое слово остаётся видимым.",
+            hintRowFmt = "Подсказка в «Вспомни»: {level}", hintRowDescription = "Сколько аята остаётся на экране, пока вы вспоминаете.",
             decrease = "Уменьшить", increase = "Увеличить",
             language = "Язык", languageSheetTitle = "Язык приложения",
             haptics = "Тактильный отклик", hapticsDescription = "Лёгкая вибрация при нажатиях.",
@@ -157,7 +161,7 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             speed = "Суръат", repeatAyah = "Такрори оят",
             reciter = "Қорӣ", reciterName = "Мишорӣ Алафосӣ",
             myPlanDescription = "Чӣ меомӯзед, чанд оят дар як рӯз ва даври такрор.",
-            hintFirstWord = "Маслиҳати калимаи аввал", hintFirstWordDescription = "Дар реҷаи ҳифз калимаи аввал намоён мемонад.",
+            hintRowFmt = "Ишора дар «Ба ёд ор»: {level}", hintRowDescription = "Ҳангоми ба ёд овардан аз оят чӣ қадар дар экран мемонад.",
             decrease = "Кам кардан", increase = "Зиёд кардан",
             language = "Забон", languageSheetTitle = "Забони барнома",
             haptics = "Вокуниши ламсӣ", hapticsDescription = "Ларзиши сабук ҳангоми зер кардан.",
@@ -187,7 +191,7 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             speed = "Tezlik", repeatAyah = "Oyat takrori",
             reciter = "Qori", reciterName = "Mishari Alafasi",
             myPlanDescription = "Nimani yodlayapsiz, kuniga nechta oyat va takrorlash davrasi.",
-            hintFirstWord = "Birinchi so‘z ishorasi", hintFirstWordDescription = "Yodlash rejimida birinchi so‘z ko‘rinib turadi.",
+            hintRowFmt = "«Eslab ayt»dagi yordam: {level}", hintRowDescription = "Yodga olayotganda oyatning qancha qismi ekranda qoladi.",
             decrease = "Kamaytirish", increase = "Ko‘paytirish",
             language = "Til", languageSheetTitle = "Ilova tili",
             haptics = "Tebranish javobi", hapticsDescription = "Bosganda yengil tebranish.",
@@ -217,7 +221,7 @@ fun settingsCopy(language: AppLanguage): SettingsCopy {
             speed = "Hız", repeatAyah = "Ayet tekrarı",
             reciter = "Kâri", reciterName = "Mişari el-Afasi",
             myPlanDescription = "Ne ezberlediğiniz, günde kaç ayet ve tekrar döngüsü.",
-            hintFirstWord = "İlk kelime ipucu", hintFirstWordDescription = "Ezber modunda ilk kelime görünür kalır.",
+            hintRowFmt = "«Hatırla» ipucu: {level}", hintRowDescription = "Hatırlarken ayetin ne kadarı ekranda kalır.",
             decrease = "Azalt", increase = "Artır",
             language = "Dil", languageSheetTitle = "Uygulama dili",
             haptics = "Dokunsal geri bildirim", hapticsDescription = "Dokunuşlarda hafif titreşim.",

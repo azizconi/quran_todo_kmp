@@ -92,7 +92,8 @@ fun RecallPassage(
     }
 }
 
-private fun rowStateOf(session: HifzSession, inSurah: Int, hintMode: HifzHintMode, host: RecallHost): HifzRowState {
+/** The row state of the ayah [inSurah] of [session]; the drill of the difficult ayahs draws its one hidden ayah with it too. */
+internal fun rowStateOf(session: HifzSession, inSurah: Int, hintMode: HifzHintMode, host: RecallHost): HifzRowState {
     val phase = session.phaseOf(inSurah)
     val item = session.itemOf(inSurah)
     return HifzRowState(
@@ -100,9 +101,13 @@ private fun rowStateOf(session: HifzSession, inSurah: Int, hintMode: HifzHintMod
         revealed = phase == HifzPhase.Current && session.revealed,
         mark = if (phase == HifzPhase.Done) item?.mark else null,
         justMarked = phase == HifzPhase.Done && session.items.getOrNull(session.index - 1)?.inSurah == inSurah,
-        firstWordHint = hintMode == HifzHintMode.FIRST_WORD,
+        hintMode = hintMode,
+        hideStep = item?.hideStep ?: 0,
+        peeked = if (phase == HifzPhase.Current) item?.peeked.orEmpty() else emptySet(),
         animateIn = false,
         copy = host.copy,
+        host = host,
+        position = session.positionOf(inSurah) ?: -1,
     )
 }
 

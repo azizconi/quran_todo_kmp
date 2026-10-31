@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -24,15 +26,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +60,8 @@ import tj.app.quran_todo.ui.i18n.HifzCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.pressable
+import tj.app.quran_todo.ui.reader.AyahWords
+import tj.app.quran_todo.ui.state.HifzHintMode
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -68,10 +78,31 @@ interface RecallHost {
     /** The audio of the ayah being recalled plays (or is being prepared). */
     val listening: StateFlow<Boolean>
 
+    /** The level of the hint of a hidden ayah (task F2a). Read in composition. */
+    val hintMode: HifzHintMode
+
+    /** The choice of the sheet of levels; the screen keeps it in the settings of the app. */
+    fun setHintMode(mode: HifzHintMode)
+
+    /** The words of the ayah [inSurah] (a number in the surah) as the screens draw them; null for an ayah that is not in the passage. */
+    fun words(inSurah: Int): AyahWords?
+
     fun reveal()
 
     /** Answers the ayah at session position [position]; ignored when the session has moved on already. */
     fun mark(mark: AyahMark, position: Int)
+
+    /** Answers the ayah at [position] without the reveal first: the progressive hint offers the answers while the ayah is still partly shown. */
+    fun markEarly(mark: AyahMark, position: Int)
+
+    /** "Hide more" of the progressive hint: the next quarter of the words of the ayah at [position]. */
+    fun hideMore(position: Int)
+
+    /** A tap on the hidden word [word] of the ayah at [position]: it opens and counts as one peek. */
+    fun peekWord(position: Int, word: Int)
+
+    /** Holding the whole ayah at [position] to peek: counts as two peeks. */
+    fun peekAyah(position: Int)
 
     /** The headphones button: plays the ayah being recalled, pauses it while it plays. */
     fun toggleListen()
@@ -136,24 +167,33 @@ private fun RecallControls(host: RecallHost, session: HifzSession) {
         label = "recall-controls",
     ) { revealed ->
         if (revealed) {
-            MarkControls(copy = host.copy, onMark = { host.mark(it, session.index) })
+            MarkControls(host = host, session = session)
         } else {
-            RevealControls(host = host, firstAyah = session.markedCount == 0)
+            RevealControls(host = host, session = session, firstAyah = session.markedCount == 0)
         }
     }
 }
 
 // -- Before the reveal --------------------------------------------------------------------------------------
 
-/** How "Listen" and "Reveal" share the width: side by side with a named Listen, with a round Listen, or stacked. */
+/** How "Listen" and the main action share the width: side by side with a named Listen, with a round Listen, or stacked. */
 private enum class RevealLayout { Wide, Narrow, Stacked }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun RevealControls(host: RecallHost, firstAyah: Boolean) {
+private fun RevealControls(host: RecallHost, session: HifzSession, firstAyah: Boolean) {
     val copy = host.copy
     val colors = QhTheme.colors
     val listening by host.listening.collectAsState()
     val fontScale = LocalDensity.current.fontScale
+    val item = session.current
+    val mode = host.hintMode
+    val words = item?.let { host.words(it.inSurah) }
+    // The progressive hint: "Hide more" takes the place of "Reveal" until the ayah is hidden entirely, and the answers are on offer
+    // from the first hidden quarter on.
+    val step = item?.hideStep ?: 0
+    val hidesMore = mode == HifzHintMode.PROGRESSIVE && words != null && RecallHints.canHideMore(words.wordCount, step)
+    var hintOpen by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = copy.reciteFromMemory, style = QhTheme.type.callout, color = colors.inkSecondary)
@@ -163,9 +203,16 @@ private fun RevealControls(host: RecallHost, firstAyah: Boolean) {
                 maxWidth >= WideRevealMinWidth -> RevealLayout.Wide
                 else -> RevealLayout.Narrow
             }
+            val action: @Composable (Modifier) -> Unit = { modifier ->
+                if (hidesMore) {
+                    HideMoreButton(copy, host, session.index, modifier)
+                } else {
+                    RevealButton(copy, host, modifier)
+                }
+            }
             when (layout) {
                 RevealLayout.Stacked -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    RevealButton(copy, host, Modifier.fillMaxWidth())
+                    action(Modifier.fillMaxWidth())
                     ListenButton(copy, listening, host, Modifier.fillMaxWidth())
                 }
                 RevealLayout.Wide -> Row(
@@ -174,7 +221,7 @@ private fun RevealControls(host: RecallHost, firstAyah: Boolean) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ListenButton(copy, listening, host)
-                    RevealButton(copy, host, Modifier.weight(1f))
+                    action(Modifier.weight(1f))
                 }
                 RevealLayout.Narrow -> Row(
                     Modifier.fillMaxWidth(),
@@ -182,13 +229,37 @@ private fun RevealControls(host: RecallHost, firstAyah: Boolean) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ListenIconButton(copy, listening, host)
-                    RevealButton(copy, host, Modifier.weight(1f))
+                    action(Modifier.weight(1f))
                 }
+            }
+        }
+        if (hidesMore && step > 0) {
+            AnswerPills(host = host, item = item, position = session.index, early = true)
+        }
+        FlowRow(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            HintChip(label = copy.hintChip(mode), onClick = { hintOpen = true }, modifier = Modifier.align(Alignment.CenterVertically))
+            if (mode == HifzHintMode.PROGRESSIVE && step > 0) {
+                Text(
+                    text = copy.hiddenShare(RecallHints.percentAt(step)),
+                    style = QhTheme.type.label,
+                    color = colors.inkSecondary,
+                    modifier = Modifier.align(Alignment.CenterVertically),
+                )
             }
         }
         if (firstAyah) {
             Text(text = copy.peekHint, style = QhTheme.type.label, color = colors.inkSecondary)
         }
+        if (item != null && item.suggestsHard) {
+            Text(text = copy.peeked(item.peeks), style = QhTheme.type.label, color = colors.inkSecondary)
+        }
+    }
+    if (hintOpen) {
+        HintSheet(copy = copy, current = mode, ayah = words, onPick = host::setHintMode, onDismiss = { hintOpen = false })
     }
 }
 
@@ -204,6 +275,45 @@ private fun RevealButton(copy: HifzCopy, host: RecallHost, modifier: Modifier = 
         size = QhButtonSize.L,
         icon = Icons.Rounded.Visibility,
     )
+}
+
+@Composable
+private fun HideMoreButton(copy: HifzCopy, host: RecallHost, position: Int, modifier: Modifier = Modifier) {
+    QhButton(
+        text = copy.hideMore,
+        onClick = { host.hideMore(position) },
+        modifier = modifier,
+        size = QhButtonSize.L,
+        icon = Icons.Rounded.VisibilityOff,
+    )
+}
+
+/** "Hint: First word": the level that is in force; a tap opens the sheet of the five levels. */
+@Composable
+private fun HintChip(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = QhTheme.colors
+    val shape = QhTheme.shapes.full
+    Row(
+        modifier
+            .minimumInteractiveComponentSize()
+            .pressable(onClick = onClick, haptic = HapticKind.Segment, shape = shape, highlight = false, onClickLabel = label)
+            .clip(shape)
+            .background(colors.surfaceMuted)
+            .heightIn(min = 36.dp)
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.Lightbulb, contentDescription = null, tint = colors.gold, modifier = Modifier.size(16.dp))
+        Text(
+            text = label,
+            style = QhTheme.type.label,
+            color = colors.ink,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Icon(Icons.Rounded.ExpandMore, contentDescription = null, tint = colors.inkSecondary, modifier = Modifier.size(16.dp))
+    }
 }
 
 @Composable
@@ -248,37 +358,54 @@ private fun ListenIconButton(copy: HifzCopy, listening: Boolean, host: RecallHos
 
 /**
  * "I remember" and "Hard" side by side (stacked at large text sizes). The answer is about this ayah only; the grade
- * of the passage comes at the end.
+ * of the passage comes at the end. An ayah that was peeked at twice or more ([HifzItem.suggestsHard]) is offered "Hard" as the
+ * main (filled) button, with "I remember" next to it as the quiet one, and says how much was peeked: the person still decides.
  */
 @Composable
-private fun MarkControls(copy: HifzCopy, onMark: (AyahMark) -> Unit) {
+private fun MarkControls(host: RecallHost, session: HifzSession) {
+    val copy = host.copy
     val colors = QhTheme.colors
-    val fontScale = LocalDensity.current.fontScale
+    val item = session.current
     // The tip "An honest rating" (lesson tour) points at the two answers.
     val answers = Modifier.spotlightTarget(SpotlightTargets.LessonGrade, SpotlightShape.Rounded(28.dp))
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = copy.markTitle, style = QhTheme.type.callout, color = colors.inkSecondary)
-        if (fontScale > LargeFontScale) {
-            Column(answers, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                RememberedPill(copy, onMark, Modifier.fillMaxWidth())
-                HardPill(copy, onMark, Modifier.fillMaxWidth())
-            }
-        } else {
-            Row(answers.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RememberedPill(copy, onMark, Modifier.weight(1f))
-                HardPill(copy, onMark, Modifier.weight(1f))
+        if (item != null) {
+            AnswerPills(host = host, item = item, position = session.index, early = false, modifier = answers)
+            if (item.suggestsHard) {
+                Text(text = copy.peeked(item.peeks), style = QhTheme.type.label, color = colors.inkSecondary)
             }
         }
     }
 }
 
+/** The two answers; [early] is before the reveal (the progressive hint, from the first hidden quarter on). */
 @Composable
-private fun RememberedPill(copy: HifzCopy, onMark: (AyahMark) -> Unit, modifier: Modifier) {
+private fun AnswerPills(host: RecallHost, item: HifzItem, position: Int, early: Boolean, modifier: Modifier = Modifier) {
+    val copy = host.copy
+    val fontScale = LocalDensity.current.fontScale
+    val onMark: (AyahMark) -> Unit = { mark -> if (early) host.markEarly(mark, position) else host.mark(mark, position) }
+    val hardFirst = item.suggestsHard
+    if (fontScale > LargeFontScale) {
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            RememberedPill(copy, hardFirst, onMark, Modifier.fillMaxWidth())
+            HardPill(copy, hardFirst, onMark, Modifier.fillMaxWidth())
+        }
+    } else {
+        Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RememberedPill(copy, hardFirst, onMark, Modifier.weight(1f))
+            HardPill(copy, hardFirst, onMark, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun RememberedPill(copy: HifzCopy, quiet: Boolean, onMark: (AyahMark) -> Unit, modifier: Modifier) {
     val colors = QhTheme.colors
     MarkPill(
         label = copy.remembered,
-        container = colors.primary,
-        content = colors.onPrimary,
+        container = if (quiet) colors.primaryContainer else colors.primary,
+        content = if (quiet) colors.onPrimaryContainer else colors.onPrimary,
         dot = null,
         haptic = HapticKind.Tick,
         onClick = { onMark(AyahMark.REMEMBERED) },
@@ -287,13 +414,13 @@ private fun RememberedPill(copy: HifzCopy, onMark: (AyahMark) -> Unit, modifier:
 }
 
 @Composable
-private fun HardPill(copy: HifzCopy, onMark: (AyahMark) -> Unit, modifier: Modifier) {
+private fun HardPill(copy: HifzCopy, main: Boolean, onMark: (AyahMark) -> Unit, modifier: Modifier) {
     val colors = QhTheme.colors
     MarkPill(
         label = copy.hardMark,
-        container = colors.dueContainer,
-        content = colors.ink,
-        dot = colors.due,
+        container = if (main) colors.due else colors.dueContainer,
+        content = if (main) colors.onDanger else colors.ink,
+        dot = if (main) null else colors.due,
         haptic = HapticKind.Segment,
         onClick = { onMark(AyahMark.HARD) },
         modifier = modifier,

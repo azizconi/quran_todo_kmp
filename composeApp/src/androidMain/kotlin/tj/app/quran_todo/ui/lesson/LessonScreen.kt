@@ -99,6 +99,7 @@ fun LessonScreen(
     onOpenPlan: () -> Unit,
     onOpenQuiz: () -> Unit,
     onHome: () -> Unit,
+    onOpenDrill: () -> Unit,
 ) {
     val viewModel = koinViewModel<LessonViewModel>()
     val ticker = koinInject<EpochDayTicker>()
@@ -185,6 +186,7 @@ fun LessonScreen(
                 ui = state,
                 onBack = onBackPressed,
                 onHome = onHome,
+                onOpenDrill = onOpenDrill,
                 onOpenQuiz = onOpenQuiz,
             )
         }
@@ -206,6 +208,7 @@ private fun LessonBody(
     ui: LessonUi,
     onBack: () -> Unit,
     onHome: () -> Unit = {},
+    onOpenDrill: () -> Unit = {},
     onOpenQuiz: () -> Unit = {},
 ) {
     val plan = when (ui) {
@@ -258,7 +261,14 @@ private fun LessonBody(
                     is LessonCard.New -> NewPassageCard(viewModel = viewModel, copy = copy, work = state)
                     is LessonCard.Review -> ReviewCard(viewModel = viewModel, copy = copy, work = state)
                 }
-                is LessonUi.Summary -> LessonSummary(viewModel = viewModel, copy = copy, summary = state, onHome = onHome, onOpenQuiz = onOpenQuiz)
+                is LessonUi.Summary -> LessonSummary(
+                    viewModel = viewModel,
+                    copy = copy,
+                    summary = state,
+                    onHome = onHome,
+                    onOpenDrill = onOpenDrill,
+                    onOpenQuiz = onOpenQuiz,
+                )
                 else -> Unit
             }
         }

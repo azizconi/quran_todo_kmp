@@ -372,6 +372,52 @@ class HifzRepositoryTest {
         assertNull(repository.reviewLog(day + 3, day + 3).first().single().passageId)
     }
 
+    @Test
+    fun drillHardChangesOnlyTheMarksAndWritesOneCheckRecordPerSurah() = runBlocking {
+        val created = assertIs<NewPassageResult.Created>(repository.completeNew(78, 1, 8, ReviewGrade.GOOD, setOf(3, 6), day))
+        val passageBefore = repository.surahCoverage(78).first().passages.single()
+        assertEquals(mapOf(3 to 2, 6 to 2), passageBefore.hard)
+        val lessonBefore = repository.lesson(day + 1).first()
+        val mirrorBefore = ayahRows(78)
+
+        // One ayah remembered (2 -> 1), one still hard (back to 2).
+        repository.drillHard(78, remembered = setOf(3), stillHard = setOf(6), today = day + 1)
+        val passage = repository.surahCoverage(78).first().passages.single()
+        assertEquals(mapOf(3 to 1, 6 to 2), passage.hard)
+        // Stage, due day, lastReviewed and lapses did not move.
+        assertEquals(passageBefore.copy(hard = emptyMap()), passage.copy(hard = emptyMap()))
+        val records = repository.reviewLog(day + 1, day + 1).first()
+        assertEquals(1, records.size, "one record for the group")
+        assertEquals(ReviewKind.CHECK, records.single().kind)
+        // One of the two trained ayahs is still hard: half, so the record is FORGOT (the rule of the Recall step).
+        assertEquals(ReviewGrade.FORGOT, records.single().grade)
+        assertEquals(created.passageId, records.single().passageId)
+        assertEquals(3 to 6, records.single().startAyah to records.single().endAyah)
+        // The lesson is the same but for the marks of its card; the mirror did not change.
+        val lessonAfter = repository.lesson(day + 1).first()
+        assertEquals(
+            lessonBefore.recent.map { it.copy(hardAyahs = emptySet()) },
+            lessonAfter.recent.map { it.copy(hardAyahs = emptySet()) },
+        )
+        assertEquals(mirrorBefore, ayahRows(78))
+
+        // The second time the mark of ayah 3 goes away, nothing is still hard: the record is a GOOD one.
+        repository.drillHard(78, remembered = setOf(3), stillHard = emptySet(), today = day + 1)
+        assertEquals(mapOf(6 to 2), repository.surahCoverage(78).first().passages.single().hard)
+        val second = repository.reviewLog(day + 1, day + 1).first()
+        assertEquals(2, second.size)
+        assertEquals(ReviewGrade.GOOD, second.last().grade)
+        assertEquals(3 to 3, second.last().startAyah to second.last().endAyah)
+
+        // An ayah that is not marked any more, or one that is not covered, is skipped; with nothing left nothing is written.
+        repository.drillHard(78, remembered = setOf(1, 3, 40), stillHard = setOf(2), today = day + 1)
+        assertEquals(2, repository.reviewLog(day + 1, day + 1).first().size)
+        // A surah without passages writes nothing either.
+        repository.drillHard(112, remembered = setOf(1), stillHard = emptySet(), today = day + 1)
+        assertEquals(2, repository.reviewLog(day + 1, day + 1).first().size)
+        assertEquals(mapOf(78 to setOf(6)), repository.hardAyahs().first())
+    }
+
     // ---- "I know it", "forget", plan ----
 
     @Test

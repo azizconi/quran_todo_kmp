@@ -31,6 +31,8 @@ import tj.app.quran_todo.ui.components.QhSheet
 import tj.app.quran_todo.ui.components.ToastKind
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.reader.components.KeepScreenOnEffect
+import tj.app.quran_todo.ui.recording.PassageKey
+import tj.app.quran_todo.ui.recording.VoiceSheetHost
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /** The grade sheet comes up this long after the last answer, once the last ayah has folded. */
@@ -63,6 +65,20 @@ fun HifzOverlays(mode: HifzMode) {
 
     if (session != null && askingToLeave && !session.finished) {
         LeaveSheet(mode = mode, session = session)
+    }
+
+    if (session != null) {
+        val range = if (session.firstAyah == session.lastAyah) {
+            "${copy.ayah} ${session.firstAyah}"
+        } else {
+            "${copy.ayah} ${session.firstAyah}–${session.lastAyah}"
+        }
+        VoiceSheetHost(
+            state = mode.voice,
+            key = PassageKey(session.surah, session.firstAyah, session.lastAyah),
+            title = "${mode.surahName} · $range",
+            onListenReciter = mode::listenPassage,
+        )
     }
 
     val finished = session?.finished == true

@@ -30,6 +30,10 @@ import tj.app.quran_todo.ui.i18n.HifzCopy
 import tj.app.quran_todo.ui.i18n.hifzCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.navigation.Dest
+import tj.app.quran_todo.ui.reader.AyahWords
+import tj.app.quran_todo.ui.reader.displayWords
+import tj.app.quran_todo.ui.recording.VoiceSheetState
+import tj.app.quran_todo.ui.recording.rememberVoiceSheetState
 import tj.app.quran_todo.ui.state.HifzHintMode
 
 /**
@@ -45,11 +49,19 @@ data class HifzRowState(
     val mark: AyahMark?,
     /** This is the ayah answered last: its mark pops in. */
     val justMarked: Boolean,
-    /** The first word of a hidden ayah stays readable. */
-    val firstWordHint: Boolean,
+    /** How much of the hidden ayah stays on screen (task F2a). */
+    val hintMode: HifzHintMode,
+    /** The step of "Hide more" of this ayah (the progressive hint), 0 = the whole ayah. */
+    val hideStep: Int,
+    /** The words (indices of `displayWords`) a tap opened in the ayah being recalled. */
+    val peeked: Set<Int>,
     /** The mode has only just started: the rows on screen melt into their veil instead of appearing veiled. */
     val animateIn: Boolean,
     val copy: HifzCopy,
+    /** Gets the peeks of this ayah: the host of its controls; null for a preview that cannot be touched. */
+    val host: RecallHost?,
+    /** The position of this ayah in the session ([RecallHost.peekWord] needs it). */
+    val position: Int,
 )
 
 /**
@@ -69,6 +81,8 @@ class HifzMode internal constructor(
     private val startedAt: LongArray,
     private val startIndex: State<() -> Int>,
     private val rangeEndIndex: State<() -> Int?>,
+    /** The sheet "My reading" of the passage of the session (the microphone of the top bar opens it). */
+    val voice: VoiceSheetState,
 ) : RecallHost {
     /** The running session, or null. Reading it recomposes the reader of it whenever an ayah is answered. */
     override val session: HifzSession? get() = sessionState.value
@@ -80,6 +94,30 @@ class HifzMode internal constructor(
     override fun mark(mark: AyahMark, position: Int) = viewModel.mark(mark, position)
 
     override fun toggleListen() = viewModel.toggleListen(surah)
+
+    /** "Listen to the reciter" of the sheet "My reading". */
+    fun listenPassage() = viewModel.listenPassage(surah)
+
+    override val hintMode: HifzHintMode get() = hintState.value
+
+    override fun setHintMode(mode: HifzHintMode) = viewModel.setHintMode(mode)
+
+    private val wordsCache = HashMap<Int, AyahWords?>()
+
+    override fun words(inSurah: Int): AyahWords? = wordsCache.getOrPut(inSurah) {
+        surah.ayahs.firstOrNull { it.numberInSurah == inSurah }?.let { displayWords(it.surahNumber, it.numberInSurah, it.text) }
+    }
+
+    override fun hideMore(position: Int) {
+        val inSurah = session?.items?.getOrNull(position)?.inSurah ?: return
+        viewModel.hideMore(position, words(inSurah)?.wordCount ?: return)
+    }
+
+    override fun peekWord(position: Int, word: Int) = viewModel.peekWord(position, word)
+
+    override fun peekAyah(position: Int) = viewModel.peekAyah(position)
+
+    override fun markEarly(mark: AyahMark, position: Int) = viewModel.markEarly(mark, position)
 
     val active: Boolean get() = session != null
 
@@ -107,9 +145,13 @@ class HifzMode internal constructor(
             revealed = phase == HifzPhase.Current && session.revealed,
             mark = if (phase == HifzPhase.Done) item?.mark else null,
             justMarked = phase == HifzPhase.Done && session.items.getOrNull(session.index - 1)?.inSurah == inSurah,
-            firstWordHint = hintState.value == HifzHintMode.FIRST_WORD,
+            hintMode = hintState.value,
+            hideStep = item?.hideStep ?: 0,
+            peeked = if (phase == HifzPhase.Current) item?.peeked.orEmpty() else emptySet(),
             animateIn = SystemClock.uptimeMillis() - startedAt[0] < EnterWindowMillis,
             copy = copy,
+            host = this,
+            position = session.positionOf(inSurah) ?: -1,
         )
     }
 
@@ -190,8 +232,9 @@ fun rememberHifzMode(
 
     val start = rememberUpdatedState(startIndex)
     val rangeEnd = rememberUpdatedState(rangeEndIndex)
+    val voice = rememberVoiceSheetState()
     return remember(viewModel, surah, surahName, copy) {
-        HifzMode(viewModel, surah, surahName, copy, sessionState, hintState, startedAt, start, rangeEnd)
+        HifzMode(viewModel, surah, surahName, copy, sessionState, hintState, startedAt, start, rangeEnd, voice)
     }
 }
 

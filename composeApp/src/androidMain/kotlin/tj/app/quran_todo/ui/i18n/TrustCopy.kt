@@ -78,11 +78,15 @@ fun trustCopy(language: AppLanguage): TrustCopy = when (language) {
             ),
             PrivacyPoint(
                 "Few permissions",
-                "Internet access, and notifications only if you turn on reminders. The app does not access your contacts, location or files.",
+                "Internet access, notifications only if you turn on reminders, and the microphone only while you press Record. The app does not access your contacts, location or files.",
             ),
             PrivacyPoint(
                 "No ads",
                 "There are no ads, and your data is never sold or shared for advertising.",
+            ),
+            PrivacyPoint(
+                "Your own reading",
+                "The microphone works only while you record your reading in Recall. Recordings stay on this phone: they are not sent anywhere and are not in the backup. Delete them in “My reading” or in Downloads and storage.",
             ),
             PrivacyPoint(
                 "Deleting data",
@@ -136,11 +140,15 @@ fun trustCopy(language: AppLanguage): TrustCopy = when (language) {
             ),
             PrivacyPoint(
                 "Минимум разрешений",
-                "Доступ в интернет и уведомления — только если вы включили напоминания. Контакты, местоположение и файлы приложению не нужны.",
+                "Доступ в интернет, уведомления — только если вы включили напоминания, и микрофон — только пока вы нажали «Записать». Контакты, местоположение и файлы приложению не нужны.",
             ),
             PrivacyPoint(
                 "Без рекламы",
                 "В приложении нет рекламы, а ваши данные не продаются и не передаются для рекламы.",
+            ),
+            PrivacyPoint(
+                "Ваше чтение",
+                "Микрофон работает, только пока вы записываете своё чтение. Записи остаются на этом телефоне: они никуда не отправляются и не входят в копию. Удалить их можно в листе «Моё чтение» или в «Загрузках и хранилище».",
             ),
             PrivacyPoint(
                 "Удаление данных",
@@ -194,11 +202,15 @@ fun trustCopy(language: AppLanguage): TrustCopy = when (language) {
             ),
             PrivacyPoint(
                 "Иҷозатҳои ками зарурӣ",
-                "Дастрасӣ ба интернет ва огоҳиномаҳо — танҳо агар шумо ёдраскуниро фаъол кунед. Барнома ба тамосҳо, ҷойгиршавӣ ва файлҳо ниёз надорад.",
+                "Дастрасӣ ба интернет, огоҳиномаҳо — танҳо агар шумо ёдраскуниро фаъол кунед, ва микрофон — танҳо ҳангоми пахши «Сабт кардан». Барнома ба тамосҳо, ҷойгиршавӣ ва файлҳо ниёз надорад.",
             ),
             PrivacyPoint(
                 "Бе реклама",
                 "Дар барнома реклама нест ва маълумоти шумо барои реклама фурӯхта ё дода намешавад.",
+            ),
+            PrivacyPoint(
+                "Қироати худи шумо",
+                "Микрофон танҳо ҳангоми сабти қироати шумо кор мекунад. Сабтҳо дар ҳамин телефон мемонанд: ба ҷое фиристода намешаванд ва ба нусхаи эҳтиётӣ дохил намешаванд. Онҳоро дар варақаи «Қироати ман» ё дар «Боргириҳо ва захира» нест кардан мумкин аст.",
             ),
             PrivacyPoint(
                 "Нест кардани маълумот",
@@ -252,11 +264,15 @@ fun trustCopy(language: AppLanguage): TrustCopy = when (language) {
             ),
             PrivacyPoint(
                 "Kam ruxsatlar",
-                "Internetga kirish va bildirishnomalar — faqat eslatmalarni yoqsangiz. Ilovaga kontaktlar, joylashuv va fayllar kerak emas.",
+                "Internetga kirish, bildirishnomalar — faqat eslatmalarni yoqsangiz, va mikrofon — faqat «Yozib olish»ni bosganingizda. Ilovaga kontaktlar, joylashuv va fayllar kerak emas.",
             ),
             PrivacyPoint(
                 "Reklamasiz",
                 "Ilovada reklama yo‘q, ma’lumotlaringiz sotilmaydi va reklama uchun berilmaydi.",
+            ),
+            PrivacyPoint(
+                "O‘zingizning o‘qishingiz",
+                "Mikrofon faqat o‘qishingizni yozib olayotganingizda ishlaydi. Yozuvlar shu telefonda qoladi: hech qayoqqa yuborilmaydi va zaxira nusxaga kirmaydi. Ularni «Mening o‘qishim» varag‘ida yoki «Yuklashlar va xotira»da o‘chirish mumkin.",
             ),
             PrivacyPoint(
                 "Ma’lumotlarni o‘chirish",
@@ -310,11 +326,15 @@ fun trustCopy(language: AppLanguage): TrustCopy = when (language) {
             ),
             PrivacyPoint(
                 "Az izin",
-                "İnternet erişimi ve bildirimler — yalnızca hatırlatıcıları açarsanız. Uygulama kişilerinize, konumunuza veya dosyalarınıza erişmez.",
+                "İnternet erişimi, bildirimler — yalnızca hatırlatıcıları açarsanız, ve mikrofon — yalnızca «Kaydet»e bastığınızda. Uygulama kişilerinize, konumunuza veya dosyalarınıza erişmez.",
             ),
             PrivacyPoint(
                 "Reklam yok",
                 "Uygulamada reklam yoktur; verileriniz satılmaz ve reklam amacıyla paylaşılmaz.",
+            ),
+            PrivacyPoint(
+                "Okuyuşunuz",
+                "Mikrofon yalnızca okuyuşunuzu kaydederken çalışır. Kayıtlar bu telefonda kalır: hiçbir yere gönderilmez ve yedeğe girmez. Onları «Okuyuşum» sayfasından veya «İndirmeler ve depolama»dan silebilirsiniz.",
             ),
             PrivacyPoint(
                 "Verileri silme",

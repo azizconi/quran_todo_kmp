@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tj.app.quran_todo.common.audio.AudioCacheStorage
+import tj.app.quran_todo.ui.recording.VoiceController
 import tj.app.quran_todo.common.audio.Reciter
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.LanguageStorage
@@ -65,6 +66,7 @@ internal class DownloadsViewModel(
     private val uiPrefs: UiPrefs,
     private val quran: QuranRemoteRepository,
     private val hifzDao: HifzDao,
+    private val voice: VoiceController,
     private val cache: AudioCacheStorage = AudioCacheStorage.shared,
     private val freeSpace: () -> Long = ::freeSpaceOfPhone,
 ) : ViewModel() {
@@ -145,6 +147,11 @@ internal class DownloadsViewModel(
         .distinctUntilChanged()
 
     private val cacheBytes = MutableStateFlow(0L)
+
+    /** The size of the person's own recordings (task F2a). */
+    private val recordingsBytes = MutableStateFlow(0L)
+
+    private val bytes = combine(cacheBytes, recordingsBytes) { cache, recordings -> cache to recordings }
 
     // -- The model of the rows -----------------------------------------------------------------
 
@@ -235,8 +242,8 @@ internal class DownloadsViewModel(
 
     private val options: Flow<Options> = combine(manager.prefs.wifiOnly, manager.prefs.withTranslation, ::Options)
 
-    val ui: StateFlow<DownloadsUi> = combine(defs, status, options, cacheBytes, metrics) { defs, status, options, cache, metrics ->
-        build(defs, status, options, cache, metrics)
+    val ui: StateFlow<DownloadsUi> = combine(defs, status, options, bytes, metrics) { defs, status, options, (cache, recordings), metrics ->
+        build(defs, status, options, cache, recordings, metrics)
     }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DownloadsUi())
@@ -245,7 +252,7 @@ internal class DownloadsViewModel(
         refreshCache()
     }
 
-    private fun build(defs: Defs, status: Status, options: Options, cacheBytes: Long, metrics: TextMetrics?): DownloadsUi {
+    private fun build(defs: Defs, status: Status, options: Options, cacheBytes: Long, recordingsBytes: Long, metrics: TextMetrics?): DownloadsUi {
         val queue = status.queue
         val active = queue.active
 
@@ -309,6 +316,7 @@ internal class DownloadsViewModel(
             storage = StorageUi(
                 downloadsBytes = status.files.values.sum(),
                 cacheBytes = cacheBytes,
+                recordingsBytes = recordingsBytes,
                 freeBytes = freeSpace(),
             ),
             planAll = defs.plan?.let(::rowOf),
@@ -401,9 +409,21 @@ internal class DownloadsViewModel(
         }
     }
 
-    /** Reads the size of the cache again (it grows while the person listens). */
+    /** "Delete all recordings": the person's own reading goes for good (the playing and the recording, if any, stop first). */
+    fun deleteRecordings() {
+        viewModelScope.launch {
+            voice.deleteAll()
+            recordingsBytes.value = 0L
+            eventChannel.trySend(DownloadsEvent.RecordingsDeleted)
+        }
+    }
+
+    /** Reads the size of the cache and of the recordings again (the cache grows while the person listens). */
     fun refreshCache() {
-        viewModelScope.launch { cacheBytes.value = withContext(Dispatchers.IO) { cache.totalBytes() } }
+        viewModelScope.launch {
+            cacheBytes.value = withContext(Dispatchers.IO) { cache.totalBytes() }
+            recordingsBytes.value = voice.totalBytes()
+        }
     }
 
     private companion object {

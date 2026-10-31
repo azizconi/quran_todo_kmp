@@ -326,6 +326,19 @@ class BackupCodecTest {
     }
 
     @Test
+    fun everyHintLevelTravelsByNameAndAnUnknownOneIsDropped() {
+        // F2a: the five levels of the "Recall" hint are kept by name; a name this app does not know is dropped, the rest of the file stays.
+        listOf("NONE", "FIRST_WORD", "FIRST_LETTERS", "EVERY_OTHER", "PROGRESSIVE").forEach { name ->
+            assertEquals(name, verified(file.copy(settings = BackupSettings(hifzHint = name))).settings.hifzHint, name)
+        }
+        listOf("SECOND_HALF", "first_word", "", "EVERY_OTHER ").forEach { name ->
+            val applied = verified(file.copy(settings = BackupSettings(hifzHint = name, hapticsEnabled = false))).settings
+            assertNull(applied.hifzHint, "'$name' is dropped")
+            assertEquals(false, applied.hapticsEnabled)
+        }
+    }
+
+    @Test
     fun theReminderTimeMustBeAMinuteOfTheDay() {
         listOf(-1, 1440, 100_000).forEach { minute ->
             assertNull(verified(file.copy(settings = BackupSettings(reminderMinuteOfDay = minute))).settings.reminderMinuteOfDay, "$minute")

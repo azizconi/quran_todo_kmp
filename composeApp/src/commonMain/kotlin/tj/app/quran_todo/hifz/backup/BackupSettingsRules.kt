@@ -20,7 +20,7 @@ object BackupSettingsRules {
 
     /** The names of `ui.state.ReaderLayout` (android) and `HifzHintMode`; the unit tests keep them equal to the enums. */
     val READER_LAYOUTS: Set<String> = setOf("LIST", "MUSHAF")
-    val HINT_MODES: Set<String> = setOf("NONE", "FIRST_WORD")
+    val HINT_MODES: Set<String> = setOf("NONE", "FIRST_WORD", "FIRST_LETTERS", "EVERY_OTHER", "PROGRESSIVE")
 
     val READING_FONT_SIZE = 22..40
     val DAILY_GOAL = 1..50
