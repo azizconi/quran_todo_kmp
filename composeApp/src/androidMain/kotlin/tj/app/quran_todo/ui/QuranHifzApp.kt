@@ -110,6 +110,7 @@ import tj.app.quran_todo.ui.onboarding.OnboardingGate
 import tj.app.quran_todo.ui.onboarding.OnboardingScreen
 import tj.app.quran_todo.ui.plan.PlanScreen
 import tj.app.quran_todo.ui.progress.ProgressScreen
+import tj.app.quran_todo.ui.quiz.QuizScreen
 import tj.app.quran_todo.ui.reminder.ReminderOpenRequests
 import tj.app.quran_todo.ui.reminder.ReminderTarget
 import tj.app.quran_todo.ui.reader.ReaderScreen
@@ -433,6 +434,7 @@ private fun AppNavigation() {
                             onOpenProgress = { navController.navigateOnce(Dest.Progress) },
                             onOpenLesson = { navController.navigateOnce(Dest.Lesson) },
                             onOpenPlan = { navController.navigateOnce(Dest.Plan) },
+                            onOpenQuiz = { navController.navigateOnce(Dest.Quiz) },
                             onOpenCatalog = if (isDebuggable) {
                                 { navController.navigateOnce(Dest.Catalog) }
                             } else {
@@ -456,6 +458,7 @@ private fun AppNavigation() {
                         LessonScreen(
                             onBack = { navController.popOnce() },
                             onOpenPlan = { navController.navigateOnce(Dest.Plan) },
+                            onOpenQuiz = { navController.navigateOnce(Dest.Quiz) },
                             onHome = { navController.goHome() },
                         )
                     }
@@ -463,6 +466,14 @@ private fun AppNavigation() {
                 composable<Dest.Plan> {
                     ProvideNavScope {
                         PlanScreen(onBack = { navController.popOnce() })
+                    }
+                }
+                composable<Dest.Quiz> {
+                    ProvideNavScope {
+                        QuizScreen(
+                            onBack = { navController.popOnce() },
+                            onOpenReader = { navController.navigateOnce(it) },
+                        )
                     }
                 }
                 composable<Dest.Progress> {
@@ -598,6 +609,7 @@ private fun NavDestination.screenName(): String? = when {
     hasRoute<Dest.Reader>() -> "reader"
     hasRoute<Dest.Lesson>() -> "lesson"
     hasRoute<Dest.Plan>() -> "plan"
+    hasRoute<Dest.Quiz>() -> "quiz"
     hasRoute<Dest.Progress>() -> "progress"
     hasRoute<Dest.Settings>() -> "settings"
     hasRoute<Dest.Downloads>() -> "downloads"

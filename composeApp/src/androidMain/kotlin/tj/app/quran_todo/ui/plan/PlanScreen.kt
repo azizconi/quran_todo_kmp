@@ -83,6 +83,8 @@ import tj.app.quran_todo.ui.components.ToastKind
 import tj.app.quran_todo.ui.components.rememberQhTopBarState
 import tj.app.quran_todo.ui.i18n.PlanCopy
 import tj.app.quran_todo.ui.i18n.planCopy
+import tj.app.quran_todo.ui.i18n.rememberPauseCopy
+import tj.app.quran_todo.ui.lesson.formatDay
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.orSnap
@@ -107,9 +109,11 @@ fun PlanScreen(onBack: () -> Unit) {
     val viewModel = koinViewModel<PlanViewModel>()
     val language = LocalAppLanguage.current
     val copy = remember(language) { planCopy(language) }
+    val pauseCopy = rememberPauseCopy(language)
     val toaster = LocalToaster.current
     val latestOnBack by rememberUpdatedState(onBack)
     val latestCopy by rememberUpdatedState(copy)
+    val latestPauseCopy by rememberUpdatedState(pauseCopy)
 
     LaunchedEffect(language) { viewModel.setLanguage(language) }
     LaunchedEffect(viewModel) {
@@ -126,6 +130,12 @@ fun PlanScreen(onBack: () -> Unit) {
                 }
 
                 PlanEvent.Failed -> toaster.show(latestCopy.saveFailed, ToastKind.Error)
+
+                is PlanEvent.Paused -> toaster.show(latestPauseCopy.pausedToast(formatDay(event.untilEpochDay, language)), ToastKind.Success)
+
+                PlanEvent.Resumed -> toaster.show(latestPauseCopy.resumedToast, ToastKind.Info)
+
+                PlanEvent.PauseFailed -> toaster.show(latestPauseCopy.failed, ToastKind.Error)
             }
         }
     }
@@ -135,6 +145,10 @@ fun PlanScreen(onBack: () -> Unit) {
     var askUnsaved by rememberSaveable { mutableStateOf(false) }
     var pickDate by rememberSaveable { mutableStateOf(false) }
     var addSurah by rememberSaveable { mutableStateOf(false) }
+    // The pause (task F2b): its sheet and the question before "Continue now".
+    val pause by viewModel.pause.collectAsStateWithLifecycle()
+    var pauseSheet by rememberSaveable { mutableStateOf(false) }
+    var askResume by rememberSaveable { mutableStateOf(false) }
 
     // Back with unsaved changes asks first.
     BackHandler(enabled = ui.edited) { askUnsaved = true }
@@ -164,6 +178,10 @@ fun PlanScreen(onBack: () -> Unit) {
                 onPickDate = { pickDate = true },
                 onAddSurah = { addSurah = true },
                 onDelete = { askDelete = true },
+                pause = pause,
+                pauseCopy = pauseCopy,
+                onPause = { pauseSheet = true },
+                onResume = { askResume = true },
             )
         }
         QhLargeTopBar(
@@ -208,6 +226,35 @@ fun PlanScreen(onBack: () -> Unit) {
             copy = copy,
             onAdd = viewModel::add,
             onDismiss = { addSurah = false },
+        )
+    }
+    if (pauseSheet) {
+        PauseSheet(
+            pause = pause?.takeIf { ui.today in it },
+            today = ui.today,
+            copy = pauseCopy,
+            onConfirm = { days ->
+                pauseSheet = false
+                viewModel.pausePlan(days)
+            },
+            onDismiss = { pauseSheet = false },
+        )
+    }
+    if (askResume) {
+        AlertDialog(
+            onDismissRequest = { askResume = false },
+            containerColor = QhTheme.colors.surface,
+            title = { Text(pauseCopy.resumeTitle, style = QhTheme.type.title1, color = QhTheme.colors.ink) },
+            text = { Text(pauseCopy.resumeBody, style = QhTheme.type.body, color = QhTheme.colors.inkSecondary) },
+            confirmButton = {
+                QhDialogButton(text = pauseCopy.resumeConfirm, color = QhTheme.colors.primary, onClick = {
+                    askResume = false
+                    viewModel.resumePlan()
+                })
+            },
+            dismissButton = {
+                QhDialogButton(text = pauseCopy.cancel, color = QhTheme.colors.inkSecondary, onClick = { askResume = false })
+            },
         )
     }
     if (askDelete) {
@@ -264,6 +311,10 @@ private fun PlanContent(
     onPickDate: () -> Unit,
     onAddSurah: () -> Unit,
     onDelete: () -> Unit,
+    pause: tj.app.quran_todo.hifz.model.PlanPause?,
+    pauseCopy: tj.app.quran_todo.ui.i18n.PauseCopy,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
 ) {
     Column(
         Modifier
@@ -285,11 +336,23 @@ private fun PlanContent(
         PlanSection(copy.sectionForecast, Modifier.staggeredEnter(3, stagger)) {
             ForecastSection(ui, copy)
         }
+        // "Pause" (task F2b): a row of its own, outside "Save": setting or ending a pause is an action, not a draft edit.
+        if (ui.hasSavedPlan || pause != null) {
+            PauseSection(
+                pause = pause,
+                today = ui.today,
+                copy = pauseCopy,
+                onPause = onPause,
+                onExtend = onPause,
+                onResume = onResume,
+                modifier = Modifier.staggeredEnter(4, stagger),
+            )
+        }
         if (ui.hasSavedPlan) {
             QhButton(
                 text = copy.delete,
                 onClick = onDelete,
-                modifier = Modifier.fillMaxWidth().staggeredEnter(4, stagger),
+                modifier = Modifier.fillMaxWidth().staggeredEnter(5, stagger),
                 variant = QhButtonVariant.Danger,
                 size = QhButtonSize.M,
             )

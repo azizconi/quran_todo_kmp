@@ -5,6 +5,7 @@ import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.domain.model.SurahModel
 import tj.app.quran_todo.hifz.model.SurahHifzStatus
+import tj.app.quran_todo.hifz.quiz.QuizBuilder
 import tj.app.quran_todo.hifz.schedule.LessonPlan
 import tj.app.quran_todo.presentation.home.QuranLoadState
 import tj.app.quran_todo.ui.plan.PlanMath
@@ -46,6 +47,7 @@ internal class HomeBase(
     val rows: List<SurahRowUi>,
     val overallProgress: Float,
     val juzRows: List<JuzRowUi>,
+    val quizReady: Boolean,
 )
 
 internal object HomeStateBuilder {
@@ -79,6 +81,7 @@ internal object HomeStateBuilder {
             rows = rows,
             overallProgress = HomeRows.overallProgress(s.coveredAyahs),
             juzRows = if (content) JuzRows.build(s.language, rowsByNumber, s.coveredAyahSets) else emptyList(),
+            quizReady = content && s.coveredAyahs.values.sum() >= QuizBuilder.MIN_POOL,
         )
     }
 

@@ -84,6 +84,8 @@ data class HomeUi(
     val juzRows: List<JuzRowUi> = emptyList(),
     /** [juzRows] after the query (the "Juz" tab has no status filter). */
     val juzListing: List<JuzRowUi> = emptyList(),
+    /** Enough is memorized for the quiz "Check" (task F2b): the row under the lesson card shows. */
+    val quizReady: Boolean = false,
 )
 
 /** The floating mini player. Position inside the ayah is a separate flow so this changes rarely. */
@@ -109,4 +111,7 @@ data class ListeningUi(val position: Int, val total: Int, val playing: Boolean)
 /** Things the screen reacts to once (a toast), not state. */
 sealed interface HomeEvent {
     data object StatusUpdateFailed : HomeEvent
+
+    /** "Continue now" of a paused plan did not work (task F2b). */
+    data object ResumeFailed : HomeEvent
 }

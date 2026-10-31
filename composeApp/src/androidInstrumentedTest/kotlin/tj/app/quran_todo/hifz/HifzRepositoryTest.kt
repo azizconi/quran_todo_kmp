@@ -43,10 +43,12 @@ import tj.app.quran_todo.hifz.backup.VerifiedBackup
 import tj.app.quran_todo.hifz.model.HifzScope
 import tj.app.quran_todo.hifz.model.NewPassageResult
 import tj.app.quran_todo.hifz.model.PassageStage
+import tj.app.quran_todo.hifz.model.PlanPause
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.hifz.model.ReviewKind
 import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.hifz.schedule.LessonNewState
+import tj.app.quran_todo.hifz.schedule.PlanPauses
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
@@ -699,6 +701,194 @@ class HifzRepositoryTest {
         assertEquals(exported, repository.exportBackupData())
         assertTrue(repository.listenLog(0, day + 5).first().isNotEmpty())
         assertTrue(repository.reviewLog(0, day + 5).first().none { it.kind == ReviewKind.LISTEN })
+    }
+
+    // ---- "Quiz": markHard (task F2b) ----
+
+    @Test
+    fun markHardMarksTheCoveringPassagesAndChangesNothingElse() = runBlocking {
+        seedProgress() // 114:1-4 on the ladder with 3 difficult, 112 known (OLD) with 2 difficult
+        val passagesBefore = db.getHifzDao().getPassages().map { it.passage }
+        val logBefore = db.getHifzDao().getAllLog()
+        val streakBefore = repository.streak(day + 1).first()
+        val studyBefore = repository.reviewLog(0, day + 5).first()
+        val mirrorBefore = mirrorState()
+        val lessonBefore = repository.lesson(day + 4).first()
+        assertEquals(setOf(3), repository.surahCoverage(114).first().hardAyahs)
+
+        // 1 and 4 are covered; 5 and 99 are not (skipped). A mark that is there starts over at 2.
+        repository.markHard(114, setOf(1, 3, 4, 5, 99), day + 2)
+
+        assertEquals(setOf(1, 3, 4), repository.surahCoverage(114).first().hardAyahs)
+        assertEquals(mapOf(1 to 2, 3 to 2, 4 to 2), repository.surahCoverage(114).first().passages.single().hard)
+        assertEquals(passagesBefore, db.getHifzDao().getPassages().map { it.passage }, "stage, due day, last repetition: untouched")
+        assertEquals(logBefore, db.getHifzDao().getAllLog(), "the review log is not written")
+        assertEquals(streakBefore, repository.streak(day + 1).first())
+        assertEquals(studyBefore, repository.reviewLog(0, day + 5).first())
+        assertEquals(mirrorBefore, mirrorState())
+        // The lesson is the same but for the difficult marks of its cards.
+        val lessonAfter = repository.lesson(day + 4).first()
+        assertEquals(lessonBefore.copy(recent = emptyList(), old = emptyList()), lessonAfter.copy(recent = emptyList(), old = emptyList()))
+        assertEquals(lessonBefore.recent.map { it.copy(hardAyahs = emptySet()) }, lessonAfter.recent.map { it.copy(hardAyahs = emptySet()) })
+        assertEquals(lessonBefore.old.map { it.copy(hardAyahs = emptySet()) }, lessonAfter.old.map { it.copy(hardAyahs = emptySet()) })
+    }
+
+    @Test
+    fun markHardWithNothingToMarkOrAnUnknownSurah() = runBlocking {
+        seedProgress()
+        val before = db.getHifzDao().getPassages().map { it.passage to it.hard }
+        repository.markHard(114, emptySet(), day)
+        repository.markHard(114, setOf(6), day) // 114:5-6 are not covered
+        repository.markHard(111, setOf(1, 2), day) // a surah without passages
+        assertEquals(before, db.getHifzDao().getPassages().map { it.passage to it.hard })
+        assertFailsWith<IllegalArgumentException> { repository.markHard(0, setOf(1), day) }
+        assertFailsWith<IllegalArgumentException> { repository.markHard(115, setOf(1), day) }
+        Unit
+    }
+
+    // ---- The pause of the plan (task F2b) ----
+
+    private suspend fun passages() = db.getHifzDao().getPassages().map { it.passage }.sortedBy { it.id }
+
+    @Test
+    fun aPauseMovesTheCalendarAndTheLessonThatComesBackIsTheOneThatWasWaiting() = runBlocking {
+        seedProgress() // the plan, 114:1-4 on the ladder (due day + 4), 112 known (OLD, never repeated)
+        repository.setPlan(HifzScope.JUZ_30, emptyList(), 5, day + 60, 7, day) // a target day, so that it moves too
+        val planBefore = assertNotNull(repository.plan().first())
+        val passagesBefore = passages()
+        val lessonWithout = repository.lesson(day + 2).first()
+        assertTrue(!lessonWithout.isEmpty)
+
+        repository.pausePlan(3, day + 2)
+
+        assertEquals(PlanPause(day + 2, day + 4), repository.pause(day + 2).first())
+        assertEquals(PlanPause(day + 2, day + 4), repository.pause(day).first(), "ahead of today: still the pause")
+        assertNull(repository.pause(day + 5).first(), "a pause that is over is null")
+        assertEquals("${day + 2},${day + 4}", db.getHifzDao().getMeta(PlanPauses.META_KEY))
+
+        // The calendar moved by three days; a null stays null, nothing else changed.
+        passages().zip(passagesBefore).forEach { (after, before) ->
+            assertEquals(before.copy(nextDueEpochDay = before.nextDueEpochDay?.plus(3), lastReviewedEpochDay = before.lastReviewedEpochDay?.plus(3)), after)
+        }
+        val planAfter = assertNotNull(repository.plan().first())
+        assertEquals(planBefore.copy(targetEpochDay = day + 63, startedEpochDay = planBefore.startedEpochDay + 3), planAfter)
+
+        // Inside the pause the lesson is empty and says so; the first day after it is the lesson that was waiting.
+        for (inside in day + 2..day + 4) {
+            val paused = repository.lesson(inside).first()
+            assertTrue(paused.isEmpty)
+            assertEquals(PlanPause(day + 2, day + 4), paused.paused)
+        }
+        val back = repository.lesson(day + 5).first()
+        assertNull(back.paused)
+        assertEquals(lessonWithout, back.copy(today = day + 2))
+    }
+
+    @Test
+    fun aPauseIsExtendedAndEndedEarlyThroughTheRepository() = runBlocking {
+        seedProgress()
+        val original = passages()
+
+        repository.pausePlan(3, day + 2) // day + 2 .. day + 4
+        repository.pausePlan(5, day + 3) // the end becomes day + 7: three more days
+        assertEquals(PlanPause(day + 2, day + 7), repository.pause(day + 3).first())
+        passages().zip(original).forEach { (after, before) -> assertEquals(before.nextDueEpochDay?.plus(6), after.nextDueEpochDay) }
+
+        repository.resumePlan(day + 4) // the pause was on for day + 2 and day + 3: two days stay
+        assertEquals(PlanPause(day + 2, day + 3), db.getHifzDao().getMeta(PlanPauses.META_KEY)?.let { PlanPauses.decode(it).single() })
+        assertNull(repository.pause(day + 4).first())
+        passages().zip(original).forEach { (after, before) ->
+            assertEquals(before.nextDueEpochDay?.plus(2), after.nextDueEpochDay)
+            assertEquals(before.lastReviewedEpochDay?.plus(2), after.lastReviewedEpochDay)
+        }
+        assertNull(repository.lesson(day + 4).first().paused)
+
+        // Nothing is left to end: it changes nothing.
+        val settled = passages()
+        repository.resumePlan(day + 4)
+        assertEquals(settled, passages())
+    }
+
+    @Test
+    fun endingAPauseOnItsFirstDayRestoresEverythingAndRemovesIt() = runBlocking {
+        seedProgress()
+        repository.setPlan(HifzScope.JUZ_30, emptyList(), 5, day + 40, 7, day)
+        val planBefore = repository.plan().first()
+        val passagesBefore = passages()
+        val lessonBefore = repository.lesson(day + 2).first()
+
+        repository.pausePlan(7, day + 2)
+        assertNotNull(db.getHifzDao().getMeta(PlanPauses.BASE_START_KEY), "the day the plan really started is kept for the forecast")
+        repository.resumePlan(day + 2)
+
+        assertEquals(passagesBefore, passages())
+        assertEquals(planBefore, repository.plan().first())
+        assertNull(repository.pause(day + 2).first())
+        assertNull(db.getHifzDao().getMeta(PlanPauses.META_KEY), "a pause that started today is removed whole")
+        assertNull(db.getHifzDao().getMeta(PlanPauses.BASE_START_KEY))
+        assertEquals(lessonBefore, repository.lesson(day + 2).first())
+    }
+
+    @Test
+    fun aPauseDoesNotBreakTheStreakAndDoesNotAddToIt() = runBlocking {
+        seedProgress() // study on day and day + 1: a streak of 2 at day + 1
+        assertEquals(2, repository.streak(day + 1).first())
+        assertEquals(0, repository.streak(day + 4).first(), "without a pause three quiet days break it")
+
+        repository.pausePlan(3, day + 2) // day + 2 .. day + 4
+        assertEquals(2, repository.streak(day + 2).first())
+        assertEquals(2, repository.streak(day + 4).first(), "inside the pause: alive")
+        assertEquals(2, repository.streak(day + 5).first(), "the first day after it, nothing done yet: alive")
+        assertEquals(0, repository.streak(day + 6).first(), "the second quiet day after it breaks the streak")
+        // A lesson on the first day after the pause: the pause days bridge, they do not count.
+        repository.logCheck(112, 1, 4, ReviewGrade.GOOD, emptySet(), day + 5)
+        assertEquals(3, repository.streak(day + 5).first())
+    }
+
+    @Test
+    fun theForecastOfAPlanWithATargetIsTheSameAfterAPause() = runBlocking {
+        seedProgress()
+        repository.setPlan(HifzScope.JUZ_30, emptyList(), 5, day + 40, 7, day)
+        val without = repository.forecast(day + 9).first()!!
+        repository.pausePlan(3, day + 6) // the first six days of the plan were active
+        val after = repository.forecast(day + 12).first()!!
+        assertEquals(without.behindAyahs, after.behindAyahs)
+        assertEquals(without.requiredPerDay, after.requiredPerDay)
+        assertEquals(without.targetEpochDay?.plus(3), after.targetEpochDay)
+    }
+
+    @Test
+    fun aPausedPlanWithoutAPlanStillMovesThePassages() = runBlocking {
+        seedProgress()
+        repository.clearPlan()
+        val before = passages()
+        repository.pausePlan(2, day + 2)
+        passages().zip(before).forEach { (after, was) -> assertEquals(was.nextDueEpochDay?.plus(2), after.nextDueEpochDay) }
+        val lesson = repository.lesson(day + 2).first()
+        assertTrue(lesson.isEmpty)
+        assertTrue(!lesson.hasPlan)
+        assertEquals(PlanPause(day + 2, day + 3), lesson.paused)
+        assertNull(db.getHifzDao().getMeta(PlanPauses.BASE_START_KEY))
+    }
+
+    @Test
+    fun thePauseSurvivesABackupRoundTrip() = runBlocking {
+        seedProgress()
+        repository.pausePlan(4, day + 2)
+        val exported = repository.exportBackupData()
+        assertEquals("${day + 2},${day + 5}", exported.hifz.meta[PlanPauses.META_KEY])
+        val text = BackupCodec.encode(verifiedOf(exported))
+
+        // The phone changes afterwards: the pause is over and the plan gone.
+        repository.resumePlan(day + 2)
+        repository.clearPlan()
+        assertNull(repository.pause(day + 2).first())
+
+        repository.replaceWithBackup(assertIs<BackupParse.Ok>(BackupCodec.decode(text)).backup)
+        assertEquals(exported, repository.exportBackupData())
+        assertEquals(PlanPause(day + 2, day + 5), repository.pause(day + 2).first())
+        assertTrue(repository.lesson(day + 3).first().isEmpty)
+        assertEquals(PlanPause(day + 2, day + 5), repository.lesson(day + 3).first().paused)
     }
 
     @Test

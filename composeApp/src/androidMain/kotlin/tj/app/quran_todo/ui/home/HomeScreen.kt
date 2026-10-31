@@ -91,6 +91,7 @@ import tj.app.quran_todo.ui.home.components.HomeSkeletonTop
 import tj.app.quran_todo.ui.home.components.JuzListRow
 import tj.app.quran_todo.ui.home.components.LessonCard
 import tj.app.quran_todo.ui.home.components.LessonInviteRow
+import tj.app.quran_todo.ui.home.components.QuizRow
 import tj.app.quran_todo.ui.home.components.ListEmptyState
 import tj.app.quran_todo.ui.home.components.MiniPlayerHost
 import tj.app.quran_todo.ui.home.components.MiniPlayerMargin
@@ -106,6 +107,7 @@ import tj.app.quran_todo.ui.home.components.SurahSheet
 import tj.app.quran_todo.ui.home.components.listBottomPadding
 import tj.app.quran_todo.ui.i18n.HomeCopy
 import tj.app.quran_todo.ui.i18n.homeCopy
+import tj.app.quran_todo.ui.i18n.pauseCopy
 import tj.app.quran_todo.ui.i18n.mushafCopy
 import tj.app.quran_todo.ui.listen.ListenOldSheet
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
@@ -138,6 +140,7 @@ fun HomeScreen(
     onOpenProgress: () -> Unit,
     onOpenLesson: () -> Unit,
     onOpenPlan: () -> Unit,
+    onOpenQuiz: () -> Unit,
     onOpenCatalog: (() -> Unit)? = null,
 ) {
     val viewModel = koinViewModel<HomeUiViewModel>()
@@ -151,6 +154,7 @@ fun HomeScreen(
         viewModel.events.collect { event ->
             when (event) {
                 HomeEvent.StatusUpdateFailed -> toaster.show(copy.statusUpdateFailed, ToastKind.Error)
+                HomeEvent.ResumeFailed -> toaster.show(pauseCopy(copy.language).failed, ToastKind.Error)
             }
         }
     }
@@ -164,13 +168,15 @@ fun HomeScreen(
     // Not read here: only the mini player ring reads it.
     val playbackProgress = viewModel.playbackProgress.collectAsState()
 
-    val actions = remember(viewModel, onOpenReader, onOpenSettings, onOpenProgress, onOpenLesson, onOpenPlan) {
+    val actions = remember(viewModel, onOpenReader, onOpenSettings, onOpenProgress, onOpenLesson, onOpenPlan, onOpenQuiz) {
         HomeActions(
             openReader = onOpenReader,
             openSettings = onOpenSettings,
             openProgress = onOpenProgress,
             openLesson = onOpenLesson,
             openPlan = onOpenPlan,
+            openQuiz = onOpenQuiz,
+            resumePlan = viewModel::resumePlan,
             setQuery = viewModel::setQuery,
             setFilter = viewModel::setFilter,
             retry = viewModel::retry,
@@ -201,6 +207,8 @@ internal class HomeActions(
     val openProgress: () -> Unit,
     val openLesson: () -> Unit,
     val openPlan: () -> Unit,
+    val openQuiz: () -> Unit,
+    val resumePlan: () -> Unit,
     val setQuery: (String) -> Unit,
     val setFilter: (SurahFilter) -> Unit,
     val retry: () -> Unit,
@@ -447,6 +455,7 @@ private fun HomeContent(
                                             modifier = cardModifier,
                                             onListenOld = { listenOpen = true },
                                             listening = listening,
+                                            onResumePlan = actions.resumePlan,
                                         )
                                     } else {
                                         LessonInviteRow(
@@ -455,6 +464,15 @@ private fun HomeContent(
                                             onOpenLesson = actions.openLesson,
                                             onOpenPlan = actions.openPlan,
                                             modifier = cardModifier,
+                                        )
+                                    }
+                                    // "Check · 5 questions on what you know": a row of its own under the lesson, also while the plan is paused.
+                                    if (ui.quizReady) {
+                                        QuizRow(
+                                            onClick = actions.openQuiz,
+                                            modifier = Modifier
+                                                .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x2)
+                                                .staggeredEnter(lessonIndex, stagger),
                                         )
                                     }
                                 }

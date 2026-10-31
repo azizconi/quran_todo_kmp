@@ -20,6 +20,9 @@ enum class LessonCardState {
     /** No plan and nothing to repeat: the card invites to make a plan. */
     NoPlan,
 
+    /** The plan is on pause today (task F2b): "Plan paused until ..." and "Continue now". */
+    Paused,
+
     /** The plan is finished and nothing is left to repeat today: "Plan complete" and "New plan". */
     PlanFinished,
 }
@@ -81,12 +84,16 @@ data class LessonCardUi(
     val tomorrow: LessonTomorrowUi? = null,
     /** The portion of the circle as audio; null when today's portion has no passages. */
     val oldListen: OldListenUi? = null,
+    /** [LessonCardState.Paused] only: the last day of the pause (the lessons come back the day after). */
+    val pausedUntilEpochDay: Int = 0,
 )
 
 /** Builds the card model from the lesson. Pure. */
 internal object LessonCardBuilder {
     /** [nameOf] gives the name of a surah in the language of the app. */
     fun build(lesson: LessonPlan, listenedToday: Set<Long> = emptySet(), nameOf: (Int) -> String): LessonCardUi {
+        // A paused day has no lesson at all: the card says so, whatever else the plan holds.
+        lesson.paused?.let { pause -> return LessonCardUi(state = LessonCardState.Paused, pausedUntilEpochDay = pause.untilEpochDay) }
         val tomorrow = tomorrowOf(lesson, nameOf)
         if (lesson.isEmpty) {
             val state = when {

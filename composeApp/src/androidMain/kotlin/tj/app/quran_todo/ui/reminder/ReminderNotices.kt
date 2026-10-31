@@ -38,6 +38,7 @@ internal data class ReminderNotice(
  * Decides whether a notification is due and what it says, from the lesson of the day (task B4). Pure: the tests feed it lessons
  * made by the real scheduler.
  *
+ * - The plan is on pause (`paused`, task F2b): silence, neither about the lesson nor "Continue reading". The person asked for a rest.
  * - The lesson is done (`isComplete`): nothing is shown.
  * - Something is left to do: "Today: An-Naba 1–5 and 3 repetitions · ~12 min"; when part of the lesson is already done the same
  *   line starts with "Left:" and counts only what is left. A new passage that did not fit into the budget today (deferred) is
@@ -52,6 +53,7 @@ internal object ReminderNotices {
         lastRead: LastReadPosition?,
         surahName: (Int) -> String,
     ): ReminderNotice? {
+        if (lesson.paused != null) return null
         if (lesson.isComplete) return null
         val copy = reminderCopy(language)
 

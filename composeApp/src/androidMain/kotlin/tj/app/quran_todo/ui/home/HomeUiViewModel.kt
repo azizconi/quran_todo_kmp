@@ -196,6 +196,21 @@ class HomeUiViewModel internal constructor(
 
     fun togglePin(surah: Int) = uiPrefs.togglePin(surah)
 
+    /** "Continue now" on the card of a paused plan (task F2b): the pause ends today and the calendar moves back. */
+    fun resumePlan() {
+        viewModelScope.launch {
+            try {
+                hifz.resumePlan(ticker.day.value)
+                AppTelemetry.logEvent("plan_resumed_early")
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                AppTelemetry.logError(throwable = error, context = "home_resume_plan_failed")
+                eventChannel.trySend(HomeEvent.ResumeFailed)
+            }
+        }
+    }
+
     /** The memorized ayahs and the passages of [surah], for the line under the status in the surah sheet. */
     fun coverage(surah: Int): Flow<SurahCoverage> = hifz.surahCoverage(surah).catch { error ->
         // The line under the status is a nicety: without it the sheet still works.
@@ -288,6 +303,7 @@ class HomeUiViewModel internal constructor(
         overallProgress = base.overallProgress,
         juzRows = base.juzRows,
         juzListing = JuzRows.search(base.juzRows, query),
+        quizReady = base.quizReady,
     )
 
     private fun initialBase(): HomeBase = HomeStateBuilder.buildBase(

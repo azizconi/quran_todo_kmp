@@ -88,6 +88,9 @@ interface HifzDao {
     @Upsert
     suspend fun upsertMeta(meta: HifzMetaEntity)
 
+    @Query("DELETE FROM hifz_meta WHERE `key` = :key")
+    suspend fun deleteMeta(key: String)
+
     // Backup file (task B5): the whole content of the hifz tables and the notes, read for an export and replaced for an import.
     // The repository runs them in one transaction; the order matters (passage_hard has a foreign key to hifz_passage).
     @Query("SELECT * FROM review_log ORDER BY id")

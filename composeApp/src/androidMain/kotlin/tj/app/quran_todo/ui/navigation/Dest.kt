@@ -31,6 +31,10 @@ sealed interface Dest {
     @Serializable
     data object Plan : Dest
 
+    /** The quiz "Check": five questions on what is memorized; nothing goes to the review log (task F2b). */
+    @Serializable
+    data object Quiz : Dest
+
     @Serializable
     data object Progress : Dest
 

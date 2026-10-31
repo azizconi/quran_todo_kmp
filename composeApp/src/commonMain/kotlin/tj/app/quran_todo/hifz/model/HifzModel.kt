@@ -83,6 +83,25 @@ data class HifzPlan(
     val manzilDays: Int,
 )
 
+/**
+ * A pause of the plan (task F2b): the lessons stop for the days [fromEpochDay]..[untilEpochDay], both included, and come back on
+ * [resumeEpochDay]. The calendar of the plan is moved by the length of the pause (see `PlanPauses`), so no repetition piles up and the
+ * streak (which bridges the pause days) stays alive.
+ */
+data class PlanPause(val fromEpochDay: Int, val untilEpochDay: Int) {
+    init {
+        require(untilEpochDay >= fromEpochDay) { "the pause ends before it starts: $fromEpochDay..$untilEpochDay" }
+    }
+
+    /** The first day with a lesson again. */
+    val resumeEpochDay: Int get() = untilEpochDay + 1
+
+    /** How many days the pause lasts, 1 or more. */
+    val dayCount: Int get() = untilEpochDay - fromEpochDay + 1
+
+    operator fun contains(epochDay: Int): Boolean = epochDay in fromEpochDay..untilEpochDay
+}
+
 /** A row of the review log. [passageId] is null for a check of a range that spans several passages. */
 data class ReviewLogEntry(
     val id: Long,
