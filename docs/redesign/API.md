@@ -508,3 +508,36 @@ LessonItem(passageId, surah, startAyah, endAyah, stage, hardAyahs: Set<Int>, don
 - `ProgressRestoreDao.replaceUserProgress` (восстановление старой копии из prefs) пишет только старые таблицы и не знает об отрывках: на Android его больше никто не вызывает (экран настроек работает через `replaceWithBackup`), на iOS он остаётся.
 - Пока старый UI пишет `surah_todo`/`ayah_todo` напрямую, эти записи после переноса не создают отрывков; ридер (B2), главный (B3) и «Прогресс» (D2) уже на `HifzRepository`.
 
+
+## Переводы и поиск (F4a)
+
+Код: `commonMain/.../data/translation/` (`TranslationCatalog`, `TranslationChoice`, `WholeTranslation`, `TranslationSearch`), `QuranReferenceRepository`, `androidMain/.../ui/translation/`, `ui/downloads/TranslationDownloads.kt`.
+
+- **Каталог.** `TranslationCatalog.all` — издания по языку текста, популярные первыми. У издания: `key`, `origin` (`ALQURAN_CLOUD` → `QURAN_ENC` → `QURAN_COM`; общее издание берётся с первого источника), `remoteId`, название и автор на 5 языках, `script`, `wireKb`, `version` (только QuranEnc). Узбекская латиница Содика (`uz`) — по умолчанию; у uz кириллица QuranEnc (`uzbek_rwwad`, `uzbek_mansour`) показывается с пометкой «кириллица».
+- **Ключ кэша** = столбец `ayah_translation.languageCode` (схема Room не менялась, версия 11): у издания по умолчанию — код языка (`ru`, `en`, `tg`, `tr`, `uz`; старый кэш цел), у остальных — `ru.abuadel`, `qe:tajik_arifi`, `qc:139`. Выбор хранится по языку интерфейса (`TranslationChoiceStore`, JSON в настройках), попадает в копию B5 полем `settings.translationChoice` (необязательное, незнакомые ключи отбрасываются). `getAyahTranslations(surah, language, …)` сам берёт выбранное издание: ридер, «Загрузки», главный экран идут одним путём; `SurahViewModel` помнит ключ издания и перезагружает перевод при смене выбора (`TranslationChoice.store.revision`).
+- **Скачать целиком** — вид загрузки `TRANSLATION` в той же очереди и том же `DownloadRunner`/`DownloadWorker`. alquran.cloud `GET /v1/quran/{id}` и quran.com `GET /quran/translations/{id}` отдают весь Коран одним запросом; у QuranEnc такого нет — 114 запросов по сурам. Всё проверяется (114 сур, 6236 аятов), пишется разом в Room; остановка не оставляет половины. «Скачан целиком» = 6236 строк издания. Версия QuranEnc хранится при загрузке (`TranslationVersions`). `QuranReferenceRepository.checkTranslationUpdates()` раз в 7 дней, тихо, при открытии листа выбора или «Загрузок», берёт `GET /api/v1/translations/list` и запоминает версии; скачанное издание старее последней известной версии (из списка, запасная — каталожная) — «Есть обновление». Удаление — строки издания. Без сети — как у других загрузок (`NO_NETWORK`, ожидание сети).
+- **Поиск «В переводе»** — третий сегмент переключателя поиска на главной (виден только при поиске). `TranslationSearchIndex`: 6236 строк в памяти (читаются при открытой вкладке, отпускаются при закрытой), без FTS. `SearchText.fold`: без регистра и диакритики, ё/е, İ/ı/I → i, ӣ ӯ ҳ қ ғ ҷ → и у х к г ч, апострофы узбекского убираются; слова запроса — «все слова есть» (в том числе частью слова), от 2 букв, задержка 250 мс, до 200 результатов («Показаны первые 200»), порядок Корана, совпадения выделены. Не скачан — карточка «скачайте целиком · ≈ N».
+- **Размеры** (на проводе, gzip, измерено 2026-10-31):
+
+| Язык | Издание | Источник | Письменность | Размер |
+|---|---|---|---|---|
+| ru | Кулиев (по умолчанию) | alquran.cloud `ru.kuliev` | кириллица | 440 КБ |
+| ru | Абу Адель | `ru.abuadel` | кириллица | 826 КБ |
+| ru | Аль-Мунтахаб | `ru.muntahab` | кириллица | 899 КБ |
+| ru | Османов, Порохова, Крачковский, Саблуков | `ru.osmanov/porokhova/krachkovsky/sablukov` | кириллица | 407–523 КБ |
+| tr | Diyanet İşleri | `tr.diyanet` | латиница | 361 КБ |
+| tr | Elmalılı (по умолчанию) | `tr.yazir` | латиница | 402 КБ |
+| tr | Diyanet Vakfı, Ateş, Bulaç, Gölpınarlı, Öztürk, Yıldırım, Yüksel | `tr.*` | латиница | 354–494 КБ |
+| tr | Dar Al-Salam, Muslim Shahin | quran.com 210, 124 | латиница | 297, 316 КБ |
+| tr | Rowwad, Shaban Britch, Ali Özek | QuranEnc `turkish_rwwad/shaban/shahin` (114 запросов) | латиница | 951, 926, 977 КБ |
+| tg | Оятӣ (по умолчанию) | `tg.ayati` | кириллица | 419 КБ |
+| tg | Хоҷа Мироф и Хоҷа Мир | quran.com 139 | кириллица | 514 КБ |
+| tg | Руввод | QuranEnc `tajik_arifi` | кириллица | 1197 КБ |
+| uz | Muhammad Sodiq (по умолчанию) | quran.com 55 | латиница | 272 КБ |
+| uz | Руввод, Алоуддин Мансур | QuranEnc `uzbek_rwwad/mansour` | кириллица (помечено) | 1046, 1424 КБ |
+| en | Saheeh (по умолчанию) | `en.sahih` | латиница | 360 КБ |
+| en | Abdel Haleem, Taqi Usmani | quran.com 85, 84 | латиница | 266, 292 КБ |
+| en | Yusuf Ali, Pickthall, Hilali & Khan, Itani, Asad | `en.*` | латиница | 337–463 КБ |
+
+  `tajik_khawaja` QuranEnc в списке изданий сайта (`/translations/list`) не значится, версии нет — оставлен `quran.com 139`.
+- **Тесты:** `commonTest/.../data/translation/*` (каталог, выбор, разбор ответов трёх источников, нормализация и поиск на 5 языках), `androidUnitTest/.../data/TranslationEditionsRepositoryTest`, `ui/downloads/TranslationDownloadsTest`, `ui/i18n/TranslationCopyTest`.

@@ -5,6 +5,7 @@ import org.koin.compose.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 import tj.app.quran_todo.ui.downloads.DownloadsManager
 import tj.app.quran_todo.ui.downloads.DownloadsViewModel
+import tj.app.quran_todo.ui.translation.TranslationSearchViewModel
 import tj.app.quran_todo.ui.drill.DrillViewModel
 import tj.app.quran_todo.ui.hifz.HifzViewModel
 import tj.app.quran_todo.ui.home.HomeUiViewModel
@@ -157,8 +158,11 @@ val downloadsUiModule = module {
             quran = get(),
             hifzDao = get(),
             voice = get(),
+            references = get(),
         )
     }
+    // The search "In translation" of the home screen (F4a): over the stored edition; its download is a request of the same queue.
+    viewModel { TranslationSearchViewModel(repository = get(), downloads = get()) }
 }
 
 val drillUiModule = module {

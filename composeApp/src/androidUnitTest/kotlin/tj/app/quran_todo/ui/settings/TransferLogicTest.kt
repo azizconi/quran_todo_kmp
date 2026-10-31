@@ -194,6 +194,27 @@ class TransferLogicTest {
         override fun setTajweed(value: Boolean) { calls += "tajweed=$value" }
         override fun setReminderMinuteOfDay(value: Int) { calls += "reminderAt=$value" }
         override fun setReminderEnabled(value: Boolean) { calls += "reminder=$value" }
+        override fun setTranslationChoice(choice: Map<String, String>) { calls += "translation=$choice" }
+    }
+
+    @Test
+    fun theChosenEditionsAreHandedToTheTargetAsOneMap() {
+        val target = Recorder()
+        BackupSettings(translationChoice = mapOf("ru" to "ru.abuadel")).applyTo(target)
+        assertEquals(listOf("translation={ru=ru.abuadel}"), target.calls)
+
+        val none = Recorder()
+        BackupSettings(language = "ru").applyTo(none)
+        assertTrue(none.calls.none { it.startsWith("translation") })
+    }
+
+    @Test
+    fun theChosenEditionsOfThePhoneGoIntoTheFileAndDefaultsDoNot() {
+        var stored: String? = null
+        val store = tj.app.quran_todo.data.translation.TranslationChoiceStore(read = { stored }, write = { stored = it })
+        assertTrue(store.choices().isEmpty())
+        store.select(AppLanguage.TR, tj.app.quran_todo.data.translation.TranslationCatalog.byKey("tr.diyanet")!!)
+        assertEquals(mapOf("tr" to "tr.diyanet"), store.choices())
     }
 
     @Test

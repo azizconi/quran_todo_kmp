@@ -1,7 +1,10 @@
 package tj.app.quran_todo.ui.downloads
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -10,6 +13,9 @@ import tj.app.quran_todo.common.audio.DownloadStorage
 import tj.app.quran_todo.common.audio.Reciters
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.data.bundled.QuranFacts
+import tj.app.quran_todo.data.translation.TranslationCatalog
+import tj.app.quran_todo.domain.repository.QuranReferenceRepository
+import tj.app.quran_todo.domain.repository.WholeDownloadResult
 import tj.app.quran_todo.domain.use_case.GetAyahTranslationsUseCase
 import tj.app.quran_todo.ui.mushaf.data.PagesSource
 import java.util.concurrent.atomic.AtomicInteger
@@ -18,16 +24,27 @@ import java.util.concurrent.atomic.AtomicInteger
 internal fun interface TranslationSource {
     /** True when the whole translation of [surah] in [language] is stored (it was, or has just been fetched). */
     suspend fun ensure(language: AppLanguage, surah: Int): Boolean
+
+    /** Downloads the whole Quran of the edition [editionKey] in one request (task F4a); nothing is stored when it did not come whole. */
+    suspend fun downloadWhole(editionKey: String): WholeDownloadResult = WholeDownloadResult.FAILED
 }
 
 /**
  * The reader's own path: [GetAyahTranslationsUseCase] reads the stored translation of the surah and fetches and stores it when it
  * is missing. `force` skips the 30-second memory of a failure: the worker has its own backoff.
  */
-internal class UseCaseTranslations(private val useCase: GetAyahTranslationsUseCase) : TranslationSource {
+internal class UseCaseTranslations(
+    private val useCase: GetAyahTranslationsUseCase,
+    private val repository: QuranReferenceRepository,
+) : TranslationSource {
     override suspend fun ensure(language: AppLanguage, surah: Int): Boolean {
         val expected = QuranFacts.ayahCount(surah)
         return useCase(surahNumber = surah, language = language, expectedCount = expected, force = true).size >= expected
+    }
+
+    override suspend fun downloadWhole(editionKey: String): WholeDownloadResult {
+        val edition = TranslationCatalog.byKey(editionKey) ?: return WholeDownloadResult.FAILED
+        return repository.downloadWholeTranslation(edition)
     }
 }
 
@@ -120,10 +137,10 @@ internal class DownloadRunner(
                 Pass.NoNetwork -> {
                     if (!finalAttempt) return RunOutcome.NO_NETWORK
                     val left = missing(request)
-                    if (request.kind == DownloadKind.PAGES) {
-                        queue.fail(request.id, ayahs = 0, translations = 0, pages = left)
-                    } else {
-                        queue.fail(request.id, ayahs = left, translations = 0)
+                    when (request.kind) {
+                        DownloadKind.PAGES -> queue.fail(request.id, ayahs = 0, translations = 0, pages = left)
+                        DownloadKind.TRANSLATION -> queue.fail(request.id, ayahs = 0, translations = left)
+                        else -> queue.fail(request.id, ayahs = left, translations = 0)
                     }
                 }
                 is Pass.Ended -> if (pass.ayahs == 0 && pass.translations == 0 && pass.pages == 0) {
@@ -136,8 +153,49 @@ internal class DownloadRunner(
     }
 
     /** What a request still lacks: ayahs of audio, or pages of the mushaf for a pages request. */
-    private fun missing(request: DownloadRequest): Int =
-        if (request.kind == DownloadKind.PAGES) request.pages.count { !pages.has(it) } else request.keys().count { !storage.contains(it) }
+    private fun missing(request: DownloadRequest): Int = when (request.kind) {
+        DownloadKind.PAGES -> request.pages.count { !pages.has(it) }
+        // One translation, one request: it either came whole or it did not.
+        DownloadKind.TRANSLATION -> 1
+        else -> request.keys().count { !storage.contains(it) }
+    }
+
+    /**
+     * A translation request ([DownloadKind.TRANSLATION]): the whole Quran of one edition in a single request, tried [attemptsPerAyah]
+     * times. "Pause" and "Cancel" are heard while the request is on its way (the answer is dropped, nothing is stored). Without an
+     * answer from the network the run ends with [Pass.NoNetwork] (the work is retried later); an answer that is not whole fails the
+     * request, so that the screen can offer "Retry".
+     */
+    private suspend fun processTranslation(request: DownloadRequest): Pass {
+        val key = request.edition ?: return Pass.Ended(ayahs = 0, translations = 0)
+        // Nothing to count: the screen shows an indeterminate "Downloading...".
+        report(request, 0, 0)
+        var last = WholeDownloadResult.FAILED
+        for (attempt in 0 until attemptsPerAyah) {
+            interruption(request)?.let { return it }
+            last = untilInterrupted(request) { translations.downloadWhole(key) } ?: return interruption(request) ?: Pass.Cancelled
+            if (last == WholeDownloadResult.DONE) return Pass.Ended(ayahs = 0, translations = 0)
+            if (attempt < attemptsPerAyah - 1) pause(RETRY_PAUSE_MS shl attempt)
+        }
+        return if (last == WholeDownloadResult.NO_NETWORK) Pass.NoNetwork else Pass.Ended(ayahs = 0, translations = 1)
+    }
+
+    /** Runs [block]; null when the person paused or cancelled meanwhile (the work is dropped, it does not finish). */
+    private suspend fun <T> untilInterrupted(request: DownloadRequest, block: suspend () -> T): T? = coroutineScope {
+        val work = async { block() }
+        val watch = launch {
+            queue.state.first { interruption(request) != null }
+            work.cancel()
+        }
+        try {
+            work.await()
+        } catch (cancelled: CancellationException) {
+            // Cancelled by the watcher: this scope is still alive. Cancelled from outside: carry on cancelling.
+            if (isActive) null else throw cancelled
+        } finally {
+            watch.cancel()
+        }
+    }
 
     /**
      * A pages request ([DownloadKind.PAGES]): the layout and the font of every page that is not pinned yet, [pageParallelism] pages at a
@@ -199,6 +257,7 @@ internal class DownloadRunner(
 
     private suspend fun process(request: DownloadRequest): Pass {
         if (request.kind == DownloadKind.PAGES) return processPages(request)
+        if (request.kind == DownloadKind.TRANSLATION) return processTranslation(request)
         val reciter = Reciters.byId(request.reciterId)
         val keys = request.keys()
         val total = keys.size

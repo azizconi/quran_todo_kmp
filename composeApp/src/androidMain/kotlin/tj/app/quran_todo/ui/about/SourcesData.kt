@@ -1,5 +1,8 @@
 package tj.app.quran_todo.ui.about
 
+import tj.app.quran_todo.data.translation.TranslationCatalog
+import tj.app.quran_todo.data.translation.TranslationOrigin
+
 /**
  * Everything the "Sources" screen lists, in one place so it is easy to correct.
  *
@@ -53,43 +56,26 @@ internal val SourceGroups: List<SourceGroup> = listOf(
     ),
     SourceGroup(
         SourceGroupId.Translations,
-        listOf(
+        // Every edition of the choice of the translation (task F4a) with its author, in the language of the edition: the list is made
+        // from `TranslationCatalog`, so an edition that is added there is named here at once.
+        TranslationCatalog.all.map { edition ->
             SourceItem(
-                title = "Русский",
-                author = "Эльмир Кулиев",
-                provider = "$IslamicNetwork · api.alquran.cloud · ru.kuliev",
-                url = "https://alquran.cloud",
+                title = "${edition.language.displayName} · ${edition.name.of(edition.language)}",
+                author = edition.author.of(edition.language),
+                provider = when (edition.origin) {
+                    TranslationOrigin.ALQURAN_CLOUD -> "$IslamicNetwork · api.alquran.cloud · ${edition.remoteId}"
+                    // The terms of QuranEnc ask for the source and the version.
+                    TranslationOrigin.QURAN_ENC -> "QuranEnc.com · quranenc.com · ${edition.remoteId} · v${edition.version}"
+                    TranslationOrigin.QURAN_COM -> "$QuranCom · api.quran.com · translation ${edition.remoteId}"
+                },
+                url = when (edition.origin) {
+                    TranslationOrigin.ALQURAN_CLOUD -> "https://alquran.cloud"
+                    TranslationOrigin.QURAN_ENC -> "https://quranenc.com"
+                    TranslationOrigin.QURAN_COM -> "https://quran.com"
+                },
                 note = SourceNote.TranslatorRights,
-            ),
-            SourceItem(
-                title = "English",
-                author = "Saheeh International",
-                provider = "$IslamicNetwork · api.alquran.cloud · en.sahih",
-                url = "https://alquran.cloud",
-                note = SourceNote.TranslatorRights,
-            ),
-            SourceItem(
-                title = "Тоҷикӣ",
-                author = "Абдулмуҳаммад Оятӣ",
-                provider = "$IslamicNetwork · api.alquran.cloud · tg.ayati",
-                url = "https://alquran.cloud",
-                note = SourceNote.TranslatorRights,
-            ),
-            SourceItem(
-                title = "O‘zbek",
-                author = "Muhammad Sodiq Muhammad Yusuf",
-                provider = "$QuranCom · api.quran.com",
-                url = "https://quran.com",
-                note = SourceNote.TranslatorRights,
-            ),
-            SourceItem(
-                title = "Türkçe",
-                author = "Elmalılı Hamdi Yazır",
-                provider = "$IslamicNetwork · api.alquran.cloud · tr.yazir",
-                url = "https://alquran.cloud",
-                note = SourceNote.TranslatorRights,
-            ),
-        ),
+            )
+        },
     ),
     SourceGroup(
         SourceGroupId.SurahNames,

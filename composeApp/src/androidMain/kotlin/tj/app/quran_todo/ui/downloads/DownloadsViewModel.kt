@@ -35,7 +35,12 @@ import tj.app.quran_todo.common.platform.AndroidContextHolder
 import tj.app.quran_todo.data.bundled.QuranFacts
 import tj.app.quran_todo.data.database.dao.HifzDao
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
+import tj.app.quran_todo.data.translation.TranslationCatalog
+import tj.app.quran_todo.data.translation.TranslationChoice
+import tj.app.quran_todo.data.translation.TranslationVersions
+import tj.app.quran_todo.domain.repository.QuranReferenceRepository
 import tj.app.quran_todo.domain.repository.QuranRemoteRepository
+import tj.app.quran_todo.ui.i18n.translationCopy
 import tj.app.quran_todo.hifz.HifzRepository
 import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.hifz.schedule.TextMetrics
@@ -69,6 +74,7 @@ internal class DownloadsViewModel(
     private val quran: QuranRemoteRepository,
     private val hifzDao: HifzDao,
     private val voice: VoiceController,
+    private val references: QuranReferenceRepository,
     private val cache: AudioCacheStorage = AudioCacheStorage.shared,
     private val freeSpace: () -> Long = ::freeSpaceOfPhone,
 ) : ViewModel() {
@@ -148,6 +154,15 @@ internal class DownloadsViewModel(
     /** Every downloaded file now: the audio by its cache key and the pinned pages by [PageKeys]. */
     private fun filesNow(): Map<String, Long> =
         manager.storage.snapshot() + manager.pages.pinnedSnapshot().mapKeys { (page, _) -> PageKeys.of(page) }
+
+    /** The editions that are stored whole (6236 ayahs in the database), read again when one is downloaded or deleted. */
+    private val downloadedTranslations: Flow<Set<String>> = references.translationChanges
+        .mapLatest { runCatching { references.downloadedTranslations() }.getOrDefault(emptySet()) }
+        .flowOn(Dispatchers.IO)
+
+    /** The stored editions and the choice of the person: the section "Translations" is drawn from both. */
+    private val translationState: Flow<Set<String>> =
+        combine(downloadedTranslations, TranslationChoice.store.revision) { downloaded, _ -> downloaded }
 
     /** The work is "waiting" only when it has been for a moment: a work that is about to start is not "waiting for Wi-Fi". */
     private val phase: Flow<WorkPhase> = manager.phase
@@ -266,11 +281,11 @@ internal class DownloadsViewModel(
         ).also { latest = it }
     }
 
-    private class Status(val files: Map<String, Long>, val queue: QueueState, val phase: WorkPhase)
+    private class Status(val files: Map<String, Long>, val queue: QueueState, val phase: WorkPhase, val translations: Set<String>)
 
     private class Options(val wifiOnly: Boolean, val withTranslation: Boolean)
 
-    private val status: Flow<Status> = combine(files, manager.queue.state, phase, ::Status)
+    private val status: Flow<Status> = combine(files, manager.queue.state, phase, translationState, ::Status)
 
     private val options: Flow<Options> = combine(manager.prefs.wifiOnly, manager.prefs.withTranslation, ::Options)
 
@@ -282,6 +297,7 @@ internal class DownloadsViewModel(
 
     init {
         refreshCache()
+        viewModelScope.launch(Dispatchers.IO) { references.checkTranslationUpdates() }
     }
 
     private fun build(defs: Defs, status: Status, options: Options, cacheBytes: Long, recordingsBytes: Long, metrics: TextMetrics?): DownloadsUi {
@@ -337,7 +353,9 @@ internal class DownloadsViewModel(
                 done = keys.count { it in files },
                 total = keys.size,
                 waiting = queue.waiting,
-                remainingBytes = metrics?.let { DownloadSize.remainingBytes(pending, files, it) + PagesSize.remainingBytes(pending, files) },
+                remainingBytes = metrics?.let {
+                    DownloadSize.remainingBytes(pending, files, it) + PagesSize.remainingBytes(pending, files) + translationBytes(pending)
+                },
                 paused = queue.paused,
                 phase = status.phase,
                 failedAyahs = queue.failedAyahs,
@@ -365,8 +383,43 @@ internal class DownloadsViewModel(
             pagesJuz = defs.pagesJuz.map(::rowOf),
             juz = defs.juz.map(::rowOf),
             surahs = defs.surahs.map(::rowOf),
+            translations = translationRows(status),
             searchIndex = defs.searchIndex,
         )
+    }
+
+    /** The bytes still to come of the translations in [pending]. */
+    private fun translationBytes(pending: List<DownloadRequest>): Long = pending
+        .filter { it.kind == DownloadKind.TRANSLATION }
+        .sumOf { request -> TranslationCatalog.byKey(request.edition)?.wireBytes ?: 0L }
+
+    /** The chosen edition first, then the other editions that are on the phone whole (they can be deleted here). */
+    private fun translationRows(status: Status): List<TranslationRowUi> {
+        val language = language.value
+        val chosen = TranslationChoice.store.editionFor(language)
+        val queue = status.queue
+        val active = queue.active
+        val editions = listOf(chosen) + TranslationCatalog.all.filter { it.key in status.translations && it.key != chosen.key }
+        return editions.map { edition ->
+            val id = DownloadRequest.translationId(edition.key)
+            val rowQueue = when {
+                !queue.contains(id) -> RowQueue.None
+                queue.failures.any { it.requestId == id } -> RowQueue.Failed
+                active?.id == id && queue.paused -> RowQueue.Paused(0, 0)
+                active?.id == id -> RowQueue.Active(0, 0)
+                else -> RowQueue.Waiting
+            }
+            TranslationRowUi(
+                key = edition.key,
+                name = edition.name.of(language),
+                author = edition.author.of(language),
+                wireBytes = edition.wireBytes,
+                complete = edition.key in status.translations,
+                updateAvailable = edition.key in status.translations && TranslationVersions.shared.updateAvailable(edition),
+                chosen = edition.key == chosen.key,
+                queue = rowQueue,
+            )
+        }
     }
 
     // -- Actions -------------------------------------------------------------------------------
@@ -390,6 +443,8 @@ internal class DownloadsViewModel(
             DownloadKind.JUZ -> copy.juzTitleLabel(def.number)
             DownloadKind.PLAN -> copy.sectionPlan
             DownloadKind.PAGES -> if (def.number == 0) pagesText.downloadsAllTitle else pagesText.juzRowTitle(def.number)
+            // Translations are not rows of this list: they have their own section.
+            DownloadKind.TRANSLATION -> def.name
         }
         val request = DownloadRequest(
             id = def.id,
@@ -402,6 +457,22 @@ internal class DownloadsViewModel(
             pages = def.pages,
         )
         manager.enqueue(request, def.estimate ?: 0L)
+    }
+
+    /** The person tapped "Download whole" on a translation (or "Retry" on a failed one). */
+    fun downloadTranslation(key: String) {
+        val edition = TranslationCatalog.byKey(key) ?: return
+        val copy = translationCopy(language.value)
+        manager.enqueueTranslation(edition, copy.row(edition.name.of(language.value)))
+    }
+
+    /** Removes a stored translation from the phone. */
+    fun deleteTranslation(key: String) {
+        val edition = TranslationCatalog.byKey(key) ?: return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { references.deleteTranslation(edition) }
+            eventChannel.trySend(DownloadsEvent.Deleted)
+        }
     }
 
     /** True once: the first time the screen starts a download, it may ask for the permission to show the notification. */

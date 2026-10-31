@@ -244,6 +244,18 @@ actual object UserSettingsStorage {
         prefs().edit().putString("reader_practice_v1", value).apply()
     }
 
+    actual fun getTranslationChoiceJson(): String? = prefs().getString("translation_choice_v1", null)
+
+    actual fun saveTranslationChoiceJson(value: String) {
+        prefs().edit().putString("translation_choice_v1", value).apply()
+    }
+
+    actual fun getTranslationVersionsJson(): String? = prefs().getString("translation_versions_v1", null)
+
+    actual fun saveTranslationVersionsJson(value: String) {
+        prefs().edit().putString("translation_versions_v1", value).apply()
+    }
+
     actual fun isPlayerGuideSeen(feature: String): Boolean? = prefs().getBoolean("player_guide_v2_$feature", false)
 
     actual fun savePlayerGuideSeen(seen: Boolean, feature: String) {

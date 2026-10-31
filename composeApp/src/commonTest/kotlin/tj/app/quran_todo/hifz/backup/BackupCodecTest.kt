@@ -372,6 +372,34 @@ class BackupCodecTest {
     }
 
     @Test
+    fun theChosenEditionOfTheTranslationIsOptionalAndTravelsPerLanguage() {
+        // F4a: a copy written before the choice existed leaves the editions of the phone as they are; a new one carries them.
+        val old = BackupCodec.encode(verified(file.copy(settings = BackupSettings(language = "ru"))))
+        assertNull((BackupCodec.decode(old) as BackupParse.Ok).backup.settings.translationChoice)
+        assertTrue(old.contains("translationChoice").not())
+
+        val choice = mapOf("ru" to "ru.abuadel", "tr" to "qc:210")
+        val text = BackupCodec.encode(verified(file.copy(settings = BackupSettings(translationChoice = choice))))
+        assertEquals(choice, (BackupCodec.decode(text) as BackupParse.Ok).backup.settings.translationChoice)
+    }
+
+    @Test
+    fun anEditionThisAppDoesNotKnowIsDroppedAndTheRestStays() {
+        val applied = verified(
+            file.copy(
+                settings = BackupSettings(
+                    translationChoice = mapOf("ru" to "ru.abuadel", "xx" to "ru.kuliev", "tr" to "tr.nobody", "en" to "qc:101"),
+                    hapticsEnabled = false,
+                ),
+            ),
+        ).settings
+        // quran.com 101 (Cyrillic Uzbek) is not offered; "xx" is not a language of the app.
+        assertEquals(mapOf("ru" to "ru.abuadel"), applied.translationChoice)
+        assertEquals(false, applied.hapticsEnabled)
+        assertNull(verified(file.copy(settings = BackupSettings(translationChoice = mapOf("ru" to "nobody")))).settings.translationChoice)
+    }
+
+    @Test
     fun validSettingsPassUntouched() {
         assertEquals(settings, verified(file).settings)
         assertEquals(BackupSettings(), verified(file.copy(settings = BackupSettings())).settings)

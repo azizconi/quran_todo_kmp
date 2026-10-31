@@ -52,7 +52,9 @@ import tj.app.quran_todo.ui.components.ToastKind
 import tj.app.quran_todo.ui.components.rememberQhTopBarState
 import tj.app.quran_todo.ui.i18n.DownloadsCopy
 import tj.app.quran_todo.ui.i18n.rememberDownloadsCopy
+import tj.app.quran_todo.ui.i18n.TranslationCopy
 import tj.app.quran_todo.ui.i18n.rememberPagesCopy
+import tj.app.quran_todo.ui.i18n.rememberTranslationCopy
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -61,6 +63,8 @@ private sealed interface Ask {
     data class DeleteRow(val row: RowUi) : Ask
 
     data object DeleteAll : Ask
+
+    data class DeleteTranslation(val row: TranslationRowUi) : Ask
 
     data object ClearCache : Ask
 
@@ -126,6 +130,25 @@ fun DownloadsScreen(onBack: () -> Unit) {
         )
     }
 
+    val translationText = rememberTranslationCopy(language)
+    val translationActions = remember(viewModel) {
+        TranslationActions(
+            download = { row ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+                    viewModel.takeNotificationPermissionTurn()
+                ) {
+                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                viewModel.downloadTranslation(row.key)
+            },
+            pause = viewModel::pauseAll,
+            resume = viewModel::resume,
+            cancel = { row -> viewModel.cancel(DownloadRequest.translationId(row.key)) },
+            delete = { row -> ask = Ask.DeleteTranslation(row) },
+        )
+    }
+
     val density = LocalDensity.current
     val listState = rememberLazyListState()
     val topBarState = rememberQhTopBarState(listState)
@@ -148,6 +171,8 @@ fun DownloadsScreen(onBack: () -> Unit) {
             query = query,
             onQueryChange = { query = it },
             actions = actions,
+            translationActions = translationActions,
+            translationText = translationText,
             viewModel = viewModel,
             onAsk = { ask = it },
             listState = listState,
@@ -181,6 +206,17 @@ fun DownloadsScreen(onBack: () -> Unit) {
             onConfirm = {
                 ask = null
                 viewModel.delete(current.row.id)
+            },
+            onDismiss = { ask = null },
+        )
+        is Ask.DeleteTranslation -> ConfirmDialog(
+            title = copy.deleteTitle,
+            message = translationText.deleteBody(current.row.name),
+            confirm = copy.deleteConfirm,
+            cancel = copy.cancel,
+            onConfirm = {
+                ask = null
+                viewModel.deleteTranslation(current.row.key)
             },
             onDismiss = { ask = null },
         )
@@ -244,6 +280,8 @@ private fun DownloadsList(
     query: String,
     onQueryChange: (String) -> Unit,
     actions: RowActions,
+    translationActions: TranslationActions,
+    translationText: TranslationCopy,
     viewModel: DownloadsViewModel,
     onAsk: (Ask) -> Unit,
     listState: androidx.compose.foundation.lazy.LazyListState,
@@ -301,6 +339,20 @@ private fun DownloadsList(
                 onDeleteRecordings = { onAsk(Ask.DeleteRecordings) },
                 modifier = Modifier.padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x4),
             )
+        }
+
+        // "Translations" (task F4a): the chosen edition, whole in one request; the others that are on the phone can be deleted here.
+        item(key = "translations-header") { SectionHeader(translationText.downloadsSection) }
+        item(key = "translations-hint") {
+            Text(
+                text = translationText.downloadsHint,
+                style = QhTheme.type.callout,
+                color = QhTheme.colors.inkSecondary,
+                modifier = Modifier.padding(start = QhSpacing.screen, end = QhSpacing.screen, bottom = QhSpacing.x2),
+            )
+        }
+        items(ui.translations, key = { "translation-" + it.key }) { row ->
+            TranslationDownloadRow(row, copy, translationText, translationActions)
         }
 
         if (!ui.loaded) {

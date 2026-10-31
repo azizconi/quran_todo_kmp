@@ -8,7 +8,8 @@ import tj.app.quran_todo.ui.common.JuzRange
 import tj.app.quran_todo.ui.i18n.ayahCountLabel
 
 /** The tabs of the list under the search field. */
-enum class HomeTab { Surahs, Juz }
+/** "Translation" (task F4a) exists only while the person searches: the third segment of the switch under the field. */
+enum class HomeTab { Surahs, Juz, Translation }
 
 /** One of the 30 rows of the "Juz" tab (D1). */
 @Immutable

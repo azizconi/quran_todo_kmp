@@ -21,6 +21,8 @@ import tj.app.quran_todo.domain.use_case.AyahTodoGetAllUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoGetBySurahUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoGetBySurahOnceUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoUpsertUseCase
+import tj.app.quran_todo.data.translation.TranslationChoice
+import tj.app.quran_todo.data.translation.TranslationVersions
 import tj.app.quran_todo.domain.use_case.GetAyahTranslationsUseCase
 import tj.app.quran_todo.domain.use_case.GetChapterNamesUseCase
 import tj.app.quran_todo.domain.use_case.GetCompleteQuranUseCase
@@ -53,6 +55,8 @@ val commonModule = module {
             chapterNameDao = get(),
             chapterNameCacheDao = get(),
             ayahTranslationDao = get(),
+            selection = TranslationChoice.selection,
+            versions = TranslationVersions.shared,
             debug = getOrNull<DataDebug>() ?: DataDebug.Off,
         )
     }
