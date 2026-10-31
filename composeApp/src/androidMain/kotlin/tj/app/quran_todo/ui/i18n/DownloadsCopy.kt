@@ -139,7 +139,9 @@ data class DownloadsCopy(
     fun withTranslationLabel(languageName: String): String = withTranslation.fill("language" to languageName)
 
     fun queueTitleLabel(title: String, done: Int, total: Int): String =
-        queueTitle.fill("title" to title, "done" to done, "total" to total)
+        // A request with nothing to count (a whole translation, task F4a) is named without "0 of 0": every pattern has the title first,
+        // then " · " and the count.
+        if (total <= 0) queueTitle.substringBefore(" · ").fill("title" to title) else queueTitle.fill("title" to title, "done" to done, "total" to total)
 
     fun queueWaitingLabel(n: Int): String = queueWaiting.fill("n" to n)
 

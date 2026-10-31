@@ -361,6 +361,7 @@ internal fun rowTitle(row: RowUi, copy: DownloadsCopy): String = when (row.kind)
     DownloadKind.PLAN -> copy.planAll
     // Made in the language of the app by the view model (a juz of pages, or all of them).
     DownloadKind.PAGES -> row.name
+    DownloadKind.TRANSLATION -> row.name
 }
 
 private fun rowLine(row: RowUi, copy: DownloadsCopy, language: AppLanguage): RowLine {
@@ -371,6 +372,7 @@ private fun rowLine(row: RowUi, copy: DownloadsCopy, language: AppLanguage): Row
         DownloadKind.JUZ -> copy.juzSurahsLabel(row.firstSurah, row.lastSurah)
         DownloadKind.PLAN -> copy.planAllSubtitleLabel(row.surahCount)
         DownloadKind.PAGES -> pagesCopy(language).pagesCount(row.pageCount)
+        DownloadKind.TRANSLATION -> ""
     }
     val untouched = listOfNotNull(row.estimateBytes?.let(copy::estimateLabel), about).joinToString(" · ")
     val onDevice = when (val state = row.state) {
@@ -406,6 +408,7 @@ private fun RowBadge(row: RowUi) {
             Text(text = row.number.toString(), style = QhTheme.type.label.tabular(), color = colors.ink, textAlign = TextAlign.Center)
         }
         DownloadKind.PLAN -> QhIconTile(Icons.Rounded.Download, tint = colors.primary, modifier = Modifier.size(40.dp))
+        DownloadKind.TRANSLATION -> QhIconTile(Icons.Rounded.Translate, tint = colors.primary, modifier = Modifier.size(40.dp))
         // "All pages" has the book, the pages of a juz have the number of the juz in the ring of the juz rows.
         DownloadKind.PAGES -> if (row.number == 0) {
             QhIconTile(Icons.Rounded.MenuBook, tint = colors.primary, modifier = Modifier.size(40.dp))

@@ -106,9 +106,11 @@ import tj.app.quran_todo.ui.home.components.SurahListRow
 import tj.app.quran_todo.ui.home.components.SurahSheet
 import tj.app.quran_todo.ui.home.components.listBottomPadding
 import tj.app.quran_todo.ui.i18n.HomeCopy
+import tj.app.quran_todo.ui.i18n.downloadsCopy
 import tj.app.quran_todo.ui.i18n.homeCopy
 import tj.app.quran_todo.ui.i18n.pauseCopy
 import tj.app.quran_todo.ui.i18n.mushafCopy
+import tj.app.quran_todo.ui.i18n.translationCopy
 import tj.app.quran_todo.ui.listen.ListenOldSheet
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
@@ -118,6 +120,9 @@ import tj.app.quran_todo.ui.motion.staggeredEnter
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.navigation.Origin
 import tj.app.quran_todo.ui.theme.QhSpacing
+import tj.app.quran_todo.ui.translation.TranslationSearchUi
+import tj.app.quran_todo.ui.translation.TranslationSearchViewModel
+import tj.app.quran_todo.ui.translation.translationSearchItems
 import tj.app.quran_todo.ui.theme.QhTheme
 import kotlin.math.abs
 import kotlinx.coroutines.delay
@@ -149,6 +154,10 @@ fun HomeScreen(
     val toaster = LocalToaster.current
 
     LaunchedEffect(language) { viewModel.setLanguage(language) }
+    // The search "In translation" (task F4a) has a view model of its own: the text of the edition is read only while it is on screen.
+    val translationViewModel = koinViewModel<TranslationSearchViewModel>()
+    LaunchedEffect(language) { translationViewModel.setLanguage(language) }
+    val translationUi by translationViewModel.ui.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResume() }
     LaunchedEffect(viewModel, copy) {
         viewModel.events.collect { event ->
@@ -168,7 +177,7 @@ fun HomeScreen(
     // Not read here: only the mini player ring reads it.
     val playbackProgress = viewModel.playbackProgress.collectAsState()
 
-    val actions = remember(viewModel, onOpenReader, onOpenSettings, onOpenProgress, onOpenLesson, onOpenPlan, onOpenQuiz) {
+    val actions = remember(viewModel, translationViewModel, onOpenReader, onOpenSettings, onOpenProgress, onOpenLesson, onOpenPlan, onOpenQuiz) {
         HomeActions(
             openReader = onOpenReader,
             openSettings = onOpenSettings,
@@ -186,10 +195,15 @@ fun HomeScreen(
             listen = viewModel::listen,
             togglePlayback = viewModel::togglePlayback,
             stopPlayback = viewModel::stopPlayback,
+            setTranslationQuery = translationViewModel::setQuery,
+            setTranslationActive = translationViewModel::setActive,
+            downloadTranslation = translationViewModel::download,
+            retryTranslation = translationViewModel::retry,
         )
     }
     HomeContent(
         ui = ui,
+        translation = translationUi,
         player = player,
         playbackProgress = playbackProgress,
         copy = copy,
@@ -218,6 +232,10 @@ internal class HomeActions(
     val listen: (surah: Int, readAyah: Int) -> Unit,
     val togglePlayback: () -> Unit,
     val stopPlayback: () -> Unit,
+    val setTranslationQuery: (String) -> Unit,
+    val setTranslationActive: (Boolean) -> Unit,
+    val downloadTranslation: () -> Unit,
+    val retryTranslation: () -> Unit,
 )
 
 /** Which row just became memorized; [token] changes every time so the burst fires again. */
@@ -227,6 +245,7 @@ private data class Celebration(val surah: Int = 0, val token: Int = 0)
 @Composable
 private fun HomeContent(
     ui: HomeUi,
+    translation: TranslationSearchUi,
     player: MiniPlayerUi?,
     playbackProgress: State<Float>,
     copy: HomeCopy,
@@ -255,14 +274,22 @@ private fun HomeContent(
     val filter = SurahFilter.entries.getOrElse(filterOrdinal) { SurahFilter.All }
     val tab = HomeTab.entries.getOrElse(tabOrdinal) { HomeTab.Surahs }
     val mushaf = remember(copy.language) { mushafCopy(copy.language) }
+    val translationText = remember(copy.language) { translationCopy(copy.language) }
     val tabLabels = remember(mushaf) { listOf(mushaf.tabSurahs, mushaf.tabJuz) }
+    // While the person searches the switch has a third segment: the search in the text of the translation (task F4a).
+    val searchTabLabels = remember(mushaf, translationText) { tabLabels + translationText.searchTab }
     // The search text lives here (an immediate echo for the field); the ViewModel filters off the UI thread.
     LaunchedEffect(Unit) {
         actions.setQuery(query)
+        actions.setTranslationQuery(query)
         actions.setFilter(filter)
     }
     // While the person searches, the hero / today / recent fold away and the field rises to the top.
     val searchMode = searchFocused || query.isNotBlank()
+    // "In translation" only makes sense while searching: with the field closed the list is the surahs again.
+    val shownTab = if (tab == HomeTab.Translation && !searchMode) HomeTab.Surahs else tab
+    // The text of the translation is kept in memory only while that tab is on screen.
+    LaunchedEffect(shownTab) { actions.setTranslationActive(shownTab == HomeTab.Translation) }
 
     // The tips of the home screen (C2): once the lesson is known (no skeleton on screen) and the person is not searching. The data
     // being re-read later must not take the tour away, so "ready" stays on once it was on.
@@ -349,6 +376,7 @@ private fun HomeContent(
     BackHandler(enabled = searchMode) {
         query = ""
         actions.setQuery("")
+        actions.setTranslationQuery("")
         keyboard?.hide()
         focusManager.clearFocus()
     }
@@ -507,7 +535,7 @@ private fun HomeContent(
                         FoldableSection(visible = !searchMode, trailingSpace = 0.dp) {
                             QhSegmentedControl(
                                 options = tabLabels,
-                                selectedIndex = tab.ordinal,
+                                selectedIndex = shownTab.ordinal,
                                 onSelect = { tabOrdinal = it },
                                 modifier = Modifier
                                     .padding(horizontal = QhSpacing.screen)
@@ -522,23 +550,28 @@ private fun HomeContent(
                             onQueryChange = {
                                 query = it
                                 actions.setQuery(it)
+                                actions.setTranslationQuery(it)
                             },
                             filter = filter,
                             onFilterChange = {
                                 filterOrdinal = it.ordinal
                                 actions.setFilter(it)
                             },
-                            showFilters = !searchMode && tab == HomeTab.Surahs,
+                            showFilters = !searchMode && shownTab == HomeTab.Surahs,
                             copy = copy,
                             focusRequester = focusRequester,
                             onFocusChange = { searchFocused = it },
                             stuck = searchStuck,
                             modifier = Modifier.staggeredEnter(SearchStaggerIndex, stagger),
-                            placeholder = if (tab == HomeTab.Juz) mushaf.juzSearchPlaceholder else null,
+                            placeholder = when (shownTab) {
+                                HomeTab.Juz -> mushaf.juzSearchPlaceholder
+                                HomeTab.Translation -> translationText.searchPlaceholder
+                                HomeTab.Surahs -> null
+                            },
                             showTabs = searchMode,
                             tabs = {
                                 QhSegmentedControl(
-                                    options = tabLabels,
+                                    options = searchTabLabels,
                                     selectedIndex = tab.ordinal,
                                     onSelect = { tabOrdinal = it },
                                 )
@@ -546,7 +579,19 @@ private fun HomeContent(
                         )
                     }
 
-                    when (tab) {
+                    when (shownTab) {
+                        HomeTab.Translation -> translationSearchItems(
+                            ui = translation,
+                            query = query,
+                            copy = translationText,
+                            language = copy.language,
+                            sizeLabel = { bytes -> downloadsCopy(copy.language).sizeLabel(bytes) },
+                            surahName = { number -> ui.rows.firstOrNull { it.number == number }?.name ?: number.toString() },
+                            onOpen = { surah, ayah -> open(Dest.Reader(surah = surah, ayah = ayah, origin = Origin.SEARCH)) },
+                            onDownload = actions.downloadTranslation,
+                            onRetry = actions.retryTranslation,
+                        )
+
                         HomeTab.Surahs -> {
                             val listing = ui.listing
                             listing.smartResult?.let { smart ->

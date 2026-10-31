@@ -95,6 +95,7 @@ import tj.app.quran_todo.common.theme.LocalThemePalette
 import tj.app.quran_todo.common.theme.LocalThemePaletteSetter
 import tj.app.quran_todo.common.theme.ReadingFontStyle
 import tj.app.quran_todo.common.theme.ThemeMode
+import tj.app.quran_todo.data.translation.TranslationChoice
 import tj.app.quran_todo.common.theme.ThemePalette
 import tj.app.quran_todo.hifz.backup.BackupFormat
 import tj.app.quran_todo.ui.components.LocalToaster
@@ -223,6 +224,7 @@ fun SettingsScreen(
                 override fun setTafsirSource(key: String) = viewModel.setTafsirSource(key)
                 override fun setReminderMinuteOfDay(value: Int) = viewModel.setReminderMinuteOfDay(value)
                 override fun setReminderEnabled(value: Boolean) = viewModel.setReminderEnabled(value)
+                override fun setTranslationChoice(choice: Map<String, String>) = TranslationChoice.store.restore(choice)
             },
         )
         viewModel.consumePendingSettings()

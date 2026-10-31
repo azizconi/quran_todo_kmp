@@ -27,6 +27,7 @@ import tj.app.quran_todo.domain.use_case.AyahTodoDeleteByAyahUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoGetBySurahOnceUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoGetBySurahUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoUpsertUseCase
+import tj.app.quran_todo.data.translation.TranslationChoice
 import tj.app.quran_todo.domain.use_case.GetAyahTranslationsUseCase
 import tj.app.quran_todo.domain.use_case.GetChapterNamesUseCase
 import tj.app.quran_todo.domain.use_case.TodoDeleteSurahByNumberUseCase
@@ -80,7 +81,8 @@ class SurahViewModel(
     private val _reviews = MutableStateFlow<Map<Int, AyahReviewEntity>>(emptyMap())
     val reviews: StateFlow<Map<Int, AyahReviewEntity>> = _reviews.asStateFlow()
 
-    private var lastLoaded: Pair<Int, AppLanguage>? = null
+    /** The surah, the language of the interface and the key of the edition that was asked for: another edition is another request. */
+    private var lastLoaded: Triple<Int, AppLanguage, String>? = null
     private var lastChapterLanguage: AppLanguage? = null
     private var translationJob: Job? = null
     private var chapterNamesJob: Job? = null
@@ -175,15 +177,16 @@ class SurahViewModel(
         expectedCount: Int,
         force: Boolean = false,
     ) {
+        val request = Triple(surahNumber, language, TranslationChoice.selection.editionFor(language).key)
         if (!force &&
-            lastLoaded == surahNumber to language &&
+            lastLoaded == request &&
             _ayahTranslations.value.isNotEmpty() &&
             (_ayahTranslations.value.size == expectedCount || expectedCount <= 0)
         ) {
             return
         }
-        val sameRequest = lastLoaded == surahNumber to language
-        lastLoaded = surahNumber to language
+        val sameRequest = lastLoaded == request
+        lastLoaded = request
         _ayahTranslations.value = emptyMap()
         // The "failed" mark stays while the same surah is quietly asked for again (the repository answers at
         // once from its memory of failures), so the retry hint does not blink; a new surah or a retry clears it.
@@ -197,7 +200,7 @@ class SurahViewModel(
                 expectedCount = expectedCount,
                 force = force,
             )
-            if (lastLoaded != (surahNumber to language)) return@launch
+            if (lastLoaded != request) return@launch
             _ayahTranslations.value = translations
             _translationFailedSurah.value = if (translations.isEmpty()) surahNumber else null
             AppTelemetry.logEvent(

@@ -6,8 +6,11 @@ import org.koin.mp.KoinPlatform
 import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.audio.AudioFetch
 import tj.app.quran_todo.common.audio.DownloadStorage
+import tj.app.quran_todo.common.audio.Reciters
 import tj.app.quran_todo.common.audio.httpAudioFetch
+import tj.app.quran_todo.data.translation.TranslationEdition
 import tj.app.quran_todo.common.audio.timing.WordTimingsStore
+import tj.app.quran_todo.domain.repository.QuranReferenceRepository
 import tj.app.quran_todo.domain.use_case.GetAyahTranslationsUseCase
 import tj.app.quran_todo.ui.mushaf.data.MushafPageStore
 import java.io.File
@@ -50,6 +53,23 @@ internal class DownloadsManager(
         }
         return added
     }
+
+    /**
+     * Asks for the whole translation [edition] (task F4a): one request in the queue, titled [title] in the language of the interface.
+     * The "Translations" section of the screen and the search "In translation" both come here.
+     */
+    fun enqueueTranslation(edition: TranslationEdition, title: String): Boolean = enqueue(
+        DownloadRequest(
+            id = DownloadRequest.translationId(edition.key),
+            kind = DownloadKind.TRANSLATION,
+            title = title,
+            // Not used: a translation has no audio and no reciter.
+            reciterId = Reciters.default.id,
+            segments = emptyList(),
+            edition = edition.key,
+        ),
+        estimatedBytes = edition.wireBytes,
+    )
 
     fun pauseAll() {
         // The worker sees the flag before the next file and ends; nothing is lost.
@@ -129,7 +149,10 @@ internal class DownloadsManager(
                 storage = DownloadStorage.shared,
                 prefs = DownloadsPrefs(app),
                 scheduler = WorkManagerScheduler(app),
-                translations = { UseCaseTranslations(KoinPlatform.getKoin().get<GetAyahTranslationsUseCase>()) },
+                translations = {
+                    val koin = KoinPlatform.getKoin()
+                    UseCaseTranslations(koin.get<GetAyahTranslationsUseCase>(), koin.get<QuranReferenceRepository>())
+                },
             )
         }
     }

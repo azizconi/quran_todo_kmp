@@ -191,6 +191,12 @@ data class BackupSettings(
     val reminderEnabled: Boolean? = null,
     /** When the reminder comes: minutes after midnight, 0..1439 (20:00 is 1200). */
     val reminderMinuteOfDay: Int? = null,
+    /**
+     * The edition of the translation chosen for each language of the interface (Android, task F4a): the language code to the key of the
+     * edition (`{"ru":"ru.abuadel","tr":"qc:210"}`, `TranslationEdition.key`). A language that is not in it keeps its edition; a key this
+     * app does not know is dropped on import. The text of the translation is not in the file.
+     */
+    val translationChoice: Map<String, String>? = null,
 )
 
 /** The database part of a backup: what `HifzRepository` reads and writes. */

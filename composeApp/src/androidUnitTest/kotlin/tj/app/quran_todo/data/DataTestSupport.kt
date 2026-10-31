@@ -2,6 +2,7 @@ package tj.app.quran_todo.data
 
 import tj.app.quran_todo.data.bundled.BundledQuranSource
 import tj.app.quran_todo.data.database.dao.AyahTranslationDao
+import tj.app.quran_todo.data.database.dao.EditionCount
 import tj.app.quran_todo.data.database.dao.ChapterNameCacheDao
 import tj.app.quran_todo.data.database.dao.ChapterNameDao
 import tj.app.quran_todo.data.database.dao.QuranDao
@@ -98,6 +99,16 @@ class FakeAyahTranslationDao : AyahTranslationDao {
         rows.filter { it.surahNumber == surahNumber && it.languageCode == languageCode }
 
     override suspend fun countByLanguage(languageCode: String): Int = rows.count { it.languageCode == languageCode }
+
+    override suspend fun getAllByLanguage(languageCode: String): List<AyahTranslationEntity> =
+        rows.filter { it.languageCode == languageCode }.sortedBy { it.ayahNumber }
+
+    override suspend fun countsByEdition(): List<EditionCount> =
+        rows.groupBy { it.languageCode }.map { (key, list) -> EditionCount(key, list.size) }
+
+    override suspend fun deleteByLanguage(languageCode: String) {
+        rows.removeAll { it.languageCode == languageCode }
+    }
 
     override suspend fun insertAll(items: List<AyahTranslationEntity>) {
         insertCalls++

@@ -74,6 +74,7 @@ import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.tajweed.TajweedSettingsRows
 import tj.app.quran_todo.ui.words.WordMeaningsSwitchRow
 import tj.app.quran_todo.ui.theme.QhSpacing
+import tj.app.quran_todo.ui.translation.TranslationEditionRow
 import tj.app.quran_todo.ui.theme.QhTheme
 
 private const val MinFontSize = 22
@@ -170,6 +171,9 @@ fun AppearanceSheet(
                     checked = prefs.showTranslation,
                     onCheckedChange = onTranslation,
                 )
+                QhRowDivider(startIndent = QhSpacing.card)
+                // The edition of the translation (F4a): "Translation: Kuliev" opens the sheet of editions.
+                TranslationEditionRow()
                 QhRowDivider(startIndent = QhSpacing.card)
                 QhSwitchRow(
                     title = copy.highlightWords,

@@ -7,6 +7,7 @@ import tj.app.quran_todo.common.tafsir.TafsirSource
 import tj.app.quran_todo.common.theme.ReadingFontStyle
 import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.common.theme.ThemePalette
+import tj.app.quran_todo.data.translation.TranslationCatalog
 
 /**
  * What a value of [BackupSettings] may be. The settings screens clamp their values to the same ranges; a value outside them
@@ -62,4 +63,7 @@ fun BackupSettings.sanitized(): BackupSettings = BackupSettings(
     tafsir = tafsir?.takeIf { it in BackupSettingsRules.TAFSIR_SOURCES },
     reminderEnabled = reminderEnabled,
     reminderMinuteOfDay = reminderMinuteOfDay?.takeIf { it in BackupSettingsRules.REMINDER_MINUTE_OF_DAY },
+    translationChoice = translationChoice
+        ?.filter { (language, key) -> language in BackupSettingsRules.LANGUAGES && TranslationCatalog.byKey(key) != null }
+        ?.takeIf { it.isNotEmpty() },
 )

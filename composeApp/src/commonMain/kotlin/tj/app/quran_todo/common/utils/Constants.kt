@@ -2,6 +2,7 @@ package tj.app.quran_todo.common.utils
 
 object Constants {
     const val QURAN_API_BASE_URL = "https://api.alquran.cloud/v1/"
+    const val QURAN_ENC_API_BASE_URL = "https://quranenc.com/api/v1/"
     const val QURAN_COM_API_BASE_URL = "https://api.quran.com/api/v4/"
 
     /**

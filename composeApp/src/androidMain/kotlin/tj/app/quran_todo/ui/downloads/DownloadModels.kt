@@ -11,6 +11,9 @@ enum class DownloadKind(val analyticsName: String) {
 
     /** The layout and the fonts of mushaf pages ("Mushaf pages", task F3a): a juz of them or all 604. */
     PAGES("pages"),
+
+    /** A whole translation of the Quran in one request ("Translations", task F4a); [DownloadRequest.edition] says which. */
+    TRANSLATION("translation"),
 }
 
 /** A continuous part of one surah: ayahs [first]..[last] (numbers in the surah). */
@@ -39,12 +42,16 @@ data class DownloadRequest(
     val language: String? = null,
     val segments: List<Segment>,
     val pages: List<Int> = emptyList(),
+    /** The key of the edition of a [DownloadKind.TRANSLATION] request (`TranslationEdition.key`); null for every other kind. */
+    val edition: String? = null,
 ) {
     val ayahCount: Int get() = segments.sumOf { it.count }
 
     /** The files this request is about, in reading order: the audio cache keys of its ayahs, or the keys of its pages ([PageKeys]). */
     fun keys(): List<String> {
         if (kind == DownloadKind.PAGES) return pages.map(PageKeys::of)
+        // A translation is stored in the database, not in files: it has no keys.
+        if (kind == DownloadKind.TRANSLATION) return emptyList()
         val reciter = Reciters.byId(reciterId)
         return segments.flatMap { segment ->
             (segment.first..segment.last).map { ayah -> reciter.cacheKey(segment.surah, ayah) }
@@ -57,6 +64,9 @@ data class DownloadRequest(
 
         /** The id of the pages request of [juz] (1..30), or of all pages when it is null; a reciter plays no part in it. */
         fun pagesId(juz: Int?): String = if (juz == null) "pages-all" else "pages-juz-$juz"
+
+        /** The id of the request of the translation [editionKey]: asking twice does not queue twice. */
+        fun translationId(editionKey: String): String = "translation-$editionKey"
     }
 }
 

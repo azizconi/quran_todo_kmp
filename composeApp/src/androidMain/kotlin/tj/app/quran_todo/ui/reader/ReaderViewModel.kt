@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -29,6 +30,7 @@ import tj.app.quran_todo.common.settings.SurahReaderPreferences
 import tj.app.quran_todo.data.database.dao.AyahNoteDao
 import tj.app.quran_todo.data.database.entity.quran.AyahEntity
 import tj.app.quran_todo.data.database.entity.quran.SurahEntity
+import tj.app.quran_todo.data.translation.TranslationChoice
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
 import tj.app.quran_todo.data.database.entity.todo.AyahNoteEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
@@ -378,6 +380,10 @@ class ReaderViewModel(
                 val own = ayahs.mapNotNull { ayah -> map[ayah.number]?.let { ayah.number to it } }.toMap()
                 if (own.isNotEmpty()) _translations.value = own
             }
+        }
+        viewModelScope.launch {
+            // Another edition of the translation was chosen ("Aa" -> "Translation", F4a): the translation is loaded again.
+            TranslationChoice.store.revision.drop(1).collect { ensureTranslations() }
         }
         viewModelScope.launch {
             // The translation of this surah could not be loaded: the one of the previous language (kept while the

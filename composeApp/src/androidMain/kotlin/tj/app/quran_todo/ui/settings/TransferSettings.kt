@@ -11,6 +11,8 @@ import tj.app.quran_todo.common.theme.ReadingFontStyle
 import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.common.theme.ThemePalette
 import tj.app.quran_todo.common.theme.ThemeStorage
+import tj.app.quran_todo.data.translation.TranslationChoice
+import tj.app.quran_todo.data.translation.TranslationChoiceStore
 import tj.app.quran_todo.hifz.backup.BackupSettings
 import tj.app.quran_todo.ui.state.HifzHintMode
 import tj.app.quran_todo.ui.state.ReaderLayout
@@ -24,7 +26,11 @@ import tj.app.quran_todo.ui.state.UiPrefs
  */
 internal object TransferSettings {
     /** The settings of this phone, as they are stored now. Values never saved are left out (the phone that imports keeps its own). */
-    fun collect(uiPrefs: UiPrefs, reader: SurahReaderPreferences = SurahReaderPreferences.load()): BackupSettings = BackupSettings(
+    fun collect(
+        uiPrefs: UiPrefs,
+        reader: SurahReaderPreferences = SurahReaderPreferences.load(),
+        translations: TranslationChoiceStore = TranslationChoice.store,
+    ): BackupSettings = BackupSettings(
         language = LanguageStorage.getSavedLanguage()?.code,
         themeMode = ThemeStorage.getSavedThemeMode()?.name,
         themeFollowsSystem = uiPrefs.themeFollowsSystem.value,
@@ -51,6 +57,7 @@ internal object TransferSettings {
         tafsir = uiPrefs.tafsirSource.value,
         reminderEnabled = uiPrefs.reminderEnabled.value,
         reminderMinuteOfDay = uiPrefs.reminderMinuteOfDay.value,
+        translationChoice = translations.choices().takeIf { it.isNotEmpty() },
     )
 }
 
@@ -109,6 +116,9 @@ internal interface TransferSettingsTarget {
 
     /** The daily reminder on or off. The permission to show notifications is not asked here. */
     fun setReminderEnabled(value: Boolean)
+
+    /** The edition of the translation per language of the interface (task F4a): language code to edition key; the text is fetched when the reader needs it. */
+    fun setTranslationChoice(choice: Map<String, String>)
 }
 
 /**
@@ -151,4 +161,5 @@ internal fun BackupSettings.applyTo(target: TransferSettingsTarget) {
     tafsir?.let(target::setTafsirSource)
     reminderMinuteOfDay?.let(target::setReminderMinuteOfDay)
     reminderEnabled?.let(target::setReminderEnabled)
+    translationChoice?.let(target::setTranslationChoice)
 }
