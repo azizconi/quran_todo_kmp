@@ -6,7 +6,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,6 +24,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -43,6 +43,8 @@ import tj.app.quran_todo.common.audio.timing.wordAt
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.reader.AyahWords
 import tj.app.quran_todo.ui.state.UiPrefs
+import tj.app.quran_todo.ui.tajweed.TajweedAwareText
+import tj.app.quran_todo.ui.tajweed.rememberTajweedText
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /**
@@ -120,18 +122,21 @@ fun FollowedArabicText(
     overflow: TextOverflow = TextOverflow.Clip,
 ) {
     val spans = if (follow != null) rememberAyahSpans(surah, ayahInSurah, words.wordCount) else emptyList()
+    // The tajweed colours (F3b) go over the very same text: the wash of the word and the colours of the rules are drawn together.
+    val tajweed = rememberTajweedText(surah, ayahInSurah, words.text)
     if (follow == null || spans.isEmpty()) {
-        Text(
+        TajweedAwareText(
             text = words.text,
+            styled = tajweed,
             style = style,
             color = color,
+            modifier = modifier,
             textAlign = textAlign,
             maxLines = maxLines,
             overflow = overflow,
-            modifier = modifier,
         )
     } else {
-        FollowedText(words, spans, follow, style, color, modifier, textAlign, maxLines, overflow)
+        FollowedText(words, spans, follow, style, color, modifier, textAlign, maxLines, overflow, tajweed)
     }
 }
 
@@ -187,6 +192,7 @@ private fun FollowedText(
     textAlign: TextAlign,
     maxLines: Int,
     overflow: TextOverflow,
+    tajweed: AnnotatedString?,
 ) {
     val colors = QhTheme.colors
     val reduced = LocalReducedMotion.current
@@ -225,8 +231,9 @@ private fun FollowedText(
 
     val wash = if (colors.isDark) colors.primary.copy(alpha = DarkWashAlpha) else colors.primary.copy(alpha = LightWashAlpha)
     val tap = follow.onWordTap
-    Text(
+    TajweedAwareText(
         text = words.text,
+        styled = tajweed,
         style = style,
         color = color,
         textAlign = textAlign,

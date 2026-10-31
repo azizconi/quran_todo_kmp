@@ -191,6 +191,7 @@ class TransferLogicTest {
         override fun setLessonPassageRepeats(value: Int) { calls += "lessonPassage=$value" }
         override fun setHapticsEnabled(value: Boolean) { calls += "haptics=$value" }
         override fun setReduceMotion(value: Boolean) { calls += "reduce=$value" }
+        override fun setTajweed(value: Boolean) { calls += "tajweed=$value" }
         override fun setReminderMinuteOfDay(value: Int) { calls += "reminderAt=$value" }
         override fun setReminderEnabled(value: Boolean) { calls += "reminder=$value" }
     }
@@ -210,13 +211,13 @@ class TransferLogicTest {
             readingFontSize = 34, dailyGoal = 9, showTranslation = true, highlightPlayingAyah = false, autoplayOnOpen = true,
             autoAdvanceAyahs = false, playbackSpeed = 1.5f, repeatCount = 3, readerLayout = "MUSHAF", keepScreenOn = false,
             reciter = "husary", lessonAyahRepeats = 4, lessonPassageRepeats = 3, hifzHint = "FIRST_WORD",
-            hapticsEnabled = false, reduceMotion = true, reminderEnabled = true, reminderMinuteOfDay = 1230,
+            hapticsEnabled = false, reduceMotion = true, tajweed = true, reminderEnabled = true, reminderMinuteOfDay = 1230,
         ).applyTo(target)
         assertEquals(
             listOf(
                 "language=TG", "mode=DARK", "follows=false", "palette=OCEAN", "font=AMIRI_QURAN", "app=9/34", "reader",
                 "layout=MUSHAF", "keepOn=false", "reciter=husary", "hint=FIRST_WORD", "lessonAyah=4", "lessonPassage=3", "haptics=false",
-                "reduce=true", "reminderAt=1230", "reminder=true",
+                "reduce=true", "tajweed=true", "reminderAt=1230", "reminder=true",
             ),
             target.calls,
         )
@@ -227,6 +228,17 @@ class TransferLogicTest {
             ),
             target.reader,
         )
+    }
+
+    @Test
+    fun theTajweedSwitchOfAnOldCopyIsLeftAloneAndOfANewOneApplied() {
+        val old = Recorder()
+        BackupSettings(language = "ru").applyTo(old)
+        assertEquals(listOf("language=RU"), old.calls)
+
+        val off = Recorder()
+        BackupSettings(tajweed = false).applyTo(off)
+        assertEquals(listOf("tajweed=false"), off.calls)
     }
 
     @Test

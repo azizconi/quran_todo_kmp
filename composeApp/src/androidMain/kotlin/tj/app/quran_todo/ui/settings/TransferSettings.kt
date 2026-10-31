@@ -46,6 +46,7 @@ internal object TransferSettings {
         hifzHint = uiPrefs.hifzHintMode.value.name,
         hapticsEnabled = uiPrefs.hapticsEnabled.value,
         reduceMotion = uiPrefs.reduceMotion.value,
+        tajweed = uiPrefs.tajweed.value,
         reminderEnabled = uiPrefs.reminderEnabled.value,
         reminderMinuteOfDay = uiPrefs.reminderMinuteOfDay.value,
     )
@@ -92,6 +93,9 @@ internal interface TransferSettingsTarget {
 
     fun setReduceMotion(value: Boolean)
 
+    /** The tajweed colours of the reader and the lesson on or off. The markup is fetched when the reader needs it, not here. */
+    fun setTajweed(value: Boolean)
+
     /** When the daily reminder comes, minutes after midnight. Comes before [setReminderEnabled], so a reminder that is turned on is planned once, at the right time. */
     fun setReminderMinuteOfDay(value: Int)
 
@@ -134,6 +138,7 @@ internal fun BackupSettings.applyTo(target: TransferSettingsTarget) {
     lessonPassageRepeats?.let(target::setLessonPassageRepeats)
     hapticsEnabled?.let(target::setHapticsEnabled)
     reduceMotion?.let(target::setReduceMotion)
+    tajweed?.let(target::setTajweed)
     reminderMinuteOfDay?.let(target::setReminderMinuteOfDay)
     reminderEnabled?.let(target::setReminderEnabled)
 }

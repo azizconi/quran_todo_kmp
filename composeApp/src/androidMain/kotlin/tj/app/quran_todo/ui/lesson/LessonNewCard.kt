@@ -97,6 +97,7 @@ import tj.app.quran_todo.ui.state.HifzHintMode
 import tj.app.quran_todo.ui.state.LESSON_AYAH_REPEATS_RANGE
 import tj.app.quran_todo.ui.state.LESSON_PASSAGE_REPEATS_RANGE
 import tj.app.quran_todo.ui.state.UiPrefs
+import tj.app.quran_todo.ui.tajweed.TajweedArabicText
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -520,8 +521,11 @@ private fun PassageRow(
                 modifier = Modifier.fillMaxWidth(),
             )
         } else {
-            Text(
-                text = splitBismillah(ayah.surahNumber, number, ayah.text),
+            // Tajweed (F3b): the colours of the rules over this very text when the setting is on.
+            TajweedArabicText(
+                surah = ayah.surahNumber,
+                ayahInSurah = number,
+                text = remember(ayah) { splitBismillah(ayah.surahNumber, number, ayah.text) },
                 style = arabicStyle,
                 color = colors.ink,
                 textAlign = TextAlign.Start,

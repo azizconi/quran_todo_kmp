@@ -137,6 +137,8 @@ internal class SettingsViewModel(
 
     fun setReduceMotion(value: Boolean) = uiPrefs.setReduceMotion(value)
 
+    fun setTajweed(value: Boolean) = uiPrefs.setTajweed(value)
+
     fun setHifzHintMode(value: HifzHintMode) = uiPrefs.setHifzHintMode(value)
 
     fun setLessonAyahRepeats(value: Int) = uiPrefs.setLessonAyahRepeats(value)
