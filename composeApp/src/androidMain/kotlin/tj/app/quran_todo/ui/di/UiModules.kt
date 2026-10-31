@@ -17,7 +17,9 @@ import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.onboarding.OnboardingViewModel
 import tj.app.quran_todo.ui.plan.PlanViewModel
 import tj.app.quran_todo.ui.playback.createPlaybackController
+import tj.app.quran_todo.ui.notes.NotesViewModel
 import tj.app.quran_todo.ui.progress.ProgressViewModel
+import tj.app.quran_todo.ui.progress.analytics.AnalyticsViewModel
 import tj.app.quran_todo.ui.quiz.QuizViewModel
 import tj.app.quran_todo.ui.reader.ReaderViewModel
 import tj.app.quran_todo.ui.recording.RecordingStore
@@ -152,6 +154,13 @@ val progressUiModule = module {
     viewModel { ProgressViewModel(home = get(), hifz = get(), ticker = get()) }
 }
 
+val analyticsUiModule = module {
+    // The detailed analytics and "My notes" (task F5a): the HifzRepository, the day ticker, the notes DAO and the shared HomeViewModel
+    // (names only) come in through Koin singletons, never through koinViewModel.
+    viewModel { AnalyticsViewModel(home = get(), hifz = get(), ticker = get()) }
+    viewModel { NotesViewModel(home = get(), dao = get()) }
+}
+
 val settingsUiModule = module {
     // The HifzRepository comes in through Koin; the files of "Transfer and backup" through TransferIo.
     viewModel { SettingsViewModel(uiPrefs = get(), hifz = get(), io = TransferIo(androidContext())) }
@@ -233,6 +242,7 @@ val uiModules = listOf(
     khatmUiModule,
     quizUiModule,
     progressUiModule,
+    analyticsUiModule,
     settingsUiModule,
     downloadsUiModule,
     drillUiModule,

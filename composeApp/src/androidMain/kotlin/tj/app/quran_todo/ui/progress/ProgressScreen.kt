@@ -59,6 +59,7 @@ import tj.app.quran_todo.ui.components.Skeleton
 import tj.app.quran_todo.ui.components.ToastKind
 import tj.app.quran_todo.ui.components.rememberQhTopBarState
 import tj.app.quran_todo.ui.i18n.ProgressCopy
+import tj.app.quran_todo.ui.i18n.analyticsCopy
 import tj.app.quran_todo.ui.i18n.planCopy
 import tj.app.quran_todo.ui.i18n.progressCopy
 import tj.app.quran_todo.ui.motion.StaggerState
@@ -68,17 +69,19 @@ import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.navigation.Origin
 import tj.app.quran_todo.ui.progress.components.ActivitySection
 import tj.app.quran_todo.ui.progress.components.BigRing
+import tj.app.quran_todo.ui.progress.components.DetailsEntries
 import tj.app.quran_todo.ui.progress.components.HardSpotsSection
 import tj.app.quran_todo.ui.progress.components.JuzSection
 import tj.app.quran_todo.ui.progress.components.PlanSection
 import tj.app.quran_todo.ui.progress.components.QuranMapSection
 import tj.app.quran_todo.ui.progress.components.ReportSection
+import tj.app.quran_todo.ui.progress.components.ReportFormat
+import tj.app.quran_todo.ui.progress.components.ReportRequest
 import tj.app.quran_todo.ui.progress.components.ReportSheet
 import tj.app.quran_todo.ui.progress.components.RingHero
 import tj.app.quran_todo.ui.progress.components.StatTiles
 import tj.app.quran_todo.ui.progress.report.ReportCardStyle
 import tj.app.quran_todo.ui.progress.report.ReportImage
-import tj.app.quran_todo.ui.progress.report.ReportPeriod
 import tj.app.quran_todo.ui.progress.report.ReportShare
 import tj.app.quran_todo.ui.theme.QhFontFamily
 import tj.app.quran_todo.ui.theme.QhSpacing
@@ -98,6 +101,8 @@ fun ProgressScreen(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
     onOpenDrill: () -> Unit,
+    onOpenDetails: () -> Unit = {},
+    onOpenNotes: () -> Unit = {},
 ) {
     val viewModel = koinViewModel<ProgressViewModel>()
     val language = LocalAppLanguage.current
@@ -119,10 +124,18 @@ fun ProgressScreen(
         onOpenReader = onOpenReader,
         onOpenPlan = onOpenPlan,
         onOpenDrill = onOpenDrill,
+        onOpenDetails = onOpenDetails,
+        onOpenNotes = onOpenNotes,
         onShareReport = { sheetOpen = true },
     )
     if (sheetOpen) {
-        ReportSheet(copy = copy, onShare = share, onDismiss = { sheetOpen = false })
+        ReportSheet(
+            copy = copy,
+            analytics = analyticsCopy(language),
+            today = ui.today,
+            onShare = share,
+            onDismiss = { sheetOpen = false },
+        )
     }
 }
 
@@ -137,7 +150,7 @@ fun ProgressScreen(
 private fun rememberReportSharing(
     viewModel: ProgressViewModel,
     copy: ProgressCopy,
-): suspend (ReportPeriod, Boolean) -> Boolean {
+): suspend (ReportRequest) -> Boolean {
     val context = LocalContext.current
     val measurer = rememberTextMeasurer()
     val toaster = LocalToaster.current
@@ -151,16 +164,25 @@ private fun rememberReportSharing(
         )
     }
     return remember(viewModel, copy, context, measurer, toaster, style) {
-        val action: suspend (ReportPeriod, Boolean) -> Boolean = { period, withImage ->
+        val action: suspend (ReportRequest) -> Boolean = { request ->
+            val period = request.period
             try {
-                val prepared = checkNotNull(viewModel.prepareReport(period)) { "the progress was not read yet" }
-                val image = if (withImage) {
-                    ReportShare.writePng(context, ReportImage.render(prepared.doc, style, measurer), prepared.toDay)
-                } else {
-                    ReportShare.clear(context)
-                    null
+                val prepared = checkNotNull(viewModel.prepareReport(period, request.fromDay, request.toDay)) {
+                    "the progress was not read yet"
                 }
-                context.startActivity(ReportShare.intent(prepared.text, prepared.doc.title, image, copy.chooserTitle))
+                val file = when (request.format) {
+                    ReportFormat.Image ->
+                        ReportShare.writePng(context, ReportImage.render(prepared.doc, style, measurer), prepared.toDay) to ReportShare.MIME_PNG
+                    ReportFormat.Pdf ->
+                        ReportShare.writePdf(context, prepared.doc, style.colors, prepared.toDay) to ReportShare.MIME_PDF
+                    ReportFormat.Text -> {
+                        ReportShare.clear(context)
+                        null
+                    }
+                }
+                context.startActivity(
+                    ReportShare.intent(prepared.text, prepared.doc.title, file?.first, copy.chooserTitle, file?.second ?: ReportShare.MIME_PNG),
+                )
                 viewModel.onReportShared(period)
                 true
             } catch (cancelled: CancellationException) {
@@ -183,6 +205,8 @@ private fun ProgressContent(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
     onOpenDrill: () -> Unit,
+    onOpenDetails: () -> Unit,
+    onOpenNotes: () -> Unit,
     onShareReport: () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -214,6 +238,8 @@ private fun ProgressContent(
                 onOpenReader = onOpenReader,
                 onOpenPlan = onOpenPlan,
                 onOpenDrill = onOpenDrill,
+                onOpenDetails = onOpenDetails,
+                onOpenNotes = onOpenNotes,
                 onShareReport = onShareReport,
                 scrollState = scrollState,
                 stagger = stagger,
@@ -257,6 +283,8 @@ private fun Body(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
     onOpenDrill: () -> Unit,
+    onOpenDetails: () -> Unit,
+    onOpenNotes: () -> Unit,
     onShareReport: () -> Unit,
     scrollState: ScrollState,
     stagger: StaggerState,
@@ -282,6 +310,12 @@ private fun Body(
             modifier = Modifier.staggeredEnter(2, stagger),
         )
         ActivitySection(activity = ui.activity, copy = copy, modifier = Modifier.staggeredEnter(3, stagger))
+        DetailsEntries(
+            copy = analyticsCopy(copy.language),
+            onOpenDetails = onOpenDetails,
+            onOpenNotes = onOpenNotes,
+            modifier = Modifier.staggeredEnter(3, stagger),
+        )
         QuranMapSection(
             cells = ui.cells,
             copy = copy,

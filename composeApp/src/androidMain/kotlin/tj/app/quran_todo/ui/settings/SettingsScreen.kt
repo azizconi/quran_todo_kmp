@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Animation
 import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.FileOpen
+import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Highlight
 import androidx.compose.material.icons.rounded.Info
@@ -128,6 +129,7 @@ import tj.app.quran_todo.ui.motion.staggeredEnter
 import tj.app.quran_todo.ui.reminder.ReminderSection
 import tj.app.quran_todo.ui.state.HifzHintMode
 import tj.app.quran_todo.ui.hifz.HintSheet
+import tj.app.quran_todo.ui.i18n.analyticsCopy
 import tj.app.quran_todo.ui.i18n.hifzCopy
 import tj.app.quran_todo.ui.state.ReaderLayout
 import tj.app.quran_todo.ui.theme.QhSpacing
@@ -153,6 +155,7 @@ fun SettingsScreen(
     onOpenSources: () -> Unit,
     onOpenPlan: () -> Unit,
     onOpenDownloads: () -> Unit,
+    onOpenNotes: () -> Unit = {},
 ) {
     val viewModel = koinViewModel<SettingsViewModel>()
     val language = LocalAppLanguage.current
@@ -306,6 +309,7 @@ fun SettingsScreen(
                 onOpenSources = onOpenSources,
                 onOpenPlan = onOpenPlan,
                 onOpenDownloads = onOpenDownloads,
+                onOpenNotes = onOpenNotes,
             )
         }
         QhLargeTopBar(
@@ -390,6 +394,7 @@ private fun SettingsContent(
     onOpenSources: () -> Unit,
     onOpenPlan: () -> Unit,
     onOpenDownloads: () -> Unit,
+    onOpenNotes: () -> Unit,
 ) {
     val copy = rememberSettingsCopy(language)
     val transfer = copy.transfer
@@ -593,6 +598,16 @@ private fun SettingsContent(
         ) {
             // One row for what is on the phone: downloaded audio and the listening cache. The screen behind it does the rest.
             DownloadsRow(language = language, onClick = onOpenDownloads)
+            QhRowDivider()
+            // The notes on ayahs (task F5a): one list of them, with a search.
+            val analytics = remember(language) { analyticsCopy(language) }
+            QhNavRow(
+                title = analytics.notesRowTitle,
+                description = analytics.notesRowBody,
+                onClick = onOpenNotes,
+                icon = Icons.Rounded.EditNote,
+                iconTint = colors.gold,
+            )
         }
 
         // 8. Transfer and backup: the copy is a file the person keeps or sends, not a hidden copy on this phone.

@@ -54,6 +54,13 @@ sealed interface Dest {
         /** Open the sheet of a new end date at once (the card of an overdue plan). */
         val pickTarget: Boolean = false,
     ) : Dest
+    /** The detailed analytics of the progress: retention by surah and juz, the year heat map, the forecast by surah, the hardest places (task F5a). */
+    @Serializable
+    data object ProgressDetails : Dest
+
+    /** "My notes": every note of an ayah with a search; opened from the progress and the settings (task F5a). */
+    @Serializable
+    data object Notes : Dest
 
     @Serializable
     data object Settings : Dest

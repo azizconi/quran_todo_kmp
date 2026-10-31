@@ -116,7 +116,9 @@ import tj.app.quran_todo.ui.onboarding.OnboardingExit
 import tj.app.quran_todo.ui.onboarding.OnboardingGate
 import tj.app.quran_todo.ui.onboarding.OnboardingScreen
 import tj.app.quran_todo.ui.plan.PlanScreen
+import tj.app.quran_todo.ui.notes.NotesScreen
 import tj.app.quran_todo.ui.progress.ProgressScreen
+import tj.app.quran_todo.ui.progress.analytics.AnalyticsScreen
 import tj.app.quran_todo.ui.quiz.QuizScreen
 import tj.app.quran_todo.ui.reminder.ReminderOpenRequests
 import tj.app.quran_todo.ui.reminder.ReminderTarget
@@ -525,6 +527,26 @@ private fun AppNavigation() {
                             onOpenReader = openReader,
                             onOpenPlan = { navController.navigateOnce(Dest.Plan) },
                             onOpenDrill = { navController.navigateOnce(Dest.HardDrill) },
+                            onOpenDetails = { navController.navigateOnce(Dest.ProgressDetails) },
+                            onOpenNotes = { navController.navigateOnce(Dest.Notes) },
+                        )
+                    }
+                }
+                composable<Dest.ProgressDetails> {
+                    ProvideNavScope {
+                        AnalyticsScreen(
+                            onBack = { navController.popOnce() },
+                            onOpenReader = openReader,
+                            onOpenDrill = { navController.navigateOnce(Dest.HardDrill) },
+                            onOpenPlan = { navController.navigateOnce(Dest.Plan) },
+                        )
+                    }
+                }
+                composable<Dest.Notes> {
+                    ProvideNavScope {
+                        NotesScreen(
+                            onBack = { navController.popOnce() },
+                            onOpenReader = openReader,
                         )
                     }
                 }
@@ -551,6 +573,7 @@ private fun AppNavigation() {
                             onOpenSources = { navController.navigateOnce(Dest.Sources) },
                             onOpenPlan = { navController.navigateOnce(Dest.Plan) },
                             onOpenDownloads = { navController.navigateOnce(Dest.Downloads) },
+                            onOpenNotes = { navController.navigateOnce(Dest.Notes) },
                         )
                     }
                 }
@@ -691,6 +714,8 @@ private fun NavDestination.screenName(): String? = when {
     hasRoute<Dest.Quiz>() -> "quiz"
     hasRoute<Dest.Progress>() -> "progress"
     hasRoute<Dest.Khatm>() -> "khatm"
+    hasRoute<Dest.ProgressDetails>() -> "progress_details"
+    hasRoute<Dest.Notes>() -> "notes"
     hasRoute<Dest.HardDrill>() -> "hard_drill"
     hasRoute<Dest.Settings>() -> "settings"
     hasRoute<Dest.Downloads>() -> "downloads"
