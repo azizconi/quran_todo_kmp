@@ -3,6 +3,7 @@ package tj.app.quran_todo.hifz.backup
 import tj.app.quran_todo.common.audio.Reciters
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.code
+import tj.app.quran_todo.common.tafsir.TafsirSource
 import tj.app.quran_todo.common.theme.ReadingFontStyle
 import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.common.theme.ThemePalette
@@ -16,6 +17,7 @@ object BackupSettingsRules {
     val THEME_MODES: Set<String> = ThemeMode.entries.mapTo(LinkedHashSet()) { it.name }
     val PALETTES: Set<String> = ThemePalette.entries.mapTo(LinkedHashSet()) { it.name }
     val READING_FONTS: Set<String> = ReadingFontStyle.entries.mapTo(LinkedHashSet()) { it.storageValue }
+    val TAFSIR_SOURCES: Set<String> = TafsirSource.entries.mapTo(LinkedHashSet()) { it.key }
     val RECITERS: Set<String> = Reciters.all.mapTo(LinkedHashSet()) { it.id }
 
     /** The names of `ui.state.ReaderLayout` (android) and `HifzHintMode`; the unit tests keep them equal to the enums. */
@@ -56,6 +58,8 @@ fun BackupSettings.sanitized(): BackupSettings = BackupSettings(
     hapticsEnabled = hapticsEnabled,
     reduceMotion = reduceMotion,
     tajweed = tajweed,
+    wordMeanings = wordMeanings,
+    tafsir = tafsir?.takeIf { it in BackupSettingsRules.TAFSIR_SOURCES },
     reminderEnabled = reminderEnabled,
     reminderMinuteOfDay = reminderMinuteOfDay?.takeIf { it in BackupSettingsRules.REMINDER_MINUTE_OF_DAY },
 )

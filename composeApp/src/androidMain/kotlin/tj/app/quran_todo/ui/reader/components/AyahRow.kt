@@ -24,6 +24,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -41,6 +43,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.koin.compose.koinInject
 import tj.app.quran_todo.common.audio.timing.wordRanges
 import tj.app.quran_todo.data.database.entity.quran.AyahEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
@@ -59,9 +62,11 @@ import tj.app.quran_todo.ui.playback.FollowedArabicText
 import tj.app.quran_todo.ui.playback.WordFollow
 import tj.app.quran_todo.ui.reader.AyahMarks
 import tj.app.quran_todo.ui.reader.AyahWords
+import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.tajweed.TajweedArabicText
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
+import tj.app.quran_todo.ui.words.WordMeaningSelection
 
 /** Where an ayah sits inside the passage that is being repeated (it draws a gold bracket on the right). */
 enum class RangePosition { None, Single, Start, Middle, End }
@@ -135,6 +140,10 @@ fun AyahRow(
     )
     val index = model.index
     val number = model.ayah.numberInSurah
+    // Word meanings (F4b): with the setting on, a tap on a word of the text shows its meaning (and no longer seeks to it).
+    val meaningsOn by koinInject<UiPrefs>().wordMeanings.collectAsState()
+    val meaningSelection = remember(model.ayah.surahNumber, number) { WordMeaningSelection(model.ayah.surahNumber, number) }
+    LaunchedEffect(meaningsOn) { if (!meaningsOn) meaningSelection.word = null }
 
     Column(
         modifier
@@ -210,7 +219,7 @@ fun AyahRow(
                 }
             }
             if (hifz == null) {
-                if (follow != null) {
+                if (follow != null || meaningsOn) {
                     FollowedArabicText(
                         surah = model.ayah.surahNumber,
                         ayahInSurah = number,
@@ -220,6 +229,7 @@ fun AyahRow(
                         color = colors.ink,
                         textAlign = TextAlign.Start,
                         modifier = Modifier.fillMaxWidth(),
+                        meaning = if (meaningsOn) meaningSelection else null,
                     )
                 } else {
                     // Tajweed (F3b): the colours of the rules over this very text when the setting is on, the plain text when it is off.

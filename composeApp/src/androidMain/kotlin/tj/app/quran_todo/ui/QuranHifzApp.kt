@@ -86,6 +86,8 @@ import tj.app.quran_todo.common.utils.currentLocalDate
 import tj.app.quran_todo.hifz.EpochDayTicker
 import tj.app.quran_todo.ui.about.PrivacyScreen
 import tj.app.quran_todo.ui.about.SourcesScreen
+import tj.app.quran_todo.ui.tafsir.TafsirScreen
+import tj.app.quran_todo.ui.navigation.LocalTafsirOpener
 import tj.app.quran_todo.ui.catalog.CatalogScreen
 import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.ToastHost
@@ -405,7 +407,10 @@ private fun AppNavigation() {
     LaunchedEffect(openRequest) { if (openRequest != null) whatsNewSuppressed = true }
 
     SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
-        CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+        CompositionLocalProvider(
+            LocalSharedTransitionScope provides this,
+            LocalTafsirOpener provides { surah, ayah -> navController.navigateOnce(Dest.Tafsir(surah, ayah)) },
+        ) {
             NavHost(
                 navController = navController,
                 startDestination = startDestination,
@@ -541,6 +546,12 @@ private fun AppNavigation() {
                         PrivacyScreen(onBack = { navController.popOnce() })
                     }
                 }
+                composable<Dest.Tafsir> { entry ->
+                    val route = entry.toRoute<Dest.Tafsir>()
+                    ProvideNavScope {
+                        TafsirScreen(route = route, onBack = { navController.popOnce() })
+                    }
+                }
                 composable<Dest.Sources> {
                     ProvideNavScope {
                         SourcesScreen(onBack = { navController.popOnce() })
@@ -666,6 +677,7 @@ private fun NavDestination.screenName(): String? = when {
     hasRoute<Dest.Downloads>() -> "downloads"
     hasRoute<Dest.Privacy>() -> "privacy"
     hasRoute<Dest.Sources>() -> "sources"
+    hasRoute<Dest.Tafsir>() -> "tafsir"
     hasRoute<Dest.Catalog>() -> "catalog"
     else -> null
 }

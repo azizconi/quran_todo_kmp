@@ -217,6 +217,10 @@ fun SettingsScreen(
                 override fun setHapticsEnabled(value: Boolean) = viewModel.setHapticsEnabled(value)
                 override fun setReduceMotion(value: Boolean) = viewModel.setReduceMotion(value)
                 override fun setTajweed(value: Boolean) = viewModel.setTajweed(value)
+
+                override fun setWordMeanings(value: Boolean) = viewModel.setWordMeanings(value)
+
+                override fun setTafsirSource(key: String) = viewModel.setTafsirSource(key)
                 override fun setReminderMinuteOfDay(value: Int) = viewModel.setReminderMinuteOfDay(value)
                 override fun setReminderEnabled(value: Boolean) = viewModel.setReminderEnabled(value)
             },

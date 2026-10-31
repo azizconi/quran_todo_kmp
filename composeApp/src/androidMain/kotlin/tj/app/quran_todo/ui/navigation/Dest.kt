@@ -67,6 +67,17 @@ sealed interface Dest {
     @Serializable
     data object Sources : Dest
 
+    /**
+     * The commentary (tafsir) of one ayah as a full screen (task F4b), opened from the ayah sheet of the text reader and of the pages.
+     * [tafsirId] is a `TafsirSource.key` to open on (null: the one the person chose last, else the one of the language of the app).
+     */
+    @Serializable
+    data class Tafsir(
+        val surah: Int,
+        val ayah: Int,
+        val tafsirId: String? = null,
+    ) : Dest
+
     /** Debug-only component catalog. */
     @Serializable
     data object Catalog : Dest

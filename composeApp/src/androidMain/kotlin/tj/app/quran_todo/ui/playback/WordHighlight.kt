@@ -6,6 +6,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,6 +48,8 @@ import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.tajweed.TajweedAwareText
 import tj.app.quran_todo.ui.tajweed.rememberTajweedText
 import tj.app.quran_todo.ui.theme.QhTheme
+import tj.app.quran_todo.ui.words.WordMeaningPopup
+import tj.app.quran_todo.ui.words.WordMeaningSelection
 
 /**
  * What the text of one ayah needs to follow the recitation word by word. It is given to the ayah that is playing (or paused halfway,
@@ -120,11 +124,16 @@ fun FollowedArabicText(
     textAlign: TextAlign = TextAlign.Start,
     maxLines: Int = Int.MAX_VALUE,
     overflow: TextOverflow = TextOverflow.Clip,
+    /**
+     * Word meanings (F4b): given to the text of the reader while the setting is on. A tap on a word then picks it ([WordMeaningSelection])
+     * instead of seeking to it, and the word gets the wash and the popup with its meaning. Null: nothing of it, as it always was.
+     */
+    meaning: WordMeaningSelection? = null,
 ) {
     val spans = if (follow != null) rememberAyahSpans(surah, ayahInSurah, words.wordCount) else emptyList()
     // The tajweed colours (F3b) go over the very same text: the wash of the word and the colours of the rules are drawn together.
     val tajweed = rememberTajweedText(surah, ayahInSurah, words.text)
-    if (follow == null || spans.isEmpty()) {
+    if (meaning == null && (follow == null || spans.isEmpty())) {
         TajweedAwareText(
             text = words.text,
             styled = tajweed,
@@ -136,7 +145,7 @@ fun FollowedArabicText(
             overflow = overflow,
         )
     } else {
-        FollowedText(words, spans, follow, style, color, modifier, textAlign, maxLines, overflow, tajweed)
+        FollowedText(words, spans, follow, style, color, modifier, textAlign, maxLines, overflow, tajweed, meaning)
     }
 }
 
@@ -185,7 +194,7 @@ private class WordLayout(val ranges: List<IntRange>) {
 private fun FollowedText(
     words: AyahWords,
     spans: List<WordSpan>,
-    follow: WordFollow,
+    follow: WordFollow?,
     style: TextStyle,
     color: Color,
     modifier: Modifier,
@@ -193,6 +202,7 @@ private fun FollowedText(
     maxLines: Int,
     overflow: TextOverflow,
     tajweed: AnnotatedString?,
+    meaning: WordMeaningSelection?,
 ) {
     val colors = QhTheme.colors
     val reduced = LocalReducedMotion.current
@@ -203,8 +213,14 @@ private fun FollowedText(
     // The word that sounds now: -1 before the first word and when nothing is known. While audio plays the player is asked every
     // 60 ms, and only while the screen is shown; paused, it is read once and stays.
     var active by remember(spans) { mutableIntStateOf(-1) }
-    LaunchedEffect(spans, follow.playing) {
-        if (!follow.playing) {
+    val playing = follow?.playing == true
+    LaunchedEffect(spans, playing) {
+        if (spans.isEmpty()) {
+            // Only the meanings are on this text: nothing sounds in it.
+            active = -1
+            return@LaunchedEffect
+        }
+        if (!playing) {
             active = wordAt(spans, controller.positionMs())
             return@LaunchedEffect
         }
@@ -230,54 +246,84 @@ private fun FollowedText(
     }
 
     val wash = if (colors.isDark) colors.primary.copy(alpha = DarkWashAlpha) else colors.primary.copy(alpha = LightWashAlpha)
-    val tap = follow.onWordTap
-    TajweedAwareText(
-        text = words.text,
-        styled = tajweed,
-        style = style,
-        color = color,
-        textAlign = textAlign,
-        maxLines = maxLines,
-        overflow = overflow,
-        onTextLayout = { wordLayout.layout = it },
-        modifier = modifier
-            .drawBehind {
-                val inset = 2.dp.toPx()
-                val radius = CornerRadius(6.dp.toPx())
-                fun paint(word: Int, alpha: Float) {
-                    if (word < 0 || alpha <= 0f) return
-                    val rect = wordLayout.rect(word) ?: return
-                    drawRoundRect(
-                        color = wash.copy(alpha = wash.alpha * alpha.coerceIn(0f, 1f)),
-                        topLeft = Offset(rect.left - inset, rect.top),
-                        size = Size(rect.width + inset * 2, rect.height),
-                        cornerRadius = radius,
-                    )
-                }
-                paint(from, 1f - progress.value)
-                paint(to, progress.value)
+    val tap = follow?.onWordTap
+    val textModifier = modifier
+        .drawBehind {
+            val inset = 2.dp.toPx()
+            val radius = CornerRadius(6.dp.toPx())
+            fun paint(word: Int, alpha: Float) {
+                if (word < 0 || alpha <= 0f) return
+                val rect = wordLayout.rect(word) ?: return
+                drawRoundRect(
+                    color = wash.copy(alpha = wash.alpha * alpha.coerceIn(0f, 1f)),
+                    topLeft = Offset(rect.left - inset, rect.top),
+                    size = Size(rect.width + inset * 2, rect.height),
+                    cornerRadius = radius,
+                )
             }
-            .then(
-                if (tap == null) {
-                    Modifier
-                } else {
-                    Modifier.pointerInput(spans, wordLayout, tap) {
-                        // A quick tap on a word seeks to it. Everything else (a tap between words, a long press, a scroll) is not
-                        // touched here and reaches the row: the events are only consumed when a word was hit.
-                        val slack = 6.dp.toPx()
-                        awaitEachGesture {
-                            val down = awaitFirstDown(requireUnconsumed = false)
-                            val up = waitForUpOrCancellation() ?: return@awaitEachGesture
-                            if (up.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis) return@awaitEachGesture
-                            val word = wordLayout.wordNear(up.position, slack) ?: return@awaitEachGesture
-                            val start = startOfWord(spans, word) ?: return@awaitEachGesture
+            paint(from, 1f - progress.value)
+            paint(to, progress.value)
+            // The word whose meaning is shown (F4b): the same wash as the word that is recited.
+            meaning?.word?.let { paint(it, 1f) }
+        }
+        .then(
+            if (tap == null && meaning == null) {
+                Modifier
+            } else {
+                Modifier.pointerInput(spans, wordLayout, tap, meaning) {
+                    // A quick tap on a word seeks to it (or, with the word meanings on, picks it). Everything else (a tap between
+                    // words, a long press, a scroll) is not touched here and reaches the row: the events are only consumed when a
+                    // word was hit.
+                    val slack = 6.dp.toPx()
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val up = waitForUpOrCancellation() ?: return@awaitEachGesture
+                        if (up.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis) return@awaitEachGesture
+                        val word = wordLayout.wordNear(up.position, slack) ?: return@awaitEachGesture
+                        if (meaning != null) {
                             up.consume()
-                            tap(start)
+                            meaning.word = word
+                            return@awaitEachGesture
                         }
+                        val start = startOfWord(spans, word) ?: return@awaitEachGesture
+                        up.consume()
+                        tap?.invoke(start)
                     }
-                },
-            ),
-    )
+                }
+            },
+        )
+    if (meaning == null) {
+        TajweedAwareText(
+            text = words.text,
+            styled = tajweed,
+            style = style,
+            color = color,
+            textAlign = textAlign,
+            maxLines = maxLines,
+            overflow = overflow,
+            onTextLayout = { wordLayout.layout = it },
+            modifier = textModifier,
+        )
+    } else {
+        // The popup is a child of this box: it is placed from the box, and the word's rectangle is in the coordinates of the text,
+        // which fills the box.
+        Box(Modifier.fillMaxWidth()) {
+            TajweedAwareText(
+                text = words.text,
+                styled = tajweed,
+                style = style,
+                color = color,
+                textAlign = textAlign,
+                maxLines = maxLines,
+                overflow = overflow,
+                onTextLayout = { wordLayout.layout = it },
+                modifier = textModifier.fillMaxWidth(),
+            )
+            meaning.word?.let { picked ->
+                wordLayout.rect(picked)?.let { rect -> WordMeaningPopup(meaning, words.wordCount, rect) }
+            }
+        }
+    }
 }
 
 private const val CrossFadeMs = 100

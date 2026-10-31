@@ -24,6 +24,7 @@ import tj.app.quran_todo.ui.reminder.ReminderController
 import tj.app.quran_todo.ui.settings.SettingsViewModel
 import tj.app.quran_todo.ui.settings.TransferIo
 import tj.app.quran_todo.ui.state.UiPrefs
+import tj.app.quran_todo.ui.tafsir.TafsirViewModel
 import tj.app.quran_todo.ui.whatsnew.WhatsNewViewModel
 
 /**
@@ -40,6 +41,17 @@ val homeUiModule = module {
             playback = get(),
             hifz = get(),
             ticker = get(),
+        )
+    }
+    // One TafsirViewModel per Dest.Tafsir back stack entry (the commentary of an ayah, task F4b); the shared view models and the
+    // reference repository come in through the constructor.
+    viewModel { params ->
+        TafsirViewModel(
+            route = params.get<Dest.Tafsir>(),
+            homeViewModel = get(),
+            surahViewModel = get(),
+            reference = get(),
+            uiPrefs = get(),
         )
     }
 }

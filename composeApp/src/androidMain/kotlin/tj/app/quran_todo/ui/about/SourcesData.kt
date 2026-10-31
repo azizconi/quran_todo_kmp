@@ -89,6 +89,23 @@ internal val SourceGroups: List<SourceGroup> = listOf(
                 url = "https://alquran.cloud",
                 note = SourceNote.TranslatorRights,
             ),
+            // The commentary and the meanings of the words (task F4b): both from quran.com, fetched when a person opens them.
+            SourceItem(
+                title = "Tafsir: as-Sa'di (Russian), Ibn Kathir (abridged, English), At-Tafsir al-Muyassar (Arabic)",
+                provider = "$QuranCom · api.quran.com",
+                url = "https://quran.com",
+            ),
+            SourceItem(
+                title = "Al-Mukhtasar fi Tafsir al-Quran (Russian, English, Turkish, Uzbek in Cyrillic): Center for Tafsir Studies",
+                provider = "QuranEnc.com · quranenc.com (as published; the version is shown under the text when the source gives one)",
+                url = "https://quranenc.com",
+            ),
+            SourceItem(
+                title = "Word meanings (in English)",
+                author = "Quran Foundation",
+                provider = "$QuranCom · api.quran.com",
+                url = "https://quran.com",
+            ),
         ),
     ),
     SourceGroup(

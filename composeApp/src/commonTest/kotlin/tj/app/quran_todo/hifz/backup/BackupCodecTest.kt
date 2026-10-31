@@ -359,6 +359,24 @@ class BackupCodecTest {
     }
 
     @Test
+    fun theWordMeaningsSwitchAndTheTafsirChoiceAreOptionalAndAnUnknownSourceIsDropped() {
+        // F4b: a copy written before them leaves the phone as it is; a new one carries both; a source this app does not know is dropped.
+        val old = BackupCodec.encode(verified(file.copy(settings = BackupSettings(language = "ru"))))
+        val oldSettings = (BackupCodec.decode(old) as BackupParse.Ok).backup.settings
+        assertNull(oldSettings.wordMeanings)
+        assertNull(oldSettings.tafsir)
+        assertTrue(old.contains("wordMeanings").not() && old.contains("tafsir").not())
+
+        val full = BackupCodec.encode(verified(file.copy(settings = BackupSettings(wordMeanings = true, tafsir = "ibn_kathir_en"))))
+        val settings = (BackupCodec.decode(full) as BackupParse.Ok).backup.settings
+        assertEquals(true, settings.wordMeanings)
+        assertEquals("ibn_kathir_en", settings.tafsir)
+        assertEquals("ibn_kathir_en", settings.sanitized().tafsir)
+        assertNull(BackupSettings(tafsir = "someone_else").sanitized().tafsir)
+        assertEquals(false, BackupSettings(wordMeanings = false).sanitized().wordMeanings)
+    }
+
+    @Test
     fun theTajweedSwitchIsOptionalAndTravelsAsABoolean() {
         // F3b: a copy written before the tajweed colours existed leaves the switch of the phone as it is; a new one carries it.
         val old = BackupCodec.encode(verified(file.copy(settings = BackupSettings(language = "ru"))))

@@ -47,6 +47,8 @@ internal object TransferSettings {
         hapticsEnabled = uiPrefs.hapticsEnabled.value,
         reduceMotion = uiPrefs.reduceMotion.value,
         tajweed = uiPrefs.tajweed.value,
+        wordMeanings = uiPrefs.wordMeanings.value,
+        tafsir = uiPrefs.tafsirSource.value,
         reminderEnabled = uiPrefs.reminderEnabled.value,
         reminderMinuteOfDay = uiPrefs.reminderMinuteOfDay.value,
     )
@@ -96,6 +98,12 @@ internal interface TransferSettingsTarget {
     /** The tajweed colours of the reader and the lesson on or off. The markup is fetched when the reader needs it, not here. */
     fun setTajweed(value: Boolean)
 
+    /** "Word meanings (English)" on or off (task F4b). The meanings are fetched at the first tap, not here. */
+    fun setWordMeanings(value: Boolean)
+
+    /** The commentary chosen last (`TafsirSource.key`, task F4b). */
+    fun setTafsirSource(key: String)
+
     /** When the daily reminder comes, minutes after midnight. Comes before [setReminderEnabled], so a reminder that is turned on is planned once, at the right time. */
     fun setReminderMinuteOfDay(value: Int)
 
@@ -139,6 +147,8 @@ internal fun BackupSettings.applyTo(target: TransferSettingsTarget) {
     hapticsEnabled?.let(target::setHapticsEnabled)
     reduceMotion?.let(target::setReduceMotion)
     tajweed?.let(target::setTajweed)
+    wordMeanings?.let(target::setWordMeanings)
+    tafsir?.let(target::setTafsirSource)
     reminderMinuteOfDay?.let(target::setReminderMinuteOfDay)
     reminderEnabled?.let(target::setReminderEnabled)
 }
