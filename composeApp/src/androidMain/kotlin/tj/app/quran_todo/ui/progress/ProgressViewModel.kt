@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -19,10 +19,6 @@ import kotlinx.coroutines.flow.stateIn
 import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.LanguageStorage
-import tj.app.quran_todo.data.bundled.QuranFacts
-import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
-import tj.app.quran_todo.domain.model.ChapterNameModel
-import tj.app.quran_todo.domain.model.SurahModel
 import tj.app.quran_todo.hifz.EpochDayTicker
 import tj.app.quran_todo.hifz.HifzRepository
 import tj.app.quran_todo.hifz.model.HifzPlan
@@ -31,7 +27,6 @@ import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.hifz.schedule.LessonPlan
 import tj.app.quran_todo.hifz.schedule.PlanForecast
 import tj.app.quran_todo.presentation.home.HomeViewModel
-import tj.app.quran_todo.ui.common.SurahNames
 import tj.app.quran_todo.ui.progress.report.ProgressReport
 import tj.app.quran_todo.ui.progress.report.ReportBuilder
 import tj.app.quran_todo.ui.progress.report.ReportComposer
@@ -65,27 +60,9 @@ class ProgressViewModel internal constructor(
     private val language = MutableStateFlow(LanguageStorage.getSavedLanguage() ?: LanguageStorage.getDeviceLanguage())
 
     @Volatile
-    private var cachedEnglishNames: Pair<List<SurahWithAyahs>, Map<Int, String>>? = null
-
-    @Volatile
     private var latest: ProgressSources? = null
 
-    /** What the names are made of; compared by reference so unrelated updates of the shared view model are ignored. */
-    private class NameData(
-        val surahList: List<SurahModel>,
-        val chapterNames: Map<Int, ChapterNameModel>,
-        val completeQuran: List<SurahWithAyahs>,
-    )
-
-    private val names: Flow<List<String>> = combine(
-        home.uiState
-            .map { NameData(it.surahList, it.chapterNames, it.completeQuran) }
-            .distinctUntilChanged { a, b ->
-                a.surahList === b.surahList && a.chapterNames === b.chapterNames && a.completeQuran === b.completeQuran
-            },
-        language,
-        ::surahNames,
-    )
+    private val names: Flow<List<String>> = SurahNameSource.names(home, language)
 
     /** The review log of the last [ProgressBuilder.LogDays] days; it follows the day. */
     private val log: Flow<List<ReviewLogEntry>> = ticker.day.flatMapLatest { today ->
@@ -175,12 +152,16 @@ class ProgressViewModel internal constructor(
     }
 
     /**
-     * The report of [period] as the screen sees things now, in the language of the app; null while nothing has been read yet.
-     * Pure arithmetic over what is on the screen ([ReportBuilder], [ReportComposer]), cheap enough for the main thread.
+     * The report of [period] as the screen sees things now, in the language of the app; null while nothing has been read yet. The days
+     * are the last week or month up to today, or [fromDay]..[toDay] for a range of the date picker; the review log of exactly those
+     * days is read for it (the screen holds only 30 days). Pure arithmetic over it ([ReportBuilder], [ReportComposer]).
      */
-    internal fun prepareReport(period: ReportPeriod): PreparedReport? {
+    internal suspend fun prepareReport(period: ReportPeriod, fromDay: Int? = null, toDay: Int? = null): PreparedReport? {
         val sources = latest ?: return null
-        val report: ProgressReport = ReportBuilder.build(sources, period)
+        val to = (toDay ?: sources.today).coerceAtMost(sources.today)
+        val from = (fromDay ?: (to - period.days + 1)).coerceAtMost(to)
+        val log = hifz.reviewLog(from, to).first()
+        val report: ProgressReport = ReportBuilder.build(sources, period, from, to, log)
         val doc = ReportComposer.compose(report, sources.language, sources.names)
         return PreparedReport(period, doc, doc.toPlainText(), report.toDay)
     }
@@ -188,34 +169,6 @@ class ProgressViewModel internal constructor(
     /** The report went to the chooser of the system. Only the period is recorded, never text. */
     internal fun onReportShared(period: ReportPeriod) {
         AppTelemetry.logEvent("report_shared", mapOf("period" to period.analyticsName))
-    }
-
-    // -- Names ---------------------------------------------------------------------------------------
-
-    /** Names of the 114 surahs by the same rule as the home list and the reader header. */
-    private fun surahNames(data: NameData, language: AppLanguage): List<String> {
-        val russian = data.surahList.associateBy { it.surahNumber }
-        val english = englishNames(data.completeQuran)
-        return List(QuranFacts.SURAH_COUNT) { index ->
-            val number = index + 1
-            val ru = russian[number]
-            val fallback = english[number]?.takeIf { it.isNotBlank() }
-                ?: ru?.name?.let(SurahNames::cleanRussianName)
-                ?: "Surah $number"
-            SurahNames.displayName(
-                language = language,
-                russianName = ru?.name,
-                transliteration = data.chapterNames[number]?.transliteration,
-                fallback = fallback,
-            )
-        }
-    }
-
-    private fun englishNames(completeQuran: List<SurahWithAyahs>): Map<Int, String> {
-        cachedEnglishNames?.takeIf { it.first === completeQuran }?.let { return it.second }
-        val names = completeQuran.associate { it.surah.number to it.surah.englishName }
-        cachedEnglishNames = completeQuran to names
-        return names
     }
 
     private companion object {

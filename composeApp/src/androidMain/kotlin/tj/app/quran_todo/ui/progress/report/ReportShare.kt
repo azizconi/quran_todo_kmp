@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
 import tj.app.quran_todo.ui.settings.TransferIo
+import tj.app.quran_todo.ui.theme.QhColors
 
 /**
  * Hands the report to another app. The picture lives in `cache/report/` (a folder of `res/xml/transfer_file_paths.xml`, served by
@@ -24,6 +25,7 @@ internal object ReportShare {
     /** A folder of `res/xml/transfer_file_paths.xml`; separate from the backup copy of "Transfer and backup". */
     const val DIR = "report"
     const val MIME_PNG = "image/png"
+    const val MIME_PDF = "application/pdf"
     private const val MIME_TEXT = "text/plain"
 
     /** `quran-hifz-report-2026-10-30.png`. */
@@ -40,6 +42,18 @@ internal object ReportShare {
         FileProvider.getUriForFile(context, TransferIo.authority(context), file)
     }
 
+    /** `quran-hifz-report-2026-10-30.pdf`. */
+    fun pdfFileName(toDay: Int): String = "quran-hifz-report-${LocalDate.fromEpochDays(toDay)}.pdf"
+
+    /** Writes [doc] as a PDF into the cache (after deleting the earlier files) and returns the uri for the other app. */
+    suspend fun writePdf(context: Context, doc: ReportDoc, colors: QhColors, toDay: Int): Uri = withContext(Dispatchers.IO) {
+        clearDir(context)
+        val dir = File(context.cacheDir, DIR).apply { mkdirs() }
+        val file = File(dir, pdfFileName(toDay))
+        file.outputStream().use { out -> ReportPdf.render(doc, colors, out) }
+        FileProvider.getUriForFile(context, TransferIo.authority(context), file)
+    }
+
     /** Deletes the pictures of earlier reports. */
     suspend fun clear(context: Context) = withContext(Dispatchers.IO) { clearDir(context) }
 
@@ -51,9 +65,9 @@ internal object ReportShare {
      * The chooser of one `ACTION_SEND` that carries the text (`EXTRA_TEXT`) and, when [image] is given, the picture
      * (`EXTRA_STREAM`, `image/png`): messengers show the text as the caption. The receiver may read [image] and nothing else.
      */
-    fun intent(text: String, subject: String, image: Uri?, chooserTitle: String): Intent {
+    fun intent(text: String, subject: String, image: Uri?, chooserTitle: String, mime: String = MIME_PNG): Intent {
         val send = Intent(Intent.ACTION_SEND).apply {
-            type = if (image != null) MIME_PNG else MIME_TEXT
+            type = if (image != null) mime else MIME_TEXT
             putExtra(Intent.EXTRA_TEXT, text)
             putExtra(Intent.EXTRA_SUBJECT, subject)
             if (image != null) {

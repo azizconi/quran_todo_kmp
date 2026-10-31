@@ -3,6 +3,7 @@ package tj.app.quran_todo.ui.progress.report
 import kotlinx.datetime.LocalDate
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.ui.i18n.ReportCopy
+import tj.app.quran_todo.ui.i18n.analyticsCopy
 import tj.app.quran_todo.ui.i18n.ayahCountLabel
 import tj.app.quran_todo.ui.i18n.lessonCopy
 import tj.app.quran_todo.ui.i18n.passageRangeLabel
@@ -34,6 +35,10 @@ internal class ReportDoc(
     /** "Memorized in total: 412 of 6236 ayahs". */
     val caption: String,
     val rows: List<ReportRow>,
+    /** The heat strip of the days of the period: records per day, oldest first (empty: no strip). */
+    val strip: List<Int> = emptyList(),
+    /** The caption of the strip ("Days of the period"). */
+    val stripLabel: String = "",
 )
 
 /** The pure function "report -> words in the language of the app", covered by unit tests. */
@@ -106,6 +111,8 @@ internal object ReportComposer {
             fraction = hero.fraction,
             caption = copy.total(hero.learnedAyahs, hero.totalAyahs),
             rows = rows,
+            strip = report.strip,
+            stripLabel = analyticsCopy(language).reportStripLabel,
         )
     }
 

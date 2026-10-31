@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
 import tj.app.quran_todo.ui.components.Calligraphy
+import tj.app.quran_todo.ui.progress.analytics.Analytics
 import tj.app.quran_todo.ui.theme.QhColors
 
 /** What the card is drawn with: the light tokens of the app, its UI font and the calligraphy font. */
@@ -117,6 +118,14 @@ internal object ReportImage {
             blocks += Block.gap(if (index == doc.rows.lastIndex) 0f else 26f)
         }
 
+        // -- The heat strip of the days of the period ---------------------------------------------------
+        if (doc.strip.isNotEmpty()) {
+            blocks += Block.gap(26f)
+            blocks += Block.rule(colors.hairline, gapAfter = 28f)
+            blocks += Block.left(layout(doc.stripLabel, ui(32, 600, colors.inkSecondary)), gapAfter = 14f)
+            blocks += Block.strip(doc.strip, colors, contentWidth)
+        }
+
         val cardHeight = blocks.sumOf { it.height.toDouble() }.toFloat() + 2 * Pad
         val width = WidthPx
         val height = (cardHeight + 2 * Outer).toInt()
@@ -159,6 +168,29 @@ internal object ReportImage {
                 Block(layout.size.height + gapAfter) { scope, left, _, top ->
                     scope.drawText(layout, topLeft = Offset(left, top))
                 }
+
+            /** One cell per day of the period, wrapped into rows; the colour is the share of the busiest day, in the four steps of the heat map. */
+            fun strip(counts: List<Int>, colors: QhColors, contentWidth: Float): Block {
+                val cell = 30f
+                val gap = 8f
+                val perRow = ((contentWidth + gap) / (cell + gap)).toInt().coerceAtLeast(1)
+                val rows = (counts.size + perRow - 1) / perRow
+                val max = counts.maxOrNull() ?: 0
+                return Block(rows * (cell + gap)) { scope, left, _, top ->
+                    counts.forEachIndexed { index, count ->
+                        val x = left + (index % perRow) * (cell + gap)
+                        val y = top + (index / perRow) * (cell + gap)
+                        val color = when (Analytics.level(count, max)) {
+                            0 -> colors.surfaceMuted
+                            1 -> colors.primary.copy(alpha = 0.3f)
+                            2 -> colors.primary.copy(alpha = 0.55f)
+                            3 -> colors.primary.copy(alpha = 0.8f)
+                            else -> colors.primary
+                        }
+                        scope.drawRoundRect(color, Offset(x, y), Size(cell, cell), CornerRadius(6f))
+                    }
+                }
+            }
 
             fun rule(color: Color, gapAfter: Float) = Block(2f + gapAfter) { scope, left, width, top ->
                 scope.drawRect(color, topLeft = Offset(left, top), size = Size(width, 2f))

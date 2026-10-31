@@ -12,6 +12,9 @@ import tj.app.quran_todo.ui.progress.ProgressSources
 internal enum class ReportPeriod(val days: Int, val analyticsName: String) {
     Week(7, "week"),
     Month(30, "month"),
+
+    /** A range chosen with the date picker; [days] is only the length used when no range is given. */
+    Custom(30, "custom"),
 }
 
 /** A continuous range of ayahs of one surah (numbers in the surah) learned in the period. */
@@ -50,17 +53,35 @@ internal data class ProgressReport(
     /** Days of the period with at least one record. */
     val activeDays: Int,
     val plan: PlanLineUi,
+    /**
+     * Records of the studying per day of the period, oldest first (the heat strip of the report); empty for a period longer than
+     * [ReportBuilder.MaxStripDays] days, which would not fit as a strip.
+     */
+    val strip: List<Int> = emptyList(),
 ) {
     val dayCount: Int get() = toDay - fromDay + 1
 }
 
 /** The pure function "review log + coverage + plan -> report", covered by unit tests. */
 internal object ReportBuilder {
-    fun build(s: ProgressSources, period: ReportPeriod): ProgressReport {
-        val to = s.today
-        val from = to - period.days + 1
+    /** A strip of more days than this is left out of the report (a year of cells does not fit on a card). */
+    const val MaxStripDays = 93
+
+    /**
+     * The report of [period]. The days are the last `period.days` up to today unless [fromDay] and [toDay] say otherwise (a range of
+     * the date picker); [log] is the review log that covers them (the sources hold only the last 30 days).
+     */
+    fun build(
+        s: ProgressSources,
+        period: ReportPeriod,
+        fromDay: Int = (s.today - period.days + 1),
+        toDay: Int = s.today,
+        log: List<ReviewLogEntry> = s.log,
+    ): ProgressReport {
+        val to = toDay
+        val from = fromDay
         // "Listened" records are not part of the report of the studying (task F1b).
-        val inPeriod = s.log.filter { it.epochDay in from..to && it.kind.countsAsStudy }
+        val inPeriod = log.filter { it.epochDay in from..to && it.kind.countsAsStudy }
         val learned = inPeriod.filter { it.kind == ReviewKind.NEW }
         val repeated = inPeriod.filter { it.kind != ReviewKind.NEW }
 
@@ -90,7 +111,16 @@ internal object ReportBuilder {
             streak = s.streak,
             activeDays = ProgressBuilder.activeDays(inPeriod, from, to),
             plan = ProgressBuilder.planLine(s.plan, s.forecast),
+            strip = strip(inPeriod, from, to),
         )
+    }
+
+    /** Records of the studying per day of [fromDay]..[toDay]; empty when the period is longer than [MaxStripDays]. */
+    fun strip(study: List<ReviewLogEntry>, fromDay: Int, toDay: Int): List<Int> {
+        if (toDay < fromDay || toDay - fromDay + 1 > MaxStripDays) return emptyList()
+        val counts = IntArray(toDay - fromDay + 1)
+        for (entry in study) if (entry.kind.countsAsStudy && entry.epochDay in fromDay..toDay) counts[entry.epochDay - fromDay]++
+        return counts.toList()
     }
 
     /**
