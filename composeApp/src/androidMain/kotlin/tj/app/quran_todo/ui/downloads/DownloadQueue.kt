@@ -7,9 +7,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
 
-/** What was left undone in a request when its pass ended: ayahs that did not come, and surahs whose translation did not. */
+/**
+ * What was left undone in a request when its pass ended: ayahs that did not come, surahs whose translation did not, and pages of the
+ * mushaf that did not ([pages], task F3a; a queue file of an older version has none).
+ */
 @Serializable
-data class RequestFailure(val requestId: String, val ayahs: Int, val translations: Int)
+data class RequestFailure(val requestId: String, val ayahs: Int, val translations: Int, val pages: Int = 0)
 
 /**
  * Everything the person asked for, in order, and what became of it. This is the truth that the worker and the screen share: it is
@@ -35,6 +38,8 @@ data class QueueState(
     val failedAyahs: Int get() = failures.sumOf { it.ayahs }
 
     val failedTranslations: Int get() = failures.sumOf { it.translations }
+
+    val failedPages: Int get() = failures.sumOf { it.pages }
 
     val hasFailures: Boolean get() = failures.isNotEmpty()
 
@@ -146,11 +151,11 @@ internal class DownloadQueue(
         onFinished(request, FinishResult.DONE)
     }
 
-    /** The worker went through [requestId] and [ayahs] ayahs and [translations] translations did not come. */
-    fun fail(requestId: String, ayahs: Int, translations: Int) = synchronized(lock) {
+    /** The worker went through [requestId] and [ayahs] ayahs, [translations] translations and [pages] pages did not come. */
+    fun fail(requestId: String, ayahs: Int, translations: Int, pages: Int = 0) = synchronized(lock) {
         val current = _state.value
         val request = current.requests.firstOrNull { it.id == requestId } ?: return@synchronized
-        val failure = RequestFailure(requestId, ayahs, translations)
+        val failure = RequestFailure(requestId, ayahs, translations, pages)
         commit(current.copy(failures = current.failures.filterNot { it.requestId == requestId } + failure))
         onFinished(request, FinishResult.FAILED)
     }

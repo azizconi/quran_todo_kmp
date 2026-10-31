@@ -156,7 +156,7 @@ fun RecallGradeSheet(
 }
 
 @Composable
-private fun GradeOptions(selected: ReviewGrade, copy: HifzCopy, onPick: (ReviewGrade) -> Unit) {
+internal fun GradeOptions(selected: ReviewGrade, copy: HifzCopy, onPick: (ReviewGrade) -> Unit) {
     val fontScale = LocalDensity.current.fontScale
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val oneRow = fontScale <= LargeFontScale && maxWidth >= OneRowMinWidth

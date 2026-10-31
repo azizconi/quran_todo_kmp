@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -103,6 +104,7 @@ import tj.app.quran_todo.ui.haptics.LocalHaptics
 import tj.app.quran_todo.ui.i18n.MushafCopy
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.i18n.mushafCopy
+import tj.app.quran_todo.ui.i18n.pagesCopy
 import tj.app.quran_todo.ui.i18n.readerCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.navigation.Dest
@@ -133,6 +135,7 @@ import tj.app.quran_todo.ui.reader.components.rangePositionOf
 import tj.app.quran_todo.ui.reader.components.readerEnter
 import tj.app.quran_todo.ui.reader.components.rememberPlayerDockState
 import tj.app.quran_todo.ui.reader.components.rememberReaderEnter
+import tj.app.quran_todo.ui.state.ReaderLayout
 import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
@@ -154,6 +157,8 @@ fun ReaderScreen(
     route: Dest.Reader,
     onBack: () -> Unit,
     onOpenReader: (Dest.Reader) -> Unit,
+    /** The switch "Text / Pages" (F3a): opens the page of the ayah on top (surah, ayah) in place of the reader. */
+    onOpenPages: (surah: Int, ayah: Int) -> Unit = { _, _ -> },
 ) {
     val viewModel = koinViewModel<ReaderViewModel>(parameters = { parametersOf(route) })
     val language = LocalAppLanguage.current
@@ -188,6 +193,11 @@ fun ReaderScreen(
             copy = copy,
             onBack = onBack,
             onOpenReader = onOpenReader,
+            onOpenPages = { surah, ayah ->
+                // The choice is remembered: the entrances of the app open the pages from now on.
+                uiPrefs.setReaderLayout(ReaderLayout.MUSHAF)
+                onOpenPages(surah, ayah)
+            },
         )
     }
 }
@@ -246,6 +256,7 @@ private fun ReaderContent(
     copy: ReaderCopy,
     onBack: () -> Unit,
     onOpenReader: (Dest.Reader) -> Unit,
+    onOpenPages: (surah: Int, ayah: Int) -> Unit,
 ) {
     val colors = QhTheme.colors
     val density = LocalDensity.current
@@ -347,6 +358,7 @@ private fun ReaderContent(
     // The mushaf marks (D1) were worked out once when the surah arrived. The place in the top bar ("Juz 2 · Hizb 3 · p. 22") is
     // derived from the ayah on top: it only changes when the juz, hizb or page really changes (a data class compares equal).
     val mushaf = remember(language) { mushafCopy(language) }
+    val pagesText = remember(language) { pagesCopy(language) }
     val marks = viewModel.marks
     val places = viewModel.places
     val place = remember(firstVisibleAyah, places) {
@@ -536,7 +548,16 @@ private fun ReaderContent(
             onTextSettings = { sheet = ReaderSheet.Appearance },
             onMore = { sheet = ReaderSheet.Surah(SurahSheetPage.Menu) },
             modifier = Modifier.align(Alignment.TopCenter),
-            extraAction = { HifzEyeButton(hifz, Modifier.spotlightTarget(SpotlightTargets.ReaderCheck, SpotlightShape.Circle)) },
+            extraAction = {
+                // The switch "Text / Pages" (F3a), then the eye of "Check yourself".
+                QhIconButton(
+                    icon = Icons.Rounded.MenuBook,
+                    contentDescription = pagesText.openAsPages,
+                    onClick = { onOpenPages(surahNumber, ayahNumber.value) },
+                    filled = false,
+                )
+                HifzEyeButton(hifz, Modifier.spotlightTarget(SpotlightTargets.ReaderCheck, SpotlightShape.Circle))
+            },
             textSettingsModifier = Modifier.spotlightTarget(SpotlightTargets.ReaderText, SpotlightShape.Circle),
         )
         HifzTopBar(hifz, Modifier.align(Alignment.TopCenter))

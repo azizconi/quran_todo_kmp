@@ -37,6 +37,8 @@ internal data class RowUi(
     val lastSurah: Int,
     val surahCount: Int,
     val ayahCount: Int,
+    /** For a pages row (task F3a): how many pages it holds (21 for a juz, 604 for all); 0 for every other row. */
+    val pageCount: Int = 0,
     /** The size before downloading, estimated from the text; null while the text is not known yet. */
     val estimateBytes: Long?,
     val state: RowState,
@@ -55,6 +57,8 @@ internal data class QueueUi(
     val phase: WorkPhase,
     val failedAyahs: Int,
     val failedTranslations: Int,
+    /** Pages of the mushaf that did not download (task F3a). */
+    val failedPages: Int = 0,
     /** Something is left to download (the queue is not only requests that failed). */
     val hasActive: Boolean,
 )
@@ -80,6 +84,10 @@ internal data class DownloadsUi(
     /** "Everything in my plan"; null when there is no plan (the section is hidden). */
     val planAll: RowUi? = null,
     val planRows: List<RowUi> = emptyList(),
+    /** "All 604 pages" of the section "Mushaf pages" (task F3a). */
+    val pagesAll: RowUi? = null,
+    /** The pages of each juz, in the section "Mushaf pages". */
+    val pagesJuz: List<RowUi> = emptyList(),
     val juz: List<RowUi> = emptyList(),
     val surahs: List<RowUi> = emptyList(),
     val searchIndex: SurahSearch.Index? = null,

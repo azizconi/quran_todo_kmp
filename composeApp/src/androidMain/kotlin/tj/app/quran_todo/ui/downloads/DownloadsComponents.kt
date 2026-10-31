@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -58,6 +59,7 @@ import tj.app.quran_todo.ui.components.QhValueRow
 import tj.app.quran_todo.ui.components.SurahNumberBadge
 import tj.app.quran_todo.ui.i18n.DownloadsCopy
 import tj.app.quran_todo.ui.i18n.ayahCountLabel
+import tj.app.quran_todo.ui.i18n.pagesCopy
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.orSnap
 import tj.app.quran_todo.ui.settings.nativeName
@@ -130,7 +132,10 @@ internal fun QueueCard(
     modifier: Modifier = Modifier,
 ) {
     val colors = QhTheme.colors
-    val failure = copy.failureLabel(queue.failedAyahs, queue.failedTranslations)
+    val failure = listOf(
+        copy.failureLabel(queue.failedAyahs, queue.failedTranslations),
+        pagesCopy(copy.language).failedPages(queue.failedPages),
+    ).filter { it.isNotEmpty() }.joinToString(" · ")
     val status = when {
         !queue.hasActive -> null
         queue.paused -> copy.queuePaused
@@ -354,6 +359,8 @@ internal fun rowTitle(row: RowUi, copy: DownloadsCopy): String = when (row.kind)
     DownloadKind.SURAH -> row.name
     DownloadKind.JUZ -> copy.juzTitleLabel(row.number)
     DownloadKind.PLAN -> copy.planAll
+    // Made in the language of the app by the view model (a juz of pages, or all of them).
+    DownloadKind.PAGES -> row.name
 }
 
 private fun rowLine(row: RowUi, copy: DownloadsCopy, language: AppLanguage): RowLine {
@@ -363,6 +370,7 @@ private fun rowLine(row: RowUi, copy: DownloadsCopy, language: AppLanguage): Row
         DownloadKind.SURAH -> ayahCountLabel(row.ayahCount, language)
         DownloadKind.JUZ -> copy.juzSurahsLabel(row.firstSurah, row.lastSurah)
         DownloadKind.PLAN -> copy.planAllSubtitleLabel(row.surahCount)
+        DownloadKind.PAGES -> pagesCopy(language).pagesCount(row.pageCount)
     }
     val untouched = listOfNotNull(row.estimateBytes?.let(copy::estimateLabel), about).joinToString(" · ")
     val onDevice = when (val state = row.state) {
@@ -398,6 +406,20 @@ private fun RowBadge(row: RowUi) {
             Text(text = row.number.toString(), style = QhTheme.type.label.tabular(), color = colors.ink, textAlign = TextAlign.Center)
         }
         DownloadKind.PLAN -> QhIconTile(Icons.Rounded.Download, tint = colors.primary, modifier = Modifier.size(40.dp))
+        // "All pages" has the book, the pages of a juz have the number of the juz in the ring of the juz rows.
+        DownloadKind.PAGES -> if (row.number == 0) {
+            QhIconTile(Icons.Rounded.MenuBook, tint = colors.primary, modifier = Modifier.size(40.dp))
+        } else {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .border(1.5.dp, colors.gold.copy(alpha = 0.7f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(text = row.number.toString(), style = QhTheme.type.label.tabular(), color = colors.ink, textAlign = TextAlign.Center)
+            }
+        }
     }
 }
 

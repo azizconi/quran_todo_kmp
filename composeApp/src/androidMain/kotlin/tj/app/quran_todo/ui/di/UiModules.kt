@@ -10,6 +10,7 @@ import tj.app.quran_todo.ui.hifz.HifzViewModel
 import tj.app.quran_todo.ui.home.HomeUiViewModel
 import tj.app.quran_todo.ui.lesson.LessonViewModel
 import tj.app.quran_todo.ui.listen.ListenOldViewModel
+import tj.app.quran_todo.ui.mushaf.MushafViewModel
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.onboarding.OnboardingViewModel
 import tj.app.quran_todo.ui.plan.PlanViewModel
@@ -53,6 +54,23 @@ val readerUiModule = module {
     viewModel { params ->
         ReaderViewModel(
             route = params.get<Dest.Reader>(),
+            homeViewModel = get(),
+            surahViewModel = get(),
+            ayahNoteDao = get(),
+            uiPrefs = get(),
+            playback = get(),
+            hifz = get(),
+            ticker = get(),
+        )
+    }
+}
+
+val mushafUiModule = module {
+    // One MushafViewModel per Dest.Mushaf back stack entry (the pages as a mushaf, task F3a); the shared Home and Surah view models, the
+    // HifzRepository and the ticker are singletons that come in through the constructor, never through koinViewModel.
+    viewModel { params ->
+        MushafViewModel(
+            route = params.get<Dest.Mushaf>(),
             homeViewModel = get(),
             surahViewModel = get(),
             ayahNoteDao = get(),
@@ -191,6 +209,7 @@ val uiModules = listOf(
     homeUiModule,
     planUiModule,
     readerUiModule,
+    mushafUiModule,
     hifzUiModule,
     lessonUiModule,
     listenUiModule,

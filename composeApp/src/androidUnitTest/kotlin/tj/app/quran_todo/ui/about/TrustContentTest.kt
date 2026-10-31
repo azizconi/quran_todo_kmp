@@ -91,6 +91,8 @@ class TrustContentTest {
             "Muhammad Sodiq Muhammad Yusuf", "quran.com", "cdn.islamic.network", "Alafasy", "Husary",
             "Minshawi", "Abdul Basit", "Manrope", "Amiri Quran", "Kotlin", "Compose Multiplatform", "AndroidX",
             "Room", "Ktor", "Koin", "Media3", "Firebase",
+            // The pages of the mushaf (F3a): the layout and the fonts come from quran.com, the fonts are KFGQPC's.
+            "KFGQPC", "King Fahd Glorious Quran Printing Complex", "verses.quran.com", "Mushaf pages",
         ).forEach { expected ->
             assertTrue(expected.lowercase() in titles.lowercase(), "sources do not mention $expected")
         }

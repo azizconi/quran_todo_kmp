@@ -23,6 +23,16 @@ sealed interface Dest {
         val rangeEnd: Int? = null,
     ) : Dest
 
+    /**
+     * The mushaf as pages (task F3a): the page of the Madani mushaf [page] (1..604) in the layout of quran.com. [ayahKey] ("112:3") is the
+     * ayah to mark for a moment, the one a search result or "continue" pointed at.
+     */
+    @Serializable
+    data class Mushaf(
+        val page: Int,
+        val ayahKey: String? = null,
+    ) : Dest
+
     /** Today's lesson: new, recent and old passages, then the summary (task B2). */
     @Serializable
     data object Lesson : Dest
