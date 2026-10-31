@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Replaces src/debug/AndroidManifest.xml as the manifest of the debug source set when the F7 prototype is switched on (-Pvoiceproto=true):
+     the same receiver plus the entries of the voice check. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Debug only: moves "today" of the reading plan and Ramadan (see DebugDateReceiver). A release build does not have it. -->
+        <receiver
+            android:name=".debug.DebugDateReceiver"
+            android:exported="true" />
+
+        <!-- F7 prototype: hangs "Check by voice" on the Recall step at process start (see VoiceProtoInit). -->
+        <provider
+            android:name=".debug.voice.VoiceProtoInit"
+            android:authorities="${applicationId}.voiceprotoinit"
+            android:exported="false" />
+
+        <!-- F7 prototype: the lab of the voice check; started by adb (see docs/redesign/API.md, "Voice: prototype"). -->
+        <activity
+            android:name=".debug.voice.VoiceLabActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize" />
+    </application>
+</manifest>

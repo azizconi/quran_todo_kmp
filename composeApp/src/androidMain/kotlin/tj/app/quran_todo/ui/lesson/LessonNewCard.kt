@@ -76,6 +76,7 @@ import tj.app.quran_todo.ui.hifz.AyahMark
 import tj.app.quran_todo.ui.hifz.RecallGradeSheet
 import tj.app.quran_todo.ui.hifz.RecallHost
 import tj.app.quran_todo.ui.hifz.RecallPassage
+import tj.app.quran_todo.ui.hifz.VoiceProtoHook
 import tj.app.quran_todo.ui.i18n.HifzCopy
 import tj.app.quran_todo.ui.i18n.LessonCopy
 import tj.app.quran_todo.ui.i18n.rememberListenCopy
@@ -651,6 +652,8 @@ internal fun RecallStage(viewModel: LessonViewModel, copy: LessonCopy, work: Les
             state = voice,
             modifier = Modifier.padding(horizontal = QhSpacing.screen),
         )
+        // Debug builds only (F7 prototype): "Check by voice"; null, so nothing, in a release build.
+        VoiceProtoHook.passageEntry?.invoke(work.ayahs)
         Box(Modifier.fillMaxWidth().weight(1f)) {
             RecallPassage(
                 session = session,
