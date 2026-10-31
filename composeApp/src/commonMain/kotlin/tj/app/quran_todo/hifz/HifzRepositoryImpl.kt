@@ -46,6 +46,11 @@ import tj.app.quran_todo.hifz.schedule.PassageOps
 import tj.app.quran_todo.hifz.schedule.PauseStep
 import tj.app.quran_todo.hifz.schedule.PlanForecast
 import tj.app.quran_todo.hifz.schedule.PlanPauses
+import tj.app.quran_todo.khatm.KhatmMath
+import tj.app.quran_todo.khatm.KhatmPlan
+import tj.app.quran_todo.khatm.KhatmProgress
+import tj.app.quran_todo.khatm.KhatmState
+import tj.app.quran_todo.khatm.KhatmStorage
 import tj.app.quran_todo.hifz.schedule.Streak
 import tj.app.quran_todo.hifz.schedule.TextMetrics
 
@@ -173,6 +178,52 @@ class HifzRepositoryImpl(
     override fun pause(today: Int): Flow<PlanPause?> = observe(META) { PlanPauses.active(loadPauses(), today) }
 
     override fun pause(today: Flow<Int>): Flow<PlanPause?> = today.distinctUntilChanged().flatMapLatest { pause(it) }
+
+    override fun khatm(): Flow<KhatmState?> = observe(META) { loadKhatm() }
+
+    private suspend fun loadKhatm(): KhatmState? = KhatmStorage.decode(
+        plan = dao.getMeta(KhatmStorage.PLAN_KEY),
+        page = dao.getMeta(KhatmStorage.PAGE_KEY),
+        days = dao.getMeta(KhatmStorage.DAYS_KEY),
+    )
+
+    private suspend fun storeKhatm(plan: KhatmPlan, progress: KhatmProgress) {
+        dao.upsertMeta(HifzMetaEntity(KhatmStorage.PLAN_KEY, KhatmStorage.encodePlan(plan)))
+        dao.upsertMeta(HifzMetaEntity(KhatmStorage.PAGE_KEY, progress.lastPage.toString()))
+        if (progress.readDays.isEmpty()) {
+            dao.deleteMeta(KhatmStorage.DAYS_KEY)
+        } else {
+            dao.upsertMeta(HifzMetaEntity(KhatmStorage.DAYS_KEY, KhatmStorage.encodeDays(progress.readDays)))
+        }
+    }
+
+    override suspend fun saveKhatm(plan: KhatmPlan, keepProgress: Boolean) {
+        write {
+            val kept = if (keepProgress) loadKhatm()?.progress else null
+            val progress = kept?.copy(lastPage = kept.lastPage.coerceIn(plan.startPage - 1, plan.endPage))
+                ?: KhatmMath.freshProgress(plan)
+            storeKhatm(plan, progress)
+        }
+    }
+
+    override suspend fun markKhatmPortionRead(today: Int) {
+        write {
+            val state = loadKhatm() ?: return@write
+            val progress = KhatmMath.markPortionRead(state, today) ?: return@write
+            storeKhatm(state.plan, progress)
+        }
+    }
+
+    override suspend fun markKhatmUpTo(page: Int, today: Int) {
+        write {
+            val state = loadKhatm() ?: return@write
+            storeKhatm(state.plan, KhatmMath.markUpTo(state, page, today))
+        }
+    }
+
+    override suspend fun clearKhatm() {
+        write { KhatmStorage.KEYS.forEach { dao.deleteMeta(it) } }
+    }
 
     override fun surahStatuses(): Flow<Map<Int, SurahHifzStatus>> = observeWithMetrics(PASSAGES, PLAN) { metrics ->
         HifzStatuses.all(loadPassages(), loadPlan(), metrics)

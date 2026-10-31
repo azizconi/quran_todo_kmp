@@ -107,6 +107,31 @@
                 <action android:name="android.intent.action.LOCALE_CHANGED" />
             </intent-filter>
         </receiver>
+        <!-- The "Lesson of the day" home screen widget (task F5b). -->
+        <receiver
+            android:name=".ui.widget.LessonWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lesson_widget_info" />
+        </receiver>
+        <!-- Redraws the widget after a reboot, an app update, a clock, time zone or language change, and just after midnight (its own
+             alarm). Protected system broadcasts: the system delivers them to a receiver that is not exported. -->
+        <receiver
+            android:name=".ui.widget.LessonWidgetSystemReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

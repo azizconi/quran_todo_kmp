@@ -1,0 +1,5 @@
+<resources>
+    <string name="widget_description">Урок дня. Короткая строка о новом отрывке и повторениях на сегодня; нажатие открывает урок.</string>
+    <string name="widget_preview_title">Урок дня · ~12 мин</string>
+    <string name="widget_preview_detail">Новое: Ан-Наба 1–5 · 2 повторения</string>
+</resources>

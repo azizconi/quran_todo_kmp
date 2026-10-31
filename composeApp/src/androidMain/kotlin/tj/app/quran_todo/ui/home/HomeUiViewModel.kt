@@ -150,7 +150,8 @@ class HomeUiViewModel internal constructor(
         playback.listenQueue,
         playback.state.map { it.isPlaying || it.isPreparing }.distinctUntilChanged(),
     ) { queue, playing ->
-        queue?.takeIf { !it.finished }?.let { ListeningUi(position = it.position + 1, total = it.items.size, playing = playing) }
+        // A queue of "Juz of the night" (task F5b) has negative passage ids: it is not the listening of the old.
+        queue?.takeIf { !it.finished && it.items.firstOrNull()?.passageId?.let { id -> id < 0 } != true }?.let { ListeningUi(position = it.position + 1, total = it.items.size, playing = playing) }
     }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)

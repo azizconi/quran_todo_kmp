@@ -52,6 +52,9 @@ kotlin {
             implementation(libs.androidx.media3.session)
             // Downloads and storage (task D3): a worker that survives the app and resumes after a break.
             implementation(libs.androidx.work.runtime)
+            // The "Lesson of the day" home screen widget (task F5b).
+            implementation(libs.androidx.glance.appwidget)
+            implementation(libs.androidx.glance.material3)
 
             implementation(libs.koin.android)
             implementation(libs.koin.androidx.compose)
@@ -102,6 +105,12 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1")
             implementation("io.ktor:ktor-client-mock:${libs.versions.ktor.get()}")
+        }
+
+        // The Hijri dates of Ramadan are checked against ICU4J, the library that `android.icu` is made from (the stub of android.jar
+        // does not work in plain JVM tests).
+        androidUnitTest.dependencies {
+            implementation("com.ibm.icu:icu4j:76.1")
         }
 
         // Instrumented tests (need a device or an emulator): ./gradlew :composeApp:connectedDebugAndroidTest

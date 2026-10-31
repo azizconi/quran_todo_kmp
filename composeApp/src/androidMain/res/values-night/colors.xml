@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="qh_bg">#0D1311</color>
+    <color name="widget_preview_surface">#141C19</color>
+    <color name="widget_preview_ink">#ECF2EE</color>
+    <color name="widget_preview_ink_secondary">#A7B3AC</color>
 </resources>

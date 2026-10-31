@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Debug only: moves "today" of the reading plan and Ramadan (see DebugDateReceiver). A release build does not have it. -->
+        <receiver
+            android:name=".debug.DebugDateReceiver"
+            android:exported="true" />
+    </application>
+</manifest>

@@ -18,15 +18,20 @@ internal object ReminderLink {
     const val EXTRA_SURAH = "tj.app.quran_todo.extra.REMINDER_SURAH"
     const val EXTRA_AYAH = "tj.app.quran_todo.extra.REMINDER_AYAH"
 
+    /** Who made the link: the home screen widget says so (task F5b), the notification leaves it out. */
+    const val EXTRA_SOURCE = "tj.app.quran_todo.extra.REMINDER_SOURCE"
+    const val SOURCE_WIDGET = "widget"
+
     const val OPEN_LESSON = "lesson"
     const val OPEN_READER = "reader"
 
-    /** The intent that a tap on the notification starts. */
-    fun intentFor(context: Context, target: ReminderTarget): Intent =
+    /** The intent that a tap on the notification (or, with [source] [SOURCE_WIDGET], on the widget) starts. */
+    fun intentFor(context: Context, target: ReminderTarget, source: String? = null): Intent =
         Intent(context, MainActivity::class.java)
             .setAction(ACTION_OPEN)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .apply {
+                source?.let { putExtra(EXTRA_SOURCE, it) }
                 when (target) {
                     ReminderTarget.Lesson -> putExtra(EXTRA_OPEN, OPEN_LESSON)
                     is ReminderTarget.Reader -> {
@@ -47,8 +52,12 @@ internal object ReminderLink {
         )
     }
 
+    /** Who made the link in [intent] ([SOURCE_WIDGET]), or null for the notification. */
+    fun sourceFrom(intent: Intent?): String? = intent?.getStringExtra(EXTRA_SOURCE)
+
     /** Takes the link out of [intent] so that it is handled once. */
     fun consume(intent: Intent) {
+        intent.removeExtra(EXTRA_SOURCE)
         intent.removeExtra(EXTRA_OPEN)
         intent.removeExtra(EXTRA_SURAH)
         intent.removeExtra(EXTRA_AYAH)

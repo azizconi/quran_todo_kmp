@@ -11,6 +11,7 @@ import tj.app.quran_todo.di.commonModule
 import tj.app.quran_todo.di.viewModelModule
 import tj.app.quran_todo.hifz.HifzRepository
 import tj.app.quran_todo.ui.di.uiModules
+import tj.app.quran_todo.ui.widget.LessonWidgetUpdater
 
 class QuranTodoApplication: Application() {
     override fun onCreate() {
@@ -25,6 +26,9 @@ class QuranTodoApplication: Application() {
         }
 
         // Turns the progress of the old model (surah/ayah statuses, SM-2 reviews, weak ayahs) into passages, once.
+        // The widget "Lesson of the day" is redrawn when what it shows changes (task F5b); no polling.
+        LessonWidgetUpdater.start(this)
+
         HifzStartup.importLegacyInBackground { KoinPlatform.getKoin().get<HifzRepository>() }
     }
 }

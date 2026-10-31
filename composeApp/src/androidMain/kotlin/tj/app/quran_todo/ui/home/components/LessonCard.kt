@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Eco
 import androidx.compose.material.icons.rounded.Headphones
@@ -64,6 +65,7 @@ import tj.app.quran_todo.ui.home.ListeningUi
 import tj.app.quran_todo.ui.home.OldListenUi
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.ui.i18n.HomeCopy
+import tj.app.quran_todo.ui.i18n.rememberKhatmCopy
 import tj.app.quran_todo.ui.i18n.rememberPauseCopy
 import tj.app.quran_todo.ui.lesson.formatDay
 import tj.app.quran_todo.ui.i18n.ListenCopy
@@ -97,6 +99,8 @@ internal fun LessonCard(
     listening: ListeningUi? = null,
     /** "Continue now" of a paused plan (asked to confirm first). */
     onResumePlan: () -> Unit = {},
+    /** "Reading plan" (khatm, task F5b): the way to make one, in the menu of the card. */
+    onOpenKhatm: () -> Unit = {},
 ) {
     when (card.state) {
         LessonCardState.Paused -> PausedCard(card = card, onResume = onResumePlan, onOpenPlan = onOpenPlan, modifier = modifier)
@@ -120,7 +124,7 @@ internal fun LessonCard(
         )
 
         LessonCardState.Start, LessonCardState.Continue, LessonCardState.Done ->
-            LessonBody(card, copy, onOpenLesson, onOpenPlan, modifier, onListenOld, listening)
+            LessonBody(card, copy, onOpenLesson, onOpenPlan, modifier, onListenOld, listening, onOpenKhatm)
     }
 }
 
@@ -173,6 +177,7 @@ private fun LessonBody(
     modifier: Modifier,
     onListenOld: () -> Unit,
     listening: ListeningUi?,
+    onOpenKhatm: () -> Unit,
 ) {
     val colors = QhTheme.colors
     val type = QhTheme.type
@@ -204,7 +209,7 @@ private fun LessonBody(
                     maxLines = 1,
                 )
             }
-            PlanMenu(copy, onOpenPlan)
+            PlanMenu(copy, onOpenPlan, onOpenKhatm)
         }
         Column(Modifier.padding(end = QhSpacing.x3)) {
             Spacer(Modifier.height(QhSpacing.x1))
@@ -266,7 +271,8 @@ private fun ListenOldButton(old: OldListenUi, listening: ListeningUi?, listen: L
 
 /** The "..." button of the card and its menu with one entry, "My plan". */
 @Composable
-private fun PlanMenu(copy: HomeCopy, onOpenPlan: () -> Unit) {
+private fun PlanMenu(copy: HomeCopy, onOpenPlan: () -> Unit, onOpenKhatm: () -> Unit) {
+    val khatm = rememberKhatmCopy()
     val colors = QhTheme.colors
     var open by remember { mutableStateOf(false) }
     Box {
@@ -288,6 +294,14 @@ private fun PlanMenu(copy: HomeCopy, onOpenPlan: () -> Unit) {
                 onClick = {
                     open = false
                     onOpenPlan()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(khatm.screenTitle, style = QhTheme.type.title2, color = colors.ink) },
+                leadingIcon = { Icon(Icons.AutoMirrored.Rounded.MenuBook, contentDescription = null, tint = colors.primary) },
+                onClick = {
+                    open = false
+                    onOpenKhatm()
                 },
             )
         }

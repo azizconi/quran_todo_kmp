@@ -87,6 +87,7 @@ import tj.app.quran_todo.hifz.EpochDayTicker
 import tj.app.quran_todo.ui.about.PrivacyScreen
 import tj.app.quran_todo.ui.about.SourcesScreen
 import tj.app.quran_todo.ui.tafsir.TafsirScreen
+import tj.app.quran_todo.ui.widget.LessonWidgetUpdater
 import tj.app.quran_todo.ui.navigation.LocalTafsirOpener
 import tj.app.quran_todo.ui.catalog.CatalogScreen
 import tj.app.quran_todo.ui.components.LocalToaster
@@ -98,6 +99,7 @@ import tj.app.quran_todo.ui.components.spotlight.rememberSpotlightController
 import tj.app.quran_todo.ui.downloads.DownloadsScreen
 import tj.app.quran_todo.ui.drill.DrillScreen
 import tj.app.quran_todo.ui.home.HomeScreen
+import tj.app.quran_todo.ui.khatm.KhatmScreen
 import tj.app.quran_todo.ui.lesson.LessonScreen
 import tj.app.quran_todo.ui.motion.LocalNavAnimatedVisibilityScope
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
@@ -202,6 +204,8 @@ fun QuranHifzApp() {
     // The name of the reminder channel in the system settings follows the language of the app.
     LaunchedEffect(language) {
         withContext(Dispatchers.Default) { ReminderChannel.renameIfExists(appContext, language) }
+        // The widget "Lesson of the day" speaks the language of the app (task F5b).
+        withContext(Dispatchers.Default) { LessonWidgetUpdater.refresh(appContext) }
     }
     LaunchedEffect(Unit) {
         AppTelemetry.logEvent("app_opened")
@@ -450,6 +454,10 @@ private fun AppNavigation() {
                             onOpenLesson = { navController.navigateOnce(Dest.Lesson) },
                             onOpenPlan = { navController.navigateOnce(Dest.Plan) },
                             onOpenQuiz = { navController.navigateOnce(Dest.Quiz) },
+                            onOpenKhatm = { navController.navigateOnce(Dest.Khatm()) },
+                            onOpenKhatmPicker = { navController.navigateOnce(Dest.Khatm(pickTarget = true)) },
+                            // A khatm is read in pages: the pages open whatever mode the reader is in.
+                            onOpenMushaf = { page -> navController.navigateOnce(Dest.Mushaf(page = page)) },
                             onOpenCatalog = if (isDebuggable) {
                                 { navController.navigateOnce(Dest.Catalog) }
                             } else {
@@ -539,6 +547,16 @@ private fun AppNavigation() {
                         NotesScreen(
                             onBack = { navController.popOnce() },
                             onOpenReader = openReader,
+                        )
+                    }
+                }
+                composable<Dest.Khatm> { entry ->
+                    val route = entry.toRoute<Dest.Khatm>()
+                    ProvideNavScope {
+                        KhatmScreen(
+                            openTargetPicker = route.pickTarget,
+                            onBack = { navController.popOnce() },
+                            onOpenMushaf = { page -> navController.navigateOnce(Dest.Mushaf(page = page)) },
                         )
                     }
                 }
@@ -695,6 +713,7 @@ private fun NavDestination.screenName(): String? = when {
     hasRoute<Dest.Plan>() -> "plan"
     hasRoute<Dest.Quiz>() -> "quiz"
     hasRoute<Dest.Progress>() -> "progress"
+    hasRoute<Dest.Khatm>() -> "khatm"
     hasRoute<Dest.ProgressDetails>() -> "progress_details"
     hasRoute<Dest.Notes>() -> "notes"
     hasRoute<Dest.HardDrill>() -> "hard_drill"

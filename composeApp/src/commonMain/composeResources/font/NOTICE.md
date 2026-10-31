@@ -9,6 +9,7 @@ The following fonts are bundled from the Google Fonts repository under the
 - Lateef
 - Noto Nastaliq Urdu
 - Aref Ruqaa Ink
+- Aref Ruqaa (Regular; the calligraphy "Ramadan Kareem" of the Ramadan card)
 
 The Medinah Mushaf resource is the existing KFGQPC Uthmanic Hafs font supplied
 with this project and is kept as the dedicated Medinah-style option.
