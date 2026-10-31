@@ -10,6 +10,7 @@ import tj.app.quran_todo.ui.drill.DrillViewModel
 import tj.app.quran_todo.ui.hifz.HifzViewModel
 import tj.app.quran_todo.ui.home.HomeUiViewModel
 import tj.app.quran_todo.ui.lesson.LessonViewModel
+import tj.app.quran_todo.ui.khatm.khatmUiModule
 import tj.app.quran_todo.ui.listen.ListenOldViewModel
 import tj.app.quran_todo.ui.mushaf.MushafViewModel
 import tj.app.quran_todo.ui.navigation.Dest
@@ -229,6 +230,7 @@ val uiModules = listOf(
     hifzUiModule,
     lessonUiModule,
     listenUiModule,
+    khatmUiModule,
     quizUiModule,
     progressUiModule,
     settingsUiModule,

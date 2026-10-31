@@ -90,6 +90,7 @@ import tj.app.quran_todo.ui.home.components.HomeSkeletonRow
 import tj.app.quran_todo.ui.home.components.HomeSkeletonTop
 import tj.app.quran_todo.ui.home.components.JuzListRow
 import tj.app.quran_todo.ui.home.components.LessonCard
+import tj.app.quran_todo.ui.khatm.KhatmHomeCards
 import tj.app.quran_todo.ui.home.components.LessonInviteRow
 import tj.app.quran_todo.ui.home.components.QuizRow
 import tj.app.quran_todo.ui.home.components.ListEmptyState
@@ -146,6 +147,9 @@ fun HomeScreen(
     onOpenLesson: () -> Unit,
     onOpenPlan: () -> Unit,
     onOpenQuiz: () -> Unit,
+    onOpenKhatm: () -> Unit,
+    onOpenKhatmPicker: () -> Unit,
+    onOpenMushaf: (page: Int) -> Unit,
     onOpenCatalog: (() -> Unit)? = null,
 ) {
     val viewModel = koinViewModel<HomeUiViewModel>()
@@ -177,7 +181,7 @@ fun HomeScreen(
     // Not read here: only the mini player ring reads it.
     val playbackProgress = viewModel.playbackProgress.collectAsState()
 
-    val actions = remember(viewModel, translationViewModel, onOpenReader, onOpenSettings, onOpenProgress, onOpenLesson, onOpenPlan, onOpenQuiz) {
+    val actions = remember(viewModel, translationViewModel, onOpenReader, onOpenSettings, onOpenProgress, onOpenLesson, onOpenPlan, onOpenQuiz, onOpenKhatm, onOpenKhatmPicker, onOpenMushaf) {
         HomeActions(
             openReader = onOpenReader,
             openSettings = onOpenSettings,
@@ -185,6 +189,9 @@ fun HomeScreen(
             openLesson = onOpenLesson,
             openPlan = onOpenPlan,
             openQuiz = onOpenQuiz,
+            openKhatm = onOpenKhatm,
+            openKhatmPicker = onOpenKhatmPicker,
+            openMushaf = onOpenMushaf,
             resumePlan = viewModel::resumePlan,
             setQuery = viewModel::setQuery,
             setFilter = viewModel::setFilter,
@@ -222,6 +229,9 @@ internal class HomeActions(
     val openLesson: () -> Unit,
     val openPlan: () -> Unit,
     val openQuiz: () -> Unit,
+    val openKhatm: () -> Unit,
+    val openKhatmPicker: () -> Unit,
+    val openMushaf: (page: Int) -> Unit,
     val resumePlan: () -> Unit,
     val setQuery: (String) -> Unit,
     val setFilter: (SurahFilter) -> Unit,
@@ -484,6 +494,7 @@ private fun HomeContent(
                                             onListenOld = { listenOpen = true },
                                             listening = listening,
                                             onResumePlan = actions.resumePlan,
+                                            onOpenKhatm = actions.openKhatm,
                                         )
                                     } else {
                                         LessonInviteRow(
@@ -503,6 +514,15 @@ private fun HomeContent(
                                                 .staggeredEnter(lessonIndex, stagger),
                                         )
                                     }
+                                    // The reading plan (khatm) and Ramadan (task F5b): each card shows only when there is something to say.
+                                    KhatmHomeCards(
+                                        onOpenKhatm = actions.openKhatm,
+                                        onOpenKhatmPicker = actions.openKhatmPicker,
+                                        onOpenMushaf = actions.openMushaf,
+                                        modifier = Modifier
+                                            .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x2)
+                                            .staggeredEnter(lessonIndex, stagger),
+                                    )
                                 }
                             }
                         }

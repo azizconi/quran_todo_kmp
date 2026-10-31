@@ -1,0 +1,5 @@
+<resources>
+    <string name="widget_description">Günün dersi. Bugünkü yeni bölüm ve tekrarlar hakkında kısa bir satır; dokununca ders açılır.</string>
+    <string name="widget_preview_title">Günün dersi · ~12 dk</string>
+    <string name="widget_preview_detail">Yeni: En-Nebe 1–5 · 2 tekrar</string>
+</resources>

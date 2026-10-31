@@ -53,11 +53,12 @@ class MainActivity : ComponentActivity() {
      */
     private fun handleReminderLink(intent: Intent?, restored: Boolean) {
         val target = ReminderLink.targetFrom(intent)
+        val fromWidget = ReminderLink.sourceFrom(intent) == ReminderLink.SOURCE_WIDGET
         if (intent != null) ReminderLink.consume(intent)
         if (target == null || restored || needsOnboarding()) return
         if (intent != null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
         AppTelemetry.logEvent(
-            name = "reminder_opened",
+            name = if (fromWidget) "widget_opened" else "reminder_opened",
             params = mapOf("kind" to if (target is ReminderTarget.Lesson) "lesson" else "reading"),
         )
         ReminderOpenRequests.post(target)

@@ -15,6 +15,8 @@ import tj.app.quran_todo.hifz.model.SurahCoverage
 import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.hifz.schedule.LessonPlan
 import tj.app.quran_todo.hifz.schedule.PlanForecast
+import tj.app.quran_todo.khatm.KhatmPlan
+import tj.app.quran_todo.khatm.KhatmState
 
 /** What a repetition did to the passage. */
 data class ReviewResult(
@@ -93,6 +95,26 @@ interface HifzRepository {
 
     /** The pause that follows a changing day, e.g. `EpochDayTicker.day`. */
     fun pause(today: Flow<Int>): Flow<PlanPause?>
+
+    // ---- Reading plan (khatm, task F5b): `hifz_meta` keys `khatm_*`, separate from memorization ----
+
+    /** The reading plan with its progress; null when there is none. Nothing of it reaches the review log, the lesson or the streak. */
+    fun khatm(): Flow<KhatmState?>
+
+    /**
+     * Saves [plan]. With [keepProgress] the pages read and the reading days stay (a new end day for the same plan), otherwise the progress
+     * starts over at the first page of the plan.
+     */
+    suspend fun saveKhatm(plan: KhatmPlan, keepProgress: Boolean = false)
+
+    /** "Mark as read": today's portion is read ([today] becomes a reading day). Does nothing without a plan or when the plan is finished. */
+    suspend fun markKhatmPortionRead(today: Int = EpochDays.now())
+
+    /** "Mark up to page N": the manual correction of the last read page (inside the plan). Does nothing without a plan. */
+    suspend fun markKhatmUpTo(page: Int, today: Int = EpochDays.now())
+
+    /** Deletes the reading plan and its progress. */
+    suspend fun clearKhatm()
 
     /** The derived statuses of the surahs that have one (a surah that is not in the map is not started). */
     fun surahStatuses(): Flow<Map<Int, SurahHifzStatus>>

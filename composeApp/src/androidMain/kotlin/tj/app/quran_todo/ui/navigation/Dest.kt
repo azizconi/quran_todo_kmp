@@ -48,6 +48,13 @@ sealed interface Dest {
     @Serializable
     data object Progress : Dest
 
+    /** The reading plan (khatm): the plan, the days, a new end date, a manual mark, delete (task F5b). */
+    @Serializable
+    data class Khatm(
+        /** Open the sheet of a new end date at once (the card of an overdue plan). */
+        val pickTarget: Boolean = false,
+    ) : Dest
+
     @Serializable
     data object Settings : Dest
 

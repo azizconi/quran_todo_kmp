@@ -9,6 +9,8 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import tj.app.quran_todo.hifz.HifzPresets
 import tj.app.quran_todo.hifz.HifzRepository
+import tj.app.quran_todo.khatm.KhatmPlan
+import tj.app.quran_todo.khatm.KhatmState
 import tj.app.quran_todo.hifz.ReviewResult
 import tj.app.quran_todo.hifz.backup.BackupData
 import tj.app.quran_todo.hifz.backup.VerifiedBackup
@@ -85,6 +87,11 @@ class OnboardingFinisherTest {
         override fun streak(today: Flow<Int>): Flow<Int> = error("unused")
         override fun pause(today: Int): Flow<PlanPause?> = error("unused")
         override fun pause(today: Flow<Int>): Flow<PlanPause?> = error("unused")
+        override fun khatm(): Flow<KhatmState?> = error("unused")
+        override suspend fun saveKhatm(plan: KhatmPlan, keepProgress: Boolean): Unit = error("unused")
+        override suspend fun markKhatmPortionRead(today: Int): Unit = error("unused")
+        override suspend fun markKhatmUpTo(page: Int, today: Int): Unit = error("unused")
+        override suspend fun clearKhatm(): Unit = error("unused")
         override fun surahStatuses(): Flow<Map<Int, SurahHifzStatus>> = error("unused")
         override fun coveredCounts(): Flow<Map<Int, Int>> = error("unused")
         override fun coveredAyahs(): Flow<Map<Int, Set<Int>>> = error("unused")

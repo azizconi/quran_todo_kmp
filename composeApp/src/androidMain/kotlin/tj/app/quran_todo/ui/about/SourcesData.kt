@@ -171,6 +171,7 @@ internal val SourceGroups: List<SourceGroup> = listOf(
             SourceItem("Lateef", provider = GoogleFonts, url = "https://fonts.google.com/specimen/Lateef", license = Ofl),
             SourceItem("Noto Nastaliq Urdu", provider = GoogleFonts, url = "https://fonts.google.com/noto/specimen/Noto+Nastaliq+Urdu", license = Ofl),
             SourceItem("Aref Ruqaa Ink", provider = GoogleFonts, url = "https://fonts.google.com/specimen/Aref+Ruqaa+Ink", license = Ofl),
+            SourceItem("Aref Ruqaa", provider = GoogleFonts, url = "https://fonts.google.com/specimen/Aref+Ruqaa", license = Ofl),
             SourceItem(
                 title = "KFGQPC Uthmanic Hafs (Madinah Mushaf)",
                 author = "King Fahd Glorious Quran Printing Complex",
