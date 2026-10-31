@@ -166,3 +166,23 @@
 - Строки tg / uz / tr.
 
 Один коммит `translations: choice of edition, full download, search (F4a)` с последней строкой `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`. Укажи путь worktree и ветку. Последнюю debug-сборку оставь установленной.
+
+## Дополнение 2026-10-31: третий источник переводов — QuranEnc
+
+Владелец: данные не обязательно брать с одного сайта.
+
+**Источник.** QuranEnc.com — у него ясные условия и нет ключей.
+- Перевод суры: `GET https://quranenc.com/api/v1/translation/sura/{key}/{sura}` → `result[]`: `sura`, `aya`, `translation`, `footnotes`.
+- Список изданий: `/api/v1/translations/list/{lang}`, поле `version`.
+
+**Издания** (проверено на 2:2):
+- tg: `tajik_arifi` (Центр «Руввод»; это же издание есть на quran.com под 223), `tajik_khawaja` (Хоҷа Мирофи Хоҷа Мир; на quran.com — 139). Оба кириллицей;
+- uz: `uzbek_rwwad`, `uzbek_mansour` (Алоуддин Мансур; на quran.com — 101). Оба **кириллицей** — показывай с пометкой «кириллица», латиница Содика остаётся по умолчанию;
+- tr: `turkish_rwwad`, `turkish_shaban`, `turkish_shahin`.
+
+**Порядок выбора источника:** alquran.cloud → QuranEnc → quran.com. Издание, которое есть и у QuranEnc, и у quran.com, бери с QuranEnc. Источник изданий — интерфейс с тремя реализациями.
+
+**Условия QuranEnc** (раздел Terms and Policies на сайте):
+- текст без изменений: не чистить, не транслитерировать. Сноски (`footnotes`) показывай как есть или не показывай вовсе — не обрезай;
+- указывать источник (QuranEnc.com) и номер версии — в листе выбора и в «Источниках»;
+- обновлять до последней версии: храни версию; при новой версии скачанное издание помечается «есть обновление».
