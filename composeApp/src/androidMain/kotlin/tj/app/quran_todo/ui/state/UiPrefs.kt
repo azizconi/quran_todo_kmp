@@ -13,7 +13,26 @@ import tj.app.quran_todo.common.theme.ThemeStorage
 
 enum class ReaderLayout { LIST, MUSHAF }
 
-enum class HifzHintMode { NONE, FIRST_WORD }
+/**
+ * How much of a hidden ayah the "Recall" step leaves on screen (task F2a). Stored by name; the names also travel in the backup file
+ * (`BackupSettingsRules.HINT_MODES` keeps the two lists equal).
+ */
+enum class HifzHintMode {
+    /** The ayah is hidden entirely. */
+    NONE,
+
+    /** The first word stays sharp. */
+    FIRST_WORD,
+
+    /** Every word is hidden, with its first letter in its place. */
+    FIRST_LETTERS,
+
+    /** The 1st, 3rd, 5th... words stay sharp, the rest is hidden. */
+    EVERY_OTHER,
+
+    /** The ayah starts whole and the person hides it by quarters from the end ("Hide more"). */
+    PROGRESSIVE,
+}
 
 /** Values of [UiPrefs.onboardingGoals]. */
 object OnboardingGoal {

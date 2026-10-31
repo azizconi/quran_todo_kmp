@@ -182,6 +182,22 @@ interface HifzRepository {
     )
 
     /**
+     * The drill of the difficult ayahs (task F2a), one surah at a time: [remembered] ayahs get their counter `clearsAfter` one
+     * lower (at 0 the mark is gone), [stillHard] ayahs start over at 2. Only the marks of these ayahs change: stages, due days,
+     * `lastReviewed` and lapses stay as they are, so the lesson, the ladder and the circle see nothing. One `CHECK` record goes
+     * to the log: `startAyah`..`endAyah` are the first and the last trained ayah, `passageId` is the passage that covers the
+     * whole range (null when it spans several), the grade follows the Recall rule (nothing still hard - `GOOD`, less than half of the trained ayahs - `HARD`, half or more - `FORGOT`). An ayah that
+     * is not marked difficult any more (or not covered) is skipped; when none is left nothing is written. The mirror of the surah
+     * is recomputed (as in [logCheck]: only the marks change, so it writes nothing).
+     */
+    suspend fun drillHard(
+        surah: Int,
+        remembered: Set<Int>,
+        stillHard: Set<Int>,
+        today: Int = EpochDays.now(),
+    )
+
+    /**
      * "Listened: I repeated it by ear" (task F1b): one `LISTEN` record per stored passage of [passageIds] (an unknown id is skipped)
      * with the neutral grade GOOD. Nothing else changes: not the stage, the due day, `lastReviewed`, the circle, the streak or the
      * difficult ayahs - only "Recall" grades a passage.

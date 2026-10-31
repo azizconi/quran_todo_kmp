@@ -86,8 +86,14 @@ import tj.app.quran_todo.ui.motion.pressable
 import tj.app.quran_todo.ui.playback.FollowedArabicText
 import tj.app.quran_todo.ui.playback.PrepareWordTimings
 import tj.app.quran_todo.ui.playback.WordFollow
+import tj.app.quran_todo.ui.reader.AyahWords
+import tj.app.quran_todo.ui.recording.PassageKey
+import tj.app.quran_todo.ui.recording.VoiceEntryRow
+import tj.app.quran_todo.ui.recording.VoiceSheetHost
+import tj.app.quran_todo.ui.recording.rememberVoiceSheetState
 import tj.app.quran_todo.ui.reader.displayWords
 import tj.app.quran_todo.ui.reader.splitBismillah
+import tj.app.quran_todo.ui.state.HifzHintMode
 import tj.app.quran_todo.ui.state.LESSON_AYAH_REPEATS_RANGE
 import tj.app.quran_todo.ui.state.LESSON_PASSAGE_REPEATS_RANGE
 import tj.app.quran_todo.ui.state.UiPrefs
@@ -546,6 +552,7 @@ internal class LessonRecallHost(
     private val viewModel: LessonViewModel,
     private val key: String,
     private val work: State<LessonUi.Working>,
+    private val hint: State<HifzHintMode>,
     override val copy: HifzCopy,
 ) : RecallHost {
     override val session get() = work.value.progress.recall
@@ -560,6 +567,27 @@ internal class LessonRecallHost(
         val current = session?.current ?: return
         viewModel.toggleListenAyah(work.value, current.inSurah)
     }
+
+    override val hintMode: HifzHintMode get() = hint.value
+
+    override fun setHintMode(mode: HifzHintMode) = viewModel.setHintMode(mode)
+
+    private val wordsCache = HashMap<Int, AyahWords?>()
+
+    override fun words(inSurah: Int): AyahWords? = wordsCache.getOrPut(inSurah) {
+        work.value.ayahs.firstOrNull { it.numberInSurah == inSurah }?.let { displayWords(it.surahNumber, it.numberInSurah, it.text) }
+    }
+
+    override fun markEarly(mark: AyahMark, position: Int) = viewModel.markEarly(key, mark, position)
+
+    override fun hideMore(position: Int) {
+        val inSurah = session?.items?.getOrNull(position)?.inSurah ?: return
+        viewModel.hideMore(key, position, words(inSurah)?.wordCount ?: return)
+    }
+
+    override fun peekWord(position: Int, word: Int) = viewModel.peekWord(key, position, word)
+
+    override fun peekAyah(position: Int) = viewModel.peekAyah(key, position)
 }
 
 /**
@@ -570,8 +598,9 @@ internal class LessonRecallHost(
 internal fun RecallStage(viewModel: LessonViewModel, copy: LessonCopy, work: LessonUi.Working) {
     val hifzCopy = rememberHifzCopy()
     val workState = rememberUpdatedState(work)
-    val host = remember(viewModel, work.card.key, hifzCopy) { LessonRecallHost(viewModel, work.card.key, workState, hifzCopy) }
-    val hint by viewModel.hintMode.collectAsState()
+    val hintState = viewModel.hintMode.collectAsState()
+    val hint by hintState
+    val host = remember(viewModel, work.card.key, hifzCopy) { LessonRecallHost(viewModel, work.card.key, workState, hintState, hifzCopy) }
     val saving by viewModel.isSaving.collectAsState()
     val session = work.progress.recall
     if (session == null) {
@@ -584,6 +613,12 @@ internal fun RecallStage(viewModel: LessonViewModel, copy: LessonCopy, work: Les
     SpotlightTourEffect(SpotlightTours.LessonPeek, ready = !finished && !session.revealed && session.index == 0)
     SpotlightTourEffect(SpotlightTours.LessonGrade, ready = !finished && session.revealed)
     var gradeOpen by remember(work.card.key) { mutableStateOf(false) }
+    val voice = rememberVoiceSheetState()
+    val voiceRange = work.card.range
+    val voiceKey = remember(voiceRange) { PassageKey(voiceRange.surah, voiceRange.startAyah, voiceRange.endAyah) }
+    val language = LocalAppLanguage.current
+    val names by viewModel.chapterNames.collectAsState()
+    val passageTitle = "${viewModel.surahTitle(voiceRange.surah, language, names)} · ${copy.range(voiceRange.startAyah, voiceRange.endAyah)}"
     LaunchedEffect(finished) {
         if (finished) {
             if (!reduced) delay(480L)
@@ -595,6 +630,12 @@ internal fun RecallStage(viewModel: LessonViewModel, copy: LessonCopy, work: Les
 
     val hard = (work.card as? LessonCard.Review)?.item?.hardAyahs.orEmpty()
     Column(Modifier.fillMaxSize()) {
+        // "Record my reading" / "My reading · 3": the person's own voice for this passage (it stays on the phone).
+        VoiceEntryRow(
+            key = voiceKey,
+            state = voice,
+            modifier = Modifier.padding(horizontal = QhSpacing.screen),
+        )
         Box(Modifier.fillMaxWidth().weight(1f)) {
             RecallPassage(
                 session = session,
@@ -620,13 +661,16 @@ internal fun RecallStage(viewModel: LessonViewModel, copy: LessonCopy, work: Les
             )
         }
     }
+    VoiceSheetHost(
+        state = voice,
+        key = voiceKey,
+        title = passageTitle,
+        onListenReciter = { viewModel.toggleListenOnce(work) },
+    )
     if (gradeOpen && finished) {
-        val range = work.card.range
-        val language = LocalAppLanguage.current
-        val names by viewModel.chapterNames.collectAsState()
         RecallGradeSheet(
             session = session,
-            title = "${viewModel.surahTitle(range.surah, language, names)} · ${copy.range(range.startAyah, range.endAyah)}",
+            title = passageTitle,
             copy = hifzCopy,
             busy = saving,
             onConfirm = { grade: ReviewGrade, hardAyahs: Set<Int> ->

@@ -47,13 +47,25 @@ class TrustContentTest {
     }
 
     @Test
-    fun theSummaryNeverMentionsTheMicrophone() {
+    fun theSummaryExplainsTheMicrophoneAndThatTheRecordingsStayOnThePhone() {
+        // Task F2a: the app asks for the microphone for "My reading". The summary says when it is used and where the recordings stay.
+        val words = mapOf(
+            AppLanguage.RU to listOf("микрофон"),
+            AppLanguage.EN to listOf("microphone"),
+            AppLanguage.TG to listOf("микрофон"),
+            AppLanguage.UZ to listOf("mikrofon"),
+            AppLanguage.TR to listOf("mikrofon"),
+        )
         AppLanguage.entries.forEach { language ->
-            val text = trustCopy(language).let { copy ->
-                copy.privacyPoints.joinToString(" ") { it.title + " " + it.text } + copy.privacyIntro
-            }.lowercase()
-            listOf("microphone", "микрофон", "mikrofon", "микрофон").forEach { word ->
-                assertFalse(word in text, "$language mentions $word")
+            val points = trustCopy(language).privacyPoints
+            val mentions = points.filter { point -> words.getValue(language).any { it in (point.title + " " + point.text).lowercase() } }
+            // The permissions say when it is used, and a point of its own says where the recordings stay.
+            assertTrue(mentions.size >= 2, "$language: the microphone is named in the permissions and in a point of its own")
+            assertTrue(mentions.any { it.text.length > 120 }, "$language: the point about the microphone is a full sentence")
+            val permissions = points.joinToString(" ") { it.title + " " + it.text }.lowercase()
+            // "No microphone" claims are gone: no point says the app does not use it.
+            listOf("does not use the microphone", "не использует микрофон", "mikrofondan foydalanmaydi", "mikrofon kullanmaz").forEach {
+                assertFalse(it in permissions, "$language still says: $it")
             }
         }
     }

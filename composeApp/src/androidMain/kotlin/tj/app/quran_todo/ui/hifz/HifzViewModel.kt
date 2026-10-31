@@ -44,7 +44,7 @@ class HifzViewModel(
     private val route: Dest.Reader,
     private val hifz: HifzRepository,
     private val ticker: EpochDayTicker,
-    uiPrefs: UiPrefs,
+    private val uiPrefs: UiPrefs,
     private val playback: PlaybackController,
 ) : ViewModel() {
     private val surahNumber = route.surah
@@ -69,8 +69,10 @@ class HifzViewModel(
     /** One value per result written. */
     val saved: Flow<CheckSaved> = savedChannel.receiveAsFlow()
 
-    /** Whether the first word of a hidden ayah stays readable. */
+    /** How much of a hidden ayah stays readable (the five levels of the hint). */
     val hintMode: StateFlow<HifzHintMode> = uiPrefs.hifzHintMode
+
+    fun setHintMode(mode: HifzHintMode) = uiPrefs.setHifzHintMode(mode)
 
     private val audio = RecallAudio(playback, surahNumber, viewModelScope)
 
@@ -139,6 +141,32 @@ class HifzViewModel(
     }
 
     /**
+     * Answers the ayah at [position] before the reveal: the progressive hint offers "I remember" / "Hard" while the ayah is still
+     * partly shown. Ignored when the session has moved on already.
+     */
+    fun markEarly(mark: AyahMark, position: Int) {
+        val session = _session.value ?: return
+        if (session.finished || session.index != position) return
+        audio.endListening()
+        _session.value = session.markWithoutReveal(mark)
+    }
+
+    /** A tap on the hidden word [word] of the ayah at [position]: it opens and counts as one peek. */
+    fun peekWord(position: Int, word: Int) {
+        _session.value = _session.value?.peekWord(position, word)
+    }
+
+    /** Holding the whole ayah at [position] to peek: counts as two peeks. */
+    fun peekAyah(position: Int) {
+        _session.value = _session.value?.peekAyah(position)
+    }
+
+    /** "Hide more" of the progressive hint on the ayah at [position], which has [wordCount] words. */
+    fun hideMore(position: Int, wordCount: Int) {
+        _session.value = _session.value?.hideMore(position, wordCount)
+    }
+
+    /**
      * Writes the result of the finished session: [grade] for the passage and [hard] (numbers in the surah) as its
      * difficult ayahs. Counts as the lesson's repetition when the range is exactly a passage that is due today.
      */
@@ -197,6 +225,12 @@ class HifzViewModel(
     }
 
     // -- Listening ----------------------------------------------------------------------------------------
+
+    /** "Listen to the reciter" of the sheet "My reading": the passage of the session, every ayah once. */
+    fun listenPassage(surah: SurahWithAyahs) {
+        val session = _session.value ?: return
+        audio.toggleSequence(surah, session.items.map { it.inSurah })
+    }
 
     /** The "Listen" button: plays the current ayah, pauses it while it plays, resumes it when paused. */
     fun toggleListen(surah: SurahWithAyahs) {

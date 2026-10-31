@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Effective date: October 30, 2026
+Effective date: October 31, 2026
 
 This Privacy Policy explains how **Quran Hifz** (package `tj.app.quran_todo`, "the App", "we", "us") handles information when you use the Android application. The short version: there are no accounts, your study data stays on your phone, and the only data that leaves the device is what is needed to download the Quran content and, unless you turn it off, anonymous usage statistics and crash reports.
 
@@ -10,7 +10,11 @@ This Privacy Policy explains how **Quran Hifz** (package `tj.app.quran_todo`, "t
 
 Your learning progress, ayah and surah statuses, notes, goals, reminders and app settings are stored locally on your device. We do not have a server that receives them and we cannot see them. The App has no accounts: you do not sign in, and nothing is linked to your name, e-mail address or phone number.
 
-### 1.2 Anonymous usage statistics and crash reports (Firebase)
+### 1.2 Your own recordings (microphone)
+
+In the Recall step the App can record **your own reading** of a passage ("My reading"). The microphone is used **only while you press Record**: the App does not listen in the background and never records on its own. Android asks for your permission before the first recording. A recording is a short audio file stored **only on your phone**, in the private storage of the App. It is **never sent anywhere** (not to us, not to Firebase, not to any other server), and it is not part of any backup, neither the backup of Android nor the backup file you can make in the App. The App keeps the last 20 recordings of each passage and removes older ones. You can delete a recording in the "My reading" sheet, and all of them in Settings > Downloads and storage > My recordings.
+
+### 1.3 Anonymous usage statistics and crash reports (Firebase)
 
 The App uses **Google Firebase Analytics** and **Firebase Crashlytics**. They are **on by default** and can be turned off at any time in **Settings > Privacy > Anonymous statistics and crash reports**. While the switch is off, no statistics or crash reports are sent, and the data the analytics SDK has stored on the device is cleared when you switch it off.
 
@@ -24,7 +28,7 @@ When on, the following is collected:
 
 The App **does not use the Android advertising ID** (the `AD_ID` permission is removed), does not show ads and does not use the data for advertising or ad personalization. Google processes this data on our behalf under the Firebase terms; see https://firebase.google.com/support/privacy and https://policies.google.com/privacy.
 
-### 1.3 Network requests to content providers
+### 1.4 Network requests to content providers
 
 To download the Quran text, translations, surah names and recitation audio, the App contacts the following servers:
 
@@ -36,21 +40,22 @@ To download the Quran text, translations, surah names and recitation audio, the 
 
 These servers receive the technical data every internet request contains, in particular your **IP address**, and a description of what is requested (for example a surah or an audio file). We do not send them your progress, notes, settings or any other study data.
 
-### 1.4 Backup by Android
+### 1.5 Backup by Android
 
-If Android backup is enabled on your device, Android (Google Backup) may store a copy of the App's database and settings in **your Google account** and restore it when you reinstall the App or set up a new phone, or transfer it directly to a new phone. This is a feature of your device; we do not receive that copy. Downloaded audio and caches are not backed up. You can turn the backup off in your device settings (Settings > Google > Backup).
+If Android backup is enabled on your device, Android (Google Backup) may store a copy of the App's database and settings in **your Google account** and restore it when you reinstall the App or set up a new phone, or transfer it directly to a new phone. This is a feature of your device; we do not receive that copy. Downloaded audio, caches and your own recordings are not backed up. You can turn the backup off in your device settings (Settings > Google > Backup).
 
 ## 2. Permissions
 
 - `INTERNET` and `ACCESS_NETWORK_STATE`: to download Quran content, translations and audio, and to send the anonymous statistics described above.
 - `POST_NOTIFICATIONS`: used only if you enable reminders; Android asks you before the App can show notifications.
-- The App **does not use the microphone**, and does not access your contacts, location, camera, photos or files.
+- `RECORD_AUDIO`: used only while you press Record to record your own reading in the Recall step (section 1.2); Android asks you before the first use, and you can take the permission back in the settings of your device. The recording is stored only on your phone.
+- The App does not access your contacts, location, camera, photos or files.
 
 ## 3. How We Use Information
 
 We use information only to:
 
-- provide the App's features (reading, listening, memorization, review, progress and reminders);
+- provide the App's features (reading, listening, memorization, review, progress, reminders and recording your own reading);
 - download Quran content and related resources;
 - find and fix bugs and understand which features are used, so that we can improve the App (anonymous statistics and crash reports, if you leave them on).
 
@@ -66,7 +71,7 @@ The App has no accounts, no ads and no social features, and does not knowingly c
 
 ## 6. Data Retention and Deletion
 
-- Data stored on your device stays there until you delete the App or clear its data (Android Settings > Apps > Quran Hifz > Storage > Clear data).
+- Data stored on your device stays there until you delete the App or clear its data (Android Settings > Apps > Quran Hifz > Storage > Clear data). Your own recordings can also be deleted one by one in the "My reading" sheet, or all at once in Settings > Downloads and storage > My recordings.
 - A copy in Android backup is managed in your Google account and your device settings.
 - Anonymous statistics and crash reports are kept by Google for a limited period set in Firebase. Because they are not linked to a name or an account, we cannot look up or delete the data of a particular person; you can stop further collection by turning the switch in Settings off, or by uninstalling the App.
 

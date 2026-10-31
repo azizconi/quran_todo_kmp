@@ -97,6 +97,7 @@ fun ProgressScreen(
     onBack: () -> Unit,
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
+    onOpenDrill: () -> Unit,
 ) {
     val viewModel = koinViewModel<ProgressViewModel>()
     val language = LocalAppLanguage.current
@@ -117,6 +118,7 @@ fun ProgressScreen(
         onBack = onBack,
         onOpenReader = onOpenReader,
         onOpenPlan = onOpenPlan,
+        onOpenDrill = onOpenDrill,
         onShareReport = { sheetOpen = true },
     )
     if (sheetOpen) {
@@ -180,6 +182,7 @@ private fun ProgressContent(
     onBack: () -> Unit,
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
+    onOpenDrill: () -> Unit,
     onShareReport: () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -210,6 +213,7 @@ private fun ProgressContent(
                 copy = copy,
                 onOpenReader = onOpenReader,
                 onOpenPlan = onOpenPlan,
+                onOpenDrill = onOpenDrill,
                 onShareReport = onShareReport,
                 scrollState = scrollState,
                 stagger = stagger,
@@ -252,6 +256,7 @@ private fun Body(
     copy: ProgressCopy,
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
+    onOpenDrill: () -> Unit,
     onShareReport: () -> Unit,
     scrollState: ScrollState,
     stagger: StaggerState,
@@ -268,7 +273,7 @@ private fun Body(
     ) {
         // The ring is what the home screen's ring flies to: it is there at once, the rest follows.
         RingHero(hero = ui.hero, copy = copy)
-        StatTiles(tiles = ui.tiles, copy = copy, modifier = Modifier.staggeredEnter(1, stagger))
+        StatTiles(tiles = ui.tiles, copy = copy, onOpenDrill = onOpenDrill, modifier = Modifier.staggeredEnter(1, stagger))
         PlanSection(
             line = ui.plan,
             today = ui.today,

@@ -200,6 +200,7 @@ class HifzSessionTest {
         assertNull(HifzSession.decode("h2|7|0|2|100:1:-1"))
         assertNull(HifzSession.decode("h2|7|0|0|100:1:9"))
         assertNull(HifzSession.decode("h2|x|0|0|100:1:-1"))
+        assertNull(HifzSession.decode("h4|7|0|0|100:1:-1:0::0"))
     }
 
     @Test
@@ -210,14 +211,122 @@ class HifzSessionTest {
         assertFalse(decoded.revealed)
     }
 
-    // -- The hint ----------------------------------------------------------------------------------------------
+    // -- Peeking -----------------------------------------------------------------------------------------------
 
     @Test
-    fun theFirstWordHintNeedsASecondWord() {
-        assertEquals(0, firstWordEnd("الٓمٓ"))
-        assertEquals(0, firstWordEnd("طه "))
-        assertEquals("ذَٰلِكَ".length, firstWordEnd("ذَٰلِكَ ٱلْكِتَٰبُ لَا رَيْبَ"))
-        assertEquals(3, firstWordEnd("abc def"))
-        assertEquals(0, firstWordEnd(" leading space"))
+    fun aTapOnAHiddenWordOpensItAndCountsOnePeek() {
+        val fresh = sessionOf(1, 2, 3)
+        val peeked = fresh.peekWord(0, 4)
+        assertEquals(setOf(4), peeked.items[0].peeked)
+        assertEquals(1, peeked.items[0].peeks)
+        // The same word again is not another peek.
+        assertEquals(peeked, peeked.peekWord(0, 4))
+        val twice = peeked.peekWord(0, 1)
+        assertEquals(setOf(1, 4), twice.items[0].peeked)
+        assertEquals(2, twice.items[0].peeks)
+        assertTrue(twice.items[0].suggestsHard)
+        assertFalse(peeked.items[0].suggestsHard)
+    }
+
+    @Test
+    fun holdingTheWholeAyahCountsAsTwoPeeks() {
+        val held = sessionOf(1, 2).peekAyah(0)
+        assertEquals(WholeAyahPeeks, held.items[0].peeks)
+        assertEquals(2, WholeAyahPeeks)
+        assertTrue(held.items[0].suggestsHard, "a hold alone makes \"Hard\" the main answer")
+        assertTrue(held.items[0].peeked.isEmpty(), "no word is marked by a hold")
+        assertEquals(4, held.peekAyah(0).items[0].peeks)
+    }
+
+    @Test
+    fun onlyTheAyahBeingRecalledCanBePeekedAtAndOnlyBeforeTheReveal() {
+        val fresh = sessionOf(1, 2, 3)
+        assertEquals(fresh, fresh.peekWord(1, 0), "an ayah that waits its turn")
+        assertEquals(fresh, fresh.peekAyah(2))
+        assertEquals(fresh, fresh.peekWord(7, 0), "no such position")
+        assertEquals(fresh, fresh.peekWord(0, -1))
+        val revealed = fresh.reveal()
+        assertEquals(revealed, revealed.peekWord(0, 2))
+        assertEquals(revealed, revealed.peekAyah(0))
+        val moved = fresh.peekWord(0, 1).reveal().mark(ok)
+        assertEquals(moved, moved.peekWord(0, 3), "an answered ayah")
+        assertEquals(sessionOf(1).answerAll(ok), sessionOf(1).answerAll(ok).peekWord(0, 0))
+    }
+
+    @Test
+    fun thePeeksStayOnTheAyahAfterItIsAnswered() {
+        val answered = sessionOf(1, 2, 3).peekWord(0, 2).peekWord(0, 5).reveal().mark(ok)
+        assertEquals(2, answered.items[0].peeks)
+        assertEquals(setOf(2, 5), answered.items[0].peeked)
+        assertEquals(0, answered.items[1].peeks, "the next ayah starts clean")
+    }
+
+    @Test
+    fun aPeekedAyahAnsweredRememberedIsNotHardOnItsOwn() {
+        // The suggestion is only the order of the buttons: the person decides, and the grade sheet starts from the answers.
+        val done = sessionOf(1, 2, 3).peekWord(0, 0).peekWord(0, 1).reveal().mark(ok).reveal().mark(ok).reveal().mark(ok)
+        assertTrue(done.items[0].suggestsHard)
+        assertEquals(emptySet(), done.hardAyahs)
+        assertEquals(ReviewGrade.GOOD, done.suggestedGrade)
+    }
+
+    @Test
+    fun theProgressiveStepMovesThroughTheQuartersOfTheWords() {
+        // Ten words: 3, 5, 8, then all of them hidden.
+        var session = sessionOf(1, 2)
+        val seen = ArrayList<Int>()
+        repeat(4) {
+            session = session.hideMore(0, wordCount = 10)
+            seen += session.items[0].hideStep
+        }
+        assertEquals(listOf(1, 2, 3, 4), seen)
+        assertEquals(session, session.hideMore(0, wordCount = 10), "already hidden entirely")
+        assertEquals(0, session.items[1].hideStep, "the next ayah is untouched")
+        // A one-word ayah goes from whole straight to hidden.
+        assertEquals(4, sessionOf(1).hideMore(0, wordCount = 1).items[0].hideStep)
+    }
+
+    @Test
+    fun theAnswersWithoutARevealAreForTheProgressiveHint() {
+        val fresh = sessionOf(1, 2)
+        assertEquals(fresh, fresh.mark(ok), "the plain answer still needs the reveal")
+        val answered = fresh.hideMore(0, 8).markWithoutReveal(hard)
+        assertEquals(1, answered.index)
+        assertEquals(hard, answered.items[0].mark)
+        assertFalse(answered.revealed)
+        assertEquals(sessionOf(1).answerAll(ok), sessionOf(1).answerAll(ok).markWithoutReveal(hard))
+    }
+
+    @Test
+    fun peeksAndStepsSurviveBeingSavedAsText() {
+        val current = sessionOf(4, 5, 6).peekWord(0, 3).peekWord(0, 12).reveal().mark(ok).hideMore(1, 9).hideMore(1, 9).peekAyah(1)
+        assertEquals(current, assertNotNull(HifzSession.decode(current.encode())))
+        val restored = assertNotNull(HifzSession.decode(current.encode()))
+        assertEquals(setOf(3, 12), restored.items[0].peeked)
+        assertEquals(2, restored.items[1].hideStep)
+        assertEquals(2, restored.items[1].peeks)
+        assertTrue(current.encode().startsWith("h3|"))
+    }
+
+    @Test
+    fun anOldTextFormIsStillReadWithoutPeeks() {
+        val decoded = assertNotNull(HifzSession.decode("h2|7|1|1|100:1:0,101:2:-1,102:3:1"))
+        assertEquals(listOf(0, 0, 0), decoded.items.map { it.peeks })
+        assertEquals(listOf(emptySet(), emptySet(), emptySet()), decoded.items.map { it.peeked })
+        assertEquals(listOf(0, 0, 0), decoded.items.map { it.hideStep })
+        assertEquals(listOf(AyahMark.REMEMBERED, null, AyahMark.HARD), decoded.items.map { it.mark })
+        assertEquals(1, decoded.index)
+        assertTrue(decoded.revealed)
+    }
+
+    @Test
+    fun aBrokenNewTextFormIsNotASession() {
+        assertNull(HifzSession.decode("h3|7|0|0|100:1:-1"), "the new form needs its three extra fields")
+        assertNull(HifzSession.decode("h3|7|0|0|100:1:-1:x::0"))
+        assertNull(HifzSession.decode("h3|7|0|0|100:1:-1:-2::0"))
+        assertNull(HifzSession.decode("h3|7|0|0|100:1:-1:0:a.b:0"))
+        assertNull(HifzSession.decode("h3|7|0|0|100:1:-1:0:-3:0"))
+        assertNull(HifzSession.decode("h3|7|0|0|100:1:-1:0::5"))
+        assertNotNull(HifzSession.decode("h3|7|0|0|100:1:-1:3:0.4.9:2"))
     }
 }

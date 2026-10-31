@@ -22,13 +22,29 @@ enum class HifzPhase {
 /** The answer to one ayah: "I remember it" or "it was hard". The grade of the whole passage is chosen at the end. */
 enum class AyahMark { REMEMBERED, HARD }
 
-/** One ayah of a session: its global number (the database key), its number in the surah and the mark it got. */
+/**
+ * One ayah of a session: its global number (the database key), its number in the surah and the mark it got.
+ *
+ * [peeks] counts the peeks at the ayah while it was being recalled (task F2a): a tap on a hidden word is one, holding the whole
+ * ayah is [WholeAyahPeeks]; [peeked] are the words (indices of `displayWords`) a tap opened, they stay open until the ayah is
+ * answered. [hideStep] is the step of "Hide more" of the progressive hint (0 = the whole ayah, [RecallHints.ProgressiveSteps] =
+ * hidden entirely). An ayah that was peeked at [RecallHints.PeeksSuggestHard] times or more is offered "Hard".
+ */
 @Immutable
 data class HifzItem(
     val number: Int,
     val inSurah: Int,
     val mark: AyahMark? = null,
-)
+    val peeks: Int = 0,
+    val peeked: Set<Int> = emptySet(),
+    val hideStep: Int = 0,
+) {
+    /** The two answers are offered with "Hard" first: the ayah was peeked at at least twice. */
+    val suggestsHard: Boolean get() = peeks >= RecallHints.PeeksSuggestHard
+}
+
+/** Holding the whole ayah to peek counts as this many peeks (as two words). */
+const val WholeAyahPeeks = 2
 
 /**
  * A recall session ("Recall" in the lesson, "Check yourself" in the reader): an ordered list of ayahs of one
@@ -88,11 +104,54 @@ data class HifzSession(
     fun reveal(): HifzSession = if (finished || revealed) this else copy(revealed = true)
 
     /** Marks the current ayah and moves on to the next one, hidden again. Ignored until the ayah is revealed. */
-    fun mark(mark: AyahMark): HifzSession {
-        if (finished || !revealed) return this
+    fun mark(mark: AyahMark): HifzSession = markNow(mark, requireRevealed = true)
+
+    /**
+     * Like [mark] but without the reveal first: "I remember" / "Hard" of the progressive hint are on offer while the ayah is
+     * still partly shown. Ignored when the session is over.
+     */
+    fun markWithoutReveal(mark: AyahMark): HifzSession = markNow(mark, requireRevealed = false)
+
+    private fun markNow(mark: AyahMark, requireRevealed: Boolean): HifzSession {
+        if (finished || (requireRevealed && !revealed)) return this
         val marked = items.toMutableList()
         marked[index] = marked[index].copy(mark = mark)
         return copy(items = marked, index = index + 1, revealed = false)
+    }
+
+    /**
+     * A tap on the hidden word [word] of the ayah at session position [position]: the word stays open until the ayah is answered and
+     * counts as one peek. Ignored for another ayah, after the reveal, for a word already open and a negative index.
+     */
+    fun peekWord(position: Int, word: Int): HifzSession {
+        val item = items.getOrNull(position) ?: return this
+        if (finished || position != index || revealed || word < 0 || word in item.peeked) return this
+        return withItem(position, item.copy(peeks = item.peeks + 1, peeked = item.peeked + word))
+    }
+
+    /** Holding the whole ayah at [position] to peek: counts as [WholeAyahPeeks]. Ignored like [peekWord]. */
+    fun peekAyah(position: Int): HifzSession {
+        val item = items.getOrNull(position) ?: return this
+        if (finished || position != index || revealed) return this
+        return withItem(position, item.copy(peeks = item.peeks + WholeAyahPeeks))
+    }
+
+    /**
+     * "Hide more" of the progressive hint on the ayah at [position], which has [wordCount] words: the next step of
+     * [RecallHints.nextStep]. Ignored when nothing is left to hide.
+     */
+    fun hideMore(position: Int, wordCount: Int): HifzSession {
+        val item = items.getOrNull(position) ?: return this
+        if (finished || position != index || revealed) return this
+        val next = RecallHints.nextStep(wordCount, item.hideStep)
+        if (next == item.hideStep) return this
+        return withItem(position, item.copy(hideStep = next))
+    }
+
+    private fun withItem(position: Int, item: HifzItem): HifzSession {
+        val changed = items.toMutableList()
+        changed[position] = item
+        return copy(items = changed)
     }
 
     /** Text form for `rememberSaveable`: survives the process being killed. */
@@ -104,17 +163,25 @@ data class HifzSession(
         items.forEachIndexed { position, item ->
             if (position > 0) append(',')
             append(item.number).append(':').append(item.inSurah).append(':').append(item.mark?.ordinal ?: -1)
+            append(':').append(item.peeks)
+            append(':').append(item.peeked.sorted().joinToString("."))
+            append(':').append(item.hideStep)
         }
     }
 
     companion object {
-        private const val CodecVersion = "h2"
+        private const val CodecVersion = "h3"
+
+        /** The first version of the text form: no peeks and no hide step. It is still read. */
+        private const val CodecVersionOld = "h2"
 
         /** Reads [encode]'s output; null for anything else, including the empty string. */
         fun decode(text: String?): HifzSession? {
             if (text.isNullOrEmpty()) return null
             val parts = text.split('|')
-            if (parts.size != 5 || parts[0] != CodecVersion) return null
+            if (parts.size != 5) return null
+            val version = parts[0]
+            if (version != CodecVersion && version != CodecVersionOld) return null
             val surah = parts[1].toIntOrNull() ?: return null
             val index = parts[2].toIntOrNull() ?: return null
             val revealed = when (parts[3]) {
@@ -125,12 +192,20 @@ data class HifzSession(
             if (parts[4].isEmpty()) return null
             val items = parts[4].split(',').map { entry ->
                 val fields = entry.split(':')
-                if (fields.size != 3) return null
+                if (fields.size != if (version == CodecVersion) 6 else 3) return null
                 val number = fields[0].toIntOrNull() ?: return null
                 val inSurah = fields[1].toIntOrNull() ?: return null
                 val ordinal = fields[2].toIntOrNull() ?: return null
                 val mark = if (ordinal < 0) null else AyahMark.entries.getOrNull(ordinal) ?: return null
-                HifzItem(number, inSurah, mark)
+                if (version == CodecVersionOld) return@map HifzItem(number, inSurah, mark)
+                val peeks = fields[3].toIntOrNull()?.takeIf { it >= 0 } ?: return null
+                val peeked = if (fields[4].isEmpty()) {
+                    emptySet()
+                } else {
+                    fields[4].split('.').mapTo(LinkedHashSet()) { it.toIntOrNull()?.takeIf { word -> word >= 0 } ?: return null }
+                }
+                val step = fields[5].toIntOrNull()?.takeIf { it in 0..RecallHints.ProgressiveSteps } ?: return null
+                HifzItem(number, inSurah, mark, peeks, peeked, step)
             }
             if (index !in 0..items.size) return null
             return HifzSession(surah, items, index, revealed && index < items.size)

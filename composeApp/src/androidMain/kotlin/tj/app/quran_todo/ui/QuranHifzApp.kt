@@ -94,6 +94,7 @@ import tj.app.quran_todo.ui.components.spotlight.SpotlightNavigationEffect
 import tj.app.quran_todo.ui.components.spotlight.SpotlightHost
 import tj.app.quran_todo.ui.components.spotlight.rememberSpotlightController
 import tj.app.quran_todo.ui.downloads.DownloadsScreen
+import tj.app.quran_todo.ui.drill.DrillScreen
 import tj.app.quran_todo.ui.home.HomeScreen
 import tj.app.quran_todo.ui.lesson.LessonScreen
 import tj.app.quran_todo.ui.motion.LocalNavAnimatedVisibilityScope
@@ -460,6 +461,7 @@ private fun AppNavigation() {
                             onOpenPlan = { navController.navigateOnce(Dest.Plan) },
                             onOpenQuiz = { navController.navigateOnce(Dest.Quiz) },
                             onHome = { navController.goHome() },
+                            onOpenDrill = { navController.navigateOnce(Dest.HardDrill) },
                         )
                     }
                 }
@@ -482,7 +484,13 @@ private fun AppNavigation() {
                             onBack = { navController.popOnce() },
                             onOpenReader = { navController.navigateOnce(it) },
                             onOpenPlan = { navController.navigateOnce(Dest.Plan) },
+                            onOpenDrill = { navController.navigateOnce(Dest.HardDrill) },
                         )
+                    }
+                }
+                composable<Dest.HardDrill> {
+                    ProvideNavScope {
+                        DrillScreen(onBack = { navController.popOnce() })
                     }
                 }
                 composable<Dest.Settings> {
@@ -611,6 +619,7 @@ private fun NavDestination.screenName(): String? = when {
     hasRoute<Dest.Plan>() -> "plan"
     hasRoute<Dest.Quiz>() -> "quiz"
     hasRoute<Dest.Progress>() -> "progress"
+    hasRoute<Dest.HardDrill>() -> "hard_drill"
     hasRoute<Dest.Settings>() -> "settings"
     hasRoute<Dest.Downloads>() -> "downloads"
     hasRoute<Dest.Privacy>() -> "privacy"

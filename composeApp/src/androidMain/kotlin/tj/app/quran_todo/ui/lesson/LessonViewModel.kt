@@ -101,6 +101,13 @@ class LessonViewModel(
     val forecast: StateFlow<PlanForecast?> = hifz.forecast(ticker.day)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    /** How many ayahs are marked difficult right now: the summary offers the drill of them (task F2a) when there are any. */
+    val hardCount: StateFlow<Int> = hifz.hardAyahs()
+        .map { hard -> hard.values.sumOf { it.size } }
+        .distinctUntilChanged()
+        .catch { emit(0) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
     /** Days in a row with a record in the log, for the summary. */
     val streak: StateFlow<Int> = hifz.streak(ticker.day)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
@@ -215,8 +222,24 @@ class LessonViewModel(
         )
     }
 
-    /** The first-word hint of a hidden ayah. */
+    /** How much of a hidden ayah stays readable (the five levels of the hint). */
     val hintMode: StateFlow<HifzHintMode> = uiPrefs.hifzHintMode
+
+    fun setHintMode(mode: HifzHintMode) = uiPrefs.setHifzHintMode(mode)
+
+    /** A tap on the hidden word [word] of the ayah at session position [position]: it opens and counts as one peek. */
+    fun peekWord(key: String, position: Int, word: Int) = updateRecall(key, stopsAudio = false) { it.peekWord(position, word) }
+
+    /** Holding the whole ayah at [position] to peek: counts as two peeks. */
+    fun peekAyah(key: String, position: Int) = updateRecall(key, stopsAudio = false) { it.peekAyah(position) }
+
+    /** "Hide more" of the progressive hint on the ayah at [position], which has [wordCount] words. */
+    fun hideMore(key: String, position: Int, wordCount: Int) = updateRecall(key, stopsAudio = false) { it.hideMore(position, wordCount) }
+
+    /** Answers the ayah at [position] before the reveal (the progressive hint offers the answers while the ayah is partly shown). */
+    fun markEarly(key: String, mark: AyahMark, position: Int) = updateRecall(key, stopsAudio = true) { session ->
+        if (session.finished || session.index != position) session else session.markWithoutReveal(mark)
+    }
 
     fun reveal(key: String) = updateRecall(key, stopsAudio = false) { it.reveal() }
 

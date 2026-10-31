@@ -180,6 +180,15 @@ class LessonFlowTest {
     }
 
     @Test
+    fun thePeeksAndTheHideStepOfARecallSurviveBeingSavedAsText() {
+        val session = recall().copy(
+            items = listOf(HifzItem(1, 1, AyahMark.HARD, peeks = 3, peeked = setOf(2, 5), hideStep = 2), HifzItem(2, 2, peeks = 2), HifzItem(3, 3)),
+        )
+        val progress = CardProgress("new", CardPhase.Recall, session)
+        assertEquals(progress, CardProgress.decode(progress.encode()))
+    }
+
+    @Test
     fun aPositionBeforeRecallHasNoSession() {
         val progress = CardProgress("new", CardPhase.Read)
         assertEquals(progress, CardProgress.decode(progress.encode()))

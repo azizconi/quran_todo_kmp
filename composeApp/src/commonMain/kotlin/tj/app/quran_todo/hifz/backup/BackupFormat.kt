@@ -177,7 +177,7 @@ data class BackupSettings(
     val lessonAyahRepeats: Int? = null,
     /** How many times the whole passage sounds in the "Listen" step of the lesson. */
     val lessonPassageRepeats: Int? = null,
-    /** `HifzHintMode` by name: NONE or FIRST_WORD. */
+    /** `HifzHintMode` by name: NONE, FIRST_WORD, FIRST_LETTERS, EVERY_OTHER or PROGRESSIVE; an unknown name is dropped on import. */
     val hifzHint: String? = null,
     val hapticsEnabled: Boolean? = null,
     val reduceMotion: Boolean? = null,

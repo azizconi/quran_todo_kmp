@@ -105,6 +105,7 @@ class OnboardingFinisherTest {
         override suspend fun logCheck(
             surah: Int, startAyah: Int, endAyah: Int, grade: ReviewGrade, hardAyahs: Set<Int>, today: Int,
         ): Unit = error("unused")
+        override suspend fun drillHard(surah: Int, remembered: Set<Int>, stillHard: Set<Int>, today: Int): Unit = error("unused")
         override suspend fun forget(surah: Int, startAyah: Int, endAyah: Int): Unit = error("unused")
         override suspend fun learnNext(surah: Int, today: Int): Unit = error("unused")
         override suspend fun clearPlan(): Unit = error("unused")
