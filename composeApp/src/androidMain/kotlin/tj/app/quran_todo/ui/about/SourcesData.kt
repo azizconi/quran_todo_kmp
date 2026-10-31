@@ -47,6 +47,11 @@ internal val SourceGroups: List<SourceGroup> = listOf(
                 url = "https://tanzil.net",
                 note = SourceNote.TanzilTerms,
             ),
+            // Similar verses (task F6): our own index, made from the Tanzil text above; no outside list is used.
+            SourceItem(
+                title = "Similar verses: computed by the app from the Tanzil text",
+                provider = "scripts/build_mutashabihat.py",
+            ),
             SourceItem(
                 title = "Tajweed markup (quran-tajweed)",
                 provider = "$IslamicNetwork · api.alquran.cloud · quran-tajweed",

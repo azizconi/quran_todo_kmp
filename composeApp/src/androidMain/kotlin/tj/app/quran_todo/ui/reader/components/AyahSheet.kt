@@ -60,6 +60,12 @@ import tj.app.quran_todo.ui.i18n.rememberTafsirCopy
 import tj.app.quran_todo.ui.navigation.LocalTafsirOpener
 import tj.app.quran_todo.ui.motion.pressable
 import tj.app.quran_todo.ui.reader.AyahSchedule
+import tj.app.quran_todo.ui.similar.SimilarIcon
+import tj.app.quran_todo.ui.similar.SimilarStore
+import tj.app.quran_todo.common.mushaf.AyahKey
+import tj.app.quran_todo.ui.i18n.rememberSimilarCopy
+import androidx.compose.runtime.collectAsState
+import org.koin.compose.koinInject
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -160,6 +166,17 @@ fun AyahSheet(
             if (openTafsir != null) {
                 SheetActionRow(Icons.AutoMirrored.Rounded.MenuBook, rememberTafsirCopy().sheetRow) {
                     openTafsir(model.ayah.surahNumber, number)
+                    close()
+                }
+            }
+
+            // Similar ayahs (F6): "Similar (3)" opens the sheet; the text reader and the pages share this row.
+            val similarStore = koinInject<SimilarStore>()
+            val similarIndex by similarStore.index.collectAsState()
+            val similarCount = similarIndex?.count(AyahKey(model.ayah.surahNumber, number)) ?: 0
+            if (similarCount > 0) {
+                SheetActionRow(SimilarIcon, rememberSimilarCopy().sheetRow(similarCount)) {
+                    similarStore.openSheet(AyahKey(model.ayah.surahNumber, number))
                     close()
                 }
             }

@@ -1,5 +1,8 @@
 package tj.app.quran_todo.hifz.quiz
 
+import tj.app.quran_todo.common.mushaf.AyahKey
+import tj.app.quran_todo.common.similar.TellApartPair
+
 /**
  * The five kinds of the questions of the quiz "Check" (task F2b). A quiz is a help, not a lesson: nothing of it goes to the review
  * log, and the only trace is that a missed ayah is marked difficult (`HifzRepository.markHard`).
@@ -19,6 +22,9 @@ enum class QuizKind {
 
     /** An ayah is shown: which surah is it from? One of four. */
     WHERE,
+
+    /** Two similar places (mutashabihat) begin the same way: recall each, then see what differs (task F6). */
+    TELL_APART,
 }
 
 /**
@@ -39,6 +45,12 @@ sealed interface QuizQuestion {
      * ([QuizAnswers.order]).
      */
     val hardOnMiss: Set<Int>
+
+    /** Every ayah the question uses, with its surah (a question of [TellApartQuestion] has two places in two surahs). */
+    val places: Set<AyahKey> get() = ayahsUsed.mapTo(LinkedHashSet()) { AyahKey(surah, it) }
+
+    /** Difficult ayahs of a miss that are NOT in [surah] (only [TellApartQuestion] has some). */
+    val otherHardOnMiss: Set<AyahKey> get() = emptySet()
 }
 
 /** The first [shownWords] of [totalWords] words of the ayah are shown (a third of them, rounded up), the rest is hidden. */
@@ -100,6 +112,30 @@ data class WhereQuestion(
 }
 
 /**
+ * Two similar places (task F6): the ayah [ayah] of [surah] and the ayah [otherAyah] of [otherSurah] begin with [shownWords] common words
+ * (that much is shown, the rest is hidden); the person recalls each and then sees what differs. A miss ("I mixed them up") marks both ayahs
+ * difficult. Self-graded like [ContinueQuestion].
+ */
+data class TellApartQuestion(
+    override val surah: Int,
+    val ayah: Int,
+    val otherSurah: Int,
+    val otherAyah: Int,
+    val shownWords: Int,
+) : QuizQuestion {
+    override val kind: QuizKind get() = QuizKind.TELL_APART
+    override val ayahsUsed: Set<Int> get() = setOf(ayah)
+    override val focusAyah: Int get() = ayah
+    override val hardOnMiss: Set<Int> get() = setOf(ayah)
+    override val places: Set<AyahKey> get() = linkedSetOf(AyahKey(surah, ayah), AyahKey(otherSurah, otherAyah))
+    override val otherHardOnMiss: Set<AyahKey> get() = linkedSetOf(AyahKey(otherSurah, otherAyah))
+}
+
+/** The question made of a [pair] chosen by `TellApartPairs`. */
+fun TellApartPair.toQuestion(): TellApartQuestion =
+    TellApartQuestion(first.surah, first.ayah, second.surah, second.ayah, shownWords)
+
+/**
  * How one question was answered: [knew] is "I knew it" (or the right order, or the right surah) and [hardAyahs] the ayahs of the
  * question to mark difficult (empty when [knew] and for [WhereQuestion]).
  */
@@ -107,13 +143,15 @@ data class QuizAnswer(
     val question: QuizQuestion,
     val knew: Boolean,
     val hardAyahs: Set<Int>,
+    /** Difficult ayahs outside the surah of the question (the second place of [TellApartQuestion]); empty for every other kind. */
+    val otherHard: Set<AyahKey> = emptySet(),
 )
 
 /** How the questions are answered (pure; the screen only collects the person's taps). */
 object QuizAnswers {
     /** "I knew it" / "I did not know it" of [QuizKind.CONTINUE], [QuizKind.NEXT] and [QuizKind.START]. */
     fun selfGraded(question: QuizQuestion, knew: Boolean): QuizAnswer =
-        QuizAnswer(question, knew, if (knew) emptySet() else question.hardOnMiss)
+        QuizAnswer(question, knew, if (knew) emptySet() else question.hardOnMiss, if (knew) emptySet() else question.otherHardOnMiss)
 
     /** The order the person made: right when it is [OrderQuestion.inOrder]; otherwise the ayahs put in a wrong place are difficult. */
     fun order(question: OrderQuestion, answer: List<Int>): QuizAnswer {
@@ -127,10 +165,14 @@ object QuizAnswers {
         QuizAnswer(question, chosenSurah == question.surah, emptySet())
 
     /** The difficult ayahs of all the answers by surah (what `markHard` is called with, once per surah); surahs without any are left out. */
-    fun hardBySurah(answers: List<QuizAnswer>): Map<Int, Set<Int>> =
-        answers.filter { it.hardAyahs.isNotEmpty() }
-            .groupBy({ it.question.surah }, { it.hardAyahs })
-            .mapValues { (_, sets) -> sets.flatMapTo(LinkedHashSet()) { it } }
+    fun hardBySurah(answers: List<QuizAnswer>): Map<Int, Set<Int>> {
+        val result = LinkedHashMap<Int, MutableSet<Int>>()
+        for (answer in answers) {
+            if (answer.hardAyahs.isNotEmpty()) result.getOrPut(answer.question.surah) { LinkedHashSet() } += answer.hardAyahs
+            for (other in answer.otherHard) result.getOrPut(other.surah) { LinkedHashSet() } += other.ayah
+        }
+        return result
+    }
 
     /** How many questions the person knew. */
     fun known(answers: List<QuizAnswer>): Int = answers.count { it.knew }

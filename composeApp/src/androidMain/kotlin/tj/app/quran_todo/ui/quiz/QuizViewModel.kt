@@ -9,18 +9,27 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.common.i18n.AppLanguage
+import tj.app.quran_todo.common.mushaf.AyahKey
+import tj.app.quran_todo.common.similar.TellApartPairs
+import tj.app.quran_todo.common.similar.WordDiff
+import tj.app.quran_todo.common.similar.wordDiff
+import tj.app.quran_todo.hifz.quiz.TellApartQuestion
+import tj.app.quran_todo.hifz.quiz.toQuestion
+import tj.app.quran_todo.ui.similar.SimilarStore
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
 import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.hifz.HifzRepository
 import tj.app.quran_todo.hifz.quiz.QuizAnswer
 import tj.app.quran_todo.hifz.quiz.QuizAnswers
 import tj.app.quran_todo.hifz.quiz.QuizBuilder
+import tj.app.quran_todo.hifz.quiz.QuizQuestion
 import tj.app.quran_todo.presentation.home.HomeViewModel
 import tj.app.quran_todo.presentation.surah.SurahViewModel
 import tj.app.quran_todo.ui.common.SurahNames
@@ -37,8 +46,21 @@ sealed interface QuizUi {
     /** Fewer than [QuizBuilder.MIN_POOL] ayahs are memorized: there is nothing to ask. */
     data object TooLittle : QuizUi
 
-    /** A quiz is on ([round] counts from 1: "5 more questions" starts a new one). When [QuizSession.finished] it is the result. */
-    data class Playing(val session: QuizSession, val round: Int) : QuizUi
+    /** "Tell apart" was asked for, and none of the similar places is memorized on both sides (task F6). */
+    data object NoPairs : QuizUi
+
+    /**
+     * A quiz is on ([round] counts from 1: "5 more questions" starts a new one). When [QuizSession.finished] it is the result.
+     * [pairs] is how many pairs of similar places the person could tell apart (the line "Tell apart" of the result), 0 in the drill itself.
+     */
+    data class Playing(val session: QuizSession, val round: Int, val pairs: Int = 0) : QuizUi
+}
+
+/** What the screen asks of the quiz: the usual five kinds, or only "Tell apart" (all pairs, or the group of one ayah). */
+sealed interface QuizMode {
+    data object Mixed : QuizMode
+
+    data class TellApart(val focus: AyahKey? = null) : QuizMode
 }
 
 /**
@@ -53,6 +75,7 @@ class QuizViewModel(
     private val hifz: HifzRepository,
     private val home: HomeViewModel,
     private val surahViewModel: SurahViewModel,
+    private val similar: SimilarStore,
 ) : ViewModel() {
     private val quran: StateFlow<List<SurahWithAyahs>> = home.uiState
         .map { it.completeQuran }
@@ -76,7 +99,19 @@ class QuizViewModel(
     private var round = 0
     private var completedLogged = false
 
-    init {
+    /** What this quiz is; set by [begin], once. */
+    var mode: QuizMode = QuizMode.Mixed
+        private set
+    private var began = false
+
+    /**
+     * Starts the quiz of [asked] (the screen calls it when it appears; a rotation calls it again and nothing happens, the session lives
+     * here).
+     */
+    fun begin(asked: QuizMode) {
+        if (began) return
+        began = true
+        mode = asked
         viewModelScope.launch { start() }
     }
 
@@ -98,7 +133,8 @@ class QuizViewModel(
             AppTelemetry.logError(throwable = error, context = "quiz_covered_failed")
             emptyMap()
         }
-        if (!QuizBuilder.isAvailable(covered)) {
+        val asked = mode
+        if (asked is QuizMode.Mixed && !QuizBuilder.isAvailable(covered)) {
             state.value = QuizUi.TooLittle
             return
         }
@@ -106,15 +142,54 @@ class QuizViewModel(
             val complete = quran.first { it.isNotEmpty() }
             texts = complete.associate { surah -> surah.surah.number to surah.ayahs.associate { it.numberInSurah to it.text } }
         }
-        val questions = QuizBuilder.build(
-            covered = covered,
-            words = { surah, ayah -> ayahWords(surah, ayah)?.wordCount ?: 0 },
-            count = QuizBuilder.DEFAULT_COUNT,
-            random = Random.Default,
-        )
+        val hard = try {
+            hifz.hardAyahs().first()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            AppTelemetry.logError(throwable = error, context = "quiz_hard_failed")
+            emptyMap()
+        }
+        val index = similar.index.filterNotNull().first()
+        val text: (AyahKey) -> String? = { key -> ayahWords(key.surah, key.ayah)?.text }
+        val random = Random.Default
+        val questions: List<QuizQuestion>
+        var pairCount = 0
+        when (asked) {
+            QuizMode.Mixed -> {
+                val pairs = TellApartPairs.pick(index, covered, hard, text, count = TELL_APART_POOL, random = random)
+                questions = QuizBuilder.build(
+                    covered = covered,
+                    words = { surah, ayah -> ayahWords(surah, ayah)?.wordCount ?: 0 },
+                    count = QuizBuilder.DEFAULT_COUNT,
+                    random = random,
+                    pairs = pairs,
+                )
+                pairCount = TellApartPairs.count(index, covered)
+            }
+            is QuizMode.TellApart -> {
+                val pairs = if (asked.focus != null) {
+                    TellApartPairs.forAyah(index, asked.focus, covered, hard, text, QuizBuilder.DEFAULT_COUNT, random)
+                } else {
+                    TellApartPairs.pick(index, covered, hard, text, QuizBuilder.DEFAULT_COUNT, random)
+                }
+                questions = pairs.map { it.toQuestion() }
+            }
+        }
         round++
         completedLogged = false
-        state.value = if (questions.isEmpty()) QuizUi.TooLittle else QuizUi.Playing(QuizSession(questions), round)
+        state.value = when {
+            questions.isNotEmpty() -> QuizUi.Playing(QuizSession(questions), round, pairCount)
+            asked is QuizMode.TellApart -> QuizUi.NoPairs
+            else -> QuizUi.TooLittle
+        }
+    }
+
+    /** The words of the two places of a "Tell apart" question side by side, or null while a text is missing. */
+    fun tellApartDiff(question: TellApartQuestion): WordDiff? {
+        val a = ayahWords(question.surah, question.ayah)?.text ?: return null
+        val b = ayahWords(question.otherSurah, question.otherAyah)?.text ?: return null
+        return wordDiff(a, b)
     }
 
     // -- Text and names -------------------------------------------------------------------------------
@@ -169,17 +244,23 @@ class QuizViewModel(
         }
     }
 
-    /** A missed ayah becomes difficult at once. Nothing else is written. */
+    /** A missed ayah becomes difficult at once (both places of a "Tell apart" question, each in its own surah). Nothing else is written. */
     private fun mark(answer: QuizAnswer) {
-        if (answer.hardAyahs.isEmpty()) return
+        val bySurah = QuizAnswers.hardBySurah(listOf(answer))
+        if (bySurah.isEmpty()) return
         viewModelScope.launch {
             try {
-                hifz.markHard(answer.question.surah, answer.hardAyahs)
+                for ((surah, ayahs) in bySurah) hifz.markHard(surah, ayahs)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
                 AppTelemetry.logError(throwable = error, context = "quiz_mark_hard_failed")
             }
         }
+    }
+
+    private companion object {
+        /** The pairs the builder draws its questions of "Tell apart" from. */
+        const val TELL_APART_POOL = 6
     }
 }

@@ -45,6 +45,16 @@ sealed interface Dest {
     @Serializable
     data object Quiz : Dest
 
+    /**
+     * "Tell apart" (task F6): the quiz with only the question about similar places. [surah] and [ayah] name one ayah: the drill of its group
+     * (opened from the sheet "Similar verses"); 0 for both: every pair the person has memorized (the line of the quiz result).
+     */
+    @Serializable
+    data class TellApart(
+        val surah: Int = 0,
+        val ayah: Int = 0,
+    ) : Dest
+
     @Serializable
     data object Progress : Dest
 

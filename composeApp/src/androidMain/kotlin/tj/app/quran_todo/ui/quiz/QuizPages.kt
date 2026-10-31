@@ -63,6 +63,11 @@ import tj.app.quran_todo.ui.motion.AnimatedCounter
 import tj.app.quran_todo.ui.motion.pressable
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.reader.AyahWords
+import tj.app.quran_todo.ui.similar.SimilarIcon
+import tj.app.quran_todo.ui.similar.rememberPlaceLabel
+import tj.app.quran_todo.ui.i18n.rememberSimilarCopy
+import tj.app.quran_todo.common.mushaf.AyahKey
+import tj.app.quran_todo.hifz.quiz.TellApartQuestion
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -457,6 +462,70 @@ private fun OptionRow(name: String, arabicName: String, nameStyle: TextStyle, st
     }
 }
 
+// -- Tell similar places apart (task F6) ---------------------------------------------------------------------
+
+/**
+ * "Tell apart": two similar places side by side, both shown only up to their common start and veiled after it. The person recalls each
+ * one, taps "Show", sees both with the words that differ in the accent colour, and says "Told apart" or "Mixed up" (which marks both
+ * ayahs difficult; nothing else is written).
+ */
+@Composable
+internal fun TellApartPage(
+    session: QuizSession,
+    question: TellApartQuestion,
+    viewModel: QuizViewModel,
+    copy: QuizCopy,
+    arabicStyle: TextStyle,
+) {
+    val similar = rememberSimilarCopy()
+    val label = rememberPlaceLabel()
+    val revealed = session.revealed
+    val diff = remember(question, revealed) { if (revealed) viewModel.tellApartDiff(question) else null }
+    val keys = listOf(AyahKey(question.surah, question.ayah), AyahKey(question.otherSurah, question.otherAyah))
+    QuestionFrame(
+        title = similar.drillTitle,
+        hint = similar.drillHint,
+        bottom = {
+            if (!revealed) {
+                QhButton(text = copy.show, onClick = viewModel::reveal, modifier = Modifier.fillMaxWidth())
+            } else {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(QhSpacing.x3)) {
+                    QhButton(
+                        text = similar.mixedUp,
+                        onClick = { viewModel.answerSelf(false) },
+                        modifier = Modifier.weight(1f),
+                        variant = QhButtonVariant.Tonal,
+                    )
+                    QhButton(text = similar.knewApart, onClick = { viewModel.answerSelf(true) }, modifier = Modifier.weight(1f))
+                }
+            }
+        },
+    ) {
+        keys.forEachIndexed { index, key ->
+            val words = viewModel.ayahWords(key.surah, key.ayah)
+            QhCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(QhSpacing.cardLarge)) {
+                Text(
+                    text = if (revealed) label(key) else similar.place(index + 1),
+                    style = QhTheme.type.callout,
+                    color = QhTheme.colors.inkSecondary,
+                    modifier = Modifier.padding(bottom = QhSpacing.x2),
+                )
+                if (words != null) {
+                    QuizVeiledText(
+                        words = words,
+                        visibleWords = question.shownWords,
+                        revealed = revealed,
+                        style = arabicStyle,
+                        hiddenLabel = copy.hiddenText,
+                        emphasis = (if (index == 0) diff?.a else diff?.b)?.differingRanges.orEmpty(),
+                    )
+                }
+            }
+        }
+        if (revealed) Text(text = similar.differencesNote, style = QhTheme.type.callout, color = QhTheme.colors.inkSecondary)
+    }
+}
+
 // -- The result ------------------------------------------------------------------------------------------
 
 @Composable
@@ -467,9 +536,14 @@ internal fun QuizResultPage(
     onAgain: () -> Unit,
     onDone: () -> Unit,
     onOpenReader: (Dest.Reader) -> Unit,
+    /** The line "Tell apart · 3 pairs" (task F6); null when there is no pair to tell apart or this is the drill itself. */
+    onTellApart: (() -> Unit)? = null,
+    pairs: Int = 0,
 ) {
     val colors = QhTheme.colors
     val type = QhTheme.type
+    val similarCopy = rememberSimilarCopy()
+    val label = rememberPlaceLabel()
     val language = LocalAppLanguage.current
     val names by viewModel.chapterNames.collectAsState()
     val known = session.known
@@ -528,7 +602,11 @@ internal fun QuizResultPage(
                     val (from, to) = missedRange(question)
                     QhCard(Modifier.fillMaxWidth()) {
                         Text(
-                            text = passageRangeLabel(viewModel.surahTitle(question.surah, language, names), from, to),
+                            text = if (question is TellApartQuestion) {
+                                "${label(AyahKey(question.surah, question.ayah))} · ${label(AyahKey(question.otherSurah, question.otherAyah))}"
+                            } else {
+                                passageRangeLabel(viewModel.surahTitle(question.surah, language, names), from, to)
+                            },
                             style = type.title2,
                             color = colors.ink,
                         )
@@ -554,6 +632,16 @@ internal fun QuizResultPage(
             verticalArrangement = Arrangement.spacedBy(QhSpacing.x2),
         ) {
             QhButton(text = copy.moreQuestions(QuizBuilder.DEFAULT_COUNT), onClick = onAgain, modifier = Modifier.fillMaxWidth())
+            if (onTellApart != null && pairs > 0) {
+                QhButton(
+                    text = similarCopy.entry(pairs),
+                    onClick = onTellApart,
+                    modifier = Modifier.fillMaxWidth(),
+                    variant = QhButtonVariant.Tonal,
+                    size = QhButtonSize.M,
+                    icon = SimilarIcon,
+                )
+            }
             QhButton(
                 text = copy.done,
                 onClick = onDone,
@@ -572,4 +660,5 @@ private fun missedRange(question: QuizQuestion): Pair<Int, Int> = when (question
     is StartQuestion -> 1 to 1
     is OrderQuestion -> question.inOrder.first() to question.inOrder.last()
     is WhereQuestion -> question.ayah to question.ayah
+    is TellApartQuestion -> question.ayah to question.ayah
 }

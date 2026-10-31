@@ -93,6 +93,8 @@ import tj.app.quran_todo.ui.recording.VoiceSheetHost
 import tj.app.quran_todo.ui.recording.rememberVoiceSheetState
 import tj.app.quran_todo.ui.reader.displayWords
 import tj.app.quran_todo.ui.reader.splitBismillah
+import tj.app.quran_todo.ui.similar.SimilarLessonHint
+import tj.app.quran_todo.common.mushaf.AyahKey
 import tj.app.quran_todo.ui.state.HifzHintMode
 import tj.app.quran_todo.ui.state.LESSON_AYAH_REPEATS_RANGE
 import tj.app.quran_todo.ui.state.LESSON_PASSAGE_REPEATS_RANGE
@@ -240,6 +242,7 @@ private fun ListenPhase(viewModel: LessonViewModel, copy: LessonCopy, work: Less
             onTap = null,
             modifier = Modifier.weight(1f),
             follow = remember(audio.playing) { WordFollow(playing = audio.playing) },
+            similarHints = true,
         )
         Column(
             Modifier
@@ -410,6 +413,7 @@ private fun ReadPhase(viewModel: LessonViewModel, copy: LessonCopy, work: Lesson
             onTap = { viewModel.toggleListenAyah(work, it) },
             modifier = Modifier.weight(1f),
             follow = remember(audio.playing) { WordFollow(playing = audio.playing) },
+            similarHints = true,
         )
         QhButton(
             text = copy.next,
@@ -436,7 +440,11 @@ internal fun PassageList(
     modifier: Modifier = Modifier,
     /** F1a: the word that sounds is washed in the text of the [current] ayah (null: the passage is drawn without it). */
     follow: WordFollow? = null,
+    /** F6: under an ayah that looks like one that is already memorized, the line "Similar to Al-A'raf 19 - compare" (Listen and Read only). */
+    similarHints: Boolean = false,
 ) {
+    // The ayahs of this passage are being learned: they are not "already memorized" for the hints.
+    val passage = remember(ayahs) { ayahs.mapTo(HashSet()) { AyahKey(it.surahNumber, it.numberInSurah) } }
     // The timings of the surah are read now, so that they are there when the first ayah sounds.
     if (follow != null) ayahs.firstOrNull()?.let { PrepareWordTimings(it.surahNumber) }
     val reduced = LocalReducedMotion.current
@@ -459,6 +467,7 @@ internal fun PassageList(
                 arabicStyle = arabicStyle,
                 onTap = onTap,
                 follow = if (marked) follow else null,
+                similarHint = if (similarHints) passage else null,
             )
         }
     }
@@ -471,6 +480,7 @@ private fun PassageRow(
     arabicStyle: TextStyle,
     onTap: ((Int) -> Unit)?,
     follow: WordFollow? = null,
+    similarHint: Set<AyahKey>? = null,
 ) {
     val colors = QhTheme.colors
     val reduced = LocalReducedMotion.current
@@ -532,6 +542,7 @@ private fun PassageRow(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+        if (similarHint != null) SimilarLessonHint(surah = ayah.surahNumber, ayah = number, passage = similarHint)
     }
 }
 

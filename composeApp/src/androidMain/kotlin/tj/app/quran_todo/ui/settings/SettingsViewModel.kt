@@ -141,6 +141,8 @@ internal class SettingsViewModel(
 
     fun setWordMeanings(value: Boolean) = uiPrefs.setWordMeanings(value)
 
+    fun setSimilarMarks(value: Boolean) = uiPrefs.setSimilarMarks(value)
+
     fun setTafsirSource(key: String) = uiPrefs.setTafsirSource(key)
 
     fun setHifzHintMode(value: HifzHintMode) = uiPrefs.setHifzHintMode(value)

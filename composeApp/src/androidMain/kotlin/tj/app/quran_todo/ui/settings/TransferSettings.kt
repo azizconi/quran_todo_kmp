@@ -54,6 +54,7 @@ internal object TransferSettings {
         reduceMotion = uiPrefs.reduceMotion.value,
         tajweed = uiPrefs.tajweed.value,
         wordMeanings = uiPrefs.wordMeanings.value,
+        similarMarks = uiPrefs.similarMarks.value,
         tafsir = uiPrefs.tafsirSource.value,
         reminderEnabled = uiPrefs.reminderEnabled.value,
         reminderMinuteOfDay = uiPrefs.reminderMinuteOfDay.value,
@@ -108,6 +109,9 @@ internal interface TransferSettingsTarget {
     /** "Word meanings (English)" on or off (task F4b). The meanings are fetched at the first tap, not here. */
     fun setWordMeanings(value: Boolean)
 
+    /** "Similar verse marks" on or off (task F6). */
+    fun setSimilarMarks(value: Boolean)
+
     /** The commentary chosen last (`TafsirSource.key`, task F4b). */
     fun setTafsirSource(key: String)
 
@@ -158,6 +162,7 @@ internal fun BackupSettings.applyTo(target: TransferSettingsTarget) {
     reduceMotion?.let(target::setReduceMotion)
     tajweed?.let(target::setTajweed)
     wordMeanings?.let(target::setWordMeanings)
+    similarMarks?.let(target::setSimilarMarks)
     tafsir?.let(target::setTafsirSource)
     reminderMinuteOfDay?.let(target::setReminderMinuteOfDay)
     reminderEnabled?.let(target::setReminderEnabled)

@@ -7,6 +7,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 /** The builder of the questions of the quiz "Check" (task F2b): kinds, fitness, variety, small pools, order, options. */
 class QuizBuilderTest {
@@ -92,6 +93,7 @@ class QuizBuilderTest {
                         assertTrue(question.ayah >= 2, "the first ayah of a surah is not asked: $question")
                         assertTrue(question.surah in question.options)
                     }
+                    is TellApartQuestion -> fail("no pairs were given, so no question of this kind may be drawn: $question")
                 }
             }
         }
