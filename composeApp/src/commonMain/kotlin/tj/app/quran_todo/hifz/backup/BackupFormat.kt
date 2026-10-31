@@ -185,6 +185,8 @@ data class BackupSettings(
     val tajweed: Boolean? = null,
     /** "Word meanings (English)" in the "Aa" sheet of the reader (Android, task F4b): a tap on a word shows its meaning. */
     val wordMeanings: Boolean? = null,
+    /** "Similar verse marks" in the "Aa" sheet of the reader (Android, task F6): a mark by an ayah that has similar ayahs. */
+    val similarMarks: Boolean? = null,
     /** The commentary chosen last (Android, task F4b): `TafsirSource.key`, an unknown key is dropped on import. */
     val tafsir: String? = null,
     /** The daily lesson reminder (Android): on or off. */

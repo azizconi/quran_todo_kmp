@@ -377,6 +377,19 @@ class BackupCodecTest {
     }
 
     @Test
+    fun theSimilarMarksSwitchIsOptionalAndTravelsAsABoolean() {
+        // F6: a copy written before it leaves the phone as it is (the marks are on by default); a new one carries it.
+        val old = BackupCodec.encode(verified(file.copy(settings = BackupSettings(language = "ru"))))
+        assertNull((BackupCodec.decode(old) as BackupParse.Ok).backup.settings.similarMarks)
+        assertTrue(old.contains("similarMarks").not())
+
+        val off = BackupCodec.encode(verified(file.copy(settings = BackupSettings(similarMarks = false))))
+        val settings = (BackupCodec.decode(off) as BackupParse.Ok).backup.settings
+        assertEquals(false, settings.similarMarks)
+        assertEquals(false, settings.sanitized().similarMarks)
+    }
+
+    @Test
     fun theTajweedSwitchIsOptionalAndTravelsAsABoolean() {
         // F3b: a copy written before the tajweed colours existed leaves the switch of the phone as it is; a new one carries it.
         val old = BackupCodec.encode(verified(file.copy(settings = BackupSettings(language = "ru"))))

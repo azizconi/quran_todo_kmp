@@ -8,6 +8,7 @@ import tj.app.quran_todo.hifz.quiz.QuizAnswer
 import tj.app.quran_todo.hifz.quiz.QuizAnswers
 import tj.app.quran_todo.hifz.quiz.QuizQuestion
 import tj.app.quran_todo.hifz.quiz.StartQuestion
+import tj.app.quran_todo.hifz.quiz.TellApartQuestion
 import tj.app.quran_todo.hifz.quiz.WhereQuestion
 
 /**
@@ -93,5 +94,5 @@ data class QuizSession(
         copy(answers = newAnswers, position = position + 1, revealed = false, picks = emptyList(), chosen = null)
 
     private fun isSelfGraded(question: QuizQuestion) =
-        question is ContinueQuestion || question is NextQuestion || question is StartQuestion
+        question is ContinueQuestion || question is NextQuestion || question is StartQuestion || question is TellApartQuestion
 }

@@ -63,8 +63,11 @@ internal fun QuizVeiledText(
     style: TextStyle,
     hiddenLabel: String,
     modifier: Modifier = Modifier,
+    /** Words that differ from another ayah (task F6): character ranges in the text, drawn in the accent colour once they are shown. */
+    emphasis: List<IntRange> = emptyList(),
 ) {
     val colors = QhTheme.colors
+    val accent = colors.primary
     val reduced = LocalReducedMotion.current
     val count = words.wordCount
     val shown = visibleWords.coerceIn(0, count)
@@ -80,7 +83,7 @@ internal fun QuizVeiledText(
 
     if (goal == 0f && hidden.value == 0f) {
         Text(
-            text = words.text,
+            text = remember(words, emphasis, accent) { emphasisText(words.text, emphasis, accent) },
             style = style,
             color = colors.ink,
             textAlign = TextAlign.Start,
@@ -93,10 +96,10 @@ internal fun QuizVeiledText(
         val head = if (splitAt > 0) words.text.substring(0, splitAt) + " " else ""
         head + hiddenLabel
     }
-    val veiled = remember(words, splitAt) {
+    val veiled = remember(words, splitAt, emphasis, accent) {
         buildAnnotatedString {
-            append(words.text)
-            if (splitAt > 0) addStyle(SpanStyle(color = Color.Transparent), 0, splitAt)
+            append(emphasisText(words.text, emphasis, accent))
+            if (splitAt > 0) addStyle(SpanStyle(color = Color.Transparent, background = Color.Transparent), 0, splitAt)
         }
     }
     val sharp = remember(words, splitAt) {
@@ -180,5 +183,15 @@ private fun VeiledLayer(text: AnnotatedString, words: AyahWords, shown: Int, sty
                 }
                 .graphicsLayer { alpha = 1f - hidden.value.coerceIn(0f, 1f) },
         )
+    }
+}
+
+/** [text] with the words at [ranges] (both ends inclusive) in [accent] and a faint wash behind them; the plain text when there are none. */
+private fun emphasisText(text: String, ranges: List<IntRange>, accent: Color): AnnotatedString = buildAnnotatedString {
+    append(text)
+    for (range in ranges) {
+        val start = range.first.coerceIn(0, text.length)
+        val end = (range.last + 1).coerceIn(start, text.length)
+        if (end > start) addStyle(SpanStyle(color = accent, background = accent.copy(alpha = 0.14f)), start, end)
     }
 }

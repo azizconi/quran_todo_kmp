@@ -60,6 +60,7 @@ fun BackupSettings.sanitized(): BackupSettings = BackupSettings(
     reduceMotion = reduceMotion,
     tajweed = tajweed,
     wordMeanings = wordMeanings,
+    similarMarks = similarMarks,
     tafsir = tafsir?.takeIf { it in BackupSettingsRules.TAFSIR_SOURCES },
     reminderEnabled = reminderEnabled,
     reminderMinuteOfDay = reminderMinuteOfDay?.takeIf { it in BackupSettingsRules.REMINDER_MINUTE_OF_DAY },

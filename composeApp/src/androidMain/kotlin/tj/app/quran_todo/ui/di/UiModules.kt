@@ -26,6 +26,7 @@ import tj.app.quran_todo.ui.recording.RecordingStore
 import tj.app.quran_todo.ui.recording.VoiceController
 import tj.app.quran_todo.ui.reminder.ReminderController
 import tj.app.quran_todo.ui.settings.SettingsViewModel
+import tj.app.quran_todo.ui.similar.SimilarStore
 import tj.app.quran_todo.ui.settings.TransferIo
 import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.tafsir.TafsirViewModel
@@ -145,7 +146,13 @@ val listenUiModule = module {
 val quizUiModule = module {
     // The quiz "Check": the covered ayahs come from the HifzRepository, the text and the names from the shared view models (singletons,
     // injected through the constructor, never koinViewModel). It writes only the difficult marks (markHard), never the review log.
-    viewModel { QuizViewModel(hifz = get(), home = get(), surahViewModel = get()) }
+    viewModel { QuizViewModel(hifz = get(), home = get(), surahViewModel = get(), similar = get()) }
+}
+
+val similarUiModule = module {
+    // The similar ayahs (task F6): the index of files/quran/similar.tsv, what is memorized and the state of the sheet "Similar verses" are
+    // one single, shared by the reader, the pages, the lesson and the quiz. The shared view models come in through the constructor.
+    single { SimilarStore(hifz = get(), home = get(), surahViewModel = get()) }
 }
 
 val progressUiModule = module {
@@ -241,6 +248,7 @@ val uiModules = listOf(
     listenUiModule,
     khatmUiModule,
     quizUiModule,
+    similarUiModule,
     progressUiModule,
     analyticsUiModule,
     settingsUiModule,

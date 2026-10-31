@@ -1,5 +1,6 @@
 package tj.app.quran_todo.hifz.quiz
 
+import tj.app.quran_todo.common.similar.TellApartPair
 import tj.app.quran_todo.data.bundled.QuranFacts
 import kotlin.random.Random
 
@@ -8,7 +9,7 @@ import kotlin.random.Random
  * `random` seed gives the same quiz.
  *
  * - The pool is the covered ayahs only (`HifzRepository.coveredAyahs()`); the quiz is offered from [MIN_POOL] of them.
- * - Five kinds ([QuizKind]), each with its own condition of fitness; a kind that no ayah of the pool fits for is never chosen.
+ * - The kinds of [QuizKind], each with its own condition of fitness; a kind that no ayah of the pool fits for is never chosen.
  * - In a quiz of five there are at least three different kinds if the pool allows; different surahs where possible; one ayah is in
  *   at most one question (what a question shows or gives away counts: [QuizQuestion.ayahsUsed]). A pool that is too small for five
  *   questions gives fewer.
@@ -35,6 +36,9 @@ object QuizBuilder {
     /** How many windows of a run of covered ayahs are tried for [QuizKind.ORDER] before the run is given up. */
     private const val WINDOW_TRIES = 12
 
+    /** A quiz has at most this many questions of [QuizKind.TELL_APART] (task F6). */
+    const val MAX_TELL_APART = 2
+
     /** How many other surahs a question of [QuizKind.WHERE] offers next to the right one. */
     private const val OTHER_OPTIONS = 3
 
@@ -53,8 +57,10 @@ object QuizBuilder {
         words: (surah: Int, ayah: Int) -> Int,
         count: Int = DEFAULT_COUNT,
         random: Random,
+        /** Similar places that are memorized (`TellApartPairs.pick`); empty while the person has none, then [QuizKind.TELL_APART] is not drawn. */
+        pairs: List<TellApartPair> = emptyList(),
     ): List<QuizQuestion> {
-        val pool = Pool(covered)
+        val pool = Pool(covered, pairs)
         if (pool.ayahs.isEmpty() || count <= 0) return emptyList()
 
         // The kinds that fit something in the pool. A throwaway random keeps the caller's sequence for the real draws.
@@ -101,7 +107,7 @@ object QuizBuilder {
     /** The fewest ayahs a question of [kind] takes. */
     private fun minAyahs(kind: QuizKind): Int = when (kind) {
         QuizKind.CONTINUE, QuizKind.START, QuizKind.WHERE -> 1
-        QuizKind.NEXT -> 2
+        QuizKind.NEXT, QuizKind.TELL_APART -> 2
         QuizKind.ORDER -> ORDER_MIN
     }
 
@@ -130,6 +136,7 @@ object QuizBuilder {
                 QuizKind.WHERE -> pickAyah(pool, used, random, onlyFresh) { surah, ayah ->
                     if (ayah >= 2) WhereQuestion(surah, ayah, whereOptions(surah, pool.surahs, random)) else null
                 }
+                QuizKind.TELL_APART -> pickTellApart(pool, used, random, onlyFresh)
             }
             if (question != null) return question
         }
@@ -154,6 +161,18 @@ object QuizBuilder {
             if (onlyFresh && used.hasSurah(surah)) continue
             if (!used.free(surah, ayah) || !extra(surah, ayah)) continue
             make(surah, ayah)?.let { return it }
+        }
+        return null
+    }
+
+    /** A pair of similar places that no question of the quiz has used yet; at most [MAX_TELL_APART] of them in a quiz. */
+    private fun pickTellApart(pool: Pool, used: Used, random: Random, onlyFresh: Boolean): QuizQuestion? {
+        if (used.tellApart >= MAX_TELL_APART || pool.pairs.isEmpty()) return null
+        val offset = random.nextInt(pool.pairs.size)
+        for (step in pool.pairs.indices) {
+            val pair = pool.pairs[(offset + step) % pool.pairs.size]
+            if (onlyFresh && pair.places.any { used.hasSurah(it.surah) }) continue
+            if (pair.places.all { used.free(it.surah, it.ayah) }) return pair.toQuestion()
         }
         return null
     }
@@ -220,6 +239,10 @@ object QuizBuilder {
         private val ayahs = HashSet<Long>()
         private val surahs = HashSet<Int>()
 
+        /** How many questions of [QuizKind.TELL_APART] are in the draw. */
+        var tellApart = 0
+            private set
+
         /** How many ayahs are used. */
         val count: Int get() = ayahs.size
 
@@ -228,8 +251,12 @@ object QuizBuilder {
         fun hasSurah(surah: Int): Boolean = surah in surahs
 
         fun add(question: QuizQuestion) {
+            if (question.kind == QuizKind.TELL_APART) tellApart++
+            question.places.forEach {
+                surahs += it.surah
+                ayahs += key(it.surah, it.ayah)
+            }
             surahs += question.surah
-            question.ayahsUsed.forEach { ayahs += key(question.surah, it) }
         }
 
         private fun key(surah: Int, ayah: Int): Long = surah * 1000L + ayah
@@ -239,7 +266,7 @@ object QuizBuilder {
     private class Run(val surah: Int, val start: Int, val end: Int)
 
     /** The covered ayahs as a sorted list of `(surah, ayah)` and the runs of them. */
-    private class Pool(covered: Map<Int, Set<Int>>) {
+    private class Pool(covered: Map<Int, Set<Int>>, val pairs: List<TellApartPair>) {
         private val bySurah: Map<Int, Set<Int>> = covered.filterValues { it.isNotEmpty() }
         val surahs: List<Int> = bySurah.keys.sorted()
         val ayahs: List<Pair<Int, Int>> = surahs.flatMap { surah -> bySurah.getValue(surah).sorted().map { surah to it } }

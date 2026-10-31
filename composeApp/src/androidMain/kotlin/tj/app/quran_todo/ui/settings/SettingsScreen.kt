@@ -223,6 +223,7 @@ fun SettingsScreen(
                 override fun setTajweed(value: Boolean) = viewModel.setTajweed(value)
 
                 override fun setWordMeanings(value: Boolean) = viewModel.setWordMeanings(value)
+                override fun setSimilarMarks(value: Boolean) = viewModel.setSimilarMarks(value)
 
                 override fun setTafsirSource(key: String) = viewModel.setTafsirSource(key)
                 override fun setReminderMinuteOfDay(value: Int) = viewModel.setReminderMinuteOfDay(value)

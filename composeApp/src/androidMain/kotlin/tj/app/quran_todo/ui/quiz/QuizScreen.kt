@@ -48,6 +48,7 @@ import tj.app.quran_todo.hifz.quiz.NextQuestion
 import tj.app.quran_todo.hifz.quiz.OrderQuestion
 import tj.app.quran_todo.hifz.quiz.QuizQuestion
 import tj.app.quran_todo.hifz.quiz.StartQuestion
+import tj.app.quran_todo.hifz.quiz.TellApartQuestion
 import tj.app.quran_todo.hifz.quiz.WhereQuestion
 import tj.app.quran_todo.ui.components.EmptyState
 import tj.app.quran_todo.ui.components.QhIconButton
@@ -55,6 +56,7 @@ import tj.app.quran_todo.ui.components.QhLinearProgress
 import tj.app.quran_todo.ui.components.Skeleton
 import tj.app.quran_todo.ui.i18n.QuizCopy
 import tj.app.quran_todo.ui.i18n.rememberQuizCopy
+import tj.app.quran_todo.ui.i18n.rememberSimilarCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.navigation.Dest
@@ -74,12 +76,18 @@ internal const val QuizOrigin = "quiz"
 fun QuizScreen(
     onBack: () -> Unit,
     onOpenReader: (Dest.Reader) -> Unit,
+    /** The line "Tell apart" of the result opens the drill of every pair (task F6); null: no such line. */
+    onTellApart: (() -> Unit)? = null,
+    /** The usual quiz, or only "Tell apart" (all pairs, or the group of one ayah, task F6). */
+    mode: QuizMode = QuizMode.Mixed,
 ) {
     val viewModel = koinViewModel<QuizViewModel>()
     val language = LocalAppLanguage.current
     val copy = rememberQuizCopy(language)
+    val similarCopy = rememberSimilarCopy(language)
     val ui by viewModel.ui.collectAsState()
     LaunchedEffect(language, viewModel) { viewModel.onLanguage(language) }
+    LaunchedEffect(viewModel) { viewModel.begin(mode) }
 
     Box(
         Modifier
@@ -90,6 +98,7 @@ fun QuizScreen(
             val playing = ui as? QuizUi.Playing
             val session = playing?.session
             QuizTopBar(
+                title = if (mode is QuizMode.TellApart) similarCopy.drillTitle else copy.title,
                 copy = copy,
                 progress = session?.takeIf { !it.finished }?.let { copy.progress(it.position + 1, it.total) },
                 onBack = onBack,
@@ -107,7 +116,17 @@ fun QuizScreen(
                 QuizUi.TooLittle -> Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     EmptyState(title = copy.emptyTitle, message = copy.emptyBody, actionLabel = copy.back, onAction = onBack)
                 }
-                is QuizUi.Playing -> QuizPages(state = state, viewModel = viewModel, copy = copy, onBack = onBack, onOpenReader = onOpenReader)
+                QuizUi.NoPairs -> Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    EmptyState(title = similarCopy.emptyTitle, message = similarCopy.emptyBody, actionLabel = copy.back, onAction = onBack)
+                }
+                is QuizUi.Playing -> QuizPages(
+                    state = state,
+                    viewModel = viewModel,
+                    copy = copy,
+                    onBack = onBack,
+                    onOpenReader = onOpenReader,
+                    onTellApart = onTellApart,
+                )
             }
         }
     }
@@ -121,6 +140,7 @@ private fun ColumnScope.QuizPages(
     copy: QuizCopy,
     onBack: () -> Unit,
     onOpenReader: (Dest.Reader) -> Unit,
+    onTellApart: (() -> Unit)?,
 ) {
     val reduced = LocalReducedMotion.current
     val arabicStyle = rememberQuizArabicStyle()
@@ -156,7 +176,10 @@ private fun ColumnScope.QuizPages(
                 onAgain = viewModel::again,
                 onDone = onBack,
                 onOpenReader = onOpenReader,
+                onTellApart = onTellApart.takeIf { page.pairs > 0 },
+                pairs = page.pairs,
             )
+            question is TellApartQuestion -> TellApartPage(session, question, viewModel, copy, arabicStyle)
             question is OrderQuestion -> OrderPage(session, question, viewModel, copy, arabicStyle)
             question is WhereQuestion -> WherePage(session, question, viewModel, copy, arabicStyle)
             else -> SelfGradedPage(session, question, viewModel, copy, arabicStyle)
@@ -165,7 +188,7 @@ private fun ColumnScope.QuizPages(
 }
 
 @Composable
-private fun QuizTopBar(copy: QuizCopy, progress: String?, onBack: () -> Unit) {
+private fun QuizTopBar(title: String, copy: QuizCopy, progress: String?, onBack: () -> Unit) {
     val colors = QhTheme.colors
     Row(
         Modifier
@@ -182,7 +205,7 @@ private fun QuizTopBar(copy: QuizCopy, progress: String?, onBack: () -> Unit) {
             filled = false,
         )
         Text(
-            text = copy.title,
+            text = title,
             style = QhTheme.type.title1,
             color = colors.ink,
             modifier = Modifier
@@ -267,6 +290,7 @@ internal fun kindTitle(question: QuizQuestion, copy: QuizCopy): String = when (q
     is StartQuestion -> copy.startTitle
     is OrderQuestion -> copy.orderTitle
     is WhereQuestion -> copy.whereTitle
+    is TellApartQuestion -> copy.tellApartTitle
 }
 
 internal fun kindHint(question: QuizQuestion, copy: QuizCopy): String = when (question) {
@@ -275,4 +299,5 @@ internal fun kindHint(question: QuizQuestion, copy: QuizCopy): String = when (qu
     is StartQuestion -> copy.startHint
     is OrderQuestion -> copy.orderHint
     is WhereQuestion -> copy.whereHint
+    is TellApartQuestion -> copy.tellApartHint
 }

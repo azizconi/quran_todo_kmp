@@ -62,6 +62,7 @@ import tj.app.quran_todo.ui.playback.FollowedArabicText
 import tj.app.quran_todo.ui.playback.WordFollow
 import tj.app.quran_todo.ui.reader.AyahMarks
 import tj.app.quran_todo.ui.reader.AyahWords
+import tj.app.quran_todo.ui.similar.SimilarMark
 import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.tajweed.TajweedArabicText
 import tj.app.quran_todo.ui.theme.QhSpacing
@@ -201,6 +202,8 @@ fun AyahRow(
                             .size(18.dp),
                     )
                 }
+                // Similar ayahs (F6): a quiet mark when the ayah has likes; a tap opens the sheet "Similar verses".
+                if (hifz == null) SimilarMark(surah = model.ayah.surahNumber, ayah = number)
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                     val sajda = model.marks.sajda
                     if (sajda != null) SajdaSign(sajda = sajda, mushaf = mushaf, modifier = Modifier.padding(start = QhSpacing.x2))

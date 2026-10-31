@@ -154,6 +154,19 @@ class UiPrefs(context: Context) {
     }
 
     /**
+     * "Similar verse marks" (the "Aa" sheet of the reader, task F6): a small mark by an ayah that has similar ayahs, and the line "Similar
+     * to Al-A'raf 19" in the lesson. On by default. The sheet of similar ayahs is always reachable from the ayah sheet. It is in the backup
+     * file (`BackupSettings.similarMarks`, optional).
+     */
+    private val _similarMarks = MutableStateFlow(prefs.getBoolean(KEY_SIMILAR_MARKS, true))
+    val similarMarks: StateFlow<Boolean> = _similarMarks.asStateFlow()
+
+    fun setSimilarMarks(value: Boolean) {
+        prefs.edit().putBoolean(KEY_SIMILAR_MARKS, value).apply()
+        _similarMarks.value = value
+    }
+
+    /**
      * The commentary the person chose last (`TafsirSource.key`, task F4b); null while none was chosen, and the screen then takes the one of
      * the language of the app. It is in the backup file (`BackupSettings.tafsir`, optional).
      */
@@ -427,6 +440,7 @@ class UiPrefs(context: Context) {
         const val KEY_HIGHLIGHT_WORDS = "highlight_words"
         const val KEY_TAJWEED = "tajweed"
         const val KEY_WORD_MEANINGS = "word_meanings"
+        const val KEY_SIMILAR_MARKS = "similar_marks"
         const val KEY_TAFSIR_SOURCE = "tafsir_source"
         const val KEY_RECENT_SURAHS = "recent_surahs"
         const val KEY_PINNED_SURAHS = "pinned_surahs"

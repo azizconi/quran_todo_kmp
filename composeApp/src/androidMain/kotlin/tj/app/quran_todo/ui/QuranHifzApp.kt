@@ -119,7 +119,10 @@ import tj.app.quran_todo.ui.plan.PlanScreen
 import tj.app.quran_todo.ui.notes.NotesScreen
 import tj.app.quran_todo.ui.progress.ProgressScreen
 import tj.app.quran_todo.ui.progress.analytics.AnalyticsScreen
+import tj.app.quran_todo.ui.quiz.QuizMode
 import tj.app.quran_todo.ui.quiz.QuizScreen
+import tj.app.quran_todo.ui.similar.SimilarSheetHost
+import tj.app.quran_todo.common.mushaf.AyahKey
 import tj.app.quran_todo.ui.reminder.ReminderOpenRequests
 import tj.app.quran_todo.ui.reminder.ReminderTarget
 import tj.app.quran_todo.ui.reader.ReaderScreen
@@ -517,6 +520,17 @@ private fun AppNavigation() {
                         QuizScreen(
                             onBack = { navController.popOnce() },
                             onOpenReader = openReader,
+                            onTellApart = { navController.navigateOnce(Dest.TellApart()) },
+                        )
+                    }
+                }
+                composable<Dest.TellApart> { entry ->
+                    val route = entry.toRoute<Dest.TellApart>()
+                    ProvideNavScope {
+                        QuizScreen(
+                            onBack = { navController.popOnce() },
+                            onOpenReader = openReader,
+                            mode = QuizMode.TellApart(focus = AyahKey(route.surah, route.ayah).takeIf { route.surah > 0 }),
                         )
                     }
                 }
@@ -608,6 +622,12 @@ private fun AppNavigation() {
             }
         }
     }
+
+    // The sheet "Similar verses" (F6): one host over every screen; the ayah sheet, the mark of an ayah and the lesson only ask it to open.
+    SimilarSheetHost(
+        onOpenReader = openReader,
+        onTellApart = { key -> navController.navigateOnce(Dest.TellApart(key.surah, key.ayah)) },
+    )
 
     WhatsNewHost(
         pending = whatsNewPending,
@@ -712,6 +732,7 @@ private fun NavDestination.screenName(): String? = when {
     hasRoute<Dest.Lesson>() -> "lesson"
     hasRoute<Dest.Plan>() -> "plan"
     hasRoute<Dest.Quiz>() -> "quiz"
+    hasRoute<Dest.TellApart>() -> "tell_apart"
     hasRoute<Dest.Progress>() -> "progress"
     hasRoute<Dest.Khatm>() -> "khatm"
     hasRoute<Dest.ProgressDetails>() -> "progress_details"
