@@ -28,6 +28,7 @@ import tj.app.quran_todo.common.i18n.LanguageStorage
 import tj.app.quran_todo.common.mushaf.AyahKey
 import tj.app.quran_todo.common.mushaf.MushafPage
 import tj.app.quran_todo.common.mushaf.MushafPages
+import tj.app.quran_todo.ui.reader.displayWords
 import tj.app.quran_todo.common.settings.ReaderPracticeSettings
 import tj.app.quran_todo.common.settings.SurahReaderPreferences
 import tj.app.quran_todo.data.database.dao.AyahNoteDao
@@ -190,6 +191,26 @@ internal class MushafViewModel(
 
     private fun surahOf(number: Int): SurahWithAyahs? =
         homeViewModel.uiState.value.completeQuran.firstOrNull { it.surah.number == number }
+
+    /**
+     * The words of the bundled text of every ayah on [page], in reading order ([displayWords]: the Bismillah of a first ayah cut off,
+     * the rub el hizb sign hidden), for a page drawn in the reading font of the settings. An ayah whose number of words is not the one
+     * of the layout (10:1, 13:1, 50:34 count a pause sign as a word) is left out: its words keep the glyphs of the page font. Empty
+     * while the text is not loaded yet.
+     */
+    fun wordTexts(page: MushafPage): Map<AyahKey, List<String>> {
+        val quran = homeViewModel.uiState.value.completeQuran
+        if (quran.isEmpty()) return emptyMap()
+        val counts = page.wordLines.flatMap { it.words }.filterNot { it.isAyahEnd }.groupingBy { it.key }.eachCount()
+        return buildMap {
+            for ((key, count) in counts) {
+                val ayah = quran.firstOrNull { it.surah.number == key.surah }?.ayahs?.firstOrNull { it.numberInSurah == key.ayah } ?: continue
+                val words = displayWords(key.surah, key.ayah, ayah.text)
+                if (words.wordCount != count) continue
+                put(key, words.ranges.map { words.text.substring(it) })
+            }
+        }
+    }
 
     private fun nameOf(number: Int): String = names.value[number].orEmpty()
 

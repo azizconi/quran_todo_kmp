@@ -71,6 +71,7 @@ import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.mushaf.AyahKey
 import tj.app.quran_todo.common.mushaf.MushafPage
 import tj.app.quran_todo.common.mushaf.MushafPages
+import tj.app.quran_todo.common.theme.LocalReadingFontStyle
 import tj.app.quran_todo.common.theme.ReadingFontStyle
 import tj.app.quran_todo.common.utils.getQuranFontFamily
 import org.koin.compose.koinInject
@@ -227,6 +228,9 @@ fun MushafScreen(
     val fonts = remember { PageFonts() }
     val layouts = remember { PageLayouts() }
     val hafs = getQuranFontFamily(ReadingFontStyle.MADINAH_MUSHAF)
+    // The reading font of the settings: the Madinah one is the design of the page fonts, so its pages keep their glyphs.
+    val readingStyle = LocalReadingFontStyle.current
+    val textFont = if (readingStyle == ReadingFontStyle.MADINAH_MUSHAF) null else getQuranFontFamily(readingStyle)
     val resolver = LocalFontFamilyResolver.current
 
     val colors = QhTheme.colors
@@ -267,6 +271,9 @@ fun MushafScreen(
                         fonts = fonts,
                         layouts = layouts,
                         hafs = hafs,
+                        textFont = textFont,
+                        textFontName = readingStyle.storageValue,
+                        wordTexts = viewModel::wordTexts,
                         resolver = resolver,
                         arabicNames = arabicNames,
                         blockWidth = blockWidth,
@@ -501,6 +508,9 @@ private fun ReadyPage(
     fonts: PageFonts,
     layouts: PageLayouts,
     hafs: FontFamily,
+    textFont: FontFamily?,
+    textFontName: String,
+    wordTexts: (MushafPage) -> Map<AyahKey, List<String>>,
     resolver: FontFamily.Resolver,
     arabicNames: Map<Int, String>,
     blockWidth: Float,
@@ -517,7 +527,12 @@ private fun ReadyPage(
     val density = LocalDensity.current
     val family = remember(loaded.page.number, loaded.font) { fonts.familyFor(loaded.page.number, loaded.font) }
     // A page that comes back (the pager lets go of the pages away from the one on screen) finds its measured layout again.
-    val layoutKey = PageLayouts.Key(loaded.page.number, blockWidth, glyphSize, System.identityHashCode(arabicNames), loaded.font.path)
+    // The words of the bundled text, for a page in the reading font (empty for the Madinah font, or while the text is loading).
+    val texts = remember(loaded.page, textFont, arabicNames) { if (textFont == null) emptyMap() else wordTexts(loaded.page) }
+    val layoutKey = PageLayouts.Key(
+        loaded.page.number, blockWidth, glyphSize, System.identityHashCode(arabicNames), loaded.font.path,
+        textFont = if (textFont == null || texts.isEmpty()) null else textFontName,
+    )
     val layout by produceState<PageLayout?>(layouts.get(layoutKey), layoutKey, family) {
         val known = layouts.get(layoutKey)
         if (known != null) {
@@ -529,7 +544,11 @@ private fun ReadyPage(
         if (value?.let { it.blockWidth != blockWidth || it.glyphSize != glyphSize } == true) value = null
         value = try {
             withContext(Dispatchers.Default) {
-                buildPageLayout(loaded.page, family, hafs, glyphSize, blockWidth, { arabicNames[it].orEmpty() }, density, resolver)
+                buildPageLayout(
+                    loaded.page, family, hafs, glyphSize, blockWidth, { arabicNames[it].orEmpty() }, density, resolver,
+                    textFont = textFont.takeIf { texts.isNotEmpty() },
+                    wordText = { word -> texts[word.key]?.getOrNull(word.position - 1) },
+                )
             }.also { layouts.put(layoutKey, it) }
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -586,7 +605,15 @@ internal class PageFonts(private val limit: Int = 6) {
 
 /** The last few measured pages ([PageLayout]), so a page that the pager had let go of is not measured again when it comes back. */
 internal class PageLayouts(private val limit: Int = 5) {
-    internal data class Key(val page: Int, val blockWidth: Float, val glyphSize: Float, val names: Int, val font: String)
+    internal data class Key(
+        val page: Int,
+        val blockWidth: Float,
+        val glyphSize: Float,
+        val names: Int,
+        val font: String,
+        /** The reading font the words are drawn in, or null for the glyphs of the page font. */
+        val textFont: String? = null,
+    )
 
     private val map = LinkedHashMap<Key, PageLayout>()
 

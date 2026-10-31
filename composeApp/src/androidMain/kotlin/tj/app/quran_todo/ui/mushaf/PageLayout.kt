@@ -9,6 +9,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import tj.app.quran_todo.common.mushaf.AyahKey
+import tj.app.quran_todo.common.mushaf.MushafLayoutRules
 import tj.app.quran_todo.common.mushaf.MushafLine
 import tj.app.quran_todo.common.mushaf.MushafPage
 import tj.app.quran_todo.common.mushaf.MushafWord
@@ -106,6 +107,11 @@ internal class PageLayout(
  * the full lines are spread over the block, the short ones (the end of a surah) and the lines of pages 1 and 2 are centred
  * ([PageGeometry]). [arabicName] gives the name written in a header; [hafs] is the font of the headers and the Bismillah.
  *
+ * **The reading font of the settings.** With [textFont] (any font but the Madinah one, whose design the page fonts are) a word is
+ * the text [wordText] gives for it, drawn in that font; the lines of the page stay as they are, only the glyphs change. A word
+ * without a text (an ayah whose words do not match the layout) and the sign that closes an ayah keep the glyph of the page font.
+ * The widths of another font are not those of the page fonts, so the size of the page is then fitted to its widest line.
+ *
  * Pure of the composition: the caller may run it on any thread (it makes its own [TextMeasurer]).
  */
 internal fun buildPageLayout(
@@ -117,33 +123,62 @@ internal fun buildPageLayout(
     arabicName: (Int) -> String,
     density: Density,
     resolver: FontFamily.Resolver,
+    textFont: FontFamily? = null,
+    wordText: (MushafWord) -> String? = { null },
+    fitted: Boolean = false,
 ): PageLayout {
     val measurer = TextMeasurer(resolver, density, LayoutDirection.Ltr, 0)
     val glyphStyle = TextStyle(fontFamily = pageFont, fontSize = with(density) { glyphSize.toSp() })
+    val textStyle = textFont?.let { TextStyle(fontFamily = it, fontSize = with(density) { (glyphSize * TEXT_FONT_SCALE).toSp() }) }
     val unbounded = Constraints()
 
     val glyphs = HashMap<String, TextLayoutResult>()
-    fun measureGlyph(text: String): TextLayoutResult =
-        glyphs.getOrPut(text) { measurer.measure(text, glyphStyle, softWrap = false, maxLines = 1, constraints = unbounded) }
+    val texts = HashMap<String, TextLayoutResult>()
+    fun measureWord(word: MushafWord): TextLayoutResult {
+        val text = if (textStyle != null && !word.isAyahEnd) wordText(word) else null
+        return if (text != null) {
+            texts.getOrPut(text) { measurer.measure(text, textStyle!!, softWrap = false, maxLines = 1, constraints = unbounded) }
+        } else {
+            glyphs.getOrPut(word.glyph) { measurer.measure(word.glyph, glyphStyle, softWrap = false, maxLines = 1, constraints = unbounded) }
+        }
+    }
 
     // First the widths of every line, to know the widest one of the page and the gap the full lines have.
     class Measured(val line: MushafLine.Words, val layouts: List<TextLayoutResult>, val widths: FloatArray, val natural: Float)
 
-    val naturalGap = PageGeometry.NATURAL_GAP_EM * glyphSize
+    // The page fonts carry their own spacing in the glyphs; the words of a text font need a real word space between them.
+    val naturalGap = (if (textStyle != null) TEXT_GAP_EM else PageGeometry.NATURAL_GAP_EM) * glyphSize
     val measured = page.wordLines.map { line ->
-        val layouts = line.words.map { measureGlyph(it.glyph) }
+        val layouts = line.words.map(::measureWord)
         val widths = FloatArray(layouts.size) { layouts[it].size.width.toFloat() }
         Measured(line, layouts, widths, widths.sum() + naturalGap * (widths.size - 1).coerceAtLeast(0))
     }
     val pageMax = measured.maxOfOrNull { it.natural } ?: 0f
+    if (textStyle != null && !fitted && pageMax > 0f && texts.isNotEmpty()) {
+        // Another font: the page takes the size at which its widest line fills the block (within reason, so a sparse page is not huge).
+        // A tall font (the Nastaliq) must also keep within the height the page glyphs take, or its lines run into each other.
+        val textHeight = texts.values.maxOf { it.size.height }.toFloat()
+        val heightFit = if (textHeight > 0f) glyphSize * TEXT_LINE_EM / textHeight else MAX_TEXT_FIT
+        val fit = minOf(blockWidth / pageMax * SHRINK_MARGIN, heightFit).coerceIn(MIN_TEXT_FIT, MAX_TEXT_FIT)
+        return buildPageLayout(
+            page, pageFont, hafs, glyphSize * fit, blockWidth, arabicName, density, resolver, textFont, wordText, fitted = true,
+        )
+    }
     if (pageMax > blockWidth && pageMax > 0f && glyphSize > 1f) {
         // A page whose font is drawn for a smaller size (565 and 443): the glyphs shrink until its widest line fits the block.
         val shrunk = glyphSize * (blockWidth / pageMax) * SHRINK_MARGIN
-        return buildPageLayout(page, pageFont, hafs, shrunk, blockWidth, arabicName, density, resolver)
+        return buildPageLayout(page, pageFont, hafs, shrunk, blockWidth, arabicName, density, resolver, textFont, wordText, fitted = true)
+    }
+
+    // The words of another font are not as even in width as the glyphs drawn for this page, so a full line of it may be well short of the widest one.
+    fun isFull(natural: Float) = if (textStyle == null) {
+        PageGeometry.isFullLine(natural, pageMax, page.number)
+    } else {
+        page.number > MushafLayoutRules.SHORT_PAGES && natural >= pageMax * TEXT_FULL_LINE_SHARE
     }
 
     // The gap of the full lines on this page: the centred lines of the page use the same one, so the spacing does not change in the page.
-    val fullGaps = measured.filter { PageGeometry.isFullLine(it.natural, pageMax, page.number) && it.widths.size > 1 }
+    val fullGaps = measured.filter { isFull(it.natural) && it.widths.size > 1 }
         .map { (blockWidth - it.widths.sum()) / (it.widths.size - 1) }
     val centerGap = if (fullGaps.isEmpty()) {
         PageGeometry.CENTER_GAP_EM * glyphSize
@@ -153,7 +188,7 @@ internal fun buildPageLayout(
 
     val placed = ArrayList<PlacedWord>()
     for (item in measured) {
-        val full = PageGeometry.isFullLine(item.natural, pageMax, page.number)
+        val full = isFull(item.natural)
         val xs = PageGeometry.place(item.widths, blockWidth, justify = full, centerGap = centerGap)
         item.line.words.forEachIndexed { index, word ->
             placed += PlacedWord(word, item.line.number, item.layouts[index], xs[index], item.widths[index])
@@ -182,6 +217,22 @@ internal fun buildPageLayout(
 
 /** A page that is too wide is drawn this much smaller than exactly fitting, so that the rounding of the widths never pushes a word out. */
 private const val SHRINK_MARGIN = 0.995f
+
+/** A text font is drawn a little smaller than the glyphs of the page fonts before the page is fitted to the block. */
+private const val TEXT_FONT_SCALE = 0.8f
+
+/** The least gap between the words of a text font, in the size of the page glyphs. */
+private const val TEXT_GAP_EM = 0.22f
+
+/** A line in another font at least this share of the widest one is justified; a shorter one (the end of a surah) is centred. */
+private const val TEXT_FULL_LINE_SHARE = 0.7f
+
+/** How far fitting a page in another font may grow or shrink it: a page of a few short lines must not become huge. */
+private const val MIN_TEXT_FIT = 0.6f
+private const val MAX_TEXT_FIT = 1.3f
+
+/** The tallest line box of a text font, in the size of the page glyphs: about the height of the line box of the page fonts. */
+private const val TEXT_LINE_EM = 1.9f
 
 /** The name in a surah header and the Bismillah are a little smaller than the glyphs of the page (their font is the plain Hafs). */
 private const val HEADER_NAME_SCALE = 0.95f
