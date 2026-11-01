@@ -50,6 +50,34 @@ SCREENS = [
     ("08_dark", "dark", True),
 ]
 
+# 2.0.0 set (R2) for the languages that were captured again with the new screens: lesson, reader, mushaf pages, tajweed,
+# tafsir, plan, detailed progress, quiz. Raw names: capture/raw/<lang>/NN_name.png. Not more than 8 per language.
+SCREENS_V2 = [
+    ("01_home", "lesson", False),
+    ("02_reader", "reader", False),
+    ("03_mushaf", "mushaf", False),
+    ("04_tajweed", "tajweed", False),
+    ("05_tafsir", "tafsir", False),
+    ("06_plan", "plan", False),
+    ("07_details", "progress", False),
+    ("08_quiz", "quiz", False),
+]
+V2_LANGS = {"ru", "en"}   # tg, uz and tr still use the E3 set (SCREENS) until their new screens are captured
+
+
+def screens_for(lang: str):
+    return SCREENS_V2 if lang in V2_LANGS else SCREENS
+
+
+HEADLINES_V2 = {
+    "ru": ["Урок готов каждый день", "Слушайте и видите каждое слово", "Мусхаф как в печатном Коране",
+           "Таджвид — цветом", "Тафсир всегда под рукой", "Знаете, когда закончите", "Честный прогресс",
+           "Проверьте себя"],
+    "en": ["A ready lesson every day", "Hear it and see every word", "A mushaf like the printed Quran",
+           "Tajweed in colour", "Tafsir always at hand", "Know when you will finish", "Honest progress",
+           "Check yourself"],
+}
+
 # Short benefit headlines, same order as SCREENS. tg, uz and tr are for native-speaker review.
 HEADLINES = {
     "ru": ["Каждый день — готовый урок", "Вспомните, затем проверьте себя", "Повторение в нужный день",
@@ -210,9 +238,13 @@ def build_feature(lang: str) -> Image.Image:
     return img.convert("RGB")
 
 
+def heads(lang: str):
+    return HEADLINES_V2[lang] if lang in V2_LANGS else HEADLINES[lang]
+
+
 def main(langs: list[str]) -> None:
     manifest = {
-        "version": "redesign-android-e3",
+        "version": "redesign-android-2.0.0",
         "languages": [LOCALES[l] for l in LOCALES],
         "source": "Emulator DoruIman_API_35 (1080x2400), debug build of redesign/android, demo mode status bar, light theme "
                   "(screen 8 dark); captured by capture/capture.py with the demo history of capture/seed_demo.py",
@@ -229,24 +261,24 @@ def main(langs: list[str]) -> None:
             phone.mkdir(parents=True, exist_ok=True)
             for old in phone.glob("*.png"):
                 old.unlink()
-            for i, (stem, name, dark) in enumerate(SCREENS):
+            for i, (stem, name, dark) in enumerate(screens_for(lang)):
                 raw = RAW / lang / f"{stem}.png"
                 if not raw.exists():
                     print(f"  MISSING {raw}")
                     continue
-                img = build_screen(raw, HEADLINES[lang][i], dark)
+                img = build_screen(raw, heads(lang)[i], dark)
                 fn = f"phone-{i + 1:02d}-{name}-1080x1920.png"
                 img.save(phone / fn, optimize=True)
                 print("  wrote", loc, fn)
             build_feature(lang).save(OUT / loc / "feature-graphic-1024x500.png", optimize=True)
             print("  wrote", loc, "feature-graphic")
         entries.append({"file": f"localized/{loc}/feature-graphic-1024x500.png", "size": [1024, 500]})
-        for i, (stem, name, dark) in enumerate(SCREENS):
+        for i, (stem, name, dark) in enumerate(screens_for(lang)):
             entries.append({
                 "file": f"localized/{loc}/phone/phone-{i + 1:02d}-{name}-1080x1920.png",
                 "size": [1080, 1920],
                 "source": f"capture/raw/{lang}/{stem}.png",
-                "headline": HEADLINES[lang][i],
+                "headline": heads(lang)[i],
             })
         manifest["exports"][loc] = entries
     (ROOT / "play-store-export-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

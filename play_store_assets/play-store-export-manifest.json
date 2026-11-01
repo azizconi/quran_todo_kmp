@@ -1,5 +1,5 @@
 {
-  "version": "redesign-android-e3",
+  "version": "redesign-android-2.0.0",
   "languages": [
     "ru-RU",
     "en-US",
@@ -31,76 +31,76 @@
         ]
       },
       {
-        "file": "localized/ru-RU/phone/phone-01-home-1080x1920.png",
+        "file": "localized/ru-RU/phone/phone-01-lesson-1080x1920.png",
         "size": [
           1080,
           1920
         ],
         "source": "capture/raw/ru/01_home.png",
-        "headline": "Каждый день — готовый урок"
+        "headline": "Урок готов каждый день"
       },
       {
-        "file": "localized/ru-RU/phone/phone-02-recall-1080x1920.png",
+        "file": "localized/ru-RU/phone/phone-02-reader-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/ru/02_recall.png",
-        "headline": "Вспомните, затем проверьте себя"
+        "source": "capture/raw/ru/02_reader.png",
+        "headline": "Слушайте и видите каждое слово"
       },
       {
-        "file": "localized/ru-RU/phone/phone-03-lesson-done-1080x1920.png",
+        "file": "localized/ru-RU/phone/phone-03-mushaf-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/ru/03_summary.png",
-        "headline": "Повторение в нужный день"
+        "source": "capture/raw/ru/03_mushaf.png",
+        "headline": "Мусхаф как в печатном Коране"
       },
       {
-        "file": "localized/ru-RU/phone/phone-04-plan-1080x1920.png",
+        "file": "localized/ru-RU/phone/phone-04-tajweed-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/ru/04_plan.png",
+        "source": "capture/raw/ru/04_tajweed.png",
+        "headline": "Таджвид — цветом"
+      },
+      {
+        "file": "localized/ru-RU/phone/phone-05-tafsir-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/ru/05_tafsir.png",
+        "headline": "Тафсир всегда под рукой"
+      },
+      {
+        "file": "localized/ru-RU/phone/phone-06-plan-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/ru/06_plan.png",
         "headline": "Знаете, когда закончите"
       },
       {
-        "file": "localized/ru-RU/phone/phone-05-reader-1080x1920.png",
+        "file": "localized/ru-RU/phone/phone-07-progress-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/ru/05_reader.png",
-        "headline": "Красивый мусхаф и чтецы"
-      },
-      {
-        "file": "localized/ru-RU/phone/phone-06-progress-1080x1920.png",
-        "size": [
-          1080,
-          1920
-        ],
-        "source": "capture/raw/ru/06_progress.png",
+        "source": "capture/raw/ru/07_details.png",
         "headline": "Честный прогресс"
       },
       {
-        "file": "localized/ru-RU/phone/phone-07-onboarding-1080x1920.png",
+        "file": "localized/ru-RU/phone/phone-08-quiz-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/ru/07_ready.png",
-        "headline": "План готов за минуту"
-      },
-      {
-        "file": "localized/ru-RU/phone/phone-08-dark-1080x1920.png",
-        "size": [
-          1080,
-          1920
-        ],
-        "source": "capture/raw/ru/08_dark.png",
-        "headline": "Удобно днём и ночью"
+        "source": "capture/raw/ru/08_quiz.png",
+        "headline": "Проверьте себя"
       }
     ],
     "en-US": [
@@ -112,7 +112,7 @@
         ]
       },
       {
-        "file": "localized/en-US/phone/phone-01-home-1080x1920.png",
+        "file": "localized/en-US/phone/phone-01-lesson-1080x1920.png",
         "size": [
           1080,
           1920
@@ -121,67 +121,67 @@
         "headline": "A ready lesson every day"
       },
       {
-        "file": "localized/en-US/phone/phone-02-recall-1080x1920.png",
+        "file": "localized/en-US/phone/phone-02-reader-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/en/02_recall.png",
-        "headline": "Recall first, then check yourself"
+        "source": "capture/raw/en/02_reader.png",
+        "headline": "Hear it and see every word"
       },
       {
-        "file": "localized/en-US/phone/phone-03-lesson-done-1080x1920.png",
+        "file": "localized/en-US/phone/phone-03-mushaf-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/en/03_summary.png",
-        "headline": "Reviews on the right day"
+        "source": "capture/raw/en/03_mushaf.png",
+        "headline": "A mushaf like the printed Quran"
       },
       {
-        "file": "localized/en-US/phone/phone-04-plan-1080x1920.png",
+        "file": "localized/en-US/phone/phone-04-tajweed-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/en/04_plan.png",
+        "source": "capture/raw/en/04_tajweed.png",
+        "headline": "Tajweed in colour"
+      },
+      {
+        "file": "localized/en-US/phone/phone-05-tafsir-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/en/05_tafsir.png",
+        "headline": "Tafsir always at hand"
+      },
+      {
+        "file": "localized/en-US/phone/phone-06-plan-1080x1920.png",
+        "size": [
+          1080,
+          1920
+        ],
+        "source": "capture/raw/en/06_plan.png",
         "headline": "Know when you will finish"
       },
       {
-        "file": "localized/en-US/phone/phone-05-reader-1080x1920.png",
+        "file": "localized/en-US/phone/phone-07-progress-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/en/05_reader.png",
-        "headline": "A beautiful mushaf and reciters"
-      },
-      {
-        "file": "localized/en-US/phone/phone-06-progress-1080x1920.png",
-        "size": [
-          1080,
-          1920
-        ],
-        "source": "capture/raw/en/06_progress.png",
+        "source": "capture/raw/en/07_details.png",
         "headline": "Honest progress"
       },
       {
-        "file": "localized/en-US/phone/phone-07-onboarding-1080x1920.png",
+        "file": "localized/en-US/phone/phone-08-quiz-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/en/07_ready.png",
-        "headline": "Your plan in a minute"
-      },
-      {
-        "file": "localized/en-US/phone/phone-08-dark-1080x1920.png",
-        "size": [
-          1080,
-          1920
-        ],
-        "source": "capture/raw/en/08_dark.png",
-        "headline": "Easy on the eyes at night"
+        "source": "capture/raw/en/08_quiz.png",
+        "headline": "Check yourself"
       }
     ],
     "tg": [

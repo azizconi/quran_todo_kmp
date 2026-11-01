@@ -1,14 +1,14 @@
 # Privacy Policy
 
-Effective date: October 31, 2026
+Effective date: November 1, 2026 (updated 2026-11-01)
 
-This Privacy Policy explains how **Quran Hifz** (package `tj.app.quran_todo`, "the App", "we", "us") handles information when you use the Android application. The short version: there are no accounts, your study data stays on your phone, and the only data that leaves the device is what is needed to download the Quran content and, unless you turn it off, anonymous usage statistics and crash reports.
+This Privacy Policy explains how **Quran Hifz** (package `tj.app.quran_todo`, "the App", "we", "us") handles information when you use the Android application. The short version: there are no accounts, your study data stays on your phone, and the only data that leaves the device is what is needed to download the Quran content (text, translations, tafsir, mushaf pages, audio) and, unless you turn it off, anonymous usage statistics and crash reports.
 
 ## 1. Information We Collect
 
 ### 1.1 Data stored on your device only
 
-Your learning progress, ayah and surah statuses, notes, goals, reminders and app settings are stored locally on your device. We do not have a server that receives them and we cannot see them. The App has no accounts: you do not sign in, and nothing is linked to your name, e-mail address or phone number.
+Your learning progress, ayah and surah statuses, notes, goals, reminders, reading plan (khatm), similar-ayah index, quiz results, detailed statistics and app settings are stored locally on your device. We do not have a server that receives them and we cannot see them. The App has no accounts: you do not sign in, and nothing is linked to your name, e-mail address or phone number.
 
 ### 1.2 Your own recordings (microphone)
 
@@ -32,38 +32,47 @@ The App **does not use the Android advertising ID** (the `AD_ID` permission is r
 
 To download the Quran text, translations, surah names and recitation audio, the App contacts the following servers:
 
-- `api.alquran.cloud` (translations, Islamic Network; the Quran text itself is bundled with the app);
-- `api.quran.com` (surah names, some translations and the word timings of recitations, Quran.com);
+- `api.alquran.cloud` (translations and the tajweed markup of the text, that is which reading rules apply to which letters; Islamic Network; the Quran text itself is bundled with the app);
+- `quranenc.com` (translations and the "Al-Mukhtasar" tafsir, QuranEnc);
+- `api.quran.com` (surah names, translations, the line layout of the mushaf pages, tafsir, word meanings in English and the word timings of recitations, Quran.com);
+- `verses.quran.com` (recitation audio and the fonts of the mushaf pages, Quran.com);
 - `cdn.islamic.network` (recitation audio, Islamic Network);
-- `verses.quran.com` (recitation audio, Quran.com);
 - `mirrors.quranicaudio.com` (recitation audio, QuranicAudio).
 
-These servers receive the technical data every internet request contains, in particular your **IP address**, and a description of what is requested (for example a surah or an audio file). We do not send them your progress, notes, settings or any other study data.
+These servers receive the technical data every internet request contains, in particular your **IP address**, and a description of what is requested (for example a surah, a mushaf page, a translation, an audio file or a font). We do not send them your progress, notes, settings or any other study data. What you download is kept on your phone so that it works offline.
 
-### 1.5 Backup by Android
+### 1.5 Widget, khatm, similar ayahs and notes
+
+The "Lesson of the day" widget shows the lesson on your home screen. Its data comes from the database on your phone and **does not leave the device**. The reading plan (khatm), the similar-ayah index (it is bundled with the app), quizzes and "My notes" also work only on the device and send nothing to any server. Weekly or monthly reports (picture, PDF, text) and the transfer file are created on your phone; where they go is your decision, when you pick an app to send them to or a place to save them.
+
+### 1.6 Backup by Android
 
 If Android backup is enabled on your device, Android (Google Backup) may store a copy of the App's database and settings in **your Google account** and restore it when you reinstall the App or set up a new phone, or transfer it directly to a new phone. This is a feature of your device; we do not receive that copy. Downloaded audio, caches and your own recordings are not backed up. You can turn the backup off in your device settings (Settings > Google > Backup).
 
 ## 2. Permissions
 
-- `INTERNET` and `ACCESS_NETWORK_STATE`: to download Quran content, translations and audio, and to send the anonymous statistics described above.
+- `INTERNET` and `ACCESS_NETWORK_STATE`: to download Quran content, translations, tafsir, mushaf pages and audio, and to send the anonymous statistics described above.
 - `POST_NOTIFICATIONS`: used only if you enable reminders; Android asks you before the App can show notifications.
+- `RECEIVE_BOOT_COMPLETED`: so that the lesson reminder is scheduled again after your phone restarts.
+- `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and `WAKE_LOCK`: so that recitation keeps playing with the screen off.
+- `FOREGROUND_SERVICE_DATA_SYNC`: so that a download of audio and translations in "Downloads and storage" can finish while the app is in the background.
+- `BIND_GET_INSTALL_REFERRER_SERVICE` (`com.google.android.finsky.permission`): added by the Firebase library; through it Google Play tells the library where the App was installed from. We do not use it for advertising.
 - `RECORD_AUDIO`: used only while you press Record to record your own reading in the Recall step (section 1.2); Android asks you before the first use, and you can take the permission back in the settings of your device. The recording is stored only on your phone.
-- The App does not access your contacts, location, camera, photos or files.
+- The App does not access your contacts, location, camera or photos. It accesses a file only when you yourself pick a transfer file or a place to save a report.
 
 ## 3. How We Use Information
 
 We use information only to:
 
-- provide the App's features (reading, listening, memorization, review, progress, reminders and recording your own reading);
-- download Quran content and related resources;
+- provide the App's features (reading, listening, memorization, review, self-checks, progress, the widget, reminders and recording your own reading);
+- download Quran content and related resources (text, translations, tafsir, mushaf pages and their fonts, audio);
 - find and fix bugs and understand which features are used, so that we can improve the App (anonymous statistics and crash reports, if you leave them on).
 
 We do not sell your personal data and we do not share it for advertising.
 
 ## 4. Data Sharing
 
-We do not sell personal data and we do not share it with third parties for advertising purposes. Information reaches only the service providers named above, and only as described: Google (Firebase) for statistics and crash reports, and the content providers for downloading Quran content.
+We do not sell personal data and we do not share it with third parties for advertising purposes. Information reaches only the service providers named above, and only as described: Google (Firebase) for statistics and crash reports, and the content providers (Islamic Network, Quran.com, QuranEnc, QuranicAudio) for downloading Quran content.
 
 ## 5. Children's Privacy
 
