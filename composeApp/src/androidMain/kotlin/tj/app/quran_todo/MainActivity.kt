@@ -19,6 +19,7 @@ import tj.app.quran_todo.presentation.home.HomeViewModel
 import tj.app.quran_todo.presentation.home.QuranLoadState
 import tj.app.quran_todo.ui.QuranHifzApp
 import tj.app.quran_todo.ui.needsOnboarding
+import tj.app.quran_todo.ui.onboarding.OnboardingStartup
 import tj.app.quran_todo.ui.reminder.ReminderLink
 import tj.app.quran_todo.ui.reminder.ReminderOpenRequests
 import tj.app.quran_todo.ui.reminder.ReminderTarget
@@ -29,6 +30,21 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        // The onboarding decision comes from a worker thread (it reads the stored flags, `OnboardingStartup`): the splash screen stays
+        // until it is there, so the main thread never waits for the disk and the first screen is never the wrong one.
+        if (OnboardingStartup.isReady) {
+            startContent(splashScreen, savedInstanceState)
+        } else {
+            splashScreen.setKeepOnScreenCondition { true }
+            lifecycleScope.launch {
+                // On a timeout (the worker failed) needsOnboarding() reads the flags itself.
+                withTimeoutOrNull(ONBOARDING_WAIT_MILLIS) { OnboardingStartup.await() }
+                startContent(splashScreen, savedInstanceState)
+            }
+        }
+    }
+
+    private fun startContent(splashScreen: SplashScreen, savedInstanceState: Bundle?) {
         configureSplashScreen(splashScreen)
         // The app root re-applies the bar icon style whenever the theme changes.
         enableEdgeToEdge()
@@ -104,5 +120,6 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val SPLASH_MAX_MILLIS = 900L
+        const val ONBOARDING_WAIT_MILLIS = 5_000L
     }
 }
