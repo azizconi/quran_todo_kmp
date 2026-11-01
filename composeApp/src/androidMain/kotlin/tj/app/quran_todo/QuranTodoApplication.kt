@@ -10,14 +10,16 @@ import tj.app.quran_todo.di.androidModule
 import tj.app.quran_todo.di.commonModule
 import tj.app.quran_todo.di.viewModelModule
 import tj.app.quran_todo.hifz.HifzRepository
+import tj.app.quran_todo.ui.components.spotlight.SharedPreferencesSpotlightStore
 import tj.app.quran_todo.ui.di.uiModules
+import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.widget.LessonWidgetUpdater
 
 class QuranTodoApplication: Application() {
     override fun onCreate() {
         super.onCreate()
-
         AndroidContextHolder.context = this
+        warmUpPreferences()
         AppTelemetry.initialize()
 
         startKoin {
@@ -30,5 +32,23 @@ class QuranTodoApplication: Application() {
         LessonWidgetUpdater.start(this)
 
         HifzStartup.importLegacyInBackground { KoinPlatform.getKoin().get<HifzRepository>() }
+    }
+
+    /**
+     * Opens the SharedPreferences files of the app on a worker thread. The first getSharedPreferences() of a file starts reading it, and
+     * the first read waits for it: done on the main thread, that is the disk work StrictMode shows at a cold start (hundreds of ms, seconds
+     * on a busy phone). The instances are cached by the context, so the main thread later finds the file already read.
+     */
+    private fun warmUpPreferences() {
+        Thread({
+            listOf(
+                "quran_todo_prefs", // language, theme, reading settings (UserSettingsStorage, LanguageStorage, ThemeStorage)
+                UiPrefs.PREFS_NAME,
+                SharedPreferencesSpotlightStore.FileName,
+                "downloads_prefs",
+                "quran_todo_cloud_sync",
+                "debug_today",
+            ).forEach { name -> getSharedPreferences(name, MODE_PRIVATE) }
+        }, "prefs-warmup").start()
     }
 }
