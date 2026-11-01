@@ -73,4 +73,10 @@ BILISH FOYDALI
 Quran Hifz o‘qishingizni tekshirmaydi va ustozning o‘rnini bosmaydi: o‘zingizni o‘zingiz baholaysiz, ilova esa jadvalni yuritadi.
 
 ## What's new
-Quran Hifz 2.0: yangi dizayn, rejali kunlik dars, so‘zlari ajraladigan 12 qori, mushaf sahifalari, tajvid ranglari, tarjima va tafsir tanlash, testlar va o‘xshash oyatlar, batafsil natija, vidjet va xatm. Hammasi bepul, reklamasiz va obunasiz.
+Quran Hifz 2.0 — katta yangilanish
+• Kunlik dars: yangi, yaqindagi va eski — har kuni tayyor, reja va tugash sanasi bilan
+• Mushaf sahifalari, tajvid ranglari va so‘zlari ajraladigan 12 qori
+• O‘zingizni tekshiring: testlar, o‘xshash oyatlar, o‘z qiroatingizni yozib olish
+• Tarjimani tanlang, tafsir esa oyat yonida
+• Batafsil natija, ustoz uchun hisobot, Ramazon xatmi va vidjet
+Hammasi bepul: reklamasiz, obunasiz va akkauntsiz.

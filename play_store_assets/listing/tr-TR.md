@@ -73,4 +73,10 @@ BİLMENİZDE FAYDA VAR
 Quran Hifz okuyuşunuzu denetlemez ve hocanın yerini tutmaz: kendinizi siz değerlendirirsiniz, uygulama programı tutar.
 
 ## What's new
-Quran Hifz 2.0: yeni tasarım, planlı günün dersi, kelime vurgulu 12 kâri, mushaf sayfaları, tecvid renkleri, meal ve tefsir seçimi, sınavlar ve benzer ayetler, ayrıntılı ilerleme, widget ve hatim. Her şey ücretsiz, reklamsız ve aboneliksiz.
+Quran Hifz 2.0 — büyük güncelleme
+• Günün dersi: yeni, yakın ve eski — her gün hazır, plan ve bitiş tarihiyle
+• Mushaf sayfaları, renkli tecvid ve kelime vurgulu 12 kâri
+• Kendinizi sınayın: sınavlar, benzer ayetler, kendi kıraatinizin kaydı
+• Meal seçimi ve ayetin yanında tefsir
+• Ayrıntılı ilerleme, hocanız için rapor, Ramazan hatmi ve widget
+Her şey ücretsiz: reklam, abonelik ve hesap yok.

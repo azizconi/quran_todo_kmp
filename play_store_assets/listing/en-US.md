@@ -71,4 +71,10 @@ GOOD TO KNOW
 Quran Hifz does not check your recitation and does not replace a teacher: you judge yourself, the app keeps the schedule.
 
 ## What's new
-Quran Hifz 2.0: a new design, the lesson of the day with a plan, 12 reciters with word highlighting, mushaf pages, tajweed colours, a choice of translation and tafsir, quizzes and similar ayahs, detailed progress, a widget and khatm. Everything is free, with no ads and no subscription.
+Quran Hifz 2.0 — a big update
+• Lesson of the day: new, recent and old, ready every day, with a plan and a finish date
+• Mushaf pages, tajweed colours and 12 reciters with word highlighting
+• Check yourself: quizzes, similar ayahs, record your own recitation
+• Choose your translation and read tafsir right by the ayah
+• Detailed progress, a report for your teacher, Ramadan khatm and a widget
+Everything is free: no ads, no subscription, no account.
