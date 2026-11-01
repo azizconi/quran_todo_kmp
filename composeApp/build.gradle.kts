@@ -194,8 +194,10 @@ android {
             manifestPlaceholders["crashlyticsEnabled"] = "false"
         }
         getByName("release") {
+            // Collection starts switched off in the manifest (analytics: firebase_analytics_collection_enabled=false) and AppTelemetry
+            // switches it on in code once the stored choice is read and is "yes": nothing leaves the phone before that.
             manifestPlaceholders["analyticsDeactivated"] = "false"
-            manifestPlaceholders["crashlyticsEnabled"] = "true"
+            manifestPlaceholders["crashlyticsEnabled"] = "false"
             // R8: shrinks and obfuscates the code, shrinkResources drops unused resources. The keep rules are in
             // proguard-rules.pro; the Crashlytics plugin uploads the mapping file for readable stack traces.
             isMinifyEnabled = true

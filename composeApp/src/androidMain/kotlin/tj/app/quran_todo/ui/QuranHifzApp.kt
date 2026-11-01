@@ -114,6 +114,7 @@ import tj.app.quran_todo.ui.navigation.NavTransitions
 import tj.app.quran_todo.ui.navigation.ReaderRouting
 import tj.app.quran_todo.ui.onboarding.OnboardingExit
 import tj.app.quran_todo.ui.onboarding.OnboardingGate
+import tj.app.quran_todo.ui.onboarding.OnboardingStartup
 import tj.app.quran_todo.ui.onboarding.OnboardingScreen
 import tj.app.quran_todo.ui.plan.PlanScreen
 import tj.app.quran_todo.ui.notes.NotesScreen
@@ -142,7 +143,7 @@ private const val MaxReadingFontSize = 40
  * root, `MainActivity` and the splash screen, which does not wait for data when onboarding is next; reads the stored state
  * directly, so it works before Compose and Koin are up.
  */
-internal fun needsOnboarding(): Boolean = OnboardingGate.resolve().showsOnboarding
+internal fun needsOnboarding(): Boolean = OnboardingStartup.current().gate.showsOnboarding
 
 /**
  * Root of the Android UI: owns language, theme, font and settings state, provides the `Local*` values
@@ -411,7 +412,7 @@ private fun AppNavigation() {
 
     // "What's new: the lesson of the day" for people who updated: decided once, now that needsOnboarding() has marked them. A link from
     // the reminder in this launch puts it off to the next one.
-    val whatsNewPending = remember { WhatsNewGate.pending(UiPrefs.readOnboarding(context)) }
+    val whatsNewPending = remember { WhatsNewGate.pending(OnboardingStartup.current().flags) }
     var whatsNewSuppressed by remember { mutableStateOf(openRequest != null) }
     LaunchedEffect(openRequest) { if (openRequest != null) whatsNewSuppressed = true }
 

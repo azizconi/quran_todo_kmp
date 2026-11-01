@@ -35,6 +35,11 @@
         <meta-data
             android:name="firebase_analytics_collection_deactivated"
             android:value="${analyticsDeactivated}" />
+        <!-- Nothing is collected until the stored choice has been read: AppTelemetry switches Analytics and Crashlytics on in code, and only
+             when the choice is "yes" (unlike "deactivated" above, this default can be overridden at run time). -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="false" />
         <meta-data
             android:name="firebase_crashlytics_collection_enabled"
             android:value="${crashlyticsEnabled}" />
