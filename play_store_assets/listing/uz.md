@@ -26,21 +26,43 @@ MENING REJAM VA PROGNOZ
 Nimani yodlashni tanlang: Amma juzi, Tabarak juzi, Qur’onni boshidan yoki o‘z suralaringiz. Tezlikni kuniga nechta oyat bilan belgilang yoki tugatmoqchi bo‘lgan sanangizni tanlang — ilova qachon tugatishingizni ko‘rsatadi. Ba’zi suralarni allaqachon bilasizmi? Ularni belgilang: ular darhol takrorlash aylanasiga tushadi, qaytadan o‘rgatilmaydi.
 
 TIYIB TURUVCHI ESLATMA
-Vaqtni o‘zingiz tanlaysiz. Bugungi dars bajarilgan bo‘lsa, eslatma kelmaydi.
+Vaqtni o‘zingiz tanlaysiz. Bugungi dars bajarilgan bo‘lsa, eslatma kelmaydi. Rejani 1-14 kunga to‘xtatish mumkin: seriya uzilmaydi.
 
 O‘QING VA TINGLANG
-• Mushaf matni juz, hizb va sahifa belgilari bilan, tarjima, katta shrift, yorug‘, qorong‘i yoki tizim mavzusi.
-• To‘rt qori: Mishari al-Afosiy, al-Husariy, al-Minshaviy va Abdulbosit.
-• Parchani kerakli marta takrorlang; ekran o‘chiq bo‘lsa ham ovoz davom etadi.
+• O‘qishning ikki ko‘rinishi: matn va bosma Qur’ondagidek mushaf sahifalari (604 sahifa, 15 qator); joriy oyat ajratib ko‘rsatiladi.
+• Juz, hizb va sahifa belgilari, katta shrift, uchta mavzu.
+• 12 qori, jumladan Mishari al-Afosiy, Sudays, Shuraym, al-Husariy va Abdulbosit. Yodlash uchun al-Husariyning sekin yozuvi bor.
+• Qori o‘qiyotganda joriy so‘z ajralib turadi. So‘zni bossangiz, ovoz shu joydan boshlanadi.
+• Parchani takrorlash va «aks-sado» rejimi: qori o‘qiydi, keyin navbat sizda. Ekran o‘chiq bo‘lsa ham ovoz davom etadi.
+• Tajvid: o‘qish qoidalari rang bilan ajratilgan.
+
+TUSHUNING
+• Har bir til uchun bir nechta tarjima.
+• Oyat varag‘ida tafsir; tilingizda bo‘lmasa, ilova boshqasini ko‘rsatadi va tilini belgilaydi.
+• So‘zlar ma’nosi faqat inglizcha.
+• Tarjimani to‘liq yuklab olsangiz, uning matnidan qidirish mumkin.
+• O‘xshash oyatlar: oyatda belgi va farqi ajratilgan ro‘yxat.
+
+O‘ZINGIZNI TEKSHIRING
+• «Eslang»: birinchi harflar, har ikkinchi so‘z yoki asta yashirish bo‘yicha maslahat.
+• «Tekshiruv» bo‘limi: oyatni davom ettiring, keyingisini ayting, sura boshini toping, oyatlarni tartibga soling, oyat qayerdaligini ayting.
+• «O‘xshashlarni ajrating» va qiyin oyatlar mashqi.
+• «Eslang»da o‘z qiroatingizni yozib, qori bilan solishtiring; u telefoningizda qoladi. Ilova o‘qishingizni baholamaydi.
 
 INTERNETSIZ HAM ISHLAYDI
 Arabcha matn ilovaning ichida. Ovoz va tarjimalarni oldindan «Yuklashlar va xotira» bo‘limida yuklab olish mumkin («Faqat Wi-Fi orqali» rejimi bor).
 
 HALOL NATIJA
-Kunlar seriyasi, oxirgi 30 kundagi faollik, butun Qur’on xaritasi va juzlar bo‘yicha natija. Bir bosishda ustoz uchun hisobot tayyorlanadi: nima yodlandi, nima takrorlandi va qaysi oyatlar qiyin.
+Kunlar seriyasi, oxirgi 30 kundagi faollik, butun Qur’on xaritasi va juzlar bo‘yicha natija. «Batafsil» bo‘limida: har bir sura va juzni qanchalik eslab qolganingiz, yil kalendari, reja suralari bo‘yicha prognoz va eng qiyin joylar.
+Ustoz uchun hafta, oy yoki o‘zingiz tanlagan davr hisoboti: rasm, PDF yoki matn ko‘rinishida.
+
+XATM, RAMAZON VA VIDJET
+• Qur’onni 30 kunda yoki kerakli sanagacha o‘qish rejasi, kunlik ulush sahifalarda.
+• Ramazonda: bir oylik xatm bir bosishda va taroveh uchun «Tun juzi».
+• Asosiy ekrandagi vidjet bugungi dars va seriyani ko‘rsatadi.
 
 MA’LUMOTLARINGIZ — O‘ZINGIZNIKI
-• Akkauntsiz, ro‘yxatdan o‘tishsiz, reklamasiz.
+• Hammasi bepul: akkauntsiz, obunasiz, reklamasiz.
 • Anonim statistika va nosozlik hisobotlari xatolarni topishga yordam beradi; ularni ilovada o‘chirib qo‘yish mumkin.
 • Natijalarni boshqa telefonga fayl orqali ko‘chiring. Bulutli sinxronlash yo‘q.
 
@@ -48,7 +70,7 @@ TILLAR
 Rus, ingliz, tojik, o‘zbek va turk tillari.
 
 BILISH FOYDALI
-Quran Hifz o‘qishingizni tinglamaydi va ustozning o‘rnini bosmaydi: o‘zingizni o‘zingiz baholaysiz, ilova esa jadvalni yuritadi.
+Quran Hifz o‘qishingizni tekshirmaydi va ustozning o‘rnini bosmaydi: o‘zingizni o‘zingiz baholaysiz, ilova esa jadvalni yuritadi.
 
 ## What's new
-Yangi Quran Hifz: kunlik dars (yangi, yaqinda, eski), tugatish prognozi bilan «Mening rejam», dars bajarilganda jim turadigan eslatma, juz, hizb va sahifa belgilari hamda to‘rt qorili o‘qish, ustoz uchun hisobotli halol natija, fayl orqali ko‘chirish, internetsiz ishlash uchun yuklashlar va anonim statistika tugmasi.
+Quran Hifz 2.0: yangi dizayn, rejali kunlik dars, so‘zlari ajraladigan 12 qori, mushaf sahifalari, tajvid ranglari, tarjima va tafsir tanlash, testlar va o‘xshash oyatlar, batafsil natija, vidjet va xatm. Hammasi bepul, reklamasiz va obunasiz.

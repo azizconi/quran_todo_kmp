@@ -26,21 +26,43 @@ PLANIM VE TAHMİN
 Neyi ezberleyeceğinizi seçin: Amme cüzü, Tebâreke cüzü, Kur’an’ı baştan veya kendi sureleriniz. Hızı günde kaç ayet olarak belirleyin ya da bitirmek istediğiniz tarihi seçin — uygulama ne zaman bitireceğinizi gösterir. Bazı sureleri zaten biliyor musunuz? İşaretleyin: yeniden öğretilmek yerine doğrudan tekrar döngüsüne girer.
 
 BASKI YAPMAYAN HATIRLATMA
-Saati kendiniz seçersiniz. Bugünün dersi yapıldıysa hatırlatma gelmez.
+Saati kendiniz seçersiniz. Bugünün dersi yapıldıysa hatırlatma gelmez. Hasta mısınız ya da yolda mısınız? Planı 1-14 gün durdurun: seri bozulmaz.
 
 OKUYUN VE DİNLEYİN
-• Cüz, hizb ve sayfa işaretli mushaf metni, meal, büyük yazı tipi ve açık, koyu ya da sistem teması.
-• Dört kâri: Mişari el-Afasi, el-Husari, el-Minşavi ve Abdülbasit.
-• Bir bölümü istediğiniz kadar tekrarlayın; ekran kapalıyken ses çalmaya devam eder.
+• İki okuma biçimi: metin ve basılı Kur’an gibi mushaf sayfaları (604 sayfa, 15 satır); okunan ayet vurgulanır.
+• Cüz, hizb ve sayfa işaretleri, büyük yazı tipi, üç tema.
+• 12 kâri; aralarında Mişari el-Afasi, Sudeys, Şureym, el-Husari ve Abdülbasit var. Ezber için el-Husari’nin yavaş kaydı da bulunur.
+• Kâri okurken o anki kelime vurgulanır. Kelimeye dokunun, ses oradan başlasın.
+• Bölümü tekrarlama ve «yankı» modu: kâri okur, sonra sıra sizde. Ekran kapalıyken ses çalmaya devam eder.
+• Tecvid: okuma kuralları renkle gösterilir, altta açıklama vardır.
+
+ANLAYIN
+• Her dil için birkaç meal.
+• Ayet sayfasında tefsir; dilinizde yoksa uygulama başka birini gösterir ve dilini belirtir.
+• Kelime anlamları yalnızca İngilizce.
+• Meali tamamen indirirseniz metninde arama yapabilirsiniz.
+• Benzer ayetler: ayette işaret ve farkı vurgulanmış liste.
+
+KENDİNİZİ SINAYIN
+• «Hatırla»: ilk harfler, her ikinci kelime ya da yavaş yavaş gizleme ipuçları; gizli kelimeye dokunursanız yalnızca o açılır.
+• «Sınav» bölümü: ayeti sürdürün, sonrakini söyleyin, surenin başlangıcını bulun, ayetleri sıraya koyun, ayetin yerini söyleyin. Yalnızca ezberlenenler sorulur.
+• «Benzerleri ayırt et» ve zor ayetler için çalışma.
+• «Hatırla»da kendi okuyuşunuzu kaydedip kâri ile karşılaştırabilirsiniz; kayıt telefonunuzda kalır. Uygulama okuyuşunuzu puanlamaz.
 
 İNTERNETSİZ ÇALIŞIR
 Arapça metin uygulamanın içindedir. Ses ve mealler «İndirmeler ve depolama» bölümünden önceden indirilebilir («yalnızca Wi-Fi» seçeneği var).
 
 DÜRÜST İLERLEME
-Gün serisi, son 30 günün etkinliği, tüm Kur’an haritası ve cüzlere göre ilerleme. Tek dokunuşla hocanız için rapor hazırlanır: neler ezberlendi, neler tekrarlandı ve hangi ayetler zor.
+Gün serisi, son 30 günün etkinliği, tüm Kur’an haritası ve cüzlere göre ilerleme. «Ayrıntılı» bölümünde: her sureyi ve cüzü ne kadar hatırladığınız, yıl takvimi, plandaki sureler için tahmin ve en zor yerler.
+Hocanız için hafta, ay ya da istediğiniz dönemin raporu: resim, PDF veya metin olarak. Tüm notlarınız tek listede.
+
+HATİM, RAMAZAN VE WİDGET
+• Kur’an’ı 30 günde ya da istediğiniz tarihe kadar okuma planı, günlük pay sayfa olarak.
+• Ramazan’da: bir aylık hatim tek dokunuşla ve teravih için «Gecenin cüzü».
+• Ana ekrandaki widget bugünün dersini ve serinizi gösterir.
 
 VERİLERİNİZ SİZİN
-• Hesap yok, kayıt yok, reklam yok.
+• Her şey ücretsiz: hesap yok, abonelik yok, reklam yok.
 • Anonim istatistikler ve çökme raporları hataları bulmaya yardım eder; uygulamadan kapatabilirsiniz.
 • İlerlemenizi başka bir telefona dosya ile taşıyın. Bulut senkronizasyonu yoktur.
 
@@ -48,7 +70,7 @@ DİLLER
 Rusça, İngilizce, Tacikçe, Özbekçe ve Türkçe.
 
 BİLMENİZDE FAYDA VAR
-Quran Hifz okuyuşunuzu dinlemez ve hocanın yerini tutmaz: kendinizi siz değerlendirirsiniz, uygulama programı tutar.
+Quran Hifz okuyuşunuzu denetlemez ve hocanın yerini tutmaz: kendinizi siz değerlendirirsiniz, uygulama programı tutar.
 
 ## What's new
-Yeni Quran Hifz: günün dersi (yeni, yakın, eski), bitiş tahminli Planım, ders yapılınca sessiz kalan hatırlatma, cüz, hizb ve sayfa işaretli okuyucu ve dört kâri, hocanız için raporlu dürüst ilerleme, dosya ile taşıma, internetsiz kullanım için indirmeler ve anonim istatistik anahtarı.
+Quran Hifz 2.0: yeni tasarım, planlı günün dersi, kelime vurgulu 12 kâri, mushaf sayfaları, tecvid renkleri, meal ve tefsir seçimi, sınavlar ve benzer ayetler, ayrıntılı ilerleme, widget ve hatim. Her şey ücretsiz, reklamsız ve aboneliksiz.
