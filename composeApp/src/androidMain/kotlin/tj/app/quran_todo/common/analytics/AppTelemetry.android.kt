@@ -7,7 +7,9 @@ import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import java.util.concurrent.atomic.AtomicBoolean
 import tj.app.quran_todo.common.platform.AndroidContextHolder
+import tj.app.quran_todo.common.platform.PendingCalls
 import tj.app.quran_todo.ui.state.UiPrefs
 
 /**
@@ -18,6 +20,12 @@ import tj.app.quran_todo.ui.state.UiPrefs
  * A debuggable build never sends anything to Firebase, so the production project shows only real users: the events go to
  * Logcat instead (tag `AppTelemetry`), and the SDK collection is switched off at start. The manifest placeholders of the debug
  * build type deactivate both SDKs before this code runs.
+ *
+ * In a release build both SDKs start switched off too (manifest: `firebase_analytics_collection_enabled=false`,
+ * `firebase_crashlytics_collection_enabled=false`). [initialize] reads the stored choice and only a "yes" switches them on
+ * (`setAnalyticsCollectionEnabled(true)`, `setCrashlyticsCollectionEnabled(true)`), so before that nothing is sent for anyone. A crash
+ * in that short window is not sent: Crashlytics keeps its report on the device, and it is uploaded at the next start if the choice
+ * is "yes" by then (with "no" it is deleted: deleteUnsentReports()).
  */
 actual object AppTelemetry {
     private val gate: TelemetryGate by lazy {
@@ -26,21 +34,31 @@ actual object AppTelemetry {
         TelemetryGate(if (debuggable) LogcatTelemetrySink() else FirebaseTelemetrySink())
     }
 
-    @Volatile
-    private var initialized = false
+    // Calls made before the stored choice is applied wait here (see initialize): nothing is sent before the choice is known.
+    private val pending = PendingCalls()
+    private val started = AtomicBoolean(false)
 
+    /**
+     * Starts Firebase and applies the stored choice, on a worker thread: the choice is read from the SharedPreferences file, which is
+     * disk work. Events logged meanwhile (the first screen) are kept and sent, or dropped, once the choice is applied.
+     */
     actual fun initialize() {
-        if (initialized) return
+        if (!started.compareAndSet(false, true)) return
         val context = AndroidContextHolder.context
-        // The choice is stored by UiPrefs; Koin is not started yet, so it is read directly.
-        val consent = runCatching { UiPrefs.readAnalyticsEnabled(context) }.getOrDefault(true)
-        runCatching { FirebaseApp.initializeApp(context) }
-            .onFailure { error -> Log.e(TAG, "Telemetry initialization failed", error) }
-        if (isDebuggable(context)) FirebaseTelemetrySink().setCollectionEnabled(false)
-        // The stored choice, not a change: the gate follows it before anything can be logged.
-        gate.restore(consent)
-        initialized = true
-        logEvent("telemetry_initialized")
+        Thread({
+            try {
+                // The choice is stored by UiPrefs; Koin is not started yet, so it is read directly.
+                val consent = runCatching { UiPrefs.readAnalyticsEnabled(context) }.getOrDefault(true)
+                runCatching { FirebaseApp.initializeApp(context) }
+                    .onFailure { error -> Log.e(TAG, "Telemetry initialization failed", error) }
+                if (isDebuggable(context)) FirebaseTelemetrySink().setCollectionEnabled(false)
+                // The stored choice, not a change: the gate follows it before anything can be logged.
+                gate.restore(consent)
+            } finally {
+                pending.open()
+            }
+            logEvent("telemetry_initialized")
+        }, "telemetry-init").start()
     }
 
     /**
@@ -53,11 +71,11 @@ actual object AppTelemetry {
     }
 
     actual fun logScreen(screenName: String, params: Map<String, String>) {
-        gate.logScreen(screenName, params)
+        pending.submit { gate.logScreen(screenName, params) }
     }
 
     actual fun logEvent(name: String, params: Map<String, String>) {
-        gate.logEvent(name, params)
+        pending.submit { gate.logEvent(name, params) }
     }
 
     actual fun logError(
@@ -65,7 +83,7 @@ actual object AppTelemetry {
         context: String?,
         params: Map<String, String>,
     ) {
-        gate.logError(throwable, context, params)
+        pending.submit { gate.logError(throwable, context, params) }
     }
 
     private fun isDebuggable(context: Context): Boolean =
@@ -103,6 +121,8 @@ private class FirebaseTelemetrySink : TelemetrySink {
         runCatching {
             analytics()?.setAnalyticsCollectionEnabled(enabled)
             crashlytics()?.setCrashlyticsCollectionEnabled(enabled)
+            // A report saved while collection was off must not be sent when the person turns it on later.
+            if (!enabled) crashlytics()?.deleteUnsentReports()
         }.onFailure { error -> Log.e(TAG, "Setting collection failed", error) }
     }
 

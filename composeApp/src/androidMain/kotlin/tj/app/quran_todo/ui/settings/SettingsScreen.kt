@@ -32,7 +32,7 @@ import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Highlight
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Palette
@@ -689,7 +689,7 @@ private fun SettingsContent(
                 description = trust.analyticsDescription,
                 checked = analyticsEnabled,
                 onCheckedChange = viewModel::setAnalyticsEnabled,
-                icon = Icons.Rounded.Insights,
+                icon = Icons.Rounded.BarChart,
                 iconTint = colors.learned,
             )
             QhRowDivider()

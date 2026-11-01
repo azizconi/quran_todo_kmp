@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.EditNote
-import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -29,7 +29,7 @@ internal fun DetailsEntries(
                 title = copy.detailsTitle,
                 description = copy.detailsBody,
                 onClick = onOpenDetails,
-                icon = Icons.Rounded.Insights,
+                icon = Icons.Rounded.BarChart,
                 iconTint = QhTheme.colors.primary,
             )
             QhRowDivider()
