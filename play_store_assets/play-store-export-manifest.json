@@ -7,7 +7,7 @@
     "uz",
     "tr-TR"
   ],
-  "source": "Emulator DoruIman_API_35 (1080x2400), debug build of redesign/android, demo mode status bar, light theme (screen 8 dark); captured by capture/capture.py with the demo history of capture/seed_demo.py",
+  "source": "Emulator DoruIman_API_35 (1080x2400), debug build of redesign/android, demo mode status bar, light theme; captured by capture/capture.py (2.0 set) with the demo backup of capture/make_demo_backup.py; composed by screens_v3/build_v3.py (style v3)",
   "phone_size": [
     1080,
     1920
@@ -37,7 +37,7 @@
           1920
         ],
         "source": "capture/raw/ru/01_home.png",
-        "headline": "Урок готов каждый день"
+        "headline": "Урок. Готов каждый день: новое, недавнее, старое."
       },
       {
         "file": "localized/ru-RU/phone/phone-02-reader-1080x1920.png",
@@ -46,7 +46,7 @@
           1920
         ],
         "source": "capture/raw/ru/02_reader.png",
-        "headline": "Слушайте и видите каждое слово"
+        "headline": "Чтецы. 12 голосов, каждое слово подсвечено."
       },
       {
         "file": "localized/ru-RU/phone/phone-03-mushaf-1080x1920.png",
@@ -55,7 +55,7 @@
           1920
         ],
         "source": "capture/raw/ru/03_mushaf.png",
-        "headline": "Мусхаф как в печатном Коране"
+        "headline": "Мусхаф. Страницы как в печатном Коране."
       },
       {
         "file": "localized/ru-RU/phone/phone-04-tajweed-1080x1920.png",
@@ -64,7 +64,7 @@
           1920
         ],
         "source": "capture/raw/ru/04_tajweed.png",
-        "headline": "Таджвид — цветом"
+        "headline": "Таджвид. Правила чтения — цветом прямо в тексте."
       },
       {
         "file": "localized/ru-RU/phone/phone-05-tafsir-1080x1920.png",
@@ -73,7 +73,7 @@
           1920
         ],
         "source": "capture/raw/ru/05_tafsir.png",
-        "headline": "Тафсир всегда под рукой"
+        "headline": "Тафсир. Смысл аята в одно касание."
       },
       {
         "file": "localized/ru-RU/phone/phone-06-plan-1080x1920.png",
@@ -82,7 +82,7 @@
           1920
         ],
         "source": "capture/raw/ru/06_plan.png",
-        "headline": "Знаете, когда закончите"
+        "headline": "План. Ваш темп — и дата, когда закончите."
       },
       {
         "file": "localized/ru-RU/phone/phone-07-progress-1080x1920.png",
@@ -91,7 +91,7 @@
           1920
         ],
         "source": "capture/raw/ru/07_details.png",
-        "headline": "Честный прогресс"
+        "headline": "Прогресс. Видно, что крепко, а что пора повторить."
       },
       {
         "file": "localized/ru-RU/phone/phone-08-quiz-1080x1920.png",
@@ -100,7 +100,7 @@
           1920
         ],
         "source": "capture/raw/ru/08_quiz.png",
-        "headline": "Проверьте себя"
+        "headline": "Проверка. Тесты и похожие аяты, чтобы не путать."
       }
     ],
     "en-US": [
@@ -118,7 +118,7 @@
           1920
         ],
         "source": "capture/raw/en/01_home.png",
-        "headline": "A ready lesson every day"
+        "headline": "Lesson. Ready every day: new, recent and old."
       },
       {
         "file": "localized/en-US/phone/phone-02-reader-1080x1920.png",
@@ -127,7 +127,7 @@
           1920
         ],
         "source": "capture/raw/en/02_reader.png",
-        "headline": "Hear it and see every word"
+        "headline": "Listen. 12 reciters, every word highlighted."
       },
       {
         "file": "localized/en-US/phone/phone-03-mushaf-1080x1920.png",
@@ -136,7 +136,7 @@
           1920
         ],
         "source": "capture/raw/en/03_mushaf.png",
-        "headline": "A mushaf like the printed Quran"
+        "headline": "Mushaf. Pages just like the printed Quran."
       },
       {
         "file": "localized/en-US/phone/phone-04-tajweed-1080x1920.png",
@@ -145,7 +145,7 @@
           1920
         ],
         "source": "capture/raw/en/04_tajweed.png",
-        "headline": "Tajweed in colour"
+        "headline": "Tajweed. Reading rules in colour, right in the text."
       },
       {
         "file": "localized/en-US/phone/phone-05-tafsir-1080x1920.png",
@@ -154,7 +154,7 @@
           1920
         ],
         "source": "capture/raw/en/05_tafsir.png",
-        "headline": "Tafsir always at hand"
+        "headline": "Tafsir. The meaning of an ayah, one tap away."
       },
       {
         "file": "localized/en-US/phone/phone-06-plan-1080x1920.png",
@@ -163,7 +163,7 @@
           1920
         ],
         "source": "capture/raw/en/06_plan.png",
-        "headline": "Know when you will finish"
+        "headline": "Plan. Your pace — and the day you finish."
       },
       {
         "file": "localized/en-US/phone/phone-07-progress-1080x1920.png",
@@ -172,7 +172,7 @@
           1920
         ],
         "source": "capture/raw/en/07_details.png",
-        "headline": "Honest progress"
+        "headline": "Progress. See what is solid and what needs review."
       },
       {
         "file": "localized/en-US/phone/phone-08-quiz-1080x1920.png",
@@ -181,7 +181,7 @@
           1920
         ],
         "source": "capture/raw/en/08_quiz.png",
-        "headline": "Check yourself"
+        "headline": "Quiz. Tests and similar ayahs, so you never mix them up."
       }
     ],
     "tg": [
@@ -193,76 +193,76 @@
         ]
       },
       {
-        "file": "localized/tg/phone/phone-01-home-1080x1920.png",
+        "file": "localized/tg/phone/phone-01-lesson-1080x1920.png",
         "size": [
           1080,
           1920
         ],
         "source": "capture/raw/tg/01_home.png",
-        "headline": "Ҳар рӯз — дарси тайёр"
+        "headline": "Дарс. Ҳар рӯз тайёр аст: нав, навакак, кӯҳна."
       },
       {
-        "file": "localized/tg/phone/phone-02-recall-1080x1920.png",
+        "file": "localized/tg/phone/phone-02-reader-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tg/02_recall.png",
-        "headline": "Аввал ба ёд оред, баъд санҷед"
+        "source": "capture/raw/tg/02_reader.png",
+        "headline": "Қориён. 12 қорӣ, ҳар калима ранг мегирад."
       },
       {
-        "file": "localized/tg/phone/phone-03-lesson-done-1080x1920.png",
+        "file": "localized/tg/phone/phone-03-mushaf-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tg/03_summary.png",
-        "headline": "Такрор дар рӯзи лозим"
+        "source": "capture/raw/tg/03_mushaf.png",
+        "headline": "Мусҳаф. Саҳифаҳо мисли Қуръони чопӣ."
       },
       {
-        "file": "localized/tg/phone/phone-04-plan-1080x1920.png",
+        "file": "localized/tg/phone/phone-04-tajweed-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tg/04_plan.png",
-        "headline": "Медонед, кай ба охир мерасонед"
+        "source": "capture/raw/tg/04_tajweed.png",
+        "headline": "Таҷвид. Қоидаҳои қироат бо ранг рӯи худи матн."
       },
       {
-        "file": "localized/tg/phone/phone-05-reader-1080x1920.png",
+        "file": "localized/tg/phone/phone-05-tafsir-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tg/05_reader.png",
-        "headline": "Мусҳафи зебо ва қориён"
+        "source": "capture/raw/tg/05_tafsir.png",
+        "headline": "Тафсир. Маънои оят бо як ламс."
       },
       {
-        "file": "localized/tg/phone/phone-06-progress-1080x1920.png",
+        "file": "localized/tg/phone/phone-06-plan-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tg/06_progress.png",
-        "headline": "Пешрафти ҳақиқӣ"
+        "source": "capture/raw/tg/06_plan.png",
+        "headline": "Нақша. Суръати шумо — ва санаи хатм."
       },
       {
-        "file": "localized/tg/phone/phone-07-onboarding-1080x1920.png",
+        "file": "localized/tg/phone/phone-07-progress-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tg/07_ready.png",
-        "headline": "Нақша дар як дақиқа"
+        "source": "capture/raw/tg/07_details.png",
+        "headline": "Пешрафт. Мебинед, чи мустаҳкам, чи такрор мехоҳад."
       },
       {
-        "file": "localized/tg/phone/phone-08-dark-1080x1920.png",
+        "file": "localized/tg/phone/phone-08-quiz-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tg/08_dark.png",
-        "headline": "Шабу рӯз бароҳат"
+        "source": "capture/raw/tg/08_quiz.png",
+        "headline": "Санҷиш. Тестҳо ва оятҳои монанд, то омехта нашавад."
       }
     ],
     "uz": [
@@ -274,76 +274,76 @@
         ]
       },
       {
-        "file": "localized/uz/phone/phone-01-home-1080x1920.png",
+        "file": "localized/uz/phone/phone-01-lesson-1080x1920.png",
         "size": [
           1080,
           1920
         ],
         "source": "capture/raw/uz/01_home.png",
-        "headline": "Har kuni — tayyor dars"
+        "headline": "Dars. Har kuni tayyor: yangi, yaqinda, eski."
       },
       {
-        "file": "localized/uz/phone/phone-02-recall-1080x1920.png",
+        "file": "localized/uz/phone/phone-02-reader-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/uz/02_recall.png",
-        "headline": "Avval eslang, keyin tekshiring"
+        "source": "capture/raw/uz/02_reader.png",
+        "headline": "Qorilar. 12 ta ovoz, har so‘z ajralib turadi."
       },
       {
-        "file": "localized/uz/phone/phone-03-lesson-done-1080x1920.png",
+        "file": "localized/uz/phone/phone-03-mushaf-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/uz/03_summary.png",
-        "headline": "Takror — kerakli kunda"
+        "source": "capture/raw/uz/03_mushaf.png",
+        "headline": "Mushaf. Sahifalar bosma Qur’ondagidek."
       },
       {
-        "file": "localized/uz/phone/phone-04-plan-1080x1920.png",
+        "file": "localized/uz/phone/phone-04-tajweed-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/uz/04_plan.png",
-        "headline": "Qachon tugatishingizni bilasiz"
+        "source": "capture/raw/uz/04_tajweed.png",
+        "headline": "Tajvid. O‘qish qoidalari — matnda rang bilan."
       },
       {
-        "file": "localized/uz/phone/phone-05-reader-1080x1920.png",
+        "file": "localized/uz/phone/phone-05-tafsir-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/uz/05_reader.png",
-        "headline": "Chiroyli mushaf va qorilar"
+        "source": "capture/raw/uz/05_tafsir.png",
+        "headline": "Tafsir. Oyat ma’nosi bir bosishda."
       },
       {
-        "file": "localized/uz/phone/phone-06-progress-1080x1920.png",
+        "file": "localized/uz/phone/phone-06-plan-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/uz/06_progress.png",
-        "headline": "Halol natija"
+        "source": "capture/raw/uz/06_plan.png",
+        "headline": "Reja. Sizning sur’atingiz — va tugatish sanasi."
       },
       {
-        "file": "localized/uz/phone/phone-07-onboarding-1080x1920.png",
+        "file": "localized/uz/phone/phone-07-progress-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/uz/07_ready.png",
-        "headline": "Reja bir daqiqada"
+        "source": "capture/raw/uz/07_details.png",
+        "headline": "Natija. Nima mustahkam, nimani takrorlash kerak."
       },
       {
-        "file": "localized/uz/phone/phone-08-dark-1080x1920.png",
+        "file": "localized/uz/phone/phone-08-quiz-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/uz/08_dark.png",
-        "headline": "Kechayu kunduz qulay"
+        "source": "capture/raw/uz/08_quiz.png",
+        "headline": "Tekshiruv. Testlar va o‘xshash oyatlar, adashmaslik uchun."
       }
     ],
     "tr-TR": [
@@ -355,76 +355,76 @@
         ]
       },
       {
-        "file": "localized/tr-TR/phone/phone-01-home-1080x1920.png",
+        "file": "localized/tr-TR/phone/phone-01-lesson-1080x1920.png",
         "size": [
           1080,
           1920
         ],
         "source": "capture/raw/tr/01_home.png",
-        "headline": "Her gün hazır bir ders"
+        "headline": "Ders. Her gün hazır: yeni, yakın ve eski."
       },
       {
-        "file": "localized/tr-TR/phone/phone-02-recall-1080x1920.png",
+        "file": "localized/tr-TR/phone/phone-02-reader-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tr/02_recall.png",
-        "headline": "Önce hatırla, sonra kontrol et"
+        "source": "capture/raw/tr/02_reader.png",
+        "headline": "Dinle. 12 kâri, her kelime vurgulanır."
       },
       {
-        "file": "localized/tr-TR/phone/phone-03-lesson-done-1080x1920.png",
+        "file": "localized/tr-TR/phone/phone-03-mushaf-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tr/03_summary.png",
-        "headline": "Tekrar tam zamanında"
+        "source": "capture/raw/tr/03_mushaf.png",
+        "headline": "Mushaf. Sayfalar tıpkı basılı Kur’an gibi."
       },
       {
-        "file": "localized/tr-TR/phone/phone-04-plan-1080x1920.png",
+        "file": "localized/tr-TR/phone/phone-04-tajweed-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tr/04_plan.png",
-        "headline": "Ne zaman bitireceğini bil"
+        "source": "capture/raw/tr/04_tajweed.png",
+        "headline": "Tecvid. Okuma kuralları metinde renkle."
       },
       {
-        "file": "localized/tr-TR/phone/phone-05-reader-1080x1920.png",
+        "file": "localized/tr-TR/phone/phone-05-tafsir-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tr/05_reader.png",
-        "headline": "Güzel mushaf ve kâriler"
+        "source": "capture/raw/tr/05_tafsir.png",
+        "headline": "Tefsir. Ayetin anlamı tek dokunuşta."
       },
       {
-        "file": "localized/tr-TR/phone/phone-06-progress-1080x1920.png",
+        "file": "localized/tr-TR/phone/phone-06-plan-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tr/06_progress.png",
-        "headline": "Dürüst ilerleme"
+        "source": "capture/raw/tr/06_plan.png",
+        "headline": "Plan. Sizin hızınız — ve bitirme tarihiniz."
       },
       {
-        "file": "localized/tr-TR/phone/phone-07-onboarding-1080x1920.png",
+        "file": "localized/tr-TR/phone/phone-07-progress-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tr/07_ready.png",
-        "headline": "Planın bir dakikada hazır"
+        "source": "capture/raw/tr/07_details.png",
+        "headline": "İlerleme. Neyin sağlam olduğu, neyin tekrar gerektiği."
       },
       {
-        "file": "localized/tr-TR/phone/phone-08-dark-1080x1920.png",
+        "file": "localized/tr-TR/phone/phone-08-quiz-1080x1920.png",
         "size": [
           1080,
           1920
         ],
-        "source": "capture/raw/tr/08_dark.png",
-        "headline": "Gece gündüz rahat"
+        "source": "capture/raw/tr/08_quiz.png",
+        "headline": "Sınav. Testler ve benzer ayetler, karıştırmamak için."
       }
     ]
   }

@@ -22,8 +22,8 @@
     },
     {
       "word": "Mushaf",
-      "sub1": "Basılı Kur’an gibi",
-      "sub2": "mushaf sayfaları.",
+      "sub1": "Sayfalar tıpkı",
+      "sub2": "basılı Kur’an gibi.",
       "override": {
         "pop": [
           0,
