@@ -1,10 +1,25 @@
 #!/usr/bin/env python3
-"""Captures the eight store screens in one language from the debug build on the emulator.
+"""Captures the store screens from the debug build on the emulator.
 
-    python3 capture.py <lang> [step ...]        lang: ru en tg uz tr
-    steps (default: all, in this order): onboarding seed home lesson progress plan reader dark
+2.0 set (the eight screens of screens_v3):
 
-Raw 1080x2400 screenshots go to <out>/<lang>/NN_name.png (default out: play_store_assets/capture/raw, not committed).
+    ./demo_mode.sh                              # clean status bar, 12:00
+    python3 capture.py ru setup                 # once per emulator state: fresh onboarding, demo backup restored, light theme,
+                                                #   translation on, reader parked at Al-Mu'minun 18 (needs the emulator date = today)
+    python3 capture.py <lang>                   # lang: ru en tg uz tr; switches the app language, then the eight files:
+                                                #   01_home 02_reader 03_mushaf 04_tajweed 05_tafsir 06_plan 07_details 08_quiz
+    python3 capture.py <lang> setlang reader quiz   # or only some steps (setlang home reader mushaf tajweed tafsir plan details quiz;
+                                                #   `translation` puts the tr default translation back after trying others)
+    ./run_all.sh                                # setup, then all five languages, then demo mode off
+
+The demo data is `demo/quran-hifz-demo.json` made by make_demo_backup.py for the day of the capture
+(`python3 make_demo_backup.py --out /tmp/e3_capture/demo.json`; the setup step pushes that file, or the committed one when missing).
+Needs network: translations, tafsir and the tajweed markup are downloaded on first use (the emulator's DNS must work).
+
+The older E3 set (onboarding seed home lesson progress plan reader dark; names 02_recall ... 08_dark) is still in this file as the
+steps with the `e3_` prefix and is not used any more.
+
+Raw 1080x2400 screenshots go to <out>/<lang>/NN_name.png (default out: play_store_assets/capture/raw).
 The device must be the emulator DoruIman_API_35 with the debug APK installed; demo mode (clean status bar) is switched on
 and off by demo_mode.sh. Everything is driven through the UI and `adb`; the app code is never touched.
 
@@ -12,6 +27,7 @@ The host can be slow: every wait polls the accessibility tree (uiautomator dump)
 """
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -221,11 +237,10 @@ def step_onboarding(lang, t):
     advance(t["next"])                 # reading look -> the plan is ready
     wait_text(t["later"], 30)
     settle(4)
-    screenshot(f"{OUT}/{lang}/07_ready.png")
     advance(t["later"], wait=20)      # home without a lesson
 
 
-def step_seed(lang, t):
+def e3_seed(lang, t):
     print("seed")
     d, off = today()
     db = pull_db()
@@ -237,7 +252,7 @@ def step_seed(lang, t):
     push_db(db)
 
 
-def step_home(lang, t):
+def e3_home(lang, t):
     print("home")
     sh(f"am force-stop {PKG}")
     launch(10)
@@ -282,7 +297,7 @@ def lesson_loop(lang, t, shot_at):
     raise RuntimeError("lesson did not finish")
 
 
-def step_lesson(lang, t):
+def e3_lesson(lang, t):
     print("lesson")
     tap_text(t["start"], 60); settle(6)
     # the new step opens on Listen; switch to Recall
@@ -307,7 +322,7 @@ def step_setlang(lang, t):
     sh(f"run-as {PKG} sh -c 'cp /data/local/tmp/prefs.xml shared_prefs/quran_todo_prefs.xml'")
 
 
-def step_relaunch(lang, t):
+def e3_relaunch(lang, t):
     sh(f"am force-stop {PKG}")
     launch(10)
     settle(8)
@@ -337,7 +352,7 @@ def scroll_until(locate, target, tol, tries=7):
     raise RuntimeError("could not scroll to the target")
 
 
-def step_progress(lang, t):
+def e3_progress(lang, t):
     print("progress")
     tap(920, 148); settle(8)
     screenshot(f"{OUT}/{lang}/06_progress_top.png")
@@ -346,7 +361,7 @@ def step_progress(lang, t):
     screenshot(f"{OUT}/{lang}/06_progress.png")
 
 
-def step_plan(lang, t):
+def e3_plan(lang, t):
     print("plan")
     row = plan_row(dump())
     if not row:
@@ -361,7 +376,7 @@ def step_plan(lang, t):
     key("KEYCODE_BACK"); settle(4)
 
 
-def step_reader(lang, t):
+def e3_reader(lang, t):
     print("reader")
     sh(f"am force-stop {PKG}")
     launch(10)
@@ -375,19 +390,431 @@ def step_reader(lang, t):
     screenshot(f"{OUT}/{lang}/05_reader.png")
 
 
-def step_dark(lang, t):
+def e3_dark(lang, t):
     print("dark")
     sh("cmd uimode night yes"); settle(10)
     screenshot(f"{OUT}/{lang}/08_dark.png")
     sh("cmd uimode night no"); settle(5)
 
 
-STEPS = ["onboarding", "seed", "home", "lesson", "progress", "plan", "reader", "dark"]
+
+# ================================================================= the 2.0 set
+I18N = os.path.join(HERE, "..", "..", "composeApp", "src", "androidMain", "kotlin", "tj", "app", "quran_todo", "ui", "i18n")
+
+
+def copy_text(file, lang, key):
+    """A string of the app's own copy file (i18n/<file>.kt) in the language, so the driver finds buttons by the app's words."""
+    src = open(os.path.join(I18N, file + ".kt"), encoding="utf-8").read()
+    heads = list(re.finditer(r"AppLanguage\.([A-Z]{2}) -> \w+Copy\(", src))
+    for i, m in enumerate(heads):
+        if m.group(1).lower() == lang:
+            block = src[m.end(): heads[i + 1].start() if i + 1 < len(heads) else len(src)]
+            hit = re.search(r'\b' + key + r' = "((?:[^"\\]|\\.)*)"', block)
+            if hit:
+                return hit.group(1).replace('\\"', '"').replace("\\\\", "\\")
+    raise KeyError(f"{file}.{key} [{lang}]")
+
+
+def px(path, x, y):
+    from PIL import Image
+    with Image.open(path) as im:
+        return im.convert("RGB").getpixel((x, y))
+
+
+def grab(name="grab.png"):
+    """A screenshot into the temp folder (for analysis, not for output)."""
+    p = os.path.join(TMP, name)
+    with open(p, "wb") as f:
+        f.write(subprocess.run([ADB, "exec-out", "screencap", "-d", DISPLAY, "-p"], capture_output=True, check=True).stdout)
+    return p
+
+
+def word_highlight_x(path, y0=940, y1=1220):
+    """Centre x of the highlight of a playing word (a soft green box, about 190,211,201) in the rows y0..y1, or None."""
+    from PIL import Image
+    with Image.open(path) as im:
+        im = im.convert("RGB").crop((60, y0, 1020, y1))
+        w = im.size[0]
+        xs = [i % w for i, (r, g, b) in enumerate(im.getdata()) if abs(r - 190) < 7 and abs(g - 211) < 7 and abs(b - 201) < 7]
+    if len(xs) < 2500:
+        return None
+    return 60 + sum(xs) / len(xs)
+
+
+def align(locate, target, tol, tries=30):
+    """Scrolls the page until locate(nodes) (a y) is within tol of target. Short moves are slow swipes: a quick short drag is a tap."""
+    for _ in range(tries):
+        y = locate(dump())
+        if y is None:
+            swipe(25, 2100, 25, 600, 1300); settle(2); continue            # not on screen yet: one screen down (the badge is never skipped)
+        delta = y - target
+        print("  align", y, "->", target)
+        if abs(delta) <= tol:
+            return y
+        d = abs(delta) + 22                      # the first ~20 px of a drag are the touch slop
+        if abs(delta) > 60:
+            d = min(d, 1000)
+            swipe(25, 1800, 25, 1800 - d, 1200) if delta > 0 else swipe(25, 600, 25, 600 + d, 1200)
+        else:
+            swipe(25, 1200, 25, 1200 - d, 450) if delta > 0 else swipe(25, 1200, 25, 1200 + d, 450)
+        settle(2.5)
+    raise RuntimeError("could not align the page")
+
+
+def ayah_badge_y(nodes, n):
+    """Top of the number badge of ayah n in the list reader."""
+    for nd in nodes:
+        if nd["text"] == str(n) and nd["x1"] < 130 and 230 < nd["y1"] < 2050 and nd["x2"] - nd["x1"] < 80:
+            return nd["y1"]
+    return None
+
+
+def home_ready(t, timeout=90):
+    wait_text(t["start"], timeout)
+    settle(3)
+
+
+def launch_home(t):
+    sh(f"am force-stop {PKG}")
+    launch(8)
+    home_ready(t)
+
+
+def back_home(t, tries=6):
+    for _ in range(tries):
+        if find(dump(), t["start"]):
+            return
+        key("KEYCODE_BACK"); settle(2.5)
+    raise RuntimeError("could not get back to the home screen")
+
+
+def tap_desc(label, timeout=30):
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        hit = [n for n in dump() if n["desc"] == label or n["text"] == label]
+        if hit:
+            tap_node(hit[0]); time.sleep(1.5)
+            return hit[0]
+        time.sleep(1.5)
+    raise TimeoutError(label)
+
+
+def open_reader(t):
+    """Home -> "Read" on the Continue card (Al-Mu'minun), the list reader at the saved ayah."""
+    for n in dump():
+        if n["text"] == "المؤمنون" and n["x1"] > 700 and n["y1"] > 1000:
+            tap(346, n["y1"] + 299)
+            break
+    else:
+        raise RuntimeError("Continue card not found")
+    for _ in range(40):
+        time.sleep(1.5)
+        ns = dump()
+        if ayah_badge_y(ns, 18) is not None:
+            break
+        if any(n["y1"] < 200 and n["x1"] == 600 for n in ns) or any(n["y1"] < 200 and n["x1"] == 978 for n in ns):
+            break
+    settle(2)
+    ns = dump()
+    if not any(n["x1"] == 600 and 100 < n["y1"] < 140 for n in ns):    # the "Aa" button exists only in the list mode
+        tap(1006, 148); settle(4)                                       # the pages mode was left on: back to the list
+
+
+def park_on_18():
+    """Ayah 18 with its page marker 19 px above the ru reference (the header then reads 18 / 118 and the Continue card says ayah 18)."""
+    align(lambda ns: ayah_badge_y(ns, 18), 328, 9)
+
+
+def settings_switch(title, want):
+    """In the "Aa" sheet: the switch of the row `title`. Reads its state from the screenshot (the knob is on the right when it is on)."""
+    n = wait_text(title, 10)[0]
+    y = (n["y1"] + n["y2"]) // 2
+    p = grab()
+    on = sum(1 for dx in range(860, 980, 6) if abs(px(p, dx, y)[0] - 16) < 25 and abs(px(p, dx, y)[1] - 109) < 30) > 6
+    if on != want:
+        tap(916, y); settle(3)
+
+
+def step_setup(lang, t):
+    """Fresh app state: onboarding in Russian, the demo backup restored, light theme, translation on, tajweed downloaded and off."""
+    t = TEXT["ru"]
+    step_onboarding("ru", t)
+    demo = os.path.join(TMP, "demo.json")
+    if not os.path.exists(demo):
+        demo = os.path.join(HERE, "demo", "quran-hifz-demo.json")
+    adb("push", demo, "/sdcard/Download/quran-hifz-demo.json")
+    sh("settings put global sysui_demo_allowed 1")
+    wait_text(t["start"], 60)
+    tap(1006, 148); settle(4)                                   # settings
+    tap_text(copy_text("SettingsCopy", "ru", "themeLight")); settle(2)
+    for _ in range(8):
+        if find(dump(), copy_text("TransferCopy", "ru", "restoreTitle")):
+            break
+        swipe(25, 1900, 25, 400, 1000); settle(2)
+    tap_text(copy_text("TransferCopy", "ru", "restoreTitle")); settle(5)
+    tap_text("quran-hifz-demo.json"); settle(3)                 # the system file picker
+    tap_text(copy_text("TransferCopy", "ru", "replace")); settle(6)
+    key("KEYCODE_BACK"); settle(3)
+    home_ready(t)
+    # reader at Al-Mu'minun: translation on, tajweed on once (downloads the markup), then off
+    for _ in range(10):
+        if find(dump(), "Аль-Муминун"):
+            break
+        swipe(25, 1900, 25, 400, 1200); settle(2)
+    tap_text("Аль-Муминун"); settle(6)
+    tap(629, 148); settle(3)                                    # "Aa"
+    settings_switch("Перевод", True)
+    settings_switch(copy_text("TajweedCopy", "ru", "switchTitle"), True)
+    settle(12)                                                  # the markup downloads
+    settings_switch(copy_text("TajweedCopy", "ru", "switchTitle"), False)
+    key("KEYCODE_BACK"); settle(3)
+    park_on_18()
+    key("KEYCODE_BACK"); settle(3)
+
+
+def step_home(lang, t):
+    print("home")
+    launch_home(t)
+    screenshot(f"{OUT}/{lang}/01_home.png")
+
+
+def step_reader(lang, t):
+    print("reader")
+    launch_home(t)
+    open_reader(t)
+    park_on_18()
+    # play ayah 18, then the first frame with a highlighted word of the playing ayah
+    tap(540, 560); settle(2)                                    # selects ayah 18: the bar says "ayah 18"
+    tap(856, 2246); settle(1)                                   # play
+    best = None
+    for _ in range(120):
+        p = grab()
+        x = word_highlight_x(p)
+        if x is not None:
+            if best is None:
+                best = os.path.join(TMP, "first_word.png")
+                shutil.copy(p, best)                            # fallback: the first highlighted word
+            if 330 < x < 820:                                   # a word in the middle of the line, like the reference
+                best = p
+                break
+    if best is None:
+        raise RuntimeError("no highlighted word while playing")
+    p = best
+    os.makedirs(f"{OUT}/{lang}", exist_ok=True)
+    shutil.copy(p, f"{OUT}/{lang}/02_reader.png")
+    print("  shot", f"{lang}/02_reader.png")
+    tap(856, 2246); settle(2)                                   # pause
+
+
+def reader_ready(t):
+    """Fresh start in the list reader of Al-Mu'minun, ayah 18 parked at the top like in the reference."""
+    launch_home(t)
+    open_reader(t)
+    park_on_18()
+
+
+def pages_after_playing_18():
+    """Ayah 18 becomes the current one by playing it for a moment; the mushaf pages then open on page 343 (the list reader's
+    own position is ayah 17, page 342), and the stop button of the mini player gives the clean page of the reference."""
+    tap(540, 560); settle(2)                                    # selects ayah 18
+    tap(856, 2246); settle(4)                                   # play ... pause
+    tap(856, 2246); settle(2)
+    tap(755, 148)                                               # the book icon: mushaf pages
+    wait_text("343", 40)
+    settle(3)
+    tap(974, 2148); settle(3)                                   # the cross of the mini player: stop, the page is clean
+
+
+def step_mushaf(lang, t):
+    print("mushaf")
+    reader_ready(t)
+    pages_after_playing_18()
+    screenshot(f"{OUT}/{lang}/03_mushaf.png")
+    tap(1006, 148); settle(3)                                   # back to the list
+
+
+def set_tajweed(lang, want):
+    tap(629, 148); settle(3)                                    # "Aa"
+    settings_switch(copy_text("TajweedCopy", lang, "switchTitle"), want)
+    key("KEYCODE_BACK"); settle(3)
+
+
+def step_tajweed(lang, t):
+    print("tajweed")
+    reader_ready(t)
+    pages_after_playing_18()                                    # ayah 18 is now the current one: the bar says "ayah 18", paused
+    tap(1006, 148); settle(4)
+    park_on_18()
+    set_tajweed(lang, True)
+    settle(3)
+    park_on_18()
+    screenshot(f"{OUT}/{lang}/04_tajweed.png")
+    set_tajweed(lang, False)
+
+
+def step_translation(lang, t):
+    """Puts the language's default translation back (a trial of the other editions leaves the choice on): only tr needs it."""
+    names = dict(tr="Elmalılı")
+    if lang not in names:
+        return
+    print("translation")
+    reader_ready(t)
+    tap(629, 148); settle(3)                                    # "Aa"
+    row = [n for n in dump() if ":" in n["text"] and 1400 < n["y1"] < 1600 and n["x1"] < 200]
+    if not row:
+        raise RuntimeError("translation row not found")
+    tap_node(row[0]); settle(4)
+    tap_text(names[lang]); settle(6)
+    key("KEYCODE_BACK"); settle(3)
+
+
+TAFSIR_CHIP = dict(ru="chipSaadi", en="chipIbnKathir", tg="chipSaadi", uz="chipMokhtasarUz", tr="chipMokhtasarTr")
+
+
+def step_tafsir(lang, t):
+    print("tafsir")
+    reader_ready(t)
+    swipe(540, 560, 540, 560, 1000); settle(3)                  # long press on ayah 18: its sheet
+    tap_text(copy_text("TafsirCopy", lang, "sheetRow")); settle(4)
+    # the source of the language (the choice is remembered, so it is tapped every time): ru, tg: as-Saadi; en: Ibn Kathir;
+    # uz, tr: the Mukhtasar of QuranEnc in the language
+    chip = copy_text("TafsirCopy", lang, TAFSIR_CHIP[lang])
+    hits = [n for n in dump() if chip in n["text"] and 1150 < n["y1"] < 1350]
+    if not hits:
+        raise RuntimeError("tafsir chip not found: " + chip)
+    tap_node(hits[0]); settle(6)
+    loading = copy_text("TafsirCopy", lang, "loading")
+    for _ in range(40):
+        ns = dump()
+        if not find(ns, loading) and any(len(n["text"]) > 200 for n in ns):
+            break
+        time.sleep(2)
+    else:
+        raise RuntimeError("tafsir did not load")
+    settle(3)
+    screenshot(f"{OUT}/{lang}/05_tafsir.png")
+
+
+def step_plan(lang, t):
+    print("plan")
+    launch_home(t)
+    tap(1006, 148); settle(4)                                   # settings
+    title = copy_text("PlanCopy", lang, "title")
+    for _ in range(6):                                          # the row "My plan" is in the middle of the settings
+        hits = [n for n in dump() if n["text"] == title and 300 < n["y1"] < 2200]
+        if hits:
+            tap_node(hits[0]); break
+        swipe(25, 1900, 25, 700, 1200); settle(2)
+    else:
+        raise RuntimeError("plan row not found")
+    settle(6)
+    wait_text(title, 30)
+    settle(3)
+    screenshot(f"{OUT}/{lang}/06_plan.png")
+
+
+DETAILS_FIRST_PERCENT_Y = 774        # top of the first retention percentage ("88%") in the ru capture
+
+
+def step_details(lang, t):
+    print("details")
+    launch_home(t)
+    tap(880, 148); settle(6)                                    # the progress ring
+    title = copy_text("AnalyticsCopy", lang, "detailsTitle")
+    for _ in range(6):
+        hits = [n for n in dump() if n["text"] == title and 150 < n["y1"] < 2100 and n["x1"] > 150]
+        if hits:
+            tap_node(hits[0]); break
+        swipe(25, 1900, 25, 700, 1200); settle(2)
+    else:
+        raise RuntimeError("details row not found")
+    want = copy_text("AnalyticsCopy", lang, "retentionTitle").upper()
+    for _ in range(30):                                         # the section label is set in capitals
+        if any(n["text"].upper() == want for n in dump()):
+            break
+        time.sleep(1.5)
+    else:
+        raise RuntimeError("details screen did not open")
+    settle(5)
+    # the hint under "Retention" takes two lines in ru, uz, tr and three in en, tg: the bars of those two are 53 px lower than in ru
+    # (a scroll to fix that would leave the large title half faded; the template's crop for them is set per language instead)
+    ns = dump()
+    first = next((n["y1"] for n in sorted(ns, key=lambda n: n["y1"]) if re.fullmatch(r"%?\d+%?", n["text"]) and n["y1"] > 500), None)
+    print("  first retention percentage at y =", first, "(ru:", DETAILS_FIRST_PERCENT_Y, ")")
+    settle(2)
+    screenshot(f"{OUT}/{lang}/07_details.png")
+
+
+def quiz_cards(ns):
+    """The ayah cards of a "put in order" question, top to bottom (a card has several nodes: one per y)."""
+    wide = sorted([n for n in ns if n["x2"] - n["x1"] > 900 and 150 < n["y2"] - n["y1"] < 450 and 450 < n["y1"] < 1700], key=lambda n: n["y1"])
+    cards = []
+    for n in wide:
+        if not cards or n["y1"] - cards[-1]["y1"] > 60:
+            cards.append(n)
+    return cards
+
+
+def quiz_advance(ns, Q):
+    """Answers the question on screen the quickest way (the quiz is only walked through to reach the "put in order" question)."""
+    for key_ in ("show", "knew"):
+        hit = find(ns, Q(key_))
+        if hit:
+            tap_node(hit[0]); return True
+    for key_ in ("next", "seeResult"):
+        hit = find(ns, Q(key_))
+        if hit:
+            tap_node(hit[0]); return True
+    options = [n for n in ns if n["desc"] and n["x1"] == 53 and n["x2"] == 1027 and 130 < n["y2"] - n["y1"] < 190]   # "where is this ayah"
+    if options:
+        tap_node(options[0]); return True
+    return False
+
+
+def step_quiz(lang, t):
+    """The quiz has five random questions: it is walked through until a "put in order" question comes up (about 1 quiz in 3)."""
+    print("quiz")
+    Q = lambda k: copy_text("QuizCopy", lang, k)
+    title, order = Q("title"), Q("orderTitle")
+    progress = Q("progressPattern").replace("{a}", r"\d+").replace("{b}", r"\d+")
+    for attempt in range(25):
+        launch_home(t)
+        hits = [n for n in dump() if n["text"] == title and 1000 < n["y1"] < 1500]
+        if not hits:
+            raise RuntimeError("quiz row not found")
+        tap_node(hits[0])
+        for _ in range(40):
+            time.sleep(1.5)
+            if any(re.fullmatch(progress, n["text"]) for n in dump()):
+                break
+        settle(2)
+        for action in range(30):                                 # a question takes a few taps: show, knew / answer, next
+            ns = dump()
+            if find(ns, order):
+                cards = quiz_cards(ns)
+                if len(cards) == 3 and all(c["y2"] - c["y1"] < 280 for c in cards):     # the three-ayah variant, one line per card
+                    for i in (1, 2, 0):                          # numbers 3, 1, 2 from the top, like the reference
+                        tap_node(cards[i]); settle(2)
+                    settle(2)
+                    screenshot(f"{OUT}/{lang}/08_quiz.png")
+                    return
+                break
+            if not quiz_advance(ns, Q):
+                break
+            settle(3)
+        print("  attempt", attempt + 1, "no order question")
+    raise RuntimeError("no order question in 25 quizzes")
+
+
+STEPS = ["home", "reader", "mushaf", "tajweed", "tafsir", "plan", "details", "quiz"]
 
 if __name__ == "__main__":
     lang = sys.argv[1]
-    steps = sys.argv[2:] or STEPS
+    steps = sys.argv[2:]
+    if not steps:
+        steps = ["setlang"] + STEPS
     t = TEXT[lang]
     for s in steps:
-        globals()["step_" + s](lang, t)
+        fn = globals().get("step_" + s) or globals()["e3_" + s]
+        fn(lang, t)
     print("done", lang)
