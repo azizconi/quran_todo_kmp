@@ -8,10 +8,10 @@ Limitlar: nom 30, qisqa tavsif 80, to‘liq tavsif 4000, «Yangiliklar» 500. `c
 Quran Hifz: Qur’on yodlash
 
 ## Short description
-Har kunlik dars: yangi, yaqinda, eski. Takror — o‘z kunida.
+Qur’onni yodlang va unutmang: kunlik dars, mushaf, 12 qori. Bepul, reklamasiz.
 
 ## Full description
-Qur’onni har kuni yodlang — oz-ozdan va unutmasdan.
+Qur’onni har kuni yodlang — oz-ozdan, har bir takror o‘z kunida, unutmasdan. Hammasi bepul: reklamasiz va obunasiz.
 
 Quran Hifz har kuni bitta tushunarli dars beradi va yodlaganlaringizni unutishingizdan oldin qaytaradi. O‘zi o‘rganayotganlar, ustoz huzurida o‘qiyotganlar va shunchaki Qur’onga qaytayotganlar uchun.
 

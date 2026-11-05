@@ -8,10 +8,10 @@ Sınırlar: başlık 30, kısa açıklama 80, tam açıklama 4000, «Yenilikler�
 Quran Hifz: Kur’an Ezberle
 
 ## Short description
-Her gün hazır ders: yeni, yakın, eski. Tekrar tam zamanında.
+Kur’an’ı ezberle, unutma: günün dersi, mushaf, 12 kâri. Ücretsiz, reklamsız.
 
 ## Full description
-Kur’an’ı her gün ezberleyin — azar azar ve unutmadan.
+Kur’an’ı her gün ezberleyin — azar azar, her tekrar tam zamanında, unutmadan. Her şey ücretsiz: reklam ve abonelik yok.
 
 Quran Hifz size her gün tek ve anlaşılır bir ders verir, öğrendiklerinizi unutmadan önce geri getirir. Kendi başına ezberleyenler, hocasının yanında okuyanlar ve Kur’an’a yeniden dönenler için.
 

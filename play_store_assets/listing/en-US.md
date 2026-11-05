@@ -6,10 +6,10 @@ Limits: title 30, short description 80, full description 4000, what's new 500. C
 Quran Hifz: Memorize Quran
 
 ## Short description
-A ready Quran memorization lesson every day, with reviews on the right day.
+Memorize the Quran and keep it: daily lesson, mushaf, 12 reciters. Free, no ads.
 
 ## Full description
-Memorize the Quran every day — a little at a time, and never forget it.
+Memorize the Quran every day — a little at a time, each review on the right day, so nothing is forgotten. Everything is free: no ads, no subscription.
 
 Quran Hifz gives you one clear lesson a day and brings back what you know before you forget it. For people who learn on their own, with a teacher, or are returning to the Quran.
 
