@@ -5,17 +5,17 @@
 Sınırlar: başlık 30, kısa açıklama 80, tam açıklama 4000, «Yenilikler» 500. `check_listing.py` denetler.
 
 ## Title
-Quran Hifz: Kur’an Ezberle
+Quran Hifz: Kuran Ezberleme
 
 ## Short description
-Kur’an’ı ezberle, unutma: günün dersi, mushaf, 12 kâri. Ücretsiz, reklamsız.
+Kuran ezberle, unutma: hafızlık için günün dersi, tekrar, mushaf, 12 kâri.
 
 ## Full description
-Kur’an’ı her gün ezberleyin — azar azar, her tekrar tam zamanında, unutmadan. Her şey ücretsiz: reklam ve abonelik yok.
+Quran Hifz bir Kuran ezberleme uygulamasıdır: Kur’an’ı her gün azar azar ezberleyin, her tekrar tam zamanında, unutmadan. İnternetsiz çalışır.
 
-Quran Hifz size her gün tek ve anlaşılır bir ders verir, öğrendiklerinizi unutmadan önce geri getirir. Kendi başına ezberleyenler, hocasının yanında okuyanlar ve Kur’an’a yeniden dönenler için.
+Her gün tek ve anlaşılır bir hıfz dersi; öğrendikleriniz unutulmadan geri gelir. Hafızlık yolunda olanlar, Amme cüzünü ezberleyenler, hocasının yanında okuyanlar ve Kur’an’a yeniden dönenler için.
 
-GÜNÜN DERSİ
+GÜNÜN HIFZ DERSİ
 Uygulamayı açın — ders hazır, geleneksel sırayla:
 • Yeni — bugün için kısa bir bölüm. Dinleyin, okuyun ve ezberden hatırlayın.
 • Yakın zamanda — son günlerin ve haftaların bölümleri; basamak basamak tekrarlanır: 1, 3, 7, 14 ve 30 gün sonra.
@@ -31,7 +31,7 @@ Saati kendiniz seçersiniz. Bugünün dersi yapıldıysa hatırlatma gelmez. Has
 OKUYUN VE DİNLEYİN
 • İki okuma biçimi: metin ve basılı Kur’an gibi mushaf sayfaları (604 sayfa, 15 satır); okunan ayet vurgulanır.
 • Cüz, hizb ve sayfa işaretleri, büyük yazı tipi, üç tema.
-• 12 kâri; aralarında Mişari el-Afasi, Sudeys, Şureym, el-Husari ve Abdülbasit var. Ezber için el-Husari’nin yavaş kaydı da bulunur.
+• Kuran dinle: 12 kâri; aralarında Mişari el-Afasi, Sudeys, Şureym, el-Husari ve Abdülbasit var. Ezber için el-Husari’nin yavaş kaydı da bulunur.
 • Kâri okurken o anki kelime vurgulanır. Kelimeye dokunun, ses oradan başlasın.
 • Bölümü tekrarlama ve «yankı» modu: kâri okur, sonra sıra sizde. Ekran kapalıyken ses çalmaya devam eder.
 • Tecvid: okuma kuralları renkle gösterilir, altta açıklama vardır.
@@ -62,7 +62,7 @@ HATİM, RAMAZAN VE WİDGET
 • Ana ekrandaki widget bugünün dersini ve serinizi gösterir.
 
 VERİLERİNİZ SİZİN
-• Her şey ücretsiz: hesap yok, abonelik yok, reklam yok.
+• Hesap gerekmez.
 • Anonim istatistikler ve çökme raporları hataları bulmaya yardım eder; uygulamadan kapatabilirsiniz.
 • İlerlemenizi başka bir telefona dosya ile taşıyın. Bulut senkronizasyonu yoktur.
 
@@ -79,4 +79,3 @@ Quran Hifz 2.0 — büyük güncelleme
 • Kendinizi sınayın: sınavlar, benzer ayetler, kendi kıraatinizin kaydı
 • Meal seçimi ve ayetin yanında tefsir
 • Ayrıntılı ilerleme, hocanız için rapor, Ramazan hatmi ve widget
-Her şey ücretsiz: reklam, abonelik ve hesap yok.

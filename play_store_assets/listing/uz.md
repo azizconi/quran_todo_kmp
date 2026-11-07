@@ -8,10 +8,10 @@ Limitlar: nom 30, qisqa tavsif 80, to‘liq tavsif 4000, «Yangiliklar» 500. `c
 Quran Hifz: Qur’on yodlash
 
 ## Short description
-Qur’onni yodlang va unutmang: kunlik dars, mushaf, 12 qori. Bepul, reklamasiz.
+Qur’onni yodlang va unutmang: kunlik dars, takror, mushaf va 12 qori.
 
 ## Full description
-Qur’onni har kuni yodlang — oz-ozdan, har bir takror o‘z kunida, unutmasdan. Hammasi bepul: reklamasiz va obunasiz.
+Qur’onni har kuni yodlang — oz-ozdan, har bir takror o‘z kunida, unutmasdan.
 
 Quran Hifz har kuni bitta tushunarli dars beradi va yodlaganlaringizni unutishingizdan oldin qaytaradi. O‘zi o‘rganayotganlar, ustoz huzurida o‘qiyotganlar va shunchaki Qur’onga qaytayotganlar uchun.
 
@@ -62,7 +62,7 @@ XATM, RAMAZON VA VIDJET
 • Asosiy ekrandagi vidjet bugungi dars va seriyani ko‘rsatadi.
 
 MA’LUMOTLARINGIZ — O‘ZINGIZNIKI
-• Hammasi bepul: akkauntsiz, obunasiz, reklamasiz.
+• Akkaunt kerak emas.
 • Anonim statistika va nosozlik hisobotlari xatolarni topishga yordam beradi; ularni ilovada o‘chirib qo‘yish mumkin.
 • Natijalarni boshqa telefonga fayl orqali ko‘chiring. Bulutli sinxronlash yo‘q.
 
@@ -79,4 +79,3 @@ Quran Hifz 2.0 — katta yangilanish
 • O‘zingizni tekshiring: testlar, o‘xshash oyatlar, o‘z qiroatingizni yozib olish
 • Tarjimani tanlang, tafsir esa oyat yonida
 • Batafsil natija, ustoz uchun hisobot, Ramazon xatmi va vidjet
-Hammasi bepul: reklamasiz, obunasiz va akkauntsiz.

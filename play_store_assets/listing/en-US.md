@@ -3,18 +3,18 @@
 Limits: title 30, short description 80, full description 4000, what's new 500. Checked by `check_listing.py`.
 
 ## Title
-Quran Hifz: Memorize Quran
+Quran Hifz: Memorization Plan
 
 ## Short description
-Memorize the Quran and keep it: daily lesson, mushaf, 12 reciters. Free, no ads.
+Quran memorization made steady: daily hifz lesson, review, mushaf, 12 reciters.
 
 ## Full description
-Memorize the Quran every day — a little at a time, each review on the right day, so nothing is forgotten. Everything is free: no ads, no subscription.
+Quran Hifz is a Quran memorization app: memorize the Quran a little every day, review each passage on the right day, and keep what you learned. Works offline.
 
-Quran Hifz gives you one clear lesson a day and brings back what you know before you forget it. For people who learn on their own, with a teacher, or are returning to the Quran.
+One clear hifz lesson a day, and what you know comes back before you forget it. For those on the way to becoming a hafiz, memorizing Juz Amma, learning with a teacher, or returning to the Quran.
 
-LESSON OF THE DAY
-Open the app and the lesson is ready, in the traditional order:
+DAILY HIFZ LESSON
+The lesson is ready, in the traditional order of sabaq, sabqi and manzil:
 • New — a short passage to learn today. Listen, read, then recall it from memory.
 • Recent — passages from the last days and weeks, repeated on a ladder: +1, +3, +7, +14 and +30 days.
 • Old — the passages you know well, passed in a circle so that nothing is lost.
@@ -35,7 +35,7 @@ Pick the time yourself. If today's lesson is already done, the reminder does not
 READ AND LISTEN
 • Two ways to read: text, and mushaf pages like the printed Quran (604 pages, 15 lines), with the current ayah highlighted.
 • Juz, Hizb and page marks, a large font, three themes.
-• 12 reciters, including Mishary Alafasy, Sudais, Shuraym, Husary and Abdul Basit. A slow Husary recording is made for memorizing.
+• Quran audio from 12 reciters, including Mishary Alafasy, Sudais, Shuraym, Husary and Abdul Basit. A slow Husary recording is made for memorizing.
 • While the reciter reads, the current word is highlighted. Tap a word and the audio starts from it.
 • Repeat a passage, or echo mode: the reciter reads, then it is your turn. Audio plays with the screen off.
 • Tajweed rules in colour, with a legend.
@@ -47,8 +47,8 @@ UNDERSTAND
 • Search in a translation downloaded whole.
 • Similar ayahs: a mark on the ayah and a list with the difference highlighted.
 
-WORKS WITHOUT INTERNET
-The Arabic text is inside the app. Audio and translations can be downloaded ahead in "Downloads and storage" (Wi-Fi only option).
+QURAN OFFLINE
+The Arabic text is inside the app, no internet needed. Audio and translations can be downloaded ahead in "Downloads and storage" (Wi-Fi only option).
 
 HONEST PROGRESS
 Day streak, 30-day activity, a map of the whole Quran and progress by juz. In the "In detail" section: how well you remember each surah and juz, a calendar of the year, a forecast for the surahs of your plan and your hardest places.
@@ -60,7 +60,7 @@ KHATM, RAMADAN AND WIDGET
 • A home screen widget shows today's lesson and your streak.
 
 YOUR DATA IS YOURS
-• Everything is free: no account, no subscription, no ads.
+• No account needed.
 • Anonymous statistics and crash reports help us find bugs; you can switch them off in the app.
 • Move your progress to another phone through a file. There is no cloud sync.
 
@@ -77,4 +77,3 @@ Quran Hifz 2.0 — a big update
 • Check yourself: quizzes, similar ayahs, record your own recitation
 • Choose your translation and read tafsir right by the ayah
 • Detailed progress, a report for your teacher, Ramadan khatm and a widget
-Everything is free: no ads, no subscription, no account.
