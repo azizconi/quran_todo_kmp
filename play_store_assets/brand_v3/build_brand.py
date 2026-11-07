@@ -216,11 +216,11 @@ PAL = {
 }
 WORD = {"ru": "Хифз", "en": "Hifz", "tr": "Hıfz", "tg": "Ҳифз", "uz": "Hifz"}
 SUB = {
-    "ru": ("Коран наизусть —", "бесплатно, без рекламы."),
-    "en": ("Memorize the Quran —", "free, no ads."),
-    "tr": ("Kur’an’ı ezberleyin —", "ücretsiz, reklamsız."),
-    "tg": ("Қуръонро аз ёд кунед —", "ройгон, бе реклама."),
-    "uz": ("Qur’onni yodlang —", "bepul, reklamasiz."),
+    "ru": ("Коран наизусть —", "урок на каждый день."),
+    "en": ("Memorize the Quran —", "one lesson a day."),
+    "tr": ("Kur’an’ı ezberleyin —", "her gün bir ders."),
+    "tg": ("Қуръонро аз ёд кунед —", "ҳар рӯз як дарс."),
+    "uz": ("Qur’onni yodlang —", "har kuni bir dars."),
 }
 LOCALES = {"ru": "ru-RU", "en": "en-US", "tr": "tr-TR", "tg": "tg", "uz": "uz"}
 RES = ROOT.parent / "composeApp" / "src" / "androidMain" / "res"
