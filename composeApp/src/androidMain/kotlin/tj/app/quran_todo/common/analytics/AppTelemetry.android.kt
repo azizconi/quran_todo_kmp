@@ -1,58 +1,81 @@
 package tj.app.quran_todo.common.analytics
 
+import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import java.util.concurrent.atomic.AtomicBoolean
 import tj.app.quran_todo.common.platform.AndroidContextHolder
+import tj.app.quran_todo.common.platform.PendingCalls
+import tj.app.quran_todo.ui.state.UiPrefs
 
+/**
+ * Firebase Analytics and Crashlytics behind the person's choice ("Anonymous statistics and crash
+ * reports" in the settings, [UiPrefs.analyticsEnabled], on by default). Every call goes through a
+ * [TelemetryGate]: while the choice is off nothing is sent and the SDK collection is switched off.
+ *
+ * A debuggable build never sends anything to Firebase, so the production project shows only real users: the events go to
+ * Logcat instead (tag `AppTelemetry`), and the SDK collection is switched off at start. The manifest placeholders of the debug
+ * build type deactivate both SDKs before this code runs.
+ *
+ * In a release build both SDKs start switched off too (manifest: `firebase_analytics_collection_enabled=false`,
+ * `firebase_crashlytics_collection_enabled=false`). [initialize] reads the stored choice and only a "yes" switches them on
+ * (`setAnalyticsCollectionEnabled(true)`, `setCrashlyticsCollectionEnabled(true)`), so before that nothing is sent for anyone. A crash
+ * in that short window is not sent: Crashlytics keeps its report on the device, and it is uploaded at the next start if the choice
+ * is "yes" by then (with "no" it is deleted: deleteUnsentReports()).
+ */
 actual object AppTelemetry {
-    @Volatile
-    private var initialized = false
+    private val gate: TelemetryGate by lazy {
+        // No application context (local unit tests) counts as debug: nothing can reach Firebase.
+        val debuggable = runCatching { isDebuggable(AndroidContextHolder.context) }.getOrDefault(true)
+        TelemetryGate(if (debuggable) LogcatTelemetrySink() else FirebaseTelemetrySink())
+    }
 
+    // Calls made before the stored choice is applied wait here (see initialize): nothing is sent before the choice is known.
+    private val pending = PendingCalls()
+    private val started = AtomicBoolean(false)
+
+    /**
+     * Starts Firebase and applies the stored choice, on a worker thread: the choice is read from the SharedPreferences file, which is
+     * disk work. Events logged meanwhile (the first screen) are kept and sent, or dropped, once the choice is applied.
+     */
     actual fun initialize() {
-        if (initialized) return
-        runCatching {
-            FirebaseApp.initializeApp(AndroidContextHolder.context)
-            analytics()?.setAnalyticsCollectionEnabled(true)
-            crashlytics()?.setCrashlyticsCollectionEnabled(true)
-            initialized = true
+        if (!started.compareAndSet(false, true)) return
+        val context = AndroidContextHolder.context
+        Thread({
+            try {
+                // The choice is stored by UiPrefs; Koin is not started yet, so it is read directly.
+                val consent = runCatching { UiPrefs.readAnalyticsEnabled(context) }.getOrDefault(true)
+                runCatching { FirebaseApp.initializeApp(context) }
+                    .onFailure { error -> Log.e(TAG, "Telemetry initialization failed", error) }
+                if (isDebuggable(context)) FirebaseTelemetrySink().setCollectionEnabled(false)
+                // The stored choice, not a change: the gate follows it before anything can be logged.
+                gate.restore(consent)
+            } finally {
+                pending.open()
+            }
             logEvent("telemetry_initialized")
-        }.onFailure { error ->
-            Log.e(tag, "Telemetry initialization failed", error)
-        }
+        }, "telemetry-init").start()
+    }
+
+    /**
+     * Android only: applies the person's choice. Off stops all collection at once (events, crash
+     * reports) and clears what the analytics SDK stored on the device.
+     */
+    fun setEnabled(enabled: Boolean) {
+        runCatching { gate.setEnabled(enabled) }
+            .onFailure { error -> Log.e(TAG, "Could not change telemetry collection", error) }
     }
 
     actual fun logScreen(screenName: String, params: Map<String, String>) {
-        val normalizedScreen = normalizeName(screenName, fallback = "screen")
-        runCatching {
-            val bundle = Bundle().apply {
-                putString(FirebaseAnalytics.Param.SCREEN_NAME, normalizedScreen)
-                putString(FirebaseAnalytics.Param.SCREEN_CLASS, "Compose")
-                params
-                    .entries
-                    .take(maxParams)
-                    .forEach { (key, value) ->
-                        putString(
-                            normalizeName(key, fallback = "param"),
-                            value.take(maxParamValueLength)
-                        )
-                    }
-            }
-            analytics()?.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW, bundle)
-        }.onFailure { error ->
-            Log.e(tag, "Screen event failed: $screenName", error)
-        }
+        pending.submit { gate.logScreen(screenName, params) }
     }
 
     actual fun logEvent(name: String, params: Map<String, String>) {
-        val eventName = normalizeName(name, fallback = "event")
-        runCatching {
-            analytics()?.logEvent(eventName, bundleFrom(params))
-        }.onFailure { error ->
-            Log.e(tag, "Event failed: $name", error)
-        }
+        pending.submit { gate.logEvent(name, params) }
     }
 
     actual fun logError(
@@ -60,74 +83,97 @@ actual object AppTelemetry {
         context: String?,
         params: Map<String, String>,
     ) {
+        pending.submit { gate.logError(throwable, context, params) }
+    }
+
+    private fun isDebuggable(context: Context): Boolean =
+        context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+
+    private const val TAG = "AppTelemetry"
+}
+
+/** Debug builds: the events are written to Logcat and never leave the device. */
+private class LogcatTelemetrySink : TelemetrySink {
+    override fun setCollectionEnabled(enabled: Boolean) = Unit
+
+    override fun clearStoredData() = Unit
+
+    override fun logEvent(name: String, params: Map<String, String>) {
+        Log.d(TAG, "event $name $params")
+    }
+
+    override fun logScreen(screenName: String, params: Map<String, String>) {
+        Log.d(TAG, "screen $screenName $params")
+    }
+
+    override fun recordError(throwable: Throwable, context: String?, params: Map<String, String>) {
+        Log.w(TAG, "error context=$context $params", throwable)
+    }
+
+    private companion object {
+        const val TAG = "AppTelemetry"
+    }
+}
+
+/** The real destination: Firebase. Every name and value reaching it was cleaned by the [TelemetryGate]. */
+private class FirebaseTelemetrySink : TelemetrySink {
+    override fun setCollectionEnabled(enabled: Boolean) {
+        runCatching {
+            analytics()?.setAnalyticsCollectionEnabled(enabled)
+            crashlytics()?.setCrashlyticsCollectionEnabled(enabled)
+            // A report saved while collection was off must not be sent when the person turns it on later.
+            if (!enabled) crashlytics()?.deleteUnsentReports()
+        }.onFailure { error -> Log.e(TAG, "Setting collection failed", error) }
+    }
+
+    override fun clearStoredData() {
+        runCatching { analytics()?.resetAnalyticsData() }
+            .onFailure { error -> Log.e(TAG, "Clearing analytics data failed", error) }
+    }
+
+    override fun logEvent(name: String, params: Map<String, String>) {
+        runCatching { analytics()?.logEvent(name, bundleOf(params)) }
+            .onFailure { error -> Log.e(TAG, "Event failed: $name", error) }
+    }
+
+    override fun logScreen(screenName: String, params: Map<String, String>) {
+        runCatching {
+            val bundle = bundleOf(params).apply {
+                putString(FirebaseAnalytics.Param.SCREEN_NAME, screenName)
+                putString(FirebaseAnalytics.Param.SCREEN_CLASS, "Compose")
+            }
+            analytics()?.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW, bundle)
+        }.onFailure { error -> Log.e(TAG, "Screen event failed: $screenName", error) }
+    }
+
+    override fun recordError(throwable: Throwable, context: String?, params: Map<String, String>) {
         runCatching {
             crashlytics()?.let { crash ->
                 context?.let { crash.log("context=$it") }
-                params
-                    .entries
-                    .take(maxParams)
-                    .forEach { (key, value) ->
-                        crash.setCustomKey(
-                            normalizeName(key, fallback = "key"),
-                            value.take(maxParamValueLength)
-                        )
-                    }
+                params.forEach { (key, value) -> crash.setCustomKey(key, value) }
                 crash.recordException(throwable)
             }
             logEvent(
                 name = "non_fatal_error",
                 params = mapOf(
                     "context" to (context ?: "unknown"),
-                    "type" to (throwable::class.simpleName ?: "Throwable")
-                ) + params
+                    "type" to (throwable::class.simpleName ?: "Throwable"),
+                ) + params,
             )
-        }.onFailure { error ->
-            Log.e(tag, "Error event failed", error)
-        }
+        }.onFailure { error -> Log.e(TAG, "Error event failed", error) }
     }
 
-    private fun bundleFrom(params: Map<String, String>): Bundle {
-        val bundle = Bundle()
-        params
-            .entries
-            .take(maxParams)
-            .forEach { (key, value) ->
-                bundle.putString(
-                    normalizeName(key, fallback = "param"),
-                    value.take(maxParamValueLength)
-                )
-            }
-        return bundle
+    private fun bundleOf(params: Map<String, String>): Bundle = Bundle().apply {
+        params.forEach { (key, value) -> putString(key, value) }
     }
 
-    private fun analytics(): FirebaseAnalytics? {
-        return runCatching { FirebaseAnalytics.getInstance(AndroidContextHolder.context) }.getOrNull()
-    }
+    private fun analytics(): FirebaseAnalytics? =
+        runCatching { FirebaseAnalytics.getInstance(AndroidContextHolder.context) }.getOrNull()
 
-    private fun crashlytics(): FirebaseCrashlytics? {
-        return runCatching { FirebaseCrashlytics.getInstance() }.getOrNull()
-    }
+    private fun crashlytics(): FirebaseCrashlytics? =
+        runCatching { FirebaseCrashlytics.getInstance() }.getOrNull()
 
-    private fun normalizeName(raw: String, fallback: String): String {
-        val cleaned = raw
-            .trim()
-            .lowercase()
-            .replace(invalidNameRegex, "_")
-            .replace(doubleUnderscoreRegex, "_")
-            .trim('_')
-            .ifBlank { fallback }
-        val withPrefix = if (cleaned.firstOrNull()?.isDigit() == true) {
-            "e_$cleaned"
-        } else {
-            cleaned
-        }
-        return withPrefix.take(maxNameLength)
+    private companion object {
+        const val TAG = "AppTelemetry"
     }
-
-    private const val tag = "AppTelemetry"
-    private const val maxNameLength = 40
-    private const val maxParamValueLength = 100
-    private const val maxParams = 25
-    private val invalidNameRegex = Regex("[^a-zA-Z0-9_]")
-    private val doubleUnderscoreRegex = Regex("_+")
 }

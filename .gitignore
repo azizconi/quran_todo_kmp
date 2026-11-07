@@ -16,3 +16,11 @@ captures
 !*.xcodeproj/project.xcworkspace/
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
+.claude/worktrees/
+
+# Release signing keys and build artifacts: never commit (see docs/RELEASE.md)
+*.jks
+*.keystore
+*.aab
+*.apk
+composeApp/release/

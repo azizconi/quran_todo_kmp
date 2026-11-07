@@ -47,4 +47,14 @@ expect object UserSettingsStorage {
     fun saveReviewStateJson(value: String)
     fun isFeatureGuideSeen(): Boolean?
     fun saveFeatureGuideSeen(seen: Boolean)
+    fun getReaderPracticeJson(): String?
+    fun saveReaderPracticeJson(value: String)
+    /** The chosen translation per language of the interface (F4a): JSON `{"ru":"ru.abuadel"}`. */
+    fun getTranslationChoiceJson(): String?
+    fun saveTranslationChoiceJson(value: String)
+    /** The version of every translation stored whole (F4a): JSON `{"qe:tajik_arifi":"1.0.2"}`. */
+    fun getTranslationVersionsJson(): String?
+    fun saveTranslationVersionsJson(value: String)
+    fun isPlayerGuideSeen(feature: String = "all"): Boolean?
+    fun savePlayerGuideSeen(seen: Boolean, feature: String = "all")
 }

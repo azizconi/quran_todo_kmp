@@ -7,6 +7,7 @@ class GetAyahTranslationsUseCase(private val repository: QuranReferenceRepositor
     suspend operator fun invoke(
         surahNumber: Int,
         language: AppLanguage,
-        expectedCount: Int
-    ) = repository.getAyahTranslations(surahNumber, language, expectedCount)
+        expectedCount: Int,
+        force: Boolean = false,
+    ) = repository.getAyahTranslations(surahNumber, language, expectedCount, force)
 }

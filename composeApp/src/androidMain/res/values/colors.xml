@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- "bg" token of the redesign: warm paper by day, ink by night. Used behind the splash and the window. -->
+    <color name="qh_bg">#F6F3EC</color>
+    <!-- The widget picture in the list of widgets: the colors of the app (surface, ink). -->
+    <color name="widget_preview_surface">#FFFDF9</color>
+    <color name="widget_preview_ink">#16201C</color>
+    <color name="widget_preview_ink_secondary">#5D6862</color>
+</resources>

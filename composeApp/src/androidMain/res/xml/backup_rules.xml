@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Auto Backup for Android 11 and older (android:fullBackupContent).
+  The <include> list is a whitelist: only the Room database quran_todo.db with its write-ahead log
+  (progress, notes, statuses) and the SharedPreferences (settings) are backed up, except the
+  per-installation files of Firebase and Google Play services. Nothing else is: not filesDir, not the
+  caches and not the downloaded audio (it lives in noBackupFilesDir, which the system never backs up).
+  Keep this file in sync with data_extraction_rules.xml (Android 12 and newer) and docs/RELEASE.md.
+-->
+<full-backup-content>
+    <include domain="database" path="quran_todo.db" />
+    <include domain="database" path="quran_todo.db-wal" />
+    <include domain="sharedpref" path="." />
+
+    <!-- Firebase / Google Play services keep per-installation identifiers here: a restored copy would
+         give a new phone the old installation ID. -->
+    <exclude domain="sharedpref" path="com.google.android.gms.measurement.prefs.xml" />
+    <exclude domain="sharedpref" path="com.google.firebase.crashlytics.xml" />
+    <exclude domain="sharedpref" path="com.google.android.gms.appid.xml" />
+    <exclude domain="sharedpref" path="FirebaseAppHeartBeat.xml" />
+</full-backup-content>

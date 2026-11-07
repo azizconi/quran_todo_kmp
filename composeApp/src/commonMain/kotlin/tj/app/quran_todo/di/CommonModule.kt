@@ -3,6 +3,7 @@ package tj.app.quran_todo.di
 import org.koin.core.module.Module
 import org.koin.dsl.module
 import tj.app.quran_todo.data.database.QuranTodoDatabase
+import tj.app.quran_todo.data.remote.DataDebug
 import tj.app.quran_todo.data.repository.AyahTodoRepositoryImpl
 import tj.app.quran_todo.data.repository.QuranReferenceRepositoryImpl
 import tj.app.quran_todo.data.repository.QuranRemoteRepositoryImpl
@@ -11,12 +12,17 @@ import tj.app.quran_todo.domain.repository.AyahTodoRepository
 import tj.app.quran_todo.domain.repository.QuranReferenceRepository
 import tj.app.quran_todo.domain.repository.QuranRemoteRepository
 import tj.app.quran_todo.domain.repository.QuranTodoRepository
+import tj.app.quran_todo.hifz.EpochDayTicker
+import tj.app.quran_todo.hifz.HifzRepository
+import tj.app.quran_todo.hifz.HifzRepositoryImpl
 import tj.app.quran_todo.domain.use_case.AyahTodoDeleteByAyahUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoDeleteBySurahUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoGetAllUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoGetBySurahUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoGetBySurahOnceUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoUpsertUseCase
+import tj.app.quran_todo.data.translation.TranslationChoice
+import tj.app.quran_todo.data.translation.TranslationVersions
 import tj.app.quran_todo.domain.use_case.GetAyahTranslationsUseCase
 import tj.app.quran_todo.domain.use_case.GetChapterNamesUseCase
 import tj.app.quran_todo.domain.use_case.GetCompleteQuranUseCase
@@ -35,13 +41,29 @@ val commonModule = module {
     single { get<QuranTodoDatabase>().getChapterNameCacheDao() }
     single { get<QuranTodoDatabase>().getAyahTranslationDao() }
     single { get<QuranTodoDatabase>().getQuranDao() }
+    single { get<QuranTodoDatabase>().getProgressRestoreDao() }
+    single { get<QuranTodoDatabase>().getHifzDao() }
 
     // Repositories
     single<QuranTodoRepository> { QuranTodoRepositoryImpl(get()) }
-    single<QuranRemoteRepository> { QuranRemoteRepositoryImpl(get(), get()) }
+    // The Quran text is bundled with the app: no HTTP client needed.
+    single<QuranRemoteRepository> { QuranRemoteRepositoryImpl(dao = get(), debug = getOrNull<DataDebug>() ?: DataDebug.Off) }
     single<AyahTodoRepository> { AyahTodoRepositoryImpl(get()) }
-    single<QuranReferenceRepository> { QuranReferenceRepositoryImpl(get(), get(), get(), get()) }
+    single<QuranReferenceRepository> {
+        QuranReferenceRepositoryImpl(
+            client = get(),
+            chapterNameDao = get(),
+            chapterNameCacheDao = get(),
+            ayahTranslationDao = get(),
+            selection = TranslationChoice.selection,
+            versions = TranslationVersions.shared,
+            debug = getOrNull<DataDebug>() ?: DataDebug.Off,
+        )
+    }
 
+    // The passage-based memorization model (plan, lesson, review log). The only writer of its tables; the UI goes through it.
+    single { EpochDayTicker() }
+    single<HifzRepository> { HifzRepositoryImpl(db = get(), quran = get()) }
 
     // Use Cases
     single<TodoDeleteSurahUseCase> { TodoDeleteSurahUseCase(get()) }

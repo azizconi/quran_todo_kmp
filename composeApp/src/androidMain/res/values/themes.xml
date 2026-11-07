@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launch theme: shown by the system splash screen until MainActivity switches to Theme.QuranHifz. -->
+    <style name="Theme.QuranHifz.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/qh_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.QuranHifz</item>
+    </style>
+
+    <!-- Window theme: Compose draws the actual UI; this only fills the frames before it and behind the system bars. -->
+    <style name="Theme.QuranHifz" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/qh_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

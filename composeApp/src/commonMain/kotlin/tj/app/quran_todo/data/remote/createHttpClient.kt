@@ -9,15 +9,22 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
-fun createHttpClient(engine: HttpClientEngine): HttpClient {
+/**
+ * The shared HTTP client. [debug] comes from the platform DI: in debug builds request lines and statuses are
+ * logged ([LogLevel.INFO]; never headers or bodies, a response can be a whole surah of text); in release
+ * builds the client logs nothing.
+ */
+fun createHttpClient(engine: HttpClientEngine, debug: Boolean = false): HttpClient {
     return HttpClient(engine) {
         install(HttpTimeout) {
             requestTimeoutMillis = 60000
             connectTimeoutMillis = 30000
             socketTimeoutMillis = 30000
         }
-        install(Logging) {
-            level = LogLevel.ALL
+        if (debug) {
+            install(Logging) {
+                level = LogLevel.INFO
+            }
         }
         install(ContentNegotiation) {
             json(Json {
@@ -29,4 +36,3 @@ fun createHttpClient(engine: HttpClientEngine): HttpClient {
         }
     }
 }
-

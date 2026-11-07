@@ -3,12 +3,14 @@ package tj.app.quran_todo.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.ktor.util.date.getTimeMillis
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.launch
@@ -34,6 +36,7 @@ import tj.app.quran_todo.data.database.dao.AyahNoteDao
 import tj.app.quran_todo.data.database.dao.AyahTodoDao
 import tj.app.quran_todo.data.database.dao.AyahReviewDao
 import tj.app.quran_todo.data.database.dao.FocusSessionDao
+import tj.app.quran_todo.data.database.dao.ProgressRestoreDao
 import tj.app.quran_todo.data.database.dao.SurahTodoDao
 import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoEntity
@@ -125,6 +128,7 @@ class HomeViewModel(
     private val ayahTodoDeleteBySurahUseCase: AyahTodoDeleteBySurahUseCase,
     private val getChapterNamesUseCase: GetChapterNamesUseCase,
     ayahTodoGetAllUseCase: AyahTodoGetAllUseCase,
+    private val progressRestoreDao: ProgressRestoreDao,
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -141,42 +145,50 @@ class HomeViewModel(
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     init {
-        _uiState.value = _uiState.value.copy(
-            weakAyahKeys = weakAyahKeySet(),
-            syncProviderLabel = CloudSyncStorage.providerLabel(),
-            hasCloudSnapshot = CloudSyncStorage.loadSnapshot() != null
-        )
+        val initialWeakAyahKeys = weakAyahKeySet()
+        val initialSyncProviderLabel = CloudSyncStorage.providerLabel()
+        val initialHasCloudSnapshot = CloudSyncStorage.loadSnapshot() != null
+        _uiState.update {
+            it.copy(
+                weakAyahKeys = initialWeakAyahKeys,
+                syncProviderLabel = initialSyncProviderLabel,
+                hasCloudSnapshot = initialHasCloudSnapshot
+            )
+        }
 
         viewModelScope.launch(Dispatchers.IO) {
             val list = parseSurahList()
-            _uiState.value = _uiState.value.copy(surahList = list)
+            _uiState.update { it.copy(surahList = list) }
         }
 
         viewModelScope.launch {
             todoGetSurahListUseCase().collect { list ->
                 val confirmedStatuses = list.associate { it.surahNumber to it.status }
-                val pending = _uiState.value.pendingSurahStatuses.filter { (surahNumber, pendingStatus) ->
-                    confirmedStatuses[surahNumber] != pendingStatus.status
+                _uiState.update { state ->
+                    state.copy(
+                        todoSurahs = list,
+                        pendingSurahStatuses = state.pendingSurahStatuses.filter { (surahNumber, pendingStatus) ->
+                            confirmedStatuses[surahNumber] != pendingStatus.status
+                        },
+                    )
                 }
-                _uiState.value = _uiState.value.copy(
-                    todoSurahs = list,
-                    pendingSurahStatuses = pending,
-                )
             }
         }
 
         viewModelScope.launch {
             ayahTodoGetAllUseCase().collect { list ->
                 val lastActivity = list.map { it.updatedAt }.filter { it > 0 }.maxOrNull()
-                _uiState.value = _uiState.value.copy(
-                    ayahTodos = list,
-                    lastActivityAt = lastActivity
-                )
+                _uiState.update {
+                    it.copy(
+                        ayahTodos = list,
+                        lastActivityAt = lastActivity
+                    )
+                }
                 viewModelScope.launch(Dispatchers.IO) {
                     val weakAyahs = ReviewStateStore.withExclusiveAccess {
                         weakAyahKeySet()
                     }
-                    _uiState.value = _uiState.value.copy(weakAyahKeys = weakAyahs)
+                    _uiState.update { it.copy(weakAyahKeys = weakAyahs) }
                     refreshDueReviews()
                 }
             }
@@ -192,7 +204,7 @@ class HomeViewModel(
         chapterNamesJob = viewModelScope.launch(Dispatchers.IO) {
             val names = getChapterNamesUseCase(language)
             if (lastChapterLanguage != language) return@launch
-            _uiState.value = _uiState.value.copy(chapterNames = names)
+            _uiState.update { it.copy(chapterNames = names) }
         }
     }
 
@@ -220,7 +232,7 @@ class HomeViewModel(
     }
 
     fun clearStatusUpdateError() {
-        _uiState.value = _uiState.value.copy(statusUpdateError = null)
+        _uiState.update { it.copy(statusUpdateError = null) }
     }
 
     fun setSurahStatus(surahNumber: Int, status: SurahTodoStatus?) {
@@ -237,12 +249,13 @@ class HomeViewModel(
                     latestSurahStatusRequestIds[surahNumber] = id
                 }
             }
-            val previous = _uiState.value
-            _uiState.value = previous.copy(
-                pendingSurahStatuses = previous.pendingSurahStatuses +
-                    (surahNumber to PendingSurahStatus(status, requestId)),
-                statusUpdateError = null,
-            )
+            _uiState.update { state ->
+                state.copy(
+                    pendingSurahStatuses = state.pendingSurahStatuses +
+                        (surahNumber to PendingSurahStatus(status, requestId)),
+                    statusUpdateError = null,
+                )
+            }
             val result = withContext(Dispatchers.IO) {
                 surahStatusMutationMutex.withLock {
                     if (latestSurahStatusRequestIds[surahNumber] != requestId) {
@@ -264,10 +277,12 @@ class HomeViewModel(
                 }
                 val pendingStatus = _uiState.value.pendingSurahStatuses[surahNumber]
                 if (isLatestRequest && pendingStatus?.requestId == requestId) {
-                    _uiState.value = _uiState.value.copy(
-                        pendingSurahStatuses = _uiState.value.pendingSurahStatuses - surahNumber,
-                        statusUpdateError = throwable.message ?: "Не удалось изменить статус суры",
-                    )
+                    _uiState.update {
+                        it.copy(
+                            pendingSurahStatuses = it.pendingSurahStatuses - surahNumber,
+                            statusUpdateError = throwable.message ?: "Не удалось изменить статус суры",
+                        )
+                    }
                     AppTelemetry.logError(
                         throwable = throwable,
                         context = "surah_status_update_failed",
@@ -314,7 +329,8 @@ class HomeViewModel(
                     ReviewQuality.EASY -> removeWeakAyah(surahNumber, ayahNumber)
                     ReviewQuality.GOOD -> Unit
                 }
-                _uiState.value = _uiState.value.copy(weakAyahKeys = weakAyahKeySet())
+                val weakAyahKeys = weakAyahKeySet()
+                _uiState.update { it.copy(weakAyahKeys = weakAyahKeys) }
                 refreshDueReviews()
             }
         }
@@ -340,12 +356,14 @@ class HomeViewModel(
                 val total = targets.sumOf { it.ayahs.size }
                 if (total <= 0) return@withLock
 
-                _uiState.value = _uiState.value.copy(
-                    offlineDownloadRunning = true,
-                    offlineDownloadDone = 0,
-                    offlineDownloadTotal = total,
-                    offlineDownloadStatus = "DOWNLOADING"
-                )
+                _uiState.update {
+                    it.copy(
+                        offlineDownloadRunning = true,
+                        offlineDownloadDone = 0,
+                        offlineDownloadTotal = total,
+                        offlineDownloadStatus = "DOWNLOADING"
+                    )
+                }
                 AppTelemetry.logEvent(
                     name = "home_offline_package_started",
                     params = mapOf(
@@ -378,18 +396,22 @@ class HomeViewModel(
                         if (cache.prefetch(url, cacheKey)) {
                             done += 1
                         }
-                        _uiState.value = _uiState.value.copy(
-                            offlineDownloadDone = done,
-                            offlineDownloadTotal = total
-                        )
+                        _uiState.update {
+                            it.copy(
+                                offlineDownloadDone = done,
+                                offlineDownloadTotal = total
+                            )
+                        }
                     }
                 }
 
                 val ready = done == total && translationFailures == 0
-                _uiState.value = _uiState.value.copy(
-                    offlineDownloadRunning = false,
-                    offlineDownloadStatus = if (ready) "READY" else "PARTIAL"
-                )
+                _uiState.update {
+                    it.copy(
+                        offlineDownloadRunning = false,
+                        offlineDownloadStatus = if (ready) "READY" else "PARTIAL"
+                    )
+                }
                 AppTelemetry.logEvent(
                     name = if (ready) {
                         "home_offline_package_completed"
@@ -428,7 +450,7 @@ class HomeViewModel(
     }
 
     fun consumeRestoredSettings() {
-        _uiState.value = _uiState.value.copy(restoredSettings = null)
+        _uiState.update { it.copy(restoredSettings = null) }
     }
 
     fun syncProgressToCloud(settings: AppSettings) {
@@ -487,19 +509,24 @@ class HomeViewModel(
                     }
                 )
                 CloudSyncStorage.saveSnapshot(json.encodeToString(snapshot))
-                _uiState.value = _uiState.value.copy(
-                    hasCloudSnapshot = true,
-                    lastSyncAt = snapshot.createdAt,
-                    syncStatusMessage = "Synced to ${CloudSyncStorage.providerLabel()}."
-                )
+                val providerLabel = CloudSyncStorage.providerLabel()
+                _uiState.update {
+                    it.copy(
+                        hasCloudSnapshot = true,
+                        lastSyncAt = snapshot.createdAt,
+                        syncStatusMessage = "Synced to $providerLabel."
+                    )
+                }
                 AppTelemetry.logEvent(
                     name = "home_cloud_sync_success",
                     params = mapOf("provider" to CloudSyncStorage.providerLabel())
                 )
             }.onFailure {
-                _uiState.value = _uiState.value.copy(
-                    syncStatusMessage = "Cloud sync failed."
-                )
+                _uiState.update {
+                    it.copy(
+                        syncStatusMessage = "Cloud sync failed."
+                    )
+                }
                 AppTelemetry.logError(
                     throwable = it,
                     context = "home_cloud_sync_failed",
@@ -517,10 +544,12 @@ class HomeViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val raw = CloudSyncStorage.loadSnapshot()
             if (raw.isNullOrBlank()) {
-                _uiState.value = _uiState.value.copy(
-                    hasCloudSnapshot = false,
-                    syncStatusMessage = "No cloud snapshot found."
-                )
+                _uiState.update {
+                    it.copy(
+                        hasCloudSnapshot = false,
+                        syncStatusMessage = "No cloud snapshot found."
+                    )
+                }
                 AppTelemetry.logEvent(
                     name = "home_cloud_restore_skipped",
                     params = mapOf("reason" to "snapshot_missing")
@@ -528,9 +557,8 @@ class HomeViewModel(
                 return@launch
             }
 
-            runCatching {
-                json.decodeFromString<ProgressSnapshot>(raw)
-            }.onSuccess { snapshot ->
+            try {
+                val snapshot = json.decodeFromString<ProgressSnapshot>(raw)
                 val surahTodos = snapshot.surahTodos.mapNotNull { item ->
                     runCatching {
                         SurahTodoEntity(
@@ -580,15 +608,14 @@ class HomeViewModel(
                 }
 
                 ReviewStateStore.withExclusiveAccess {
-                    surahTodoDao.clear()
-                    ayahTodoDao.clear()
-                    ayahReviewDao.clear()
-                    ayahNoteDao.clear()
-
-                    if (surahTodos.isNotEmpty()) surahTodoDao.upsertAll(surahTodos)
-                    if (ayahTodos.isNotEmpty()) ayahTodoDao.upsertAll(ayahTodos)
-                    if (ayahReviews.isNotEmpty()) ayahReviewDao.upsertAll(ayahReviews)
-                    if (ayahNotes.isNotEmpty()) ayahNoteDao.upsertAll(ayahNotes)
+                    // One database transaction: if anything fails, the previous progress stays as it was
+                    // and the preferences below are not touched.
+                    progressRestoreDao.replaceUserProgress(
+                        surahTodos = surahTodos,
+                        ayahTodos = ayahTodos,
+                        ayahReviews = ayahReviews,
+                        ayahNotes = ayahNotes,
+                    )
 
                     replaceAll(reviewMemoryStates)
                     UserSettingsStorage.saveWeakAyahKeys(snapshot.weakAyahKeys)
@@ -603,24 +630,40 @@ class HomeViewModel(
                 UserSettingsStorage.saveReadingFontSize(snapshot.settings.readingFontSize)
                 UserSettingsStorage.saveRecitationMetricsJson(snapshot.recitationMetricsJson ?: "")
 
-                _uiState.value = _uiState.value.copy(
-                    weakAyahKeys = snapshot.weakAyahKeys,
-                    hasCloudSnapshot = true,
-                    lastSyncAt = snapshot.createdAt,
-                    restoredSettings = snapshot.settings,
-                    syncStatusMessage = "Restored from ${CloudSyncStorage.providerLabel()}."
-                )
+                val providerLabel = CloudSyncStorage.providerLabel()
+                _uiState.update {
+                    it.copy(
+                        weakAyahKeys = snapshot.weakAyahKeys,
+                        hasCloudSnapshot = true,
+                        lastSyncAt = snapshot.createdAt,
+                        restoredSettings = snapshot.settings,
+                        syncStatusMessage = "Restored from $providerLabel."
+                    )
+                }
                 AppTelemetry.logEvent(
                     name = "home_cloud_restore_success",
-                    params = mapOf("provider" to CloudSyncStorage.providerLabel())
+                    params = mapOf("provider" to providerLabel)
                 )
-                refreshDueReviews()
-            }.onFailure {
-                _uiState.value = _uiState.value.copy(
-                    syncStatusMessage = "Cloud restore failed."
-                )
+                try {
+                    refreshDueReviews()
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    // The copy itself is restored; only the list of due reviews could not be refreshed.
+                    AppTelemetry.logError(throwable = error, context = "home_cloud_restore_refresh_failed")
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                // Reading, writing to the database and the preferences are all in this try: a damaged copy or a
+                // failed write becomes an error state, never a crash of the app.
+                _uiState.update {
+                    it.copy(
+                        syncStatusMessage = "Cloud restore failed."
+                    )
+                }
                 AppTelemetry.logError(
-                    throwable = it,
+                    throwable = error,
                     context = "home_cloud_restore_failed",
                     params = mapOf("provider" to CloudSyncStorage.providerLabel())
                 )
@@ -630,10 +673,13 @@ class HomeViewModel(
 
     private suspend fun refreshDueReviews() {
         val due = ayahReviewDao.getDue(getTimeMillis())
-        _uiState.value = _uiState.value.copy(
-            dueReviews = due,
-            currentEpochDay = currentLocalDate().toEpochDays()
-        )
+        val today = currentLocalDate().toEpochDays()
+        _uiState.update {
+            it.copy(
+                dueReviews = due,
+                currentEpochDay = today
+            )
+        }
     }
 
     private companion object {
@@ -650,26 +696,32 @@ class HomeViewModel(
             getCompleteQuranUseCase(withLocalAction).collect { result ->
                 when (result) {
                     is Resource.Loading -> {
-                        _uiState.value = _uiState.value.copy(
-                            quranLoadState = QuranLoadState.Loading,
-                        )
+                        _uiState.update {
+                            it.copy(
+                                quranLoadState = QuranLoadState.Loading,
+                            )
+                        }
                     }
                     is Resource.Success -> {
-                        _uiState.value = _uiState.value.copy(
-                            completeQuran = result.data,
-                            quranLoadState = QuranLoadState.Content,
-                        )
+                        _uiState.update {
+                            it.copy(
+                                completeQuran = result.data,
+                                quranLoadState = QuranLoadState.Content,
+                            )
+                        }
                         AppTelemetry.logEvent(
                             name = "home_quran_refresh_success",
                             params = mapOf("surah_count" to result.data.size.toString())
                         )
                     }
                     is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            quranLoadState = QuranLoadState.Error(
-                                result.errorMessage ?: "Unable to load Quran",
-                            ),
-                        )
+                        _uiState.update {
+                            it.copy(
+                                quranLoadState = QuranLoadState.Error(
+                                    result.errorMessage ?: "Unable to load Quran",
+                                ),
+                            )
+                        }
                         AppTelemetry.logEvent(
                             name = "home_quran_refresh_failed",
                             params = mapOf("message" to (result.errorMessage ?: "unknown"))
@@ -686,7 +738,7 @@ class HomeViewModel(
             name = "home_filter_changed",
             params = mapOf("filter" to (filter?.name?.lowercase() ?: "all"))
         )
-        _uiState.value = _uiState.value.copy(filter = filter)
+        _uiState.update { it.copy(filter = filter) }
     }
 
     fun toggleSelection(surahNumber: Int) {
@@ -696,11 +748,11 @@ class HomeViewModel(
         } else {
             current + surahNumber
         }
-        _uiState.value = _uiState.value.copy(selectedSurahNumbers = updated)
+        _uiState.update { it.copy(selectedSurahNumbers = updated) }
     }
 
     fun clearSelection() {
-        _uiState.value = _uiState.value.copy(selectedSurahNumbers = emptySet())
+        _uiState.update { it.copy(selectedSurahNumbers = emptySet()) }
     }
 
     fun markSelected(status: SurahTodoStatus) {
@@ -716,7 +768,7 @@ class HomeViewModel(
         selected.forEach { number ->
             setSurahStatus(number, status)
         }
-        _uiState.value = _uiState.value.copy(selectedSurahNumbers = emptySet())
+        _uiState.update { it.copy(selectedSurahNumbers = emptySet()) }
     }
 
     fun openSurahDetail(surahNumber: Int) {
@@ -727,13 +779,16 @@ class HomeViewModel(
         val surah = _uiState.value.completeQuran.firstOrNull {
             it.surah.number == surahNumber
         }
-        _uiState.value = _uiState.value.copy(selectedSurah = surah)
+        _uiState.update { it.copy(selectedSurah = surah) }
     }
 
     fun dismissSurahDetail() {
-        _uiState.value = _uiState.value.copy(
-            selectedSurah = null,
-            weakAyahKeys = weakAyahKeySet()
-        )
+        val weakAyahKeys = weakAyahKeySet()
+        _uiState.update {
+            it.copy(
+                selectedSurah = null,
+                weakAyahKeys = weakAyahKeys
+            )
+        }
     }
 }

@@ -31,3 +31,9 @@ dependencyResolutionManagement {
 }
 
 include(":composeApp")
+// F7 prototype (on-device voice check): debug builds only and only when asked for: -Pvoiceproto=true, or voiceproto=true in
+// local.properties / the user's gradle.properties. Off by default, so a normal build neither compiles whisper.cpp nor downloads it.
+val voiceprotoOn = (providers.gradleProperty("voiceproto").orNull
+    ?: File(rootDir, "local.properties").takeIf { it.isFile }?.readLines()
+        ?.firstOrNull { it.trim().startsWith("voiceproto=") }?.substringAfter("=")?.trim()) == "true"
+if (voiceprotoOn) include(":voiceproto")

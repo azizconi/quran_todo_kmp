@@ -1,0 +1,5 @@
+<resources>
+    <string name="widget_description">Lesson of the day. A short line about today’s new passage and repetitions; a tap opens the lesson.</string>
+    <string name="widget_preview_title">Today’s lesson · ~12 min</string>
+    <string name="widget_preview_detail">New: An-Naba 1–5 · 2 reviews</string>
+</resources>

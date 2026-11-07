@@ -1,0 +1,723 @@
+package tj.app.quran_todo.hifz
+
+import androidx.room.deferredTransaction
+import androidx.room.immediateTransaction
+import androidx.room.useReaderConnection
+import androidx.room.useWriterConnection
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import tj.app.quran_todo.data.bundled.QuranFacts
+import tj.app.quran_todo.data.database.QuranTodoDatabase
+import tj.app.quran_todo.data.database.entity.hifz.HifzMetaEntity
+import tj.app.quran_todo.data.database.entity.hifz.ReviewLogEntity
+import tj.app.quran_todo.domain.repository.QuranRemoteRepository
+import tj.app.quran_todo.hifz.backup.BackupData
+import tj.app.quran_todo.hifz.backup.BackupMapping
+import tj.app.quran_todo.hifz.backup.VerifiedBackup
+import tj.app.quran_todo.hifz.drill.HardDrill
+import tj.app.quran_todo.hifz.legacy.LegacyImport
+import tj.app.quran_todo.hifz.legacy.LegacyInput
+import tj.app.quran_todo.hifz.model.HifzPlan
+import tj.app.quran_todo.hifz.model.HifzScope
+import tj.app.quran_todo.hifz.model.NewPassageResult
+import tj.app.quran_todo.hifz.model.Passage
+import tj.app.quran_todo.hifz.model.PassageStage
+import tj.app.quran_todo.hifz.model.PlanPause
+import tj.app.quran_todo.hifz.model.ReviewGrade
+import tj.app.quran_todo.hifz.model.ReviewKind
+import tj.app.quran_todo.hifz.model.ReviewLogEntry
+import tj.app.quran_todo.hifz.model.SurahCoverage
+import tj.app.quran_todo.hifz.model.SurahHifzStatus
+import tj.app.quran_todo.hifz.schedule.Coverage
+import tj.app.quran_todo.hifz.schedule.Forecast
+import tj.app.quran_todo.hifz.schedule.HifzConstants
+import tj.app.quran_todo.hifz.schedule.HifzStatuses
+import tj.app.quran_todo.hifz.schedule.LegacyMirror
+import tj.app.quran_todo.hifz.schedule.LessonBuilder
+import tj.app.quran_todo.hifz.schedule.LessonInput
+import tj.app.quran_todo.hifz.schedule.LessonPlan
+import tj.app.quran_todo.hifz.schedule.PassageOps
+import tj.app.quran_todo.hifz.schedule.PauseStep
+import tj.app.quran_todo.hifz.schedule.PlanForecast
+import tj.app.quran_todo.hifz.schedule.PlanPauses
+import tj.app.quran_todo.khatm.KhatmMath
+import tj.app.quran_todo.khatm.KhatmPlan
+import tj.app.quran_todo.khatm.KhatmProgress
+import tj.app.quran_todo.khatm.KhatmState
+import tj.app.quran_todo.khatm.KhatmStorage
+import tj.app.quran_todo.hifz.schedule.Streak
+import tj.app.quran_todo.hifz.schedule.TextMetrics
+
+/**
+ * [HifzRepository] on Room. Every write: take the mutex of the repository, open ONE writer transaction, read the state,
+ * compute the new one with the pure functions of `hifz/schedule`, write the difference (passages, difficult ayahs, the log,
+ * the plan) and the mirror in the old tables, commit. Nothing outside the transaction depends on what was read inside it.
+ */
+class HifzRepositoryImpl(
+    private val db: QuranTodoDatabase,
+    private val quran: QuranRemoteRepository,
+    private val legacySettings: HifzLegacySettings = PrefsHifzLegacySettings,
+    private val clock: () -> Long = { Clock.System.now().toEpochMilliseconds() },
+    private val zone: () -> TimeZone = { TimeZone.currentSystemDefault() },
+) : HifzRepository {
+    private val dao = db.getHifzDao()
+    private val writeMutex = Mutex()
+    private val metricsMutex = Mutex()
+    private var cachedMetrics: TextMetrics? = null
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Metrics
+    // ------------------------------------------------------------------------------------------------------------
+
+    /** The text metrics, read once from the table `ayahs` after the bundled text is made sure to be there. */
+    private suspend fun metrics(): TextMetrics {
+        cachedMetrics?.let { return it }
+        return metricsMutex.withLock {
+            cachedMetrics ?: run {
+                quran.ensureQuranInstalled()
+                val rows = dao.getMetricRows()
+                check(rows.size == QuranFacts.AYAH_COUNT) { "the database has ${rows.size} ayahs" }
+                TextMetrics.fromRows(rows).also { cachedMetrics = it }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Reads
+    // ------------------------------------------------------------------------------------------------------------
+
+    private fun <T> observe(vararg tables: String, load: suspend () -> T): Flow<T> =
+        db.invalidationTracker.createFlow(*tables)
+            .map { read(load) }
+            .distinctUntilChanged()
+
+    /**
+     * Like [observe] for results that need the text metrics. The metrics are read BEFORE the read transaction is opened:
+     * the very first call may have to write the bundled Quran text into the database.
+     */
+    private fun <T> observeWithMetrics(vararg tables: String, load: suspend (TextMetrics) -> T): Flow<T> =
+        db.invalidationTracker.createFlow(*tables)
+            .map {
+                val metrics = metrics()
+                read { load(metrics) }
+            }
+            .distinctUntilChanged()
+
+    /** Reads in one transaction, so that the tables a result is made of agree with each other. */
+    private suspend fun <T> read(load: suspend () -> T): T =
+        db.useReaderConnection { transactor -> transactor.deferredTransaction { load() } }
+
+    private suspend fun loadPassages(): List<Passage> = dao.getPassages().map { it.toDomain() }
+
+    private suspend fun loadPlan(): HifzPlan? = dao.getPlan()?.toDomain()
+
+    /** The stored pauses (task F2b): the current one and the history of the last 400 days. */
+    private suspend fun loadPauses(): List<PlanPause> = PlanPauses.decode(dao.getMeta(PlanPauses.META_KEY))
+
+    /**
+     * The day the new passages of [plan] are counted from for its forecast: the day it really started, which a pause moved away from
+     * `startedEpochDay` ([PlanPauses.BASE_START_KEY]). [saved] is the stored plan: a draft that moves the start has nothing to do with it.
+     */
+    private suspend fun learnedFromDay(plan: HifzPlan, saved: HifzPlan?): Int {
+        val base = dao.getMeta(PlanPauses.BASE_START_KEY)?.toIntOrNull()
+        return if (base != null && saved != null && plan.startedEpochDay == saved.startedEpochDay) {
+            minOf(base, plan.startedEpochDay)
+        } else {
+            plan.startedEpochDay
+        }
+    }
+
+    override fun lesson(today: Int): Flow<LessonPlan> = observeWithMetrics(PASSAGES, HARD, PLAN, LOG, META) { metrics ->
+        LessonBuilder.build(
+            LessonInput(
+                today = today,
+                plan = loadPlan(),
+                passages = loadPassages(),
+                todayLog = dao.getLog(today, today).map { it.toDomain() },
+                metrics = metrics,
+                pause = PlanPauses.covering(loadPauses(), today),
+            ),
+        )
+    }
+
+    override fun lesson(today: Flow<Int>): Flow<LessonPlan> =
+        today.distinctUntilChanged().flatMapLatest { lesson(it) }
+
+    override fun plan(): Flow<HifzPlan?> = observe(PLAN) { loadPlan() }
+
+    override fun forecast(today: Int): Flow<PlanForecast?> = observeWithMetrics(PASSAGES, PLAN, LOG, META) { metrics ->
+        val plan = loadPlan()
+        if (plan == null) {
+            null
+        } else {
+            val from = learnedFromDay(plan, plan)
+            val log = dao.getNewLogSince(from).map { it.toDomain() }
+            Forecast.compute(plan, Coverage(loadPassages(), metrics), log, today, PlanPauses.covering(loadPauses(), today), from)
+        }
+    }
+
+    override fun forecast(today: Flow<Int>): Flow<PlanForecast?> =
+        today.distinctUntilChanged().flatMapLatest { forecast(it) }
+
+    override fun forecast(plan: HifzPlan, today: Int): Flow<PlanForecast> = observeWithMetrics(PASSAGES, LOG, PLAN, META) { metrics ->
+        val from = learnedFromDay(plan, loadPlan())
+        val log = dao.getNewLogSince(from).map { it.toDomain() }
+        Forecast.compute(plan, Coverage(loadPassages(), metrics), log, today, PlanPauses.covering(loadPauses(), today), from)
+    }
+
+    override fun streak(today: Int): Flow<Int> = observe(LOG, META) { Streak.compute(dao.getLogDays(today), today, loadPauses()) }
+
+    override fun streak(today: Flow<Int>): Flow<Int> = today.distinctUntilChanged().flatMapLatest { streak(it) }
+
+    override fun pause(today: Int): Flow<PlanPause?> = observe(META) { PlanPauses.active(loadPauses(), today) }
+
+    override fun pause(today: Flow<Int>): Flow<PlanPause?> = today.distinctUntilChanged().flatMapLatest { pause(it) }
+
+    override fun khatm(): Flow<KhatmState?> = observe(META) { loadKhatm() }
+
+    private suspend fun loadKhatm(): KhatmState? = KhatmStorage.decode(
+        plan = dao.getMeta(KhatmStorage.PLAN_KEY),
+        page = dao.getMeta(KhatmStorage.PAGE_KEY),
+        days = dao.getMeta(KhatmStorage.DAYS_KEY),
+    )
+
+    private suspend fun storeKhatm(plan: KhatmPlan, progress: KhatmProgress) {
+        dao.upsertMeta(HifzMetaEntity(KhatmStorage.PLAN_KEY, KhatmStorage.encodePlan(plan)))
+        dao.upsertMeta(HifzMetaEntity(KhatmStorage.PAGE_KEY, progress.lastPage.toString()))
+        if (progress.readDays.isEmpty()) {
+            dao.deleteMeta(KhatmStorage.DAYS_KEY)
+        } else {
+            dao.upsertMeta(HifzMetaEntity(KhatmStorage.DAYS_KEY, KhatmStorage.encodeDays(progress.readDays)))
+        }
+    }
+
+    override suspend fun saveKhatm(plan: KhatmPlan, keepProgress: Boolean) {
+        write {
+            val kept = if (keepProgress) loadKhatm()?.progress else null
+            val progress = kept?.copy(lastPage = kept.lastPage.coerceIn(plan.startPage - 1, plan.endPage))
+                ?: KhatmMath.freshProgress(plan)
+            storeKhatm(plan, progress)
+        }
+    }
+
+    override suspend fun markKhatmPortionRead(today: Int) {
+        write {
+            val state = loadKhatm() ?: return@write
+            val progress = KhatmMath.markPortionRead(state, today) ?: return@write
+            storeKhatm(state.plan, progress)
+        }
+    }
+
+    override suspend fun markKhatmUpTo(page: Int, today: Int) {
+        write {
+            val state = loadKhatm() ?: return@write
+            storeKhatm(state.plan, KhatmMath.markUpTo(state, page, today))
+        }
+    }
+
+    override suspend fun clearKhatm() {
+        write { KhatmStorage.KEYS.forEach { dao.deleteMeta(it) } }
+    }
+
+    override fun surahStatuses(): Flow<Map<Int, SurahHifzStatus>> = observeWithMetrics(PASSAGES, PLAN) { metrics ->
+        HifzStatuses.all(loadPassages(), loadPlan(), metrics)
+    }
+
+    override fun coveredCounts(): Flow<Map<Int, Int>> = observeWithMetrics(PASSAGES) { metrics ->
+        val coverage = Coverage(loadPassages(), metrics)
+        val counts = LinkedHashMap<Int, Int>()
+        for (surah in 1..QuranFacts.SURAH_COUNT) {
+            val covered = coverage.coveredCount(surah)
+            if (covered > 0) counts[surah] = covered
+        }
+        counts
+    }
+
+    override fun coveredAyahs(): Flow<Map<Int, Set<Int>>> = observeWithMetrics(PASSAGES) { metrics ->
+        val coverage = Coverage(loadPassages(), metrics)
+        val ayahs = LinkedHashMap<Int, Set<Int>>()
+        for (surah in 1..QuranFacts.SURAH_COUNT) {
+            if (coverage.coveredCount(surah) > 0) ayahs[surah] = coverage.coveredAyahs(surah)
+        }
+        ayahs
+    }
+
+    override fun hardAyahs(): Flow<Map<Int, Set<Int>>> = observe(PASSAGES, HARD) { HifzStatuses.hardAyahs(loadPassages()) }
+
+    override fun surahCoverage(surah: Int): Flow<SurahCoverage> = observeWithMetrics(PASSAGES, HARD, PLAN) { metrics ->
+        HifzStatuses.surahCoverage(surah, loadPassages(), loadPlan(), metrics)
+    }
+
+    override fun reviewLog(fromDay: Int, toDay: Int): Flow<List<ReviewLogEntry>> = observe(LOG) {
+        dao.getLog(fromDay, toDay).map { it.toDomain() }
+    }
+
+    override fun listenLog(fromDay: Int, toDay: Int): Flow<List<ReviewLogEntry>> = observe(LOG) {
+        dao.getListenLog(fromDay, toDay).map { it.toDomain() }
+    }
+
+    override fun oldWeight(): Flow<Int> = observeWithMetrics(PASSAGES) { metrics ->
+        loadPassages().filter { it.stage == PassageStage.OLD }.sumOf { metrics.weight(it) }
+    }
+
+    override suspend fun estimateMinutes(surah: Int, startAyah: Int, endAyah: Int, isNew: Boolean): Int {
+        val metrics = metrics()
+        requireRange(metrics, surah, startAyah, endAyah)
+        val chars = metrics.chars(surah, startAyah, endAyah)
+        val seconds = if (isNew) HifzConstants.newSeconds(chars) else HifzConstants.reviewSeconds(chars)
+        return HifzConstants.minutes(seconds)
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Writes
+    // ------------------------------------------------------------------------------------------------------------
+
+    private suspend fun <T> write(block: suspend () -> T): T =
+        writeMutex.withLock {
+            db.useWriterConnection { transactor -> transactor.immediateTransaction { block() } }
+        }
+
+    override suspend fun completeNew(
+        surah: Int,
+        startAyah: Int,
+        endAyah: Int,
+        grade: ReviewGrade,
+        hardAyahs: Set<Int>,
+        today: Int,
+    ): NewPassageResult {
+        val metrics = metrics()
+        requireRange(metrics, surah, startAyah, endAyah)
+        return write {
+            val before = loadPassages()
+            val plan = loadPlan()
+            if (PassageOps.overlaps(before, surah, startAyah, endAyah)) return@write NewPassageResult.Overlaps
+            val created = PassageOps.newPassage(surah, startAyah, endAyah, hardAyahs, today)
+            val after = persist(before, before + created)
+            val id = after.last().id
+            insertLog(id, surah, startAyah, endAyah, ReviewKind.NEW, grade, today)
+            mirror(affectedSurahs(before, after, plan, plan, metrics), after, plan, metrics)
+            NewPassageResult.Created(id)
+        }
+    }
+
+    override suspend fun review(
+        passageId: Long,
+        grade: ReviewGrade,
+        hardAyahs: Set<Int>,
+        today: Int,
+    ): ReviewResult? {
+        val metrics = metrics()
+        return write {
+            val before = loadPassages()
+            val plan = loadPlan()
+            val outcome = PassageOps.review(before, passageId, grade, hardAyahs, today, metrics) ?: return@write null
+            val after = persist(before, outcome.passages)
+            val was = outcome.before
+            insertLog(passageId, was.surah, was.startAyah, was.endAyah, outcome.kind, grade, today)
+            mirror(affectedSurahs(before, after, plan, plan, metrics), after, plan, metrics)
+            val now = after.first { it.id == passageId }
+            ReviewResult(
+                passageId = passageId,
+                kind = outcome.kind,
+                stage = now.stage,
+                nextDueEpochDay = now.nextDueEpochDay,
+                merged = was.stage != PassageStage.OLD && now.stage == PassageStage.OLD &&
+                    (now.startAyah != was.startAyah || now.endAyah != was.endAyah),
+            )
+        }
+    }
+
+    override suspend fun logCheck(
+        surah: Int,
+        startAyah: Int,
+        endAyah: Int,
+        grade: ReviewGrade,
+        hardAyahs: Set<Int>,
+        today: Int,
+    ) {
+        val metrics = metrics()
+        requireRange(metrics, surah, startAyah, endAyah)
+        write {
+            val before = loadPassages()
+            val after = persist(before, PassageOps.check(before, surah, hardAyahs))
+            val coveringId = PassageOps.coveringPassageId(after, surah, startAyah, endAyah)
+            insertLog(coveringId, surah, startAyah, endAyah, ReviewKind.CHECK, grade, today)
+        }
+    }
+
+    override suspend fun drillHard(surah: Int, remembered: Set<Int>, stillHard: Set<Int>, today: Int) {
+        if (remembered.isEmpty() && stillHard.isEmpty()) return
+        val metrics = metrics()
+        require(metrics.ayahCount(surah) > 0) { "no such surah: $surah" }
+        write {
+            val before = loadPassages()
+            val plan = loadPlan()
+            val outcome = HardDrill.apply(before, surah, remembered, stillHard) ?: return@write
+            val after = persist(before, outcome.passages)
+            insertLog(outcome.passageId, surah, outcome.range.startAyah, outcome.range.endAyah, ReviewKind.CHECK, outcome.grade, today)
+            mirror(setOf(surah), after, plan, metrics)
+        }
+    }
+
+    override suspend fun logListened(passageIds: List<Long>, today: Int) {
+        if (passageIds.isEmpty()) return
+        write {
+            val byId = loadPassages().associateBy { it.id }
+            for (id in passageIds.distinct()) {
+                val passage = byId[id] ?: continue
+                insertLog(id, passage.surah, passage.startAyah, passage.endAyah, ReviewKind.LISTEN, ReviewGrade.GOOD, today)
+            }
+        }
+    }
+
+    override suspend fun markKnown(surah: Int, startAyah: Int, endAyah: Int, today: Int) {
+        val metrics = metrics()
+        val last = metrics.ayahCount(surah)
+        require(last > 0) { "no such surah: $surah" }
+        val start = startAyah.coerceAtLeast(1)
+        val end = endAyah.coerceAtMost(last)
+        if (start > end) return
+        write {
+            val before = loadPassages()
+            val plan = loadPlan()
+            val after = persist(before, PassageOps.markKnown(before, surah, start, end, today, metrics))
+            mirror(affectedSurahs(before, after, plan, plan, metrics), after, plan, metrics)
+        }
+    }
+
+    override suspend fun forget(surah: Int, startAyah: Int, endAyah: Int) {
+        val metrics = metrics()
+        val last = metrics.ayahCount(surah)
+        require(last > 0) { "no such surah: $surah" }
+        val start = startAyah.coerceAtLeast(1)
+        val end = endAyah.coerceAtMost(last)
+        if (start > end) return
+        write {
+            val before = loadPassages()
+            val plan = loadPlan()
+            val after = persist(before, PassageOps.forget(before, surah, start, end))
+            mirror(affectedSurahs(before, after, plan, plan, metrics), after, plan, metrics)
+        }
+    }
+
+    override suspend fun setPlan(
+        scope: HifzScope,
+        surahOrder: List<Int>,
+        dailyNewAyahs: Int,
+        targetEpochDay: Int?,
+        manzilDays: Int,
+        today: Int,
+    ) {
+        val order = surahOrder.ifEmpty { HifzPresets.order(scope) }
+            .filter { it in 1..QuranFacts.SURAH_COUNT }
+            .distinct()
+        require(order.isNotEmpty()) { "the plan has no surahs" }
+        val metrics = metrics()
+        write {
+            val passages = loadPassages()
+            val old = loadPlan()
+            val keepsStart = old != null && old.surahOrder == order
+            val started = if (old != null && keepsStart) old.startedEpochDay else today
+            // The start of the plan is set again: what a pause moved is forgotten.
+            if (!keepsStart) dao.deleteMeta(PlanPauses.BASE_START_KEY)
+            val new = HifzPlan(
+                scope = scope,
+                surahOrder = order,
+                dailyNewAyahs = dailyNewAyahs.coerceIn(HifzConstants.DAILY_NEW_MIN, HifzConstants.DAILY_NEW_MAX),
+                targetEpochDay = targetEpochDay,
+                startedEpochDay = started,
+                manzilDays = manzilDays.coerceIn(HifzConstants.MANZIL_DAYS_MIN, HifzConstants.MANZIL_DAYS_MAX),
+            )
+            dao.upsertPlan(new.toEntity())
+            mirror(affectedSurahs(passages, passages, old, new, metrics), passages, new, metrics)
+        }
+    }
+
+    override suspend fun learnNext(surah: Int, today: Int) {
+        require(surah in 1..QuranFacts.SURAH_COUNT) { "no such surah: $surah" }
+        val metrics = metrics()
+        write {
+            val passages = loadPassages()
+            val old = loadPlan()
+            val new = if (old == null) {
+                dao.deleteMeta(PlanPauses.BASE_START_KEY)
+                HifzPlan(
+                    scope = HifzScope.CUSTOM,
+                    surahOrder = listOf(surah),
+                    dailyNewAyahs = HifzConstants.DAILY_NEW_DEFAULT,
+                    targetEpochDay = null,
+                    startedEpochDay = today,
+                    manzilDays = HifzConstants.MANZIL_DAYS_DEFAULT,
+                )
+            } else {
+                old.copy(scope = HifzScope.CUSTOM, surahOrder = listOf(surah) + old.surahOrder.filter { it != surah })
+            }
+            dao.upsertPlan(new.toEntity())
+            mirror(affectedSurahs(passages, passages, old, new, metrics), passages, new, metrics)
+        }
+    }
+
+    override suspend fun clearPlan() {
+        val metrics = metrics()
+        write {
+            val passages = loadPassages()
+            val old = loadPlan() ?: return@write
+            dao.deletePlan()
+            dao.deleteMeta(PlanPauses.BASE_START_KEY)
+            mirror(affectedSurahs(passages, passages, old, null, metrics), passages, null, metrics)
+        }
+    }
+
+    override suspend fun markHard(surah: Int, ayahs: Set<Int>, today: Int) {
+        if (ayahs.isEmpty()) return
+        val metrics = metrics()
+        require(metrics.ayahCount(surah) > 0) { "no such surah: $surah" }
+        write {
+            val before = loadPassages()
+            val plan = loadPlan()
+            // The very rule of "Check yourself", without its record in the log: only the marks of the covering passages change.
+            val after = persist(before, PassageOps.check(before, surah, ayahs))
+            mirror(setOf(surah), after, plan, metrics)
+        }
+    }
+
+    override suspend fun pausePlan(days: Int, today: Int) {
+        write { applyPauseStep(PlanPauses.start(loadPauses(), days, today)) }
+    }
+
+    override suspend fun resumePlan(today: Int) {
+        write {
+            val step = PlanPauses.resume(loadPauses(), today) ?: return@write
+            applyPauseStep(step)
+        }
+    }
+
+    /**
+     * Writes a step of a pause inside a transaction: the calendar of the passages and of the plan moves by `shiftDays`, the list of
+     * pauses is stored. Nothing of the coverage changes, so the mirror stays as it is.
+     */
+    private suspend fun applyPauseStep(step: PauseStep) {
+        if (step.shiftDays != 0) {
+            val passages = loadPassages()
+            persist(passages, PlanPauses.shiftPassages(passages, step.shiftDays))
+            val plan = loadPlan()
+            if (plan != null) {
+                // The first pause of a plan remembers the day it really started; the forecast counts what was learned from that day.
+                val base = dao.getMeta(PlanPauses.BASE_START_KEY)?.toIntOrNull() ?: plan.startedEpochDay
+                val moved = PlanPauses.shiftPlan(plan, step.shiftDays)
+                dao.upsertPlan(moved.toEntity())
+                if (base == moved.startedEpochDay) {
+                    dao.deleteMeta(PlanPauses.BASE_START_KEY)
+                } else {
+                    dao.upsertMeta(HifzMetaEntity(PlanPauses.BASE_START_KEY, base.toString()))
+                }
+            }
+        }
+        if (step.pauses.isEmpty()) {
+            dao.deleteMeta(PlanPauses.META_KEY)
+        } else {
+            dao.upsertMeta(HifzMetaEntity(PlanPauses.META_KEY, PlanPauses.encode(step.pauses)))
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Legacy import
+    // ------------------------------------------------------------------------------------------------------------
+
+    override suspend fun importLegacyIfNeeded() {
+        if (dao.getMeta(META_LEGACY_IMPORT) == META_DONE) return
+        val metrics = metrics()
+        val imported = write {
+            if (dao.getMeta(META_LEGACY_IMPORT) == META_DONE) return@write false
+            val today = EpochDays.ofMillis(clock(), zone())
+            val input = LegacyInput(
+                surahTodos = dao.getAllSurahTodos(),
+                ayahTodos = dao.getAllAyahTodos(),
+                ayahReviews = dao.getAllAyahReviews(),
+                weakKeys = legacySettings.weakAyahKeys(),
+                dailyGoal = legacySettings.dailyGoal(),
+                today = today,
+                zone = zone(),
+            )
+            val result = LegacyImport.run(input, metrics)
+            val before = loadPassages()
+            val existingPlan = loadPlan()
+            val after = persist(before, before + result.passages)
+            val plan = existingPlan ?: result.plan
+            if (existingPlan == null && result.plan != null) dao.upsertPlan(result.plan.toEntity())
+            // The old screens keep what they show now: only the surahs that got passages (and the current one) are rewritten.
+            val surahs = after.map { it.surah }.toMutableSet()
+            HifzStatuses.currentSurah(plan, Coverage(after, metrics))?.let { surahs += it }
+            mirror(surahs, after, plan, metrics)
+            dao.upsertMeta(HifzMetaEntity(META_LEGACY_IMPORT, META_DONE))
+            true
+        }
+        // After the commit: if this fails the weak ayahs stay in the preferences, which is harmless.
+        if (imported) legacySettings.clearWeakAyahKeys()
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Backup file
+    // ------------------------------------------------------------------------------------------------------------
+
+    override suspend fun exportBackupData(): BackupData = read {
+        BackupMapping.toBackupData(
+            plan = dao.getPlan(),
+            passages = dao.getPassages(),
+            log = dao.getAllLog(),
+            meta = dao.getAllMeta(),
+            notes = dao.getAllNotes(),
+        )
+    }
+
+    override suspend fun replaceWithBackup(backup: VerifiedBackup) {
+        val metrics = metrics()
+        val rows = BackupMapping.toRows(backup.file)
+        write {
+            // The children first (passage_hard has a foreign key to the passages), then the rest.
+            dao.deleteAllHard()
+            dao.deleteAllPassages()
+            dao.deleteAllLog()
+            dao.deletePlan()
+            dao.deleteAllMeta()
+            dao.deleteAllNotes()
+            if (rows.passages.isNotEmpty()) dao.insertPassages(rows.passages)
+            if (rows.hard.isNotEmpty()) dao.insertHard(rows.hard)
+            if (rows.log.isNotEmpty()) dao.insertLogs(rows.log)
+            rows.plan?.let { dao.upsertPlan(it) }
+            dao.upsertMetas(rows.meta)
+            if (rows.notes.isNotEmpty()) dao.insertNotes(rows.notes)
+            // The old screens read surah_todo / ayah_todo: rebuild them for every surah from what was just written.
+            mirror((1..QuranFacts.SURAH_COUNT).toSet(), loadPassages(), loadPlan(), metrics)
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Helpers inside a transaction
+    // ------------------------------------------------------------------------------------------------------------
+
+    private fun requireRange(metrics: TextMetrics, surah: Int, startAyah: Int, endAyah: Int) {
+        val count = metrics.ayahCount(surah)
+        require(count > 0) { "no such surah: $surah" }
+        require(startAyah in 1..count && endAyah in startAyah..count) { "bad range $surah:$startAyah-$endAyah" }
+    }
+
+    /**
+     * Writes the difference between [before] and [after] and returns [after] with the ids of the new passages filled in.
+     * Deleted passages lose their difficult ayahs explicitly (the foreign key would do it too).
+     */
+    private suspend fun persist(before: List<Passage>, after: List<Passage>): List<Passage> {
+        val beforeById = before.associateBy { it.id }
+        val keptIds = after.mapNotNullTo(HashSet()) { it.id.takeIf { id -> id != 0L } }
+        val deleted = beforeById.keys.filter { it !in keptIds }
+        for (chunk in deleted.chunked(DELETE_CHUNK)) {
+            dao.deleteHardOfAll(chunk)
+            dao.deletePassages(chunk)
+        }
+        return after.map { passage ->
+            when {
+                passage.id == 0L -> {
+                    val id = dao.insertPassage(passage.toEntity())
+                    val rows = passage.hardRows(id)
+                    if (rows.isNotEmpty()) dao.insertHard(rows)
+                    passage.copy(id = id)
+                }
+                beforeById[passage.id] != passage -> {
+                    dao.updatePassage(passage.toEntity())
+                    dao.deleteHardOf(passage.id)
+                    val rows = passage.hardRows(passage.id)
+                    if (rows.isNotEmpty()) dao.insertHard(rows)
+                    passage
+                }
+                else -> passage
+            }
+        }
+    }
+
+    private suspend fun insertLog(
+        passageId: Long?,
+        surah: Int,
+        startAyah: Int,
+        endAyah: Int,
+        kind: ReviewKind,
+        grade: ReviewGrade,
+        today: Int,
+    ) {
+        dao.insertLog(
+            ReviewLogEntity(
+                passageId = passageId,
+                surah = surah,
+                startAyah = startAyah,
+                endAyah = endAyah,
+                kind = kind,
+                grade = grade,
+                epochDay = today,
+                timestamp = clock(),
+            ),
+        )
+    }
+
+    /**
+     * The surahs whose derived status or covered ayahs changed: those with a different coverage, and the current surah of the
+     * plan before and after (a plan or a coverage change moves it).
+     */
+    private fun affectedSurahs(
+        before: List<Passage>,
+        after: List<Passage>,
+        planBefore: HifzPlan?,
+        planAfter: HifzPlan?,
+        metrics: TextMetrics,
+    ): Set<Int> {
+        val coverageBefore = Coverage(before, metrics)
+        val coverageAfter = Coverage(after, metrics)
+        val candidates = (before.map { it.surah } + after.map { it.surah }).toSet()
+        val result = candidates.filterTo(LinkedHashSet()) { coverageBefore.coveredAyahs(it) != coverageAfter.coveredAyahs(it) }
+        val currentBefore = HifzStatuses.currentSurah(planBefore, coverageBefore)
+        val currentAfter = HifzStatuses.currentSurah(planAfter, coverageAfter)
+        if (currentBefore != currentAfter) {
+            currentBefore?.let { result += it }
+            currentAfter?.let { result += it }
+        }
+        return result
+    }
+
+    /** Rewrites `ayah_todo` and `surah_todo` for [surahs] so that they show the derived statuses of [passages]. */
+    private suspend fun mirror(surahs: Set<Int>, passages: List<Passage>, plan: HifzPlan?, metrics: TextMetrics) {
+        if (surahs.isEmpty()) return
+        val coverage = Coverage(passages, metrics)
+        val current = HifzStatuses.currentSurah(plan, coverage)
+        val now = clock()
+        for (surah in surahs.sorted()) {
+            val delta = LegacyMirror.sync(
+                surah = surah,
+                coveredAyahs = coverage.coveredAyahs(surah),
+                status = HifzStatuses.surahStatus(coverage, metrics, surah, current),
+                existingAyahRows = dao.getAyahTodosOf(surah),
+                existingSurahRow = dao.getSurahTodo(surah),
+                now = now,
+            )
+            for (chunk in delta.deleteAyahNumbers.chunked(DELETE_CHUNK)) dao.deleteAyahTodos(chunk)
+            if (delta.upsertAyahs.isNotEmpty()) dao.upsertAyahTodos(delta.upsertAyahs)
+            delta.upsertSurah?.let { dao.upsertSurahTodo(it) }
+            if (delta.deleteSurah) dao.deleteSurahTodo(surah)
+        }
+    }
+
+    private companion object {
+        const val META_LEGACY_IMPORT = "legacy_import"
+        const val META_DONE = "done"
+        const val DELETE_CHUNK = 500
+
+        const val PASSAGES = "hifz_passage"
+        const val HARD = "passage_hard"
+        const val PLAN = "hifz_plan"
+        const val LOG = "review_log"
+        const val META = "hifz_meta"
+    }
+}

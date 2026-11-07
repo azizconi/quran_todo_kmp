@@ -229,4 +229,27 @@ actual object UserSettingsStorage {
     actual fun saveFeatureGuideSeen(seen: Boolean) {
         defaults.setBool(seen, forKey = KEY_FEATURE_GUIDE_SEEN)
     }
+    actual fun getReaderPracticeJson(): String? = defaults.stringForKey("reader_practice_v1")
+
+    actual fun saveReaderPracticeJson(value: String) {
+        defaults.setObject(value, forKey = "reader_practice_v1")
+    }
+
+    actual fun getTranslationChoiceJson(): String? = defaults.stringForKey("translation_choice_v1")
+
+    actual fun saveTranslationChoiceJson(value: String) {
+        defaults.setObject(value, forKey = "translation_choice_v1")
+    }
+
+    actual fun getTranslationVersionsJson(): String? = defaults.stringForKey("translation_versions_v1")
+
+    actual fun saveTranslationVersionsJson(value: String) {
+        defaults.setObject(value, forKey = "translation_versions_v1")
+    }
+
+    actual fun isPlayerGuideSeen(feature: String): Boolean? = defaults.boolForKey("player_guide_v2_$feature")
+
+    actual fun savePlayerGuideSeen(seen: Boolean, feature: String) {
+        defaults.setBool(seen, forKey = "player_guide_v2_$feature")
+    }
 }

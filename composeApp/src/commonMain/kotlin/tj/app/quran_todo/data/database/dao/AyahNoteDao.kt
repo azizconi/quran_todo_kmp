@@ -12,6 +12,10 @@ interface AyahNoteDao {
     @Query("SELECT * FROM ayah_note WHERE surahNumber = :surahNumber")
     fun getBySurahNumber(surahNumber: Int): Flow<List<AyahNoteEntity>>
 
+    /** Every note, the most recently written first ("My notes"). */
+    @Query("SELECT * FROM ayah_note ORDER BY updatedAt DESC, ayahNumber DESC")
+    fun observeAll(): Flow<List<AyahNoteEntity>>
+
     @Query("SELECT * FROM ayah_note")
     suspend fun getAll(): List<AyahNoteEntity>
 

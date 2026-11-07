@@ -1,0 +1,689 @@
+{
+ "language": "ru",
+ "chapters": [
+  {
+   "number": 1,
+   "arabic": "الفاتحة",
+   "transliteration": "Al-Fatihah",
+   "translated": "Открывающая Коран"
+  },
+  {
+   "number": 2,
+   "arabic": "البقرة",
+   "transliteration": "Al-Baqarah",
+   "translated": "Корова"
+  },
+  {
+   "number": 3,
+   "arabic": "آل عمران",
+   "transliteration": "Ali 'Imran",
+   "translated": "Семейство Имрана"
+  },
+  {
+   "number": 4,
+   "arabic": "النساء",
+   "transliteration": "An-Nisa",
+   "translated": "Женщины"
+  },
+  {
+   "number": 5,
+   "arabic": "المائدة",
+   "transliteration": "Al-Ma'idah",
+   "translated": "Трапеза"
+  },
+  {
+   "number": 6,
+   "arabic": "الأنعام",
+   "transliteration": "Al-An'am",
+   "translated": "Скот"
+  },
+  {
+   "number": 7,
+   "arabic": "الأعراف",
+   "transliteration": "Al-A'raf",
+   "translated": "Ограды"
+  },
+  {
+   "number": 8,
+   "arabic": "الأنفال",
+   "transliteration": "Al-Anfal",
+   "translated": "Трофеи"
+  },
+  {
+   "number": 9,
+   "arabic": "التوبة",
+   "transliteration": "At-Tawbah",
+   "translated": "Покаяние"
+  },
+  {
+   "number": 10,
+   "arabic": "يونس",
+   "transliteration": "Yunus",
+   "translated": "Йунус"
+  },
+  {
+   "number": 11,
+   "arabic": "هود",
+   "transliteration": "Hud",
+   "translated": "Худ"
+  },
+  {
+   "number": 12,
+   "arabic": "يوسف",
+   "transliteration": "Yusuf",
+   "translated": "Йусуф"
+  },
+  {
+   "number": 13,
+   "arabic": "الرعد",
+   "transliteration": "Ar-Ra'd",
+   "translated": "Гром"
+  },
+  {
+   "number": 14,
+   "arabic": "ابراهيم",
+   "transliteration": "Ibrahim",
+   "translated": "Ибрахим"
+  },
+  {
+   "number": 15,
+   "arabic": "الحجر",
+   "transliteration": "Al-Hijr",
+   "translated": "Хиджр"
+  },
+  {
+   "number": 16,
+   "arabic": "النحل",
+   "transliteration": "An-Nahl",
+   "translated": "Пчелы"
+  },
+  {
+   "number": 17,
+   "arabic": "الإسراء",
+   "transliteration": "Al-Isra",
+   "translated": "Ночной перенос"
+  },
+  {
+   "number": 18,
+   "arabic": "الكهف",
+   "transliteration": "Al-Kahf",
+   "translated": "Пещера"
+  },
+  {
+   "number": 19,
+   "arabic": "مريم",
+   "transliteration": "Maryam",
+   "translated": "Марьям"
+  },
+  {
+   "number": 20,
+   "arabic": "طه",
+   "transliteration": "Taha",
+   "translated": "Та Ха"
+  },
+  {
+   "number": 21,
+   "arabic": "الأنبياء",
+   "transliteration": "Al-Anbya",
+   "translated": "Пророки"
+  },
+  {
+   "number": 22,
+   "arabic": "الحج",
+   "transliteration": "Al-Hajj",
+   "translated": "Паломничество"
+  },
+  {
+   "number": 23,
+   "arabic": "المؤمنون",
+   "transliteration": "Al-Mu'minun",
+   "translated": "Верующие"
+  },
+  {
+   "number": 24,
+   "arabic": "النور",
+   "transliteration": "An-Nur",
+   "translated": "Свет"
+  },
+  {
+   "number": 25,
+   "arabic": "الفرقان",
+   "transliteration": "Al-Furqan",
+   "translated": "аль-Фуркан"
+  },
+  {
+   "number": 26,
+   "arabic": "الشعراء",
+   "transliteration": "Ash-Shu'ara",
+   "translated": "Поэты"
+  },
+  {
+   "number": 27,
+   "arabic": "النمل",
+   "transliteration": "An-Naml",
+   "translated": "Муравьи"
+  },
+  {
+   "number": 28,
+   "arabic": "القصص",
+   "transliteration": "Al-Qasas",
+   "translated": "Рассказ"
+  },
+  {
+   "number": 29,
+   "arabic": "العنكبوت",
+   "transliteration": "Al-'Ankabut",
+   "translated": "Паук"
+  },
+  {
+   "number": 30,
+   "arabic": "الروم",
+   "transliteration": "Ar-Rum",
+   "translated": "Римляне"
+  },
+  {
+   "number": 31,
+   "arabic": "لقمان",
+   "transliteration": "Luqman",
+   "translated": "Лукман"
+  },
+  {
+   "number": 32,
+   "arabic": "السجدة",
+   "transliteration": "As-Sajdah",
+   "translated": "Земной поклон"
+  },
+  {
+   "number": 33,
+   "arabic": "الأحزاب",
+   "transliteration": "Al-Ahzab",
+   "translated": "Союзники"
+  },
+  {
+   "number": 34,
+   "arabic": "سبإ",
+   "transliteration": "Saba",
+   "translated": "Сава"
+  },
+  {
+   "number": 35,
+   "arabic": "فاطر",
+   "transliteration": "Fatir",
+   "translated": "Творец"
+  },
+  {
+   "number": 36,
+   "arabic": "يس",
+   "transliteration": "Ya-Sin",
+   "translated": "Йа Син"
+  },
+  {
+   "number": 37,
+   "arabic": "الصافات",
+   "transliteration": "As-Saffat",
+   "translated": "Выстроившиеся в ряды"
+  },
+  {
+   "number": 38,
+   "arabic": "ص",
+   "transliteration": "Sad",
+   "translated": "Сод"
+  },
+  {
+   "number": 39,
+   "arabic": "الزمر",
+   "transliteration": "Az-Zumar",
+   "translated": "Толпы"
+  },
+  {
+   "number": 40,
+   "arabic": "غافر",
+   "transliteration": "Ghafir",
+   "translated": "Прощающий"
+  },
+  {
+   "number": 41,
+   "arabic": "فصلت",
+   "transliteration": "Fussilat",
+   "translated": "Разъяснены"
+  },
+  {
+   "number": 42,
+   "arabic": "الشورى",
+   "transliteration": "Ash-Shuraa",
+   "translated": "Совет"
+  },
+  {
+   "number": 43,
+   "arabic": "الزخرف",
+   "transliteration": "Az-Zukhruf",
+   "translated": "Украшения"
+  },
+  {
+   "number": 44,
+   "arabic": "الدخان",
+   "transliteration": "Ad-Dukhan",
+   "translated": "Дым"
+  },
+  {
+   "number": 45,
+   "arabic": "الجاثية",
+   "transliteration": "Al-Jathiyah",
+   "translated": "Коленопреклоненные"
+  },
+  {
+   "number": 46,
+   "arabic": "الأحقاف",
+   "transliteration": "Al-Ahqaf",
+   "translated": "Барханы"
+  },
+  {
+   "number": 47,
+   "arabic": "محمد",
+   "transliteration": "Muhammad",
+   "translated": "Мухаммад"
+  },
+  {
+   "number": 48,
+   "arabic": "الفتح",
+   "transliteration": "Al-Fath",
+   "translated": "Победа"
+  },
+  {
+   "number": 49,
+   "arabic": "الحجرات",
+   "transliteration": "Al-Hujurat",
+   "translated": "Комнаты"
+  },
+  {
+   "number": 50,
+   "arabic": "ق",
+   "transliteration": "Qaf",
+   "translated": "Каф"
+  },
+  {
+   "number": 51,
+   "arabic": "الذاريات",
+   "transliteration": "Adh-Dhariyat",
+   "translated": "Рассеивающие прах"
+  },
+  {
+   "number": 52,
+   "arabic": "الطور",
+   "transliteration": "At-Tur",
+   "translated": "Гора"
+  },
+  {
+   "number": 53,
+   "arabic": "النجم",
+   "transliteration": "An-Najm",
+   "translated": "Звезда"
+  },
+  {
+   "number": 54,
+   "arabic": "القمر",
+   "transliteration": "Al-Qamar",
+   "translated": "Месяц"
+  },
+  {
+   "number": 55,
+   "arabic": "الرحمن",
+   "transliteration": "Ar-Rahman",
+   "translated": "Милостивый"
+  },
+  {
+   "number": 56,
+   "arabic": "الواقعة",
+   "transliteration": "Al-Waqi'ah",
+   "translated": "Событие"
+  },
+  {
+   "number": 57,
+   "arabic": "الحديد",
+   "transliteration": "Al-Hadid",
+   "translated": "Железо"
+  },
+  {
+   "number": 58,
+   "arabic": "المجادلة",
+   "transliteration": "Al-Mujadila",
+   "translated": "Препирающаяся"
+  },
+  {
+   "number": 59,
+   "arabic": "الحشر",
+   "transliteration": "Al-Hashr",
+   "translated": "Сбор"
+  },
+  {
+   "number": 60,
+   "arabic": "الممتحنة",
+   "transliteration": "Al-Mumtahanah",
+   "translated": "Испытуемая"
+  },
+  {
+   "number": 61,
+   "arabic": "الصف",
+   "transliteration": "As-Saf",
+   "translated": "Ряды"
+  },
+  {
+   "number": 62,
+   "arabic": "الجمعة",
+   "transliteration": "Al-Jumu'ah",
+   "translated": "Собрание"
+  },
+  {
+   "number": 63,
+   "arabic": "المنافقون",
+   "transliteration": "Al-Munafiqun",
+   "translated": "Лицемеры"
+  },
+  {
+   "number": 64,
+   "arabic": "التغابن",
+   "transliteration": "At-Taghabun",
+   "translated": "Взаимное обделение"
+  },
+  {
+   "number": 65,
+   "arabic": "الطلاق",
+   "transliteration": "At-Talaq",
+   "translated": "Развод"
+  },
+  {
+   "number": 66,
+   "arabic": "التحريم",
+   "transliteration": "At-Tahrim",
+   "translated": "Запрещение"
+  },
+  {
+   "number": 67,
+   "arabic": "الملك",
+   "transliteration": "Al-Mulk",
+   "translated": "Власть"
+  },
+  {
+   "number": 68,
+   "arabic": "القلم",
+   "transliteration": "Al-Qalam",
+   "translated": "Письменная трость"
+  },
+  {
+   "number": 69,
+   "arabic": "الحاقة",
+   "transliteration": "Al-Haqqah",
+   "translated": "Неминуемое"
+  },
+  {
+   "number": 70,
+   "arabic": "المعارج",
+   "transliteration": "Al-Ma'arij",
+   "translated": "Ступени"
+  },
+  {
+   "number": 71,
+   "arabic": "نوح",
+   "transliteration": "Nuh",
+   "translated": "Нух"
+  },
+  {
+   "number": 72,
+   "arabic": "الجن",
+   "transliteration": "Al-Jinn",
+   "translated": "Джинны"
+  },
+  {
+   "number": 73,
+   "arabic": "المزمل",
+   "transliteration": "Al-Muzzammil",
+   "translated": "Закутавшийся"
+  },
+  {
+   "number": 74,
+   "arabic": "المدثر",
+   "transliteration": "Al-Muddaththir",
+   "translated": "Завернувшийся"
+  },
+  {
+   "number": 75,
+   "arabic": "القيامة",
+   "transliteration": "Al-Qiyamah",
+   "translated": "Воскресение"
+  },
+  {
+   "number": 76,
+   "arabic": "الانسان",
+   "transliteration": "Al-Insan",
+   "translated": "Человек"
+  },
+  {
+   "number": 77,
+   "arabic": "المرسلات",
+   "transliteration": "Al-Mursalat",
+   "translated": "Посылаемые"
+  },
+  {
+   "number": 78,
+   "arabic": "النبإ",
+   "transliteration": "An-Naba",
+   "translated": "Весть"
+  },
+  {
+   "number": 79,
+   "arabic": "النازعات",
+   "transliteration": "An-Nazi'at",
+   "translated": "Исторгающие"
+  },
+  {
+   "number": 80,
+   "arabic": "عبس",
+   "transliteration": "'Abasa",
+   "translated": "Нахмурился"
+  },
+  {
+   "number": 81,
+   "arabic": "التكوير",
+   "transliteration": "At-Takwir",
+   "translated": "Скручивание"
+  },
+  {
+   "number": 82,
+   "arabic": "الإنفطار",
+   "transliteration": "Al-Infitar",
+   "translated": "Раскалывание"
+  },
+  {
+   "number": 83,
+   "arabic": "المطففين",
+   "transliteration": "Al-Mutaffifin",
+   "translated": "Обвешивающие"
+  },
+  {
+   "number": 84,
+   "arabic": "الإنشقاق",
+   "transliteration": "Al-Inshiqaq",
+   "translated": "Разверзнется"
+  },
+  {
+   "number": 85,
+   "arabic": "البروج",
+   "transliteration": "Al-Buruj",
+   "translated": "Созвездия Зодиака"
+  },
+  {
+   "number": 86,
+   "arabic": "الطارق",
+   "transliteration": "At-Tariq",
+   "translated": "Ночной путник"
+  },
+  {
+   "number": 87,
+   "arabic": "الأعلى",
+   "transliteration": "Al-A'la",
+   "translated": "Всевышний"
+  },
+  {
+   "number": 88,
+   "arabic": "الغاشية",
+   "transliteration": "Al-Ghashiyah",
+   "translated": "Покрывающее"
+  },
+  {
+   "number": 89,
+   "arabic": "الفجر",
+   "transliteration": "Al-Fajr",
+   "translated": "Заря"
+  },
+  {
+   "number": 90,
+   "arabic": "البلد",
+   "transliteration": "Al-Balad",
+   "translated": "Город"
+  },
+  {
+   "number": 91,
+   "arabic": "الشمس",
+   "transliteration": "Ash-Shams",
+   "translated": "Солнце"
+  },
+  {
+   "number": 92,
+   "arabic": "الليل",
+   "transliteration": "Al-Layl",
+   "translated": "Ночь"
+  },
+  {
+   "number": 93,
+   "arabic": "الضحى",
+   "transliteration": "Ad-Duhaa",
+   "translated": "Утро"
+  },
+  {
+   "number": 94,
+   "arabic": "الشرح",
+   "transliteration": "Ash-Sharh",
+   "translated": "Раскрытие"
+  },
+  {
+   "number": 95,
+   "arabic": "التين",
+   "transliteration": "At-Tin",
+   "translated": "Смоковница"
+  },
+  {
+   "number": 96,
+   "arabic": "العلق",
+   "transliteration": "Al-'Alaq",
+   "translated": "Сгусток крови"
+  },
+  {
+   "number": 97,
+   "arabic": "القدر",
+   "transliteration": "Al-Qadr",
+   "translated": "Предопределение"
+  },
+  {
+   "number": 98,
+   "arabic": "البينة",
+   "transliteration": "Al-Bayyinah",
+   "translated": "Ясное знамение"
+  },
+  {
+   "number": 99,
+   "arabic": "الزلزلة",
+   "transliteration": "Az-Zalzalah",
+   "translated": "Сотрясение"
+  },
+  {
+   "number": 100,
+   "arabic": "العاديات",
+   "transliteration": "Al-'Adiyat",
+   "translated": "Скачущие"
+  },
+  {
+   "number": 101,
+   "arabic": "القارعة",
+   "transliteration": "Al-Qari'ah",
+   "translated": "Великое бедствие"
+  },
+  {
+   "number": 102,
+   "arabic": "التكاثر",
+   "transliteration": "At-Takathur",
+   "translated": "Страсть к приумножению"
+  },
+  {
+   "number": 103,
+   "arabic": "العصر",
+   "transliteration": "Al-'Asr",
+   "translated": "Предвечернее время"
+  },
+  {
+   "number": 104,
+   "arabic": "الهمزة",
+   "transliteration": "Al-Humazah",
+   "translated": "Хулитель"
+  },
+  {
+   "number": 105,
+   "arabic": "الفيل",
+   "transliteration": "Al-Fil",
+   "translated": "Слон"
+  },
+  {
+   "number": 106,
+   "arabic": "قريش",
+   "transliteration": "Quraysh",
+   "translated": "Курейшиты"
+  },
+  {
+   "number": 107,
+   "arabic": "الماعون",
+   "transliteration": "Al-Ma'un",
+   "translated": "Мелочь"
+  },
+  {
+   "number": 108,
+   "arabic": "الكوثر",
+   "transliteration": "Al-Kawthar",
+   "translated": "Изобилие"
+  },
+  {
+   "number": 109,
+   "arabic": "الكافرون",
+   "transliteration": "Al-Kafirun",
+   "translated": "Неверующие"
+  },
+  {
+   "number": 110,
+   "arabic": "النصر",
+   "transliteration": "An-Nasr",
+   "translated": "Помощь"
+  },
+  {
+   "number": 111,
+   "arabic": "المسد",
+   "transliteration": "Al-Masad",
+   "translated": "Пальмовые волокна"
+  },
+  {
+   "number": 112,
+   "arabic": "الإخلاص",
+   "transliteration": "Al-Ikhlas",
+   "translated": "Очищение веры"
+  },
+  {
+   "number": 113,
+   "arabic": "الفلق",
+   "transliteration": "Al-Falaq",
+   "translated": "Рассвет"
+  },
+  {
+   "number": 114,
+   "arabic": "الناس",
+   "transliteration": "An-Nas",
+   "translated": "Люди"
+  }
+ ]
+}

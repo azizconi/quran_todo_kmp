@@ -1,0 +1,831 @@
+package tj.app.quran_todo.ui.home
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.annotation.KoinExperimentalAPI
+import tj.app.quran_todo.common.i18n.LocalAppLanguage
+import tj.app.quran_todo.common.utils.getQuranFontFamily
+import tj.app.quran_todo.hifz.model.SurahCoverage
+import tj.app.quran_todo.ui.components.EmptyState
+import tj.app.quran_todo.ui.components.LocalToaster
+import tj.app.quran_todo.ui.components.QhLargeTopBar
+import tj.app.quran_todo.ui.components.QhSegmentedControl
+import tj.app.quran_todo.ui.components.ToastKind
+import tj.app.quran_todo.ui.components.rememberQhTopBarState
+import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
+import tj.app.quran_todo.ui.components.spotlight.SpotlightTargets
+import tj.app.quran_todo.ui.components.spotlight.SpotlightTourEffect
+import tj.app.quran_todo.ui.components.spotlight.SpotlightTours
+import tj.app.quran_todo.ui.components.spotlight.spotlightTarget
+import tj.app.quran_todo.ui.haptics.HapticKind
+import tj.app.quran_todo.ui.haptics.LocalHaptics
+import tj.app.quran_todo.ui.home.components.HeroCard
+import tj.app.quran_todo.ui.home.components.HeroListenState
+import tj.app.quran_todo.ui.home.components.HomeSkeletonRow
+import tj.app.quran_todo.ui.home.components.HomeSkeletonTop
+import tj.app.quran_todo.ui.home.components.JuzListRow
+import tj.app.quran_todo.ui.home.components.LessonCard
+import tj.app.quran_todo.ui.khatm.KhatmHomeCards
+import tj.app.quran_todo.ui.home.components.LessonInviteRow
+import tj.app.quran_todo.ui.home.components.QuizRow
+import tj.app.quran_todo.ui.home.components.ListEmptyState
+import tj.app.quran_todo.ui.home.components.MiniPlayerHost
+import tj.app.quran_todo.ui.home.components.MiniPlayerMargin
+import tj.app.quran_todo.ui.home.components.ProgressAction
+import tj.app.quran_todo.ui.home.components.progressPercent
+import tj.app.quran_todo.ui.home.components.RecentSection
+import tj.app.quran_todo.ui.home.components.RowTexts
+import tj.app.quran_todo.ui.home.components.SearchHeader
+import tj.app.quran_todo.ui.home.components.SettingsAction
+import tj.app.quran_todo.ui.home.components.SmartResultCard
+import tj.app.quran_todo.ui.home.components.SurahListRow
+import tj.app.quran_todo.ui.home.components.SurahSheet
+import tj.app.quran_todo.ui.home.components.listBottomPadding
+import tj.app.quran_todo.ui.i18n.HomeCopy
+import tj.app.quran_todo.ui.i18n.downloadsCopy
+import tj.app.quran_todo.ui.i18n.homeCopy
+import tj.app.quran_todo.ui.i18n.pauseCopy
+import tj.app.quran_todo.ui.i18n.mushafCopy
+import tj.app.quran_todo.ui.i18n.translationCopy
+import tj.app.quran_todo.ui.listen.ListenOldSheet
+import tj.app.quran_todo.ui.motion.LocalReducedMotion
+import tj.app.quran_todo.ui.motion.QhMotion
+import tj.app.quran_todo.ui.motion.orSnap
+import tj.app.quran_todo.ui.motion.rememberStaggerState
+import tj.app.quran_todo.ui.motion.staggeredEnter
+import tj.app.quran_todo.ui.navigation.Dest
+import tj.app.quran_todo.ui.navigation.Origin
+import tj.app.quran_todo.ui.theme.QhSpacing
+import tj.app.quran_todo.ui.translation.TranslationSearchUi
+import tj.app.quran_todo.ui.translation.TranslationSearchViewModel
+import tj.app.quran_todo.ui.translation.translationSearchItems
+import tj.app.quran_todo.ui.theme.QhTheme
+import kotlin.math.abs
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+
+/**
+ * The home screen (docs/redesign/ANDROID_REDESIGN.md, 6.3, docs/redesign/PRODUCT_PLAN.md, 3.4): a large
+ * "Quran" title with the progress ring and the settings gear, "Today's lesson" and the "Continue" hero
+ * (the lesson first for the goal "memorize", the hero first for "read" / "listen"), Recent, a sticky search
+ * field with the status segments, the 114 surahs, and the floating mini player.
+ *
+ * [onOpenCatalog] is non-null in debug builds only: a long press on the title area opens the
+ * component catalog.
+ */
+@OptIn(KoinExperimentalAPI::class)
+@Composable
+fun HomeScreen(
+    onOpenReader: (Dest.Reader) -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenProgress: () -> Unit,
+    onOpenLesson: () -> Unit,
+    onOpenPlan: () -> Unit,
+    onOpenQuiz: () -> Unit,
+    onOpenKhatm: () -> Unit,
+    onOpenKhatmPicker: () -> Unit,
+    onOpenMushaf: (page: Int) -> Unit,
+    onOpenCatalog: (() -> Unit)? = null,
+) {
+    val viewModel = koinViewModel<HomeUiViewModel>()
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { homeCopy(language) }
+    val toaster = LocalToaster.current
+
+    LaunchedEffect(language) { viewModel.setLanguage(language) }
+    // The search "In translation" (task F4a) has a view model of its own: the text of the edition is read only while it is on screen.
+    val translationViewModel = koinViewModel<TranslationSearchViewModel>()
+    LaunchedEffect(language) { translationViewModel.setLanguage(language) }
+    val translationUi by translationViewModel.ui.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResume() }
+    LaunchedEffect(viewModel, copy) {
+        viewModel.events.collect { event ->
+            when (event) {
+                HomeEvent.StatusUpdateFailed -> toaster.show(copy.statusUpdateFailed, ToastKind.Error)
+                HomeEvent.ResumeFailed -> toaster.show(pauseCopy(copy.language).failed, ToastKind.Error)
+            }
+        }
+    }
+
+    // Frozen while another screen is on top or a transition is running, so the cards do not reorder
+    // under the shared element animation; fresh as soon as the screen is resumed again.
+    val ui by viewModel.ui.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
+    val player by viewModel.player.collectAsStateWithLifecycle()
+    // "Listen to the old" while its queue plays: the card says where it is.
+    val listening by viewModel.listening.collectAsStateWithLifecycle()
+    // Not read here: only the mini player ring reads it.
+    val playbackProgress = viewModel.playbackProgress.collectAsState()
+
+    val actions = remember(viewModel, translationViewModel, onOpenReader, onOpenSettings, onOpenProgress, onOpenLesson, onOpenPlan, onOpenQuiz, onOpenKhatm, onOpenKhatmPicker, onOpenMushaf) {
+        HomeActions(
+            openReader = onOpenReader,
+            openSettings = onOpenSettings,
+            openProgress = onOpenProgress,
+            openLesson = onOpenLesson,
+            openPlan = onOpenPlan,
+            openQuiz = onOpenQuiz,
+            openKhatm = onOpenKhatm,
+            openKhatmPicker = onOpenKhatmPicker,
+            openMushaf = onOpenMushaf,
+            resumePlan = viewModel::resumePlan,
+            setQuery = viewModel::setQuery,
+            setFilter = viewModel::setFilter,
+            retry = viewModel::retry,
+            applyStatus = viewModel::applyStatus,
+            coverage = viewModel::coverage,
+            togglePin = viewModel::togglePin,
+            listen = viewModel::listen,
+            togglePlayback = viewModel::togglePlayback,
+            stopPlayback = viewModel::stopPlayback,
+            setTranslationQuery = translationViewModel::setQuery,
+            setTranslationActive = translationViewModel::setActive,
+            downloadTranslation = translationViewModel::download,
+            retryTranslation = translationViewModel::retry,
+        )
+    }
+    HomeContent(
+        ui = ui,
+        translation = translationUi,
+        player = player,
+        playbackProgress = playbackProgress,
+        copy = copy,
+        actions = actions,
+        onOpenCatalog = onOpenCatalog,
+        listening = listening,
+    )
+}
+
+/** Everything the screen can ask for, in one stable object so the list items do not rebuild lambdas. */
+@Immutable
+internal class HomeActions(
+    val openReader: (Dest.Reader) -> Unit,
+    val openSettings: () -> Unit,
+    val openProgress: () -> Unit,
+    val openLesson: () -> Unit,
+    val openPlan: () -> Unit,
+    val openQuiz: () -> Unit,
+    val openKhatm: () -> Unit,
+    val openKhatmPicker: () -> Unit,
+    val openMushaf: (page: Int) -> Unit,
+    val resumePlan: () -> Unit,
+    val setQuery: (String) -> Unit,
+    val setFilter: (SurahFilter) -> Unit,
+    val retry: () -> Unit,
+    val applyStatus: (surah: Int, target: SurahTarget) -> Unit,
+    val coverage: (surah: Int) -> Flow<SurahCoverage>,
+    val togglePin: (surah: Int) -> Unit,
+    val listen: (surah: Int, readAyah: Int) -> Unit,
+    val togglePlayback: () -> Unit,
+    val stopPlayback: () -> Unit,
+    val setTranslationQuery: (String) -> Unit,
+    val setTranslationActive: (Boolean) -> Unit,
+    val downloadTranslation: () -> Unit,
+    val retryTranslation: () -> Unit,
+)
+
+/** Which row just became memorized; [token] changes every time so the burst fires again. */
+private data class Celebration(val surah: Int = 0, val token: Int = 0)
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun HomeContent(
+    ui: HomeUi,
+    translation: TranslationSearchUi,
+    player: MiniPlayerUi?,
+    playbackProgress: State<Float>,
+    copy: HomeCopy,
+    actions: HomeActions,
+    onOpenCatalog: (() -> Unit)?,
+    listening: ListeningUi? = null,
+) {
+    val colors = QhTheme.colors
+    val type = QhTheme.type
+    val density = LocalDensity.current
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val haptics = LocalHaptics.current
+    val toaster = LocalToaster.current
+
+    // -- Screen state -----------------------------------------------------------------------------
+    var query by rememberSaveable { mutableStateOf("") }
+    var filterOrdinal by rememberSaveable { mutableStateOf(0) }
+    // "Surahs" / "Juz": kept for as long as the screen lives (a rotation, coming back from the reader).
+    var tabOrdinal by rememberSaveable { mutableStateOf(0) }
+    var sheetSurah by rememberSaveable { mutableStateOf<Int?>(null) }
+    // The sheet "Listen to the old" (task F1b); the queue itself lives in the playback controller, not in this sheet.
+    var listenOpen by rememberSaveable { mutableStateOf(false) }
+    var searchFocused by remember { mutableStateOf(false) }
+    var celebration by remember { mutableStateOf(Celebration()) }
+    val filter = SurahFilter.entries.getOrElse(filterOrdinal) { SurahFilter.All }
+    val tab = HomeTab.entries.getOrElse(tabOrdinal) { HomeTab.Surahs }
+    val mushaf = remember(copy.language) { mushafCopy(copy.language) }
+    val translationText = remember(copy.language) { translationCopy(copy.language) }
+    val tabLabels = remember(mushaf) { listOf(mushaf.tabSurahs, mushaf.tabJuz) }
+    // While the person searches the switch has a third segment: the search in the text of the translation (task F4a).
+    val searchTabLabels = remember(mushaf, translationText) { tabLabels + translationText.searchTab }
+    // The search text lives here (an immediate echo for the field); the ViewModel filters off the UI thread.
+    LaunchedEffect(Unit) {
+        actions.setQuery(query)
+        actions.setTranslationQuery(query)
+        actions.setFilter(filter)
+    }
+    // While the person searches, the hero / today / recent fold away and the field rises to the top.
+    val searchMode = searchFocused || query.isNotBlank()
+    // "In translation" only makes sense while searching: with the field closed the list is the surahs again.
+    val shownTab = if (tab == HomeTab.Translation && !searchMode) HomeTab.Surahs else tab
+    // The text of the translation is kept in memory only while that tab is on screen.
+    LaunchedEffect(shownTab) { actions.setTranslationActive(shownTab == HomeTab.Translation) }
+
+    // The tips of the home screen (C2): once the lesson is known (no skeleton on screen) and the person is not searching. The data
+    // being re-read later must not take the tour away, so "ready" stays on once it was on.
+    var tourDataReady by remember { mutableStateOf(false) }
+    if (ui.phase == HomePhase.Content && ui.lesson != null) tourDataReady = true
+    SpotlightTourEffect(SpotlightTours.Home, ready = tourDataReady && !searchMode)
+
+    val listState = rememberLazyListState()
+    val lessonHolder = remember { LessonHolder() }
+    val stagger = rememberStaggerState(ready = ui.phase == HomePhase.Content)
+    val focusRequester = remember { FocusRequester() }
+
+    // The font loads asynchronously, so the family must be re-read on every composition (it is the
+    // same instance once loaded, which keeps these styles equal and the rows skippable).
+    val quranFont = getQuranFontFamily()
+    val rowArabicStyle = type.quranInline(quranFont)
+    val heroArabicStyle = type.quranHeader(quranFont, 30.sp)
+    val rowTexts = remember(copy) { RowTexts.of(copy) }
+
+    // -- Geometry of the top bar ------------------------------------------------------------------
+    // The bar overlays the list. The list starts under the collapsed bar (status bar + 56dp), so the
+    // sticky search header pins right below it; the first list item reserves the room of the big
+    // title, which the bar collapses over the first scroll distance.
+    val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val collapsedBar = statusTop + TopBarRowHeight
+    val estimatedTitleBlock = with(density) { type.display.lineHeight.toDp() } + QhSpacing.x2
+    var expandedBarPx by remember { mutableIntStateOf(0) }
+    val measuredTitleBlock = with(density) { expandedBarPx.toDp() } - collapsedBar
+    val titleBlock = maxOf(estimatedTitleBlock, measuredTitleBlock)
+    val topBarState = rememberQhTopBarState(listState, collapseDistance = titleBlock)
+
+    // -- Bottom: navigation bar and the floating mini player ----------------------------------------
+    val imeInsets = WindowInsets.ime
+    val navigationInset = WindowInsets.navigationBars.exclude(imeInsets).asPaddingValues().calculateBottomPadding()
+    val bottomPadding by animateDpAsState(
+        targetValue = listBottomPadding(navigationInset, playerVisible = player != null, fontScale = density.fontScale),
+        animationSpec = QhMotion.gentle<Dp>().orSnap(),
+        label = "list-bottom-padding",
+    )
+
+    // Scrolling the list puts the keyboard away (the search text and the results stay).
+    val dismissKeyboardOnScroll = remember(keyboard) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && abs(available.y) > 0f) keyboard?.hide()
+                return Offset.Zero
+            }
+        }
+    }
+
+    fun open(dest: Dest.Reader) {
+        focusManager.clearFocus()
+        actions.openReader(dest)
+    }
+
+    val hero = ui.continueItem
+    val heroListen = if (player != null && hero != null && player.surah == hero.surah && player.isPlaying) {
+        HeroListenState.Playing
+    } else {
+        HeroListenState.Idle
+    }
+    // Index of the sticky header: the title space and whatever sections exist above it (the lesson card
+    // item is always there in the content phase; it folds to nothing until the lesson is known), then the tabs.
+    val searchHeaderIndex = 1 + (if (hero != null) 1 else 0) + 1 + (if (ui.recent.isNotEmpty()) 1 else 0) + 1
+    val searchStuck = remember(listState, searchHeaderIndex) { { listState.firstVisibleItemIndex >= searchHeaderIndex } }
+
+    // Focusing the field lifts it under the top bar. Only when the sections above it are still on
+    // screen: from the middle of the list the field is already pinned and the list must not jump.
+    LaunchedEffect(searchFocused) {
+        if (searchFocused && listState.firstVisibleItemIndex < searchHeaderIndex) {
+            listState.animateScrollToItem(searchHeaderIndex)
+        }
+    }
+    // Once the keyboard is gone the field is not "in use" any more: let go of its focus, so the hero,
+    // Today and the status segments come back when the field is empty.
+    LaunchedEffect(imeInsets, density) {
+        var wasVisible = false
+        snapshotFlow { imeInsets.getBottom(density) > 0 }.collect { visible ->
+            if (wasVisible && !visible) focusManager.clearFocus()
+            wasVisible = visible
+        }
+    }
+    // Back leaves search mode first (clears the field and the focus); only then does it leave the app.
+    BackHandler(enabled = searchMode) {
+        query = ""
+        actions.setQuery("")
+        actions.setTranslationQuery("")
+        keyboard?.hide()
+        focusManager.clearFocus()
+    }
+    // When search ends and the list is still near the top, bring the hero back into view.
+    val wasSearching = remember { booleanArrayOf(false) }
+    LaunchedEffect(searchMode) {
+        if (!searchMode && wasSearching[0] && listState.firstVisibleItemIndex <= searchHeaderIndex) {
+            listState.animateScrollToItem(0)
+        }
+        wasSearching[0] = searchMode
+    }
+    // The burst is over after a second; forget it so a row scrolled back into view does not replay it.
+    LaunchedEffect(celebration) {
+        if (celebration.token != 0) {
+            delay(CelebrationMillis)
+            celebration = Celebration()
+        }
+    }
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(colors.bg)
+            .imePadding(),
+    ) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = collapsedBar)
+                .nestedScroll(dismissKeyboardOnScroll),
+            contentPadding = PaddingValues(bottom = bottomPadding),
+        ) {
+            item(key = "title-space", contentType = "space") { Spacer(Modifier.height(titleBlock)) }
+
+            when (ui.phase) {
+                HomePhase.Loading -> {
+                    item(key = "skeleton-top", contentType = "skeleton") { HomeSkeletonTop() }
+                    items(SkeletonRowCount, key = { "skeleton-row-$it" }) { HomeSkeletonRow() }
+                }
+
+                HomePhase.Error -> item(key = "error", contentType = "error") {
+                    EmptyState(
+                        title = copy.loadErrorTitle,
+                        message = copy.loadErrorBody,
+                        actionLabel = copy.retry,
+                        onAction = actions.retry,
+                        modifier = Modifier.fillParentMaxHeight(0.7f),
+                    )
+                }
+
+                HomePhase.Content -> {
+                    // "Today's lesson" and "Continue" swap places with the goal; the lesson is a calm line when
+                    // the goal is only reading and listening.
+                    val lessonFirst = ui.lessonFirst
+                    val lessonIndex = if (lessonFirst) 0 else 1
+                    val heroIndex = if (lessonFirst) 1 else 0
+                    val heroItem: LazyListScope.() -> Unit = {
+                        if (hero != null) {
+                            item(key = "hero", contentType = "hero") {
+                                FoldableSection(visible = !searchMode) {
+                                    HeroCard(
+                                        item = hero,
+                                        copy = copy,
+                                        arabicStyle = heroArabicStyle,
+                                        listenState = heroListen,
+                                        onRead = {
+                                            open(
+                                                Dest.Reader(
+                                                    surah = hero.surah,
+                                                    ayah = if (hero.isFresh) null else hero.ayah,
+                                                    origin = Origin.HERO,
+                                                ),
+                                            )
+                                        },
+                                        onListen = { actions.listen(hero.surah, hero.ayah) },
+                                        compact = lessonFirst,
+                                        modifier = Modifier
+                                            .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x3)
+                                            .staggeredEnter(heroIndex, stagger)
+                                            .spotlightTarget(SpotlightTargets.HomeContinue, SpotlightShape.Rounded(22.dp)),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    val lessonItem: LazyListScope.() -> Unit = {
+                        item(key = "lesson", contentType = "lesson") {
+                            FoldableSection(visible = !searchMode && ui.lesson != null) {
+                                // The last card is kept while the section folds (search, or the lesson being re-read).
+                                val card = ui.lesson ?: lessonHolder.card
+                                if (card != null) {
+                                    lessonHolder.card = card
+                                    val cardModifier = Modifier
+                                        .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x3)
+                                        .staggeredEnter(lessonIndex, stagger)
+                                        .spotlightTarget(SpotlightTargets.HomeLesson, SpotlightShape.Rounded(22.dp))
+                                    if (lessonFirst) {
+                                        LessonCard(
+                                            card = card,
+                                            copy = copy,
+                                            onOpenLesson = actions.openLesson,
+                                            onOpenPlan = actions.openPlan,
+                                            modifier = cardModifier,
+                                            onListenOld = { listenOpen = true },
+                                            listening = listening,
+                                            onResumePlan = actions.resumePlan,
+                                            onOpenKhatm = actions.openKhatm,
+                                        )
+                                    } else {
+                                        LessonInviteRow(
+                                            card = card,
+                                            copy = copy,
+                                            onOpenLesson = actions.openLesson,
+                                            onOpenPlan = actions.openPlan,
+                                            modifier = cardModifier,
+                                        )
+                                    }
+                                    // "Check · 5 questions on what you know": a row of its own under the lesson, also while the plan is paused.
+                                    if (ui.quizReady) {
+                                        QuizRow(
+                                            onClick = actions.openQuiz,
+                                            modifier = Modifier
+                                                .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x2)
+                                                .staggeredEnter(lessonIndex, stagger),
+                                        )
+                                    }
+                                    // The reading plan (khatm) and Ramadan (task F5b): each card shows only when there is something to say.
+                                    KhatmHomeCards(
+                                        onOpenKhatm = actions.openKhatm,
+                                        onOpenKhatmPicker = actions.openKhatmPicker,
+                                        onOpenMushaf = actions.openMushaf,
+                                        modifier = Modifier
+                                            .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x2)
+                                            .staggeredEnter(lessonIndex, stagger),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (lessonFirst) {
+                        lessonItem()
+                        heroItem()
+                    } else {
+                        heroItem()
+                        lessonItem()
+                    }
+                    if (ui.recent.isNotEmpty()) {
+                        item(key = "recent", contentType = "recent") {
+                            // The tabs of the list follow: a tighter gap than between the cards, so the first surah row stays
+                            // on screen as before (the tour of the home screen points at it).
+                            FoldableSection(visible = !searchMode, trailingSpace = QhSpacing.x4) {
+                                RecentSection(
+                                    recent = ui.recent,
+                                    copy = copy,
+                                    onOpen = { open(Dest.Reader(surah = it, origin = Origin.RECENT)) },
+                                    onLongPress = { sheetSurah = it },
+                                    modifier = Modifier.staggeredEnter(2, stagger),
+                                )
+                            }
+                        }
+                    }
+
+                    item(key = "tabs", contentType = "tabs") {
+                        // No space after the switch: the sticky header below has its own top padding.
+                        FoldableSection(visible = !searchMode, trailingSpace = 0.dp) {
+                            QhSegmentedControl(
+                                options = tabLabels,
+                                selectedIndex = shownTab.ordinal,
+                                onSelect = { tabOrdinal = it },
+                                modifier = Modifier
+                                    .padding(horizontal = QhSpacing.screen)
+                                    .staggeredEnter(TabsStaggerIndex, stagger),
+                            )
+                        }
+                    }
+
+                    stickyHeader(key = "search", contentType = "search") {
+                        SearchHeader(
+                            query = query,
+                            onQueryChange = {
+                                query = it
+                                actions.setQuery(it)
+                                actions.setTranslationQuery(it)
+                            },
+                            filter = filter,
+                            onFilterChange = {
+                                filterOrdinal = it.ordinal
+                                actions.setFilter(it)
+                            },
+                            showFilters = !searchMode && shownTab == HomeTab.Surahs,
+                            copy = copy,
+                            focusRequester = focusRequester,
+                            onFocusChange = { searchFocused = it },
+                            stuck = searchStuck,
+                            modifier = Modifier.staggeredEnter(SearchStaggerIndex, stagger),
+                            placeholder = when (shownTab) {
+                                HomeTab.Juz -> mushaf.juzSearchPlaceholder
+                                HomeTab.Translation -> translationText.searchPlaceholder
+                                HomeTab.Surahs -> null
+                            },
+                            showTabs = searchMode,
+                            tabs = {
+                                QhSegmentedControl(
+                                    options = searchTabLabels,
+                                    selectedIndex = tab.ordinal,
+                                    onSelect = { tabOrdinal = it },
+                                )
+                            },
+                        )
+                    }
+
+                    when (shownTab) {
+                        HomeTab.Translation -> translationSearchItems(
+                            ui = translation,
+                            query = query,
+                            copy = translationText,
+                            language = copy.language,
+                            sizeLabel = { bytes -> downloadsCopy(copy.language).sizeLabel(bytes) },
+                            surahName = { number -> ui.rows.firstOrNull { it.number == number }?.name ?: number.toString() },
+                            onOpen = { surah, ayah -> open(Dest.Reader(surah = surah, ayah = ayah, origin = Origin.SEARCH)) },
+                            onDownload = actions.downloadTranslation,
+                            onRetry = actions.retryTranslation,
+                        )
+
+                        HomeTab.Surahs -> {
+                            val listing = ui.listing
+                            listing.smartResult?.let { smart ->
+                                item(key = "smart", contentType = "smart") {
+                                    SmartResultCard(
+                                        result = smart,
+                                        copy = copy,
+                                        onOpen = {
+                                            open(Dest.Reader(surah = smart.row.number, ayah = smart.ayah, origin = Origin.SEARCH))
+                                        },
+                                        modifier = Modifier
+                                            .padding(horizontal = QhSpacing.screen, vertical = QhSpacing.x1)
+                                            .then(rowAnimation()),
+                                    )
+                                }
+                            }
+                            if (listing.rows.isEmpty() && listing.smartResult == null) {
+                                item(key = "empty", contentType = "empty") {
+                                    ListEmptyState(
+                                        isSearching = listing.isSearching,
+                                        filter = listing.filter,
+                                        copy = copy,
+                                        modifier = rowAnimation(),
+                                    )
+                                }
+                            }
+                            val rowOrigin = if (listing.isSearching) Origin.SEARCH else Origin.LIST
+                            itemsIndexed(listing.rows, key = { _, row -> row.number }, contentType = { _, _ -> "row" }) { position, row ->
+                                SurahListRow(
+                                    row = row,
+                                    origin = rowOrigin,
+                                    texts = rowTexts,
+                                    arabicStyle = rowArabicStyle,
+                                    celebration = if (celebration.surah == row.number) celebration.token else 0,
+                                    onOpen = { open(Dest.Reader(surah = it, origin = rowOrigin)) },
+                                    onLongPress = { sheetSurah = it },
+                                    modifier = Modifier
+                                        // The burst reaches into the neighbouring rows: draw this one on top of them.
+                                        .zIndex(if (celebration.surah == row.number && celebration.token != 0) 1f else 0f)
+                                        .then(rowAnimation())
+                                        .staggeredEnter(FirstRowStaggerIndex + position, stagger)
+                                        // The first row of the list is what the tour points at ("hold a surah").
+                                        .then(
+                                            if (position == 0) {
+                                                Modifier.spotlightTarget(SpotlightTargets.HomeSurahRow, SpotlightShape.Rounded(14.dp), reveal = true, inset = 10.dp)
+                                            } else {
+                                                Modifier
+                                            },
+                                        ),
+                                )
+                            }
+                        }
+
+                        HomeTab.Juz -> {
+                            val juzListing = ui.juzListing
+                            if (juzListing.isEmpty()) {
+                                item(key = "juz-empty", contentType = "empty") {
+                                    ListEmptyState(
+                                        isSearching = true,
+                                        filter = SurahFilter.All,
+                                        copy = copy,
+                                        modifier = rowAnimation(),
+                                        searchBody = mushaf.juzNoResultsBody,
+                                    )
+                                }
+                            }
+                            itemsIndexed(juzListing, key = { _, row -> "juz-${row.juz}" }, contentType = { _, _ -> "juz" }) { position, row ->
+                                JuzListRow(
+                                    row = row,
+                                    copy = copy,
+                                    mushaf = mushaf,
+                                    arabicStyle = rowArabicStyle,
+                                    onOpen = { juz ->
+                                        // The start of the juz: the reader opens on that ayah (and marks it for a moment).
+                                        open(Dest.Reader(surah = juz.startSurah, ayah = juz.startAyah, origin = JuzRows.ORIGIN))
+                                    },
+                                    modifier = Modifier
+                                        .then(rowAnimation())
+                                        .staggeredEnter(FirstRowStaggerIndex + position, stagger),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        QhLargeTopBar(
+            title = copy.title,
+            overline = copy.greeting,
+            state = topBarState,
+            actions = {
+                ProgressAction(
+                    progress = ui.overallProgress,
+                    description = copy.progressDescription(progressPercent(ui.overallProgress)),
+                    onClick = actions.openProgress,
+                )
+                SettingsAction(label = copy.settings, onClick = actions.openSettings)
+            },
+            modifier = Modifier.onSizeChanged { expandedBarPx = maxOf(expandedBarPx, it.height) },
+        )
+
+        if (onOpenCatalog != null) {
+            // Debug builds: a long press on the big title opens the component catalog.
+            Box(
+                Modifier
+                    .padding(top = collapsedBar)
+                    .size(width = 160.dp, height = titleBlock)
+                    .combinedClickable(onClick = {}, onLongClick = onOpenCatalog),
+            )
+        }
+
+        MiniPlayerHost(
+            player = player,
+            progress = playbackProgress,
+            copy = copy,
+            onOpen = { current ->
+                open(Dest.Reader(surah = current.surah, ayah = current.ayah, origin = Origin.PLAYER))
+            },
+            onToggle = actions.togglePlayback,
+            onStop = actions.stopPlayback,
+            bottomInset = navigationInset,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
+    }
+
+    if (listenOpen) ListenOldSheet(onDismiss = { listenOpen = false })
+
+    val sheetRow = sheetSurah?.let { number -> ui.rows.firstOrNull { it.number == number } }
+    if (sheetRow != null) {
+        // One subscription, only while the sheet is open.
+        val coverage by produceState<SurahCoverage?>(initialValue = null, sheetRow.number) {
+            actions.coverage(sheetRow.number).collect { value = it }
+        }
+        SurahSheet(
+            row = sheetRow,
+            coverage = coverage,
+            copy = copy,
+            arabicStyle = rowArabicStyle,
+            onPicked = { target ->
+                // At the tap, while the sheet slides away: the toast stays up for its full 3 seconds and
+                // the haptic does not depend on the row being on screen.
+                when (target) {
+                    SurahTarget.Known -> {
+                        haptics.perform(HapticKind.Success)
+                        toaster.show(copy.learnedToast(sheetRow.name), ToastKind.Success)
+                    }
+
+                    SurahTarget.Learning -> toaster.show(copy.learningToast(sheetRow.name), ToastKind.Info)
+                    SurahTarget.NotStarted -> Unit
+                }
+            },
+            onApply = { target ->
+                // Once the sheet is gone: the badge fills and the burst plays on the visible row.
+                actions.applyStatus(sheetRow.number, target)
+                if (target == SurahTarget.Known) {
+                    celebration = Celebration(sheetRow.number, celebration.token + 1)
+                }
+            },
+            onTogglePin = { actions.togglePin(sheetRow.number) },
+            onListen = {
+                actions.listen(sheetRow.number, if (hero?.surah == sheetRow.number) hero.ayah else 1)
+            },
+            onDismiss = { sheetSurah = null },
+        )
+    }
+}
+
+/**
+ * Wraps a section above the search field. It folds to nothing (and back) when the person starts
+ * searching, which lifts the search field to the top of the screen without any manual scrolling.
+ */
+@Composable
+private fun FoldableSection(
+    visible: Boolean,
+    trailingSpace: Dp = QhSpacing.section,
+    content: @Composable () -> Unit,
+) {
+    val reduced = LocalReducedMotion.current
+    AnimatedVisibility(
+        visible = visible,
+        enter = if (reduced) {
+            EnterTransition.None
+        } else {
+            expandVertically(QhMotion.gentle()) + fadeIn(QhMotion.snappy())
+        },
+        exit = if (reduced) {
+            ExitTransition.None
+        } else {
+            shrinkVertically(QhMotion.gentle()) + fadeOut(tween(QhMotion.Short))
+        },
+    ) {
+        Column {
+            content()
+            Spacer(Modifier.height(trailingSpace))
+        }
+    }
+}
+
+/** Fade and re-placement of list items when the filter or the query changes; none under reduced motion. */
+@Composable
+private fun LazyItemScope.rowAnimation(): Modifier =
+    if (LocalReducedMotion.current) {
+        Modifier.animateItem(fadeInSpec = null, placementSpec = null, fadeOutSpec = null)
+    } else {
+        Modifier.animateItem()
+    }
+
+private val TopBarRowHeight = 56.dp
+private const val SkeletonRowCount = 9
+private const val TabsStaggerIndex = 3
+private const val SearchStaggerIndex = 4
+private const val FirstRowStaggerIndex = 5
+private const val CelebrationMillis = 1_100L
+
+/** Remembers the last lesson card between compositions (not state: it only feeds the fold-away animation). */
+private class LessonHolder { var card: LessonCardUi? = null }

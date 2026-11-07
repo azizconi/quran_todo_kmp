@@ -27,6 +27,7 @@ import tj.app.quran_todo.domain.use_case.AyahTodoDeleteByAyahUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoGetBySurahOnceUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoGetBySurahUseCase
 import tj.app.quran_todo.domain.use_case.AyahTodoUpsertUseCase
+import tj.app.quran_todo.data.translation.TranslationChoice
 import tj.app.quran_todo.domain.use_case.GetAyahTranslationsUseCase
 import tj.app.quran_todo.domain.use_case.GetChapterNamesUseCase
 import tj.app.quran_todo.domain.use_case.TodoDeleteSurahByNumberUseCase
@@ -59,6 +60,15 @@ class SurahViewModel(
     private val _ayahTranslations = MutableStateFlow<Map<Int, String>>(emptyMap())
     val ayahTranslations: StateFlow<Map<Int, String>> = _ayahTranslations.asStateFlow()
 
+    private val _translationFailedSurah = MutableStateFlow<Int?>(null)
+
+    /**
+     * Number of the surah whose translation could not be loaded by the last [loadTranslations] (offline, a
+     * server error), or null: nothing failed, or a new load has started. A reader shows its "Retry" hint
+     * when this is its own surah.
+     */
+    val translationFailedSurah: StateFlow<Int?> = _translationFailedSurah.asStateFlow()
+
     private val _ruSurahNames = MutableStateFlow<Map<Int, String>>(emptyMap())
     val ruSurahNames: StateFlow<Map<Int, String>> = _ruSurahNames.asStateFlow()
 
@@ -71,7 +81,8 @@ class SurahViewModel(
     private val _reviews = MutableStateFlow<Map<Int, AyahReviewEntity>>(emptyMap())
     val reviews: StateFlow<Map<Int, AyahReviewEntity>> = _reviews.asStateFlow()
 
-    private var lastLoaded: Pair<Int, AppLanguage>? = null
+    /** The surah, the language of the interface and the key of the edition that was asked for: another edition is another request. */
+    private var lastLoaded: Triple<Int, AppLanguage, String>? = null
     private var lastChapterLanguage: AppLanguage? = null
     private var translationJob: Job? = null
     private var chapterNamesJob: Job? = null
@@ -159,25 +170,39 @@ class SurahViewModel(
         }
     }
 
-    fun loadTranslations(surahNumber: Int, language: AppLanguage, expectedCount: Int) {
-        if (lastLoaded == surahNumber to language &&
+    /** [force] is the explicit "Retry": it also goes through the failed-request memory of the repository. */
+    fun loadTranslations(
+        surahNumber: Int,
+        language: AppLanguage,
+        expectedCount: Int,
+        force: Boolean = false,
+    ) {
+        val request = Triple(surahNumber, language, TranslationChoice.selection.editionFor(language).key)
+        if (!force &&
+            lastLoaded == request &&
             _ayahTranslations.value.isNotEmpty() &&
             (_ayahTranslations.value.size == expectedCount || expectedCount <= 0)
         ) {
             return
         }
-        lastLoaded = surahNumber to language
+        val sameRequest = lastLoaded == request
+        lastLoaded = request
         _ayahTranslations.value = emptyMap()
+        // The "failed" mark stays while the same surah is quietly asked for again (the repository answers at
+        // once from its memory of failures), so the retry hint does not blink; a new surah or a retry clears it.
+        if (force || !sameRequest) _translationFailedSurah.value = null
         translationJob?.cancel()
 
         translationJob = viewModelScope.launch(Dispatchers.IO) {
             val translations = getAyahTranslationsUseCase(
                 surahNumber = surahNumber,
                 language = language,
-                expectedCount = expectedCount
+                expectedCount = expectedCount,
+                force = force,
             )
-            if (lastLoaded != (surahNumber to language)) return@launch
+            if (lastLoaded != request) return@launch
             _ayahTranslations.value = translations
+            _translationFailedSurah.value = if (translations.isEmpty()) surahNumber else null
             AppTelemetry.logEvent(
                 name = "surah_translations_loaded",
                 params = mapOf(

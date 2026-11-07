@@ -1,20 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- No ads and no advertising ID: drop the permissions that Firebase Analytics merges in for it. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION" tools:node="remove" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- The daily lesson reminder is planned again after a restart of the phone. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- "Downloads and storage": the WorkManager work that downloads audio runs as a foreground service of type dataSync. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- "My reading" (Recall): the microphone is used only while the person presses the record button; the recordings stay on the phone.
+         Phones without a microphone can still install the app. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <application
         android:name=".QuranTodoApplication"
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
+        android:enableOnBackInvokedCallback="true"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        android:theme="@style/Theme.QuranHifz">
+        <!-- Debug builds never send analytics or crash reports to the production Firebase project (build.gradle.kts). -->
+        <meta-data
+            android:name="firebase_analytics_collection_deactivated"
+            android:value="${analyticsDeactivated}" />
+        <!-- Nothing is collected until the stored choice has been read: AppTelemetry switches Analytics and Crashlytics on in code, and only
+             when the choice is "yes" (unlike "deactivated" above, this default can be overridden at run time). -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="${crashlyticsEnabled}" />
+        <!-- Firebase never reads or collects the advertising ID, and never personalizes ads. -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_personalization_signals"
+            android:value="false" />
         <activity
             android:exported="true"
+            android:theme="@style/Theme.QuranHifz.Splash"
+            android:launchMode="singleTop"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|fontScale|fontWeightAdjustment|keyboard|layoutDirection|locale|mcc|navigation|smallestScreenSize|touchscreen|uiMode"
             android:name=".MainActivity">
             <intent-filter>
@@ -23,10 +62,81 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".ui.playback.PlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
+        <!-- WorkManager's own foreground service: the download work (ui/downloads/DownloadWorker) calls setForeground with the type
+             dataSync, and Android 14+ needs the same type here. tools:node="merge" adds the type to the service of the library. -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+        <!-- The "Cancel" button of the download notification. Only our own notification starts it. -->
+        <receiver
+            android:name=".ui.downloads.DownloadActionReceiver"
+            android:enabled="true"
+            android:exported="false" />
+        <!-- "Send a copy" (settings, Transfer and backup): the backup file is written to cache/transfer/ and handed to the
+             chosen app by a read-only content uri; nothing else of the app is reachable through this provider. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.transferprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/transfer_file_paths" />
+        </provider>
+        <!-- Daily lesson reminder (B4). The alarm and the "In an hour" button reach this receiver only through our own PendingIntents. -->
         <receiver
             android:name=".common.reminder.ReminderReceiver"
             android:enabled="true"
             android:exported="false" />
+        <!-- Plans the reminder again after a restart, an app update, a clock or time zone change, and renames its channel when the
+             language of the phone changes. These are protected system broadcasts: the system delivers them to a receiver that is
+             not exported, and no other app can send them. -->
+        <receiver
+            android:name=".common.reminder.ReminderSystemReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <!-- The "Lesson of the day" home screen widget (task F5b). -->
+        <receiver
+            android:name=".ui.widget.LessonWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lesson_widget_info" />
+        </receiver>
+        <!-- Redraws the widget after a reboot, an app update, a clock, time zone or language change, and just after midnight (its own
+             alarm). Protected system broadcasts: the system delivers them to a receiver that is not exported. -->
+        <receiver
+            android:name=".ui.widget.LessonWidgetSystemReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

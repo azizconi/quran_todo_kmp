@@ -9,9 +9,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.mp.KoinPlatformTools
-import tj.app.quran_todo.common.audio.AudioCache
-import tj.app.quran_todo.common.audio.AudioPlayer
-import tj.app.quran_todo.common.audio.ayahAudioCacheKey
+import tj.app.quran_todo.common.audio.ReaderAudioSession
+import tj.app.quran_todo.common.audio.ReaderAudioAyah
+import tj.app.quran_todo.common.audio.ReaderAudioState
+import tj.app.quran_todo.common.settings.ReaderPracticeSettings
+import tj.app.quran_todo.common.i18n.PlayerFeatureCopy
+import tj.app.quran_todo.common.i18n.playerFeatureCopy
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.LanguageStorage
 import tj.app.quran_todo.common.settings.SurahReaderPreferences
@@ -39,12 +42,8 @@ class NativeSurahReaderBridge internal constructor(
     private val surahViewModel: SurahViewModel,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val audioCache = AudioCache()
-    private val audioPlayer = AudioPlayer()
-    private var audioPlaybackJob: Job? = null
-    private var audioPlaybackRequestId = 0L
-    private var isAudioPreparing = false
-    private var activePlaybackSpeed = 1f
+    private val playerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val audioSession = ReaderAudioSession(playerScope)
 
     fun load(
         surahNumber: Int,
@@ -99,6 +98,8 @@ class NativeSurahReaderBridge internal constructor(
                     surahStatus = surahStatus?.name?.lowercase().orEmpty(),
                     initialAyahGlobalNumber = initialAyahGlobalNumber,
                     preferences = preferences.toSnapshot(),
+                    practice = ReaderPracticeSettings.load(surahNumber, ayahs.size),
+                    playerCopy = playerFeatureCopy(language),
                     strings = readerCopy,
                     theme = readerTheme,
                     readingFontSize = UserSettingsStorage.getReadingFontSize()
@@ -116,7 +117,16 @@ class NativeSurahReaderBridge internal constructor(
                     },
                 )
             }.onSuccess { snapshot ->
-                withContext(Dispatchers.Main) { onLoaded(snapshot) }
+                withContext(Dispatchers.Main) {
+                    audioSession.configure(
+                        surahNumber = snapshot.number,
+                        ayahs = snapshot.ayahs.map { ReaderAudioAyah(it.globalNumber, it.numberInSurah) },
+                        preferences = SurahReaderPreferences.load(),
+                        practice = snapshot.practice,
+                        initialAyahGlobalNumber = snapshot.initialAyahGlobalNumber,
+                    )
+                    onLoaded(snapshot)
+                }
             }.onFailure { throwable ->
                 withContext(Dispatchers.Main) {
                     onError(throwable.message ?: readerCopy.loadErrorTitle)
@@ -166,75 +176,52 @@ class NativeSurahReaderBridge internal constructor(
         UserSettingsStorage.saveLastPlaybackPosition(surahNumber, ayahGlobalNumber)
     }
 
-    fun playAyah(
+    fun observePlayback(onChanged: (ReaderAudioState) -> Unit) {
+        playerScope.launch { audioSession.state.collect { onChanged(it) } }
+    }
+
+    fun selectAyah(index: Int) = audioSession.select(index)
+    fun togglePlayback() = audioSession.toggle()
+    fun previousAyah() = audioSession.previous()
+    fun nextAyah() = audioSession.next()
+    fun stopAudio() = audioSession.stop()
+    fun hasSeenPlayerGuide(feature: String): Boolean = UserSettingsStorage.isPlayerGuideSeen(feature) == true
+    fun markPlayerGuideSeen(feature: String) = UserSettingsStorage.savePlayerGuideSeen(true, feature)
+
+    fun savePlayerSettings(
         surahNumber: Int,
-        ayahGlobalNumber: Int,
-        ayahNumberInSurah: Int,
+        ayahCount: Int,
+        rangeEnabled: Boolean,
+        startAyah: Int,
+        endAyah: Int,
+        rangeRepeatCount: Int,
+        pauseSeconds: Int,
         playbackSpeed: Float,
-        onStarted: () -> Unit,
-        onCompleted: () -> Unit,
-    ) {
-        audioPlaybackJob?.cancel()
-        audioPlayer.stop()
-        val requestId = ++audioPlaybackRequestId
-        activePlaybackSpeed = playbackSpeed
-        isAudioPreparing = true
-        audioPlaybackJob = scope.launch {
-            val remoteUrl = "https://cdn.islamic.network/quran/audio/128/ar.alafasy/$ayahGlobalNumber.mp3"
-            val cacheKey = ayahAudioCacheKey(surahNumber, ayahNumberInSurah)
-            val source = audioCache.getOrFetch(remoteUrl, cacheKey) ?: remoteUrl
-            withContext(Dispatchers.Main) {
-                if (requestId != audioPlaybackRequestId) return@withContext
-                isAudioPreparing = false
-                audioPlayer.setPlaybackSpeed(activePlaybackSpeed)
-                audioPlayer.play(source) {
-                    scope.launch(Dispatchers.Main) {
-                        if (requestId == audioPlaybackRequestId) {
-                            onCompleted()
-                        }
-                    }
-                }
-                onStarted()
-            }
-        }
+        ayahRepeatCount: Int,
+    ): ReaderPracticeSettings {
+        val practice = ReaderPracticeSettings(
+            rangeEnabled, startAyah, endAyah, rangeRepeatCount, pauseSeconds,
+        ).normalized(ayahCount)
+        practice.save(surahNumber)
+        val preferences = SurahReaderPreferences.load().copy(
+            playbackSpeed = playbackSpeed,
+            repeatCount = ayahRepeatCount,
+        )
+        preferences.save()
+        audioSession.updateSettings(preferences, practice)
+        return practice
     }
 
-    fun pauseAudio() {
-        if (isAudioPreparing) {
-            cancelPendingAudioPlayback()
-        } else {
-            audioPlayer.pause()
-        }
+    fun updatePlayerPreferences(surahNumber: Int, ayahCount: Int) {
+        audioSession.updateSettings(
+            SurahReaderPreferences.load(), ReaderPracticeSettings.load(surahNumber, ayahCount),
+        )
     }
-
-    fun resumeAudio(playbackSpeed: Float) {
-        activePlaybackSpeed = playbackSpeed
-        audioPlayer.setPlaybackSpeed(activePlaybackSpeed)
-        audioPlayer.resume()
-    }
-
-    fun setAudioPlaybackSpeed(playbackSpeed: Float) {
-        activePlaybackSpeed = playbackSpeed
-        audioPlayer.setPlaybackSpeed(activePlaybackSpeed)
-    }
-
-    fun stopAudio() = cancelPendingAudioPlayback()
-
-    fun audioPositionMs(): Long = audioPlayer.getPositionMs()
-
-    fun audioDurationMs(): Long = audioPlayer.getDurationMs()
 
     fun close() {
-        cancelPendingAudioPlayback()
-        scope.coroutineContext.cancel()
-    }
-
-    private fun cancelPendingAudioPlayback() {
-        audioPlaybackRequestId += 1
-        isAudioPreparing = false
-        audioPlaybackJob?.cancel()
-        audioPlaybackJob = null
-        audioPlayer.stop()
+        audioSession.close()
+        playerScope.cancel()
+        scope.cancel()
     }
 
     private fun SurahReaderPreferences.toSnapshot() = NativeSurahReaderPreferencesSnapshot(
@@ -496,6 +483,8 @@ class NativeSurahReaderSnapshot(
     /** Zero means no previous ayah has been stored for this surah. */
     val initialAyahGlobalNumber: Int,
     val preferences: NativeSurahReaderPreferencesSnapshot,
+    val practice: ReaderPracticeSettings,
+    val playerCopy: PlayerFeatureCopy,
     val strings: NativeSurahReaderCopy,
     val theme: NativeSurahReaderTheme,
     val readingFontSize: Int,

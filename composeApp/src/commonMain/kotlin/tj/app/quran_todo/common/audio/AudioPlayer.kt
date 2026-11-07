@@ -1,7 +1,7 @@
 package tj.app.quran_todo.common.audio
 
 expect class AudioPlayer() {
-    fun play(url: String, onComplete: () -> Unit)
+    fun play(url: String, onError: (() -> Unit)? = null, onComplete: () -> Unit)
     fun pause()
     fun resume()
     fun setPlaybackSpeed(speed: Float)

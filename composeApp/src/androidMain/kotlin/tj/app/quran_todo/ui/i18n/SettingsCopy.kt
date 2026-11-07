@@ -1,0 +1,236 @@
+package tj.app.quran_todo.ui.i18n
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import tj.app.quran_todo.common.i18n.AppLanguage
+import tj.app.quran_todo.common.i18n.LocalAppLanguage
+import tj.app.quran_todo.common.i18n.NativeSettingsCopy
+import tj.app.quran_todo.common.i18n.nativeSettingsCopy
+
+/**
+ * Strings of the redesigned settings screen (and the theme / palette labels shared with the onboarding).
+ * Everything that [NativeSettingsCopy] already says well (ayah and font descriptions, restore dialog,
+ * download progress) is reused through [native] instead of being written a second time.
+ */
+data class SettingsCopy(
+    val native: NativeSettingsCopy,
+    /** "Transfer and backup": the section, the import confirmation, the toasts. */
+    val transfer: TransferCopy,
+    val sectionAppearance: String,
+    val sectionReading: String,
+    val sectionSound: String,
+    val sectionMemorization: String,
+    val sectionLanguage: String,
+    val sectionData: String,
+    val sectionComfort: String,
+    val sectionAbout: String,
+    val theme: String,
+    val themeLight: String,
+    val themeDark: String,
+    val themeSystem: String,
+    val palette: String,
+    val paletteForest: String,
+    val paletteSand: String,
+    val paletteOcean: String,
+    val arabicFont: String,
+    val translation: String,
+    val translationDescription: String,
+    val highlightAyah: String,
+    val highlightAyahDescription: String,
+    val keepScreenOn: String,
+    val keepScreenOnDescription: String,
+    val autoplay: String,
+    val autoplayDescription: String,
+    val autoAdvance: String,
+    val autoAdvanceDescription: String,
+    val speed: String,
+    val repeatAyah: String,
+    val reciter: String,
+    val reciterName: String,
+    /** The row that opens "My plan" (its title is the title of the plan screen). */
+    val myPlanDescription: String,
+    /** The row that opens the sheet of the hint levels of "Recall": "Hint in Recall: First word". */
+    val hintRowFmt: String,
+    val hintRowDescription: String,
+    val decrease: String,
+    val increase: String,
+    val language: String,
+    val languageSheetTitle: String,
+    val haptics: String,
+    val hapticsDescription: String,
+    val reduceMotion: String,
+    val reduceMotionDescription: String,
+    /** The row that brings the spotlight tips back, and the toast after it. */
+    val showTipsAgain: String,
+    val showTipsAgainDescription: String,
+    val tipsWillShowAgain: String,
+    val version: String,
+    val privacyPolicy: String,
+    val rateApp: String,
+    val rateAppDescription: String,
+    val storeUnavailable: String,
+    val linkUnavailable: String,
+) {
+    /** "Hint in Recall: First word": the row of the memorization section; [level] is the name of the level in force. */
+    fun hintRow(level: String): String = hintRowFmt.replace("{level}", level)
+}
+
+@Composable
+fun rememberSettingsCopy(language: AppLanguage = LocalAppLanguage.current): SettingsCopy =
+    remember(language) { settingsCopy(language) }
+
+fun settingsCopy(language: AppLanguage): SettingsCopy {
+    val native = nativeSettingsCopy(language)
+    val transfer = transferCopy(language)
+    return when (language) {
+        AppLanguage.EN -> SettingsCopy(
+            native = native,
+            transfer = transfer,
+            sectionAppearance = "Appearance", sectionReading = "Reading", sectionSound = "Sound",
+            sectionMemorization = "Memorization", sectionLanguage = "Language", sectionData = "Data",
+            sectionComfort = "Comfort", sectionAbout = "About",
+            theme = "Theme", themeLight = "Light", themeDark = "Dark", themeSystem = "System",
+            palette = "Palette", paletteForest = "Forest", paletteSand = "Sand", paletteOcean = "Ocean",
+            arabicFont = "Arabic font",
+            translation = "Show translation", translationDescription = "Under the Arabic text of every ayah.",
+            highlightAyah = "Highlight the playing ayah",
+            highlightAyahDescription = "A soft highlight on the current ayah while audio plays.",
+            keepScreenOn = "Keep the screen on", keepScreenOnDescription = "While you read or listen.",
+            autoplay = "Autoplay on open", autoplayDescription = "Audio starts as soon as a surah opens.",
+            autoAdvance = "Next ayah automatically", autoAdvanceDescription = "After the repeats, audio moves on by itself.",
+            speed = "Speed", repeatAyah = "Ayah repeat",
+            reciter = "Reciter", reciterName = "Mishary Alafasy",
+            myPlanDescription = "What you learn, ayahs per day and the review circle.",
+            hintRowFmt = "Hint in Recall: {level}", hintRowDescription = "How much of the ayah stays on screen while you recall.",
+            decrease = "Decrease", increase = "Increase",
+            language = "Language", languageSheetTitle = "App language",
+            haptics = "Haptic feedback", hapticsDescription = "A light vibration on taps.",
+            reduceMotion = "Reduce motion", reduceMotionDescription = "No springs, particles or parallax.",
+            showTipsAgain = "Show tips again", showTipsAgainDescription = "The short hints on the screens will appear again.",
+            tipsWillShowAgain = "Tips will show again",
+            version = "Version", privacyPolicy = "Privacy policy", rateApp = "Rate the app",
+            rateAppDescription = "Your review helps others find the app.",
+            storeUnavailable = "Could not open the app store", linkUnavailable = "Could not open the link",
+        )
+
+        AppLanguage.RU -> SettingsCopy(
+            native = native,
+            transfer = transfer,
+            sectionAppearance = "Внешний вид", sectionReading = "Чтение", sectionSound = "Звук",
+            sectionMemorization = "Заучивание", sectionLanguage = "Язык", sectionData = "Данные",
+            sectionComfort = "Удобство", sectionAbout = "О приложении",
+            theme = "Тема", themeLight = "Светлая", themeDark = "Тёмная", themeSystem = "Система",
+            palette = "Палитра", paletteForest = "Лес", paletteSand = "Песок", paletteOcean = "Океан",
+            arabicFont = "Арабский шрифт",
+            translation = "Показывать перевод", translationDescription = "Под арабским текстом каждого аята.",
+            highlightAyah = "Подсвечивать играющий аят",
+            highlightAyahDescription = "Мягкая подсветка текущего аята во время звука.",
+            keepScreenOn = "Не гасить экран", keepScreenOnDescription = "Пока вы читаете или слушаете.",
+            autoplay = "Автозапуск при открытии", autoplayDescription = "Звук начинается, как только открывается сура.",
+            autoAdvance = "Следующий аят автоматически", autoAdvanceDescription = "После повторов звук идёт дальше сам.",
+            speed = "Скорость", repeatAyah = "Повтор аята",
+            reciter = "Чтец", reciterName = "Мишари Аль-Афаси",
+            myPlanDescription = "Что учите, сколько аятов в день и круг повторения.",
+            hintRowFmt = "Подсказка в «Вспомни»: {level}", hintRowDescription = "Сколько аята остаётся на экране, пока вы вспоминаете.",
+            decrease = "Уменьшить", increase = "Увеличить",
+            language = "Язык", languageSheetTitle = "Язык приложения",
+            haptics = "Тактильный отклик", hapticsDescription = "Лёгкая вибрация при нажатиях.",
+            reduceMotion = "Меньше анимаций", reduceMotionDescription = "Без пружин, частиц и параллакса.",
+            showTipsAgain = "Показать подсказки снова", showTipsAgainDescription = "Короткие подсказки на экранах появятся снова.",
+            tipsWillShowAgain = "Подсказки покажутся снова",
+            version = "Версия", privacyPolicy = "Политика конфиденциальности", rateApp = "Оценить приложение",
+            rateAppDescription = "Ваш отзыв помогает другим найти приложение.",
+            storeUnavailable = "Не удалось открыть магазин приложений", linkUnavailable = "Не удалось открыть ссылку",
+        )
+
+        AppLanguage.TG -> SettingsCopy(
+            native = native,
+            transfer = transfer,
+            sectionAppearance = "Намуди зоҳирӣ", sectionReading = "Хондан", sectionSound = "Садо",
+            sectionMemorization = "Ҳифз", sectionLanguage = "Забон", sectionData = "Маълумот",
+            sectionComfort = "Қулайӣ", sectionAbout = "Дар бораи барнома",
+            theme = "Мавзӯъ", themeLight = "Равшан", themeDark = "Торик", themeSystem = "Система",
+            palette = "Палитра", paletteForest = "Ҷангал", paletteSand = "Рег", paletteOcean = "Уқёнус",
+            arabicFont = "Шрифти арабӣ",
+            translation = "Намоиши тарҷума", translationDescription = "Дар зери матни арабии ҳар оят.",
+            highlightAyah = "Ояти ҷорӣ равшан шавад",
+            highlightAyahDescription = "Ҳангоми садо ояти ҷорӣ мулоимона ҷудо мешавад.",
+            keepScreenOn = "Экран хомӯш нашавад", keepScreenOnDescription = "Ҳангоми хондан ё гӯш кардан.",
+            autoplay = "Ҳангоми кушодан худкор оғоз шавад", autoplayDescription = "Садо ҳамин ки сура кушода мешавад, оғоз мегардад.",
+            autoAdvance = "Ояти баъдӣ худкор", autoAdvanceDescription = "Пас аз такрорҳо садо худаш идома меёбад.",
+            speed = "Суръат", repeatAyah = "Такрори оят",
+            reciter = "Қорӣ", reciterName = "Мишорӣ Алафосӣ",
+            myPlanDescription = "Чӣ меомӯзед, чанд оят дар як рӯз ва даври такрор.",
+            hintRowFmt = "Ишора дар «Ба ёд ор»: {level}", hintRowDescription = "Ҳангоми ба ёд овардан аз оят чӣ қадар дар экран мемонад.",
+            decrease = "Кам кардан", increase = "Зиёд кардан",
+            language = "Забон", languageSheetTitle = "Забони барнома",
+            haptics = "Вокуниши ламсӣ", hapticsDescription = "Ларзиши сабук ҳангоми зер кардан.",
+            reduceMotion = "Анимацияи камтар", reduceMotionDescription = "Бе пружина, зарраҳо ва параллакс.",
+            showTipsAgain = "Намоиши дубораи маслиҳатҳо", showTipsAgainDescription = "Маслиҳатҳои кӯтоҳ дар экранҳо дубора пайдо мешаванд.",
+            tipsWillShowAgain = "Маслиҳатҳо дубора нишон дода мешаванд",
+            version = "Версия", privacyPolicy = "Сиёсати махфият", rateApp = "Баҳо додан ба барнома",
+            rateAppDescription = "Фикри шумо ба дигарон кӯмак мекунад, ки барномаро ёбанд.",
+            storeUnavailable = "Мағозаи барнома кушода нашуд", linkUnavailable = "Истинод кушода нашуд",
+        )
+
+        AppLanguage.UZ -> SettingsCopy(
+            native = native,
+            transfer = transfer,
+            sectionAppearance = "Ko‘rinish", sectionReading = "O‘qish", sectionSound = "Ovoz",
+            sectionMemorization = "Yodlash", sectionLanguage = "Til", sectionData = "Ma’lumotlar",
+            sectionComfort = "Qulaylik", sectionAbout = "Ilova haqida",
+            theme = "Mavzu", themeLight = "Yorug‘", themeDark = "Qorong‘i", themeSystem = "Tizim",
+            palette = "Palitra", paletteForest = "O‘rmon", paletteSand = "Qum", paletteOcean = "Okean",
+            arabicFont = "Arab shrifti",
+            translation = "Tarjimani ko‘rsatish", translationDescription = "Har bir oyatning arabcha matni ostida.",
+            highlightAyah = "Ijro etilayotgan oyatni ajratish",
+            highlightAyahDescription = "Ovoz vaqtida joriy oyat mayin ajratiladi.",
+            keepScreenOn = "Ekran o‘chmasin", keepScreenOnDescription = "O‘qiyotganda yoki tinglayotganda.",
+            autoplay = "Ochilganda avtomatik boshlash", autoplayDescription = "Sura ochilishi bilan ovoz boshlanadi.",
+            autoAdvance = "Keyingi oyat avtomatik", autoAdvanceDescription = "Takrorlardan so‘ng ovoz o‘zi davom etadi.",
+            speed = "Tezlik", repeatAyah = "Oyat takrori",
+            reciter = "Qori", reciterName = "Mishari Alafasi",
+            myPlanDescription = "Nimani yodlayapsiz, kuniga nechta oyat va takrorlash davrasi.",
+            hintRowFmt = "«Eslab ayt»dagi yordam: {level}", hintRowDescription = "Yodga olayotganda oyatning qancha qismi ekranda qoladi.",
+            decrease = "Kamaytirish", increase = "Ko‘paytirish",
+            language = "Til", languageSheetTitle = "Ilova tili",
+            haptics = "Tebranish javobi", hapticsDescription = "Bosganda yengil tebranish.",
+            reduceMotion = "Kamroq animatsiya", reduceMotionDescription = "Prujinasiz, zarrachalarsiz va parallakssiz.",
+            showTipsAgain = "Maslahatlarni qayta ko‘rsatish", showTipsAgainDescription = "Ekranlardagi qisqa maslahatlar yana paydo bo‘ladi.",
+            tipsWillShowAgain = "Maslahatlar yana ko‘rsatiladi",
+            version = "Versiya", privacyPolicy = "Maxfiylik siyosati", rateApp = "Ilovani baholash",
+            rateAppDescription = "Fikringiz boshqalarga ilovani topishda yordam beradi.",
+            storeUnavailable = "Ilovalar do‘konini ochib bo‘lmadi", linkUnavailable = "Havolani ochib bo‘lmadi",
+        )
+
+        AppLanguage.TR -> SettingsCopy(
+            native = native,
+            transfer = transfer,
+            sectionAppearance = "Görünüm", sectionReading = "Okuma", sectionSound = "Ses",
+            sectionMemorization = "Ezber", sectionLanguage = "Dil", sectionData = "Veriler",
+            sectionComfort = "Kolaylık", sectionAbout = "Hakkında",
+            theme = "Tema", themeLight = "Açık", themeDark = "Koyu", themeSystem = "Sistem",
+            palette = "Palet", paletteForest = "Orman", paletteSand = "Kum", paletteOcean = "Okyanus",
+            arabicFont = "Arapça yazı tipi",
+            translation = "Meali göster", translationDescription = "Her ayetin Arapça metninin altında.",
+            highlightAyah = "Okunan ayeti vurgula",
+            highlightAyahDescription = "Ses çalarken geçerli ayet nazikçe vurgulanır.",
+            keepScreenOn = "Ekran kapanmasın", keepScreenOnDescription = "Okurken veya dinlerken.",
+            autoplay = "Açılışta otomatik oynat", autoplayDescription = "Sure açılır açılmaz ses başlar.",
+            autoAdvance = "Sonraki ayet otomatik", autoAdvanceDescription = "Tekrarlardan sonra ses kendiliğinden devam eder.",
+            speed = "Hız", repeatAyah = "Ayet tekrarı",
+            reciter = "Kâri", reciterName = "Mişari el-Afasi",
+            myPlanDescription = "Ne ezberlediğiniz, günde kaç ayet ve tekrar döngüsü.",
+            hintRowFmt = "«Hatırla» ipucu: {level}", hintRowDescription = "Hatırlarken ayetin ne kadarı ekranda kalır.",
+            decrease = "Azalt", increase = "Artır",
+            language = "Dil", languageSheetTitle = "Uygulama dili",
+            haptics = "Dokunsal geri bildirim", hapticsDescription = "Dokunuşlarda hafif titreşim.",
+            reduceMotion = "Daha az animasyon", reduceMotionDescription = "Yay efekti, parçacık ve paralaks olmadan.",
+            showTipsAgain = "İpuçlarını yeniden göster", showTipsAgainDescription = "Ekranlardaki kısa ipuçları yeniden görünecek.",
+            tipsWillShowAgain = "İpuçları yeniden gösterilecek",
+            version = "Sürüm", privacyPolicy = "Gizlilik politikası", rateApp = "Uygulamayı değerlendir",
+            rateAppDescription = "Yorumunuz başkalarının uygulamayı bulmasına yardımcı olur.",
+            storeUnavailable = "Uygulama mağazası açılamadı", linkUnavailable = "Bağlantı açılamadı",
+        )
+    }
+}

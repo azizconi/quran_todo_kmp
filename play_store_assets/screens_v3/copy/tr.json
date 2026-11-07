@@ -1,0 +1,78 @@
+{
+  "lang": "tr",
+  "screens": [
+    {
+      "word": "Ders",
+      "sub1": "Her gün hazır:",
+      "sub2": "yeni, yakın ve eski.",
+      "pill": "ÜCRETSİZ · REKLAMSIZ"
+    },
+    {
+      "word": "Dinle",
+      "sub1": "12 kâri,",
+      "sub2": "her kelime vurgulanır.",
+      "override": {
+        "pop": [
+          0,
+          773,
+          1080,
+          1488
+        ]
+      }
+    },
+    {
+      "word": "Mushaf",
+      "sub1": "Sayfalar tıpkı",
+      "sub2": "basılı Kur’an gibi.",
+      "override": {
+        "pop": [
+          0,
+          893,
+          1080,
+          1290
+        ]
+      }
+    },
+    {
+      "word": "Tecvid",
+      "sub1": "Okuma kuralları",
+      "sub2": "metinde renkle.",
+      "override": {
+        "pop": [
+          0,
+          942,
+          1080,
+          1670
+        ]
+      }
+    },
+    {
+      "word": "Tefsir",
+      "sub1": "Ayetin anlamı",
+      "sub2": "tek dokunuşta."
+    },
+    {
+      "word": "Plan",
+      "sub1": "Sizin hızınız —",
+      "sub2": "ve bitirme tarihiniz."
+    },
+    {
+      "word": "İlerleme",
+      "sub1": "Neyin sağlam olduğu,",
+      "sub2": "neyin tekrar gerektiği."
+    },
+    {
+      "word": "Sınav",
+      "sub1": "Testler ve benzer ayetler,",
+      "sub2": "karıştırmamak için.",
+      "override": {
+        "pop": [
+          52,
+          732,
+          1028,
+          952
+        ]
+      }
+    }
+  ]
+}

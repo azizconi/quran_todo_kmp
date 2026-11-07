@@ -35,6 +35,14 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.DropdownMenu
+import androidx.compose.material.DropdownMenuItem
+import tj.app.quran_todo.common.audio.ReaderAudioSession
+import tj.app.quran_todo.common.audio.ReaderAudioAyah
+import tj.app.quran_todo.common.settings.ReaderPracticeSettings
+import tj.app.quran_todo.common.i18n.playerFeatureCopy
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -57,15 +65,9 @@ import androidx.compose.ui.unit.sp
 import com.mohamedrejeb.calf.ui.gesture.adaptiveClickable
 import com.mohamedrejeb.calf.ui.sheet.AdaptiveBottomSheet
 import com.mohamedrejeb.calf.ui.sheet.rememberAdaptiveSheetState
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
-import tj.app.quran_todo.common.analytics.AppTelemetry
-import tj.app.quran_todo.common.audio.AudioCache
-import tj.app.quran_todo.common.audio.AudioPlayer
-import tj.app.quran_todo.common.audio.ayahAudioCacheKey
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppStrings
@@ -82,7 +84,7 @@ import tj.app.quran_todo.presentation.designsystem.platformBottomSystemBarsPaddi
 
 /**
  * The focused, Arabic-first reader used by both native platform navigation hosts.
- * All reader-specific choices are intentionally kept in Settings, not on this screen.
+ * Playback practice controls live in a compact sheet opened from the mini player.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,25 +103,27 @@ fun SurahScreen(
     val persistedSurahStatus by viewModel.surahStatus(surahNumber).collectAsState(null)
     val translations by viewModel.ayahTranslations.collectAsState()
     val chapterNames by viewModel.chapterNames.collectAsState()
-    val readerPreferences = remember { SurahReaderPreferences.load() }
-    val audioPlayer = remember { AudioPlayer() }
-    val audioCache = remember { AudioCache() }
+    var readerPreferences by remember(surahNumber) { mutableStateOf(SurahReaderPreferences.load()) }
+    var practice by remember(surahNumber) { mutableStateOf(ReaderPracticeSettings.load(surahNumber, ayahs.size)) }
+    var playerFeature by remember { mutableStateOf<ReaderPlayerFeature?>(null) }
+    val playerCopy = playerFeatureCopy(language)
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val statusSheetState = rememberAdaptiveSheetState(skipPartiallyExpanded = true)
 
-    var currentAyahIndex by remember(surahNumber) { mutableStateOf(0) }
+    val audioSession = remember(scope) { ReaderAudioSession(scope) }
+    val audioState by audioSession.state.collectAsState()
+    val currentAyahIndex = audioState.index
     var initialSelectionResolved by remember(surahNumber) { mutableStateOf(false) }
-    var isPlaying by remember(surahNumber) { mutableStateOf(false) }
-    var canResume by remember(surahNumber) { mutableStateOf(false) }
-    var positionMs by remember(surahNumber) { mutableStateOf(0L) }
-    var durationMs by remember(surahNumber) { mutableStateOf(0L) }
+    val isPlaying = audioState.isPlaying
+    val canResume = audioState.canResume
+    val positionMs = audioState.positionMs
+    val durationMs = audioState.durationMs
     var isShowingSurahStatus by remember { mutableStateOf(false) }
     var hasPendingSurahStatus by remember(surahNumber) { mutableStateOf(false) }
     var pendingSurahStatus by remember(surahNumber) { mutableStateOf<SurahTodoStatus?>(null) }
     var statusRequestId by remember(surahNumber) { mutableStateOf(0L) }
     var statusUpdateError by remember(surahNumber) { mutableStateOf<String?>(null) }
-    var playbackJob by remember { mutableStateOf<Job?>(null) }
 
     val translatedTitle = chapterNames[surahNumber]?.transliteration
         ?: surahWithAyahs.surah.englishName
@@ -140,68 +144,7 @@ fun SurahScreen(
         }
     }
 
-    fun stopPlayback() {
-        playbackJob?.cancel()
-        playbackJob = null
-        audioPlayer.stop()
-        isPlaying = false
-        canResume = false
-        positionMs = 0L
-        durationMs = 0L
-    }
-
-    fun selectAyah(index: Int) {
-        val safeIndex = index.coerceIn(0, ayahs.lastIndex.coerceAtLeast(0))
-        if (safeIndex != currentAyahIndex) {
-            stopPlayback()
-            currentAyahIndex = safeIndex
-        }
-    }
-
-    fun audioUrl(ayah: AyahEntity): String =
-        "https://cdn.islamic.network/quran/audio/128/ar.alafasy/${ayah.number}.mp3"
-
-    fun playAyahAt(index: Int, remainingRepeats: Int = readerPreferences.repeatCount) {
-        val targetIndex = index.coerceIn(0, ayahs.lastIndex.coerceAtLeast(0))
-        val ayah = ayahs.getOrNull(targetIndex) ?: return
-        playbackJob?.cancel()
-        playbackJob = scope.launch {
-            currentAyahIndex = targetIndex
-            canResume = false
-            isPlaying = true
-            positionMs = 0L
-            durationMs = 0L
-            audioPlayer.setPlaybackSpeed(readerPreferences.playbackSpeed)
-            val cacheKey = ayahAudioCacheKey(ayah.surahNumber, ayah.numberInSurah)
-            val source = audioCache.getOrFetch(audioUrl(ayah), cacheKey) ?: audioUrl(ayah)
-            audioPlayer.play(source) {
-                when {
-                    remainingRepeats == SurahReaderPreferences.RepeatForever -> {
-                        playAyahAt(targetIndex, SurahReaderPreferences.RepeatForever)
-                    }
-
-                    remainingRepeats > 1 -> playAyahAt(targetIndex, remainingRepeats - 1)
-                    readerPreferences.autoAdvanceAyahs && targetIndex < ayahs.lastIndex -> {
-                        playAyahAt(targetIndex + 1, readerPreferences.repeatCount)
-                    }
-
-                    else -> {
-                        isPlaying = false
-                        canResume = false
-                        positionMs = durationMs
-                    }
-                }
-            }
-            AppTelemetry.logEvent(
-                name = "surah_playback_started",
-                params = mapOf(
-                    "surah_number" to surahNumber.toString(),
-                    "ayah_number" to ayah.number.toString(),
-                    "speed" to readerPreferences.playbackSpeed.toString(),
-                ),
-            )
-        }
-    }
+    fun selectAyah(index: Int) = audioSession.select(index)
 
     LaunchedEffect(surahNumber, language) {
         viewModel.loadChapterNames(language)
@@ -218,16 +161,14 @@ fun SurahScreen(
         val restoredAyahIndex = ayahs.indexOfFirst { it.number == lastAyahNumber }
             .takeIf { it >= 0 }
             ?: 0
-        currentAyahIndex = restoredAyahIndex
+        audioSession.configure(
+            surahNumber, ayahs.map { ReaderAudioAyah(it.number, it.numberInSurah) },
+            readerPreferences, practice, lastAyahNumber ?: ayahs.firstOrNull()?.number ?: 0,
+        )
         // Item zero is the reader header. Restoring the selected ayah alone
         // leaves it off-screen, which made “Continue reading” appear broken.
         listState.scrollToItem(index = restoredAyahIndex + 1)
         initialSelectionResolved = true
-    }
-    LaunchedEffect(initialSelectionResolved, readerPreferences.autoplayOnOpen) {
-        if (initialSelectionResolved && readerPreferences.autoplayOnOpen && ayahs.isNotEmpty()) {
-            playAyahAt(currentAyahIndex)
-        }
     }
     LaunchedEffect(currentAyah?.number, surahNumber) {
         currentAyah?.let { UserSettingsStorage.saveLastPlaybackPosition(surahNumber, it.number) }
@@ -249,15 +190,8 @@ fun SurahScreen(
                 }
             }
     }
-    LaunchedEffect(isPlaying) {
-        while (isPlaying) {
-            positionMs = audioPlayer.getPositionMs()
-            durationMs = audioPlayer.getDurationMs()
-            delay(200)
-        }
-    }
-    DisposableEffect(audioPlayer) {
-        onDispose { stopPlayback() }
+    DisposableEffect(audioSession) {
+        onDispose { audioSession.close() }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -292,31 +226,22 @@ fun SurahScreen(
                     positionText = formatDuration(positionMs),
                     durationText = formatDuration(durationMs),
                     copy = copy,
-                    onPrevious = {
-                        playAyahAt((currentAyahIndex - 1).coerceAtLeast(0))
+                    onPrevious = audioSession::previous,
+                    onNext = audioSession::next,
+                    onPlayPause = audioSession::toggle,
+                    practice = practice,
+                    onRepeat = { playerFeature = ReaderPlayerFeature.Range },
+                    onPause = { playerFeature = ReaderPlayerFeature.Pause },
+                    onSpeed = { speed ->
+                        readerPreferences = readerPreferences.copy(playbackSpeed = speed)
+                        readerPreferences.save()
+                        audioSession.updateSettings(readerPreferences, practice)
                     },
-                    onNext = {
-                        playAyahAt((currentAyahIndex + 1).coerceAtMost(ayahs.lastIndex.coerceAtLeast(0)))
+                    playerSummary = when {
+                        audioState.pauseRemainingSeconds > 0 -> "${playerCopy.waiting} · ${audioState.pauseRemainingSeconds} ${playerCopy.seconds}"
+                        else -> null
                     },
-                    onPlayPause = {
-                        when {
-                            isPlaying -> {
-                                audioPlayer.pause()
-                                isPlaying = false
-                                canResume = true
-                                AppTelemetry.logEvent("surah_playback_paused")
-                            }
-
-                            canResume -> {
-                                audioPlayer.setPlaybackSpeed(readerPreferences.playbackSpeed)
-                                audioPlayer.resume()
-                                isPlaying = true
-                                AppTelemetry.logEvent("surah_playback_resumed")
-                            }
-
-                            else -> playAyahAt(currentAyahIndex)
-                        }
-                    },
+                    errorText = if (audioState.hasError) playerCopy.audioError else null,
                 )
             },
         ) { innerPadding ->
@@ -354,6 +279,25 @@ fun SurahScreen(
                     }
                 }
             }
+        }
+
+        playerFeature?.let { feature ->
+            ReaderPlayerSheet(
+                feature = feature, currentAyah = currentAyah?.numberInSurah ?: 1,
+                preferences = readerPreferences, practice = practice, ayahCount = ayahs.size,
+                onDismiss = { playerFeature = null },
+                onApply = { preferences, nextPractice, startPlayback ->
+                    readerPreferences = preferences
+                    practice = nextPractice
+                    preferences.save()
+                    nextPractice.save(surahNumber)
+                    audioSession.updateSettings(preferences, nextPractice)
+                    if (startPlayback) {
+                        audioSession.select(nextPractice.startAyah - 1)
+                        audioSession.toggle()
+                    }
+                },
+            )
         }
 
         if (isShowingSurahStatus) {
@@ -581,8 +525,16 @@ private fun ReaderMiniPlayer(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onPlayPause: () -> Unit,
+    practice: ReaderPracticeSettings,
+    onRepeat: () -> Unit,
+    onPause: () -> Unit,
+    onSpeed: (Float) -> Unit,
+    playerSummary: String?,
+    errorText: String?,
 ) {
     val colors = MaterialTheme.extendedColors
+    val playerCopy = playerFeatureCopy(LocalAppLanguage.current)
+    var speedMenu by remember { mutableStateOf(false) }
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -597,7 +549,10 @@ private fun ReaderMiniPlayer(
                 .padding(start = 16.dp, top = 10.dp, end = 16.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Icon(
                     imageVector = Icons.Filled.BookmarkBorder,
                     contentDescription = null,
@@ -614,11 +569,11 @@ private fun ReaderMiniPlayer(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+            }
+            if (errorText != null || playerSummary != null) {
                 Text(
-                    text = "${playbackSpeed}×",
-                    color = colors.textSecondary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = errorText ?: playerSummary.orEmpty(), fontSize = 12.sp,
+                    color = if (errorText != null) MaterialTheme.colors.error else MaterialTheme.colors.primary,
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -678,6 +633,50 @@ private fun ReaderMiniPlayer(
                     )
                 }
             }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PlayerQuickButton(
+                    label = if (practice.rangeEnabled) "${practice.startAyah}–${practice.endAyah} · ${if (practice.rangeRepeatCount == -1) "∞" else "${practice.rangeRepeatCount}×"}" else playerCopy.repeatAction,
+                    icon = Icons.Default.Repeat, active = practice.rangeEnabled, modifier = Modifier.weight(1.25f), onClick = onRepeat,
+                )
+                PlayerQuickButton(
+                    label = if (practice.pauseSeconds > 0) "${practice.pauseSeconds} ${playerCopy.seconds}" else playerCopy.pauseAction,
+                    icon = Icons.Default.Timer, active = practice.pauseSeconds > 0, modifier = Modifier.weight(1f), onClick = onPause,
+                )
+                Box(Modifier.weight(0.8f)) {
+                    PlayerQuickButton("${playbackSpeed.toString().removeSuffix(".0")}×", null, playbackSpeed != 1f,
+                        Modifier.fillMaxWidth()) { speedMenu = true }
+                    DropdownMenu(expanded = speedMenu, onDismissRequest = { speedMenu = false }) {
+                        listOf(0.75f, 1f, 1.25f, 1.5f, 2f).forEach { speed ->
+                            DropdownMenuItem(onClick = { onSpeed(speed); speedMenu = false }) {
+                                Text("${speed.toString().removeSuffix(".0")}×",
+                                    color = if (speed == playbackSpeed) MaterialTheme.colors.primary else MaterialTheme.colors.onSurface)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerQuickButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    active: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(12.dp),
+        color = if (active) MaterialTheme.colors.primary.copy(alpha = 0.1f) else MaterialTheme.extendedColors.readingMutedSurface,
+        contentColor = if (active) MaterialTheme.colors.primary else MaterialTheme.extendedColors.textSecondary) {
+        Row(Modifier.adaptiveClickable(shape = RoundedCornerShape(12.dp), onClick = onClick).height(44.dp).padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(icon, null, modifier = Modifier.size(17.dp))
+                Spacer(Modifier.width(5.dp))
+            }
+            Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

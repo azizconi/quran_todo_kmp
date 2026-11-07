@@ -30,14 +30,6 @@ fun languageFromCode(code: String?): AppLanguage {
     }
 }
 
-fun editionForLanguage(language: AppLanguage): String = when (language) {
-    AppLanguage.EN -> "en.sahih"
-    AppLanguage.RU -> "ru.kuliev"
-    AppLanguage.UZ -> "uz.sodik"
-    AppLanguage.TG -> "tg.ayati"
-    AppLanguage.TR -> "tr.yazir"
-}
-
 fun localizeRevelationPlace(value: String, strings: AppStrings): String {
     val normalized = value.lowercase()
     return when {

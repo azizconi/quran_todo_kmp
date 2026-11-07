@@ -1,0 +1,689 @@
+{
+ "language": "tg",
+ "chapters": [
+  {
+   "number": 1,
+   "arabic": "الفاتحة",
+   "transliteration": "Фотиҳа",
+   "translated": "Кушоянда"
+  },
+  {
+   "number": 2,
+   "arabic": "البقرة",
+   "transliteration": "Бақара",
+   "translated": "Модагов"
+  },
+  {
+   "number": 3,
+   "arabic": "آل عمران",
+   "transliteration": "Оли Имрон",
+   "translated": "Хонадони Имрон"
+  },
+  {
+   "number": 4,
+   "arabic": "النساء",
+   "transliteration": "Нисо",
+   "translated": "Занон"
+  },
+  {
+   "number": 5,
+   "arabic": "المائدة",
+   "transliteration": "Моида",
+   "translated": "Дастурхон"
+  },
+  {
+   "number": 6,
+   "arabic": "الأنعام",
+   "transliteration": "Анъом",
+   "translated": "Чорпоён"
+  },
+  {
+   "number": 7,
+   "arabic": "الأعراف",
+   "transliteration": "Аъроф",
+   "translated": "Баландиҳо"
+  },
+  {
+   "number": 8,
+   "arabic": "الأنفال",
+   "transliteration": "Анфол",
+   "translated": "Ғаниматҳо"
+  },
+  {
+   "number": 9,
+   "arabic": "التوبة",
+   "transliteration": "Тавба",
+   "translated": "Тавба"
+  },
+  {
+   "number": 10,
+   "arabic": "يونس",
+   "transliteration": "Юнус",
+   "translated": "Юнус"
+  },
+  {
+   "number": 11,
+   "arabic": "هود",
+   "transliteration": "Ҳуд",
+   "translated": "Ҳуд"
+  },
+  {
+   "number": 12,
+   "arabic": "يوسف",
+   "transliteration": "Юсуф",
+   "translated": "Юсуф"
+  },
+  {
+   "number": 13,
+   "arabic": "الرعد",
+   "transliteration": "Раъд",
+   "translated": "Раъд"
+  },
+  {
+   "number": 14,
+   "arabic": "ابراهيم",
+   "transliteration": "Иброҳим",
+   "translated": "Иброҳим"
+  },
+  {
+   "number": 15,
+   "arabic": "الحجر",
+   "transliteration": "Ҳиҷр",
+   "translated": "Сангистони Ҳиҷр"
+  },
+  {
+   "number": 16,
+   "arabic": "النحل",
+   "transliteration": "Наҳл",
+   "translated": "Занбӯри асал"
+  },
+  {
+   "number": 17,
+   "arabic": "الإسراء",
+   "transliteration": "Исро",
+   "translated": "Сафари шабона"
+  },
+  {
+   "number": 18,
+   "arabic": "الكهف",
+   "transliteration": "Каҳф",
+   "translated": "Ғор"
+  },
+  {
+   "number": 19,
+   "arabic": "مريم",
+   "transliteration": "Марям",
+   "translated": "Марям"
+  },
+  {
+   "number": 20,
+   "arabic": "طه",
+   "transliteration": "Тоҳо",
+   "translated": "Тоҳо"
+  },
+  {
+   "number": 21,
+   "arabic": "الأنبياء",
+   "transliteration": "Анбиё",
+   "translated": "Паёмбарон"
+  },
+  {
+   "number": 22,
+   "arabic": "الحج",
+   "transliteration": "Ҳаҷ",
+   "translated": "Ҳаҷ"
+  },
+  {
+   "number": 23,
+   "arabic": "المؤمنون",
+   "transliteration": "Мӯъминун",
+   "translated": "Мӯъминон"
+  },
+  {
+   "number": 24,
+   "arabic": "النور",
+   "transliteration": "Нур",
+   "translated": "Нур"
+  },
+  {
+   "number": 25,
+   "arabic": "الفرقان",
+   "transliteration": "Фурқон",
+   "translated": "Ҷудокунанда"
+  },
+  {
+   "number": 26,
+   "arabic": "الشعراء",
+   "transliteration": "Шуаро",
+   "translated": "Шоирон"
+  },
+  {
+   "number": 27,
+   "arabic": "النمل",
+   "transliteration": "Намл",
+   "translated": "Мӯрчагон"
+  },
+  {
+   "number": 28,
+   "arabic": "القصص",
+   "transliteration": "Қасас",
+   "translated": "Қиссаҳо"
+  },
+  {
+   "number": 29,
+   "arabic": "العنكبوت",
+   "transliteration": "Анкабут",
+   "translated": "Тортанак"
+  },
+  {
+   "number": 30,
+   "arabic": "الروم",
+   "transliteration": "Рум",
+   "translated": "Румиён"
+  },
+  {
+   "number": 31,
+   "arabic": "لقمان",
+   "transliteration": "Луқмон",
+   "translated": "Луқмон"
+  },
+  {
+   "number": 32,
+   "arabic": "السجدة",
+   "transliteration": "Саҷда",
+   "translated": "Саҷда"
+  },
+  {
+   "number": 33,
+   "arabic": "الأحزاب",
+   "transliteration": "Аҳзоб",
+   "translated": "Гурӯҳҳо"
+  },
+  {
+   "number": 34,
+   "arabic": "سبإ",
+   "transliteration": "Сабо",
+   "translated": "Сабо"
+  },
+  {
+   "number": 35,
+   "arabic": "فاطر",
+   "transliteration": "Фотир",
+   "translated": "Офаридгор"
+  },
+  {
+   "number": 36,
+   "arabic": "يس",
+   "transliteration": "Ёсин",
+   "translated": "Ёсин"
+  },
+  {
+   "number": 37,
+   "arabic": "الصافات",
+   "transliteration": "Соффот",
+   "translated": "Саф кашидагон"
+  },
+  {
+   "number": 38,
+   "arabic": "ص",
+   "transliteration": "Сод",
+   "translated": "Ҳарфи «Сод»"
+  },
+  {
+   "number": 39,
+   "arabic": "الزمر",
+   "transliteration": "Зумар",
+   "translated": "Гурӯҳҳо"
+  },
+  {
+   "number": 40,
+   "arabic": "غافر",
+   "transliteration": "Ғофир",
+   "translated": "Омӯрзанда"
+  },
+  {
+   "number": 41,
+   "arabic": "فصلت",
+   "transliteration": "Фуссилат",
+   "translated": "Баёни муфассал"
+  },
+  {
+   "number": 42,
+   "arabic": "الشورى",
+   "transliteration": "Шӯро",
+   "translated": "Машварат"
+  },
+  {
+   "number": 43,
+   "arabic": "الزخرف",
+   "transliteration": "Зухруф",
+   "translated": "Зеварҳои тиллоӣ"
+  },
+  {
+   "number": 44,
+   "arabic": "الدخان",
+   "transliteration": "Духон",
+   "translated": "Дуд"
+  },
+  {
+   "number": 45,
+   "arabic": "الجاثية",
+   "transliteration": "Ҷосия",
+   "translated": "Ба зону афтодагон"
+  },
+  {
+   "number": 46,
+   "arabic": "الأحقاف",
+   "transliteration": "Аҳқоф",
+   "translated": "Қумтеппаҳо"
+  },
+  {
+   "number": 47,
+   "arabic": "محمد",
+   "transliteration": "Муҳаммад",
+   "translated": "Муҳаммад"
+  },
+  {
+   "number": 48,
+   "arabic": "الفتح",
+   "transliteration": "Фатҳ",
+   "translated": "Пирӯзӣ"
+  },
+  {
+   "number": 49,
+   "arabic": "الحجرات",
+   "transliteration": "Ҳуҷурот",
+   "translated": "Ҳуҷраҳо"
+  },
+  {
+   "number": 50,
+   "arabic": "ق",
+   "transliteration": "Қоф",
+   "translated": "Ҳарфи «Қоф»"
+  },
+  {
+   "number": 51,
+   "arabic": "الذاريات",
+   "transliteration": "Зориёт",
+   "translated": "Бодҳои пошанда"
+  },
+  {
+   "number": 52,
+   "arabic": "الطور",
+   "transliteration": "Тур",
+   "translated": "Кӯҳи Тур"
+  },
+  {
+   "number": 53,
+   "arabic": "النجم",
+   "transliteration": "Наҷм",
+   "translated": "Ситора"
+  },
+  {
+   "number": 54,
+   "arabic": "القمر",
+   "transliteration": "Қамар",
+   "translated": "Моҳ"
+  },
+  {
+   "number": 55,
+   "arabic": "الرحمن",
+   "transliteration": "Раҳмон",
+   "translated": "Меҳрубон"
+  },
+  {
+   "number": 56,
+   "arabic": "الواقعة",
+   "transliteration": "Воқеа",
+   "translated": "Ҳодисаи ногузир"
+  },
+  {
+   "number": 57,
+   "arabic": "الحديد",
+   "transliteration": "Ҳадид",
+   "translated": "Оҳан"
+  },
+  {
+   "number": 58,
+   "arabic": "المجادلة",
+   "transliteration": "Муҷодала",
+   "translated": "Мубоҳисакунанда"
+  },
+  {
+   "number": 59,
+   "arabic": "الحشر",
+   "transliteration": "Ҳашр",
+   "translated": "Бадарға"
+  },
+  {
+   "number": 60,
+   "arabic": "الممتحنة",
+   "transliteration": "Мумтаҳана",
+   "translated": "Имтиҳоншаванда"
+  },
+  {
+   "number": 61,
+   "arabic": "الصف",
+   "transliteration": "Саф",
+   "translated": "Сафҳо"
+  },
+  {
+   "number": 62,
+   "arabic": "الجمعة",
+   "transliteration": "Ҷумъа",
+   "translated": "Рӯзи ҷумъа"
+  },
+  {
+   "number": 63,
+   "arabic": "المنافقون",
+   "transliteration": "Мунофиқун",
+   "translated": "Мунофиқон"
+  },
+  {
+   "number": 64,
+   "arabic": "التغابن",
+   "transliteration": "Тағобун",
+   "translated": "Зиёнкорӣ"
+  },
+  {
+   "number": 65,
+   "arabic": "الطلاق",
+   "transliteration": "Талоқ",
+   "translated": "Талоқ"
+  },
+  {
+   "number": 66,
+   "arabic": "التحريم",
+   "transliteration": "Таҳрим",
+   "translated": "Манъ кардан"
+  },
+  {
+   "number": 67,
+   "arabic": "الملك",
+   "transliteration": "Мулк",
+   "translated": "Подшоҳӣ"
+  },
+  {
+   "number": 68,
+   "arabic": "القلم",
+   "transliteration": "Қалам",
+   "translated": "Қалам"
+  },
+  {
+   "number": 69,
+   "arabic": "الحاقة",
+   "transliteration": "Ҳоққа",
+   "translated": "Ҳақиқат"
+  },
+  {
+   "number": 70,
+   "arabic": "المعارج",
+   "transliteration": "Маъориҷ",
+   "translated": "Зинаҳо"
+  },
+  {
+   "number": 71,
+   "arabic": "نوح",
+   "transliteration": "Нуҳ",
+   "translated": "Нуҳ"
+  },
+  {
+   "number": 72,
+   "arabic": "الجن",
+   "transliteration": "Ҷин",
+   "translated": "Ҷинҳо"
+  },
+  {
+   "number": 73,
+   "arabic": "المزمل",
+   "transliteration": "Музаммил",
+   "translated": "Ҷомапечида"
+  },
+  {
+   "number": 74,
+   "arabic": "المدثر",
+   "transliteration": "Муддассир",
+   "translated": "Ҷомапӯш"
+  },
+  {
+   "number": 75,
+   "arabic": "القيامة",
+   "transliteration": "Қиёмат",
+   "translated": "Рӯзи қиёмат"
+  },
+  {
+   "number": 76,
+   "arabic": "الانسان",
+   "transliteration": "Инсон",
+   "translated": "Инсон"
+  },
+  {
+   "number": 77,
+   "arabic": "المرسلات",
+   "transliteration": "Мурсалот",
+   "translated": "Фиристодагон"
+  },
+  {
+   "number": 78,
+   "arabic": "النبإ",
+   "transliteration": "Набаъ",
+   "translated": "Хабари бузург"
+  },
+  {
+   "number": 79,
+   "arabic": "النازعات",
+   "transliteration": "Нозиъот",
+   "translated": "Кашандагон"
+  },
+  {
+   "number": 80,
+   "arabic": "عبس",
+   "transliteration": "Абаса",
+   "translated": "Рӯ турш кард"
+  },
+  {
+   "number": 81,
+   "arabic": "التكوير",
+   "transliteration": "Таквир",
+   "translated": "Печонида шудан"
+  },
+  {
+   "number": 82,
+   "arabic": "الإنفطار",
+   "transliteration": "Инфитор",
+   "translated": "Шикофта шудан"
+  },
+  {
+   "number": 83,
+   "arabic": "المطففين",
+   "transliteration": "Мутаффифин",
+   "translated": "Камфурӯшон"
+  },
+  {
+   "number": 84,
+   "arabic": "الإنشقاق",
+   "transliteration": "Иншиқоқ",
+   "translated": "Дарида шудан"
+  },
+  {
+   "number": 85,
+   "arabic": "البروج",
+   "transliteration": "Буруҷ",
+   "translated": "Бурҷҳо"
+  },
+  {
+   "number": 86,
+   "arabic": "الطارق",
+   "transliteration": "Ториқ",
+   "translated": "Омадаи шабона"
+  },
+  {
+   "number": 87,
+   "arabic": "الأعلى",
+   "transliteration": "Аъло",
+   "translated": "Баландтарин"
+  },
+  {
+   "number": 88,
+   "arabic": "الغاشية",
+   "transliteration": "Ғошия",
+   "translated": "Фарогир"
+  },
+  {
+   "number": 89,
+   "arabic": "الفجر",
+   "transliteration": "Фаҷр",
+   "translated": "Субҳдам"
+  },
+  {
+   "number": 90,
+   "arabic": "البلد",
+   "transliteration": "Балад",
+   "translated": "Шаҳр"
+  },
+  {
+   "number": 91,
+   "arabic": "الشمس",
+   "transliteration": "Шамс",
+   "translated": "Офтоб"
+  },
+  {
+   "number": 92,
+   "arabic": "الليل",
+   "transliteration": "Лайл",
+   "translated": "Шаб"
+  },
+  {
+   "number": 93,
+   "arabic": "الضحى",
+   "transliteration": "Зуҳо",
+   "translated": "Чоштгоҳ"
+  },
+  {
+   "number": 94,
+   "arabic": "الشرح",
+   "transliteration": "Шарҳ",
+   "translated": "Кушоиш"
+  },
+  {
+   "number": 95,
+   "arabic": "التين",
+   "transliteration": "Тин",
+   "translated": "Анҷир"
+  },
+  {
+   "number": 96,
+   "arabic": "العلق",
+   "transliteration": "Алақ",
+   "translated": "Лахтаи хун"
+  },
+  {
+   "number": 97,
+   "arabic": "القدر",
+   "transliteration": "Қадр",
+   "translated": "Шаби қадр"
+  },
+  {
+   "number": 98,
+   "arabic": "البينة",
+   "transliteration": "Баййина",
+   "translated": "Далели равшан"
+  },
+  {
+   "number": 99,
+   "arabic": "الزلزلة",
+   "transliteration": "Залзала",
+   "translated": "Зилзила"
+  },
+  {
+   "number": 100,
+   "arabic": "العاديات",
+   "transliteration": "Одиёт",
+   "translated": "Давандагон"
+  },
+  {
+   "number": 101,
+   "arabic": "القارعة",
+   "transliteration": "Қориъа",
+   "translated": "Ҳодисаи кӯбанда"
+  },
+  {
+   "number": 102,
+   "arabic": "التكاثر",
+   "transliteration": "Такосур",
+   "translated": "Фузунхоҳӣ"
+  },
+  {
+   "number": 103,
+   "arabic": "العصر",
+   "transliteration": "Аср",
+   "translated": "Замон"
+  },
+  {
+   "number": 104,
+   "arabic": "الهمزة",
+   "transliteration": "Ҳумаза",
+   "translated": "Ғайбатчӣ"
+  },
+  {
+   "number": 105,
+   "arabic": "الفيل",
+   "transliteration": "Фил",
+   "translated": "Фил"
+  },
+  {
+   "number": 106,
+   "arabic": "قريش",
+   "transliteration": "Қурайш",
+   "translated": "Қурайш"
+  },
+  {
+   "number": 107,
+   "arabic": "الماعون",
+   "transliteration": "Моъун",
+   "translated": "Эҳсони андак"
+  },
+  {
+   "number": 108,
+   "arabic": "الكوثر",
+   "transliteration": "Кавсар",
+   "translated": "Фаровонӣ"
+  },
+  {
+   "number": 109,
+   "arabic": "الكافرون",
+   "transliteration": "Кофирун",
+   "translated": "Кофирон"
+  },
+  {
+   "number": 110,
+   "arabic": "النصر",
+   "transliteration": "Наср",
+   "translated": "Ёрӣ"
+  },
+  {
+   "number": 111,
+   "arabic": "المسد",
+   "transliteration": "Масад",
+   "translated": "Ресмони хурмо"
+  },
+  {
+   "number": 112,
+   "arabic": "الإخلاص",
+   "transliteration": "Ихлос",
+   "translated": "Покии эътиқод"
+  },
+  {
+   "number": 113,
+   "arabic": "الفلق",
+   "transliteration": "Фалақ",
+   "translated": "Бомдод"
+  },
+  {
+   "number": 114,
+   "arabic": "الناس",
+   "transliteration": "Нос",
+   "translated": "Мардум"
+  }
+ ]
+}
