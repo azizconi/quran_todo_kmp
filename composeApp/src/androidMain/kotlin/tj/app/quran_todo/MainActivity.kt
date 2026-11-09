@@ -23,13 +23,18 @@ import tj.app.quran_todo.ui.onboarding.OnboardingStartup
 import tj.app.quran_todo.ui.reminder.ReminderLink
 import tj.app.quran_todo.ui.reminder.ReminderOpenRequests
 import tj.app.quran_todo.ui.reminder.ReminderTarget
+import tj.app.quran_todo.ui.store.AppUpdates
 
 class MainActivity : ComponentActivity() {
     private val homeViewModel: HomeViewModel by inject()
 
+    /** Google Play in-app updates; registered as a property, before the activity starts. */
+    private val appUpdates = AppUpdates(this)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) appUpdates.check()
         // The onboarding decision comes from a worker thread (it reads the stored flags, `OnboardingStartup`): the splash screen stays
         // until it is there, so the main thread never waits for the disk and the first screen is never the wrong one.
         if (OnboardingStartup.isReady) {
@@ -109,6 +114,12 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         AndroidContextHolder.activity = this
+        appUpdates.onResume()
+    }
+
+    override fun onDestroy() {
+        appUpdates.onDestroy()
+        super.onDestroy()
     }
 
     override fun onPause() {

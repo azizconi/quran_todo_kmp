@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -46,6 +47,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -78,6 +80,7 @@ import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.SharedKeys
 import tj.app.quran_todo.ui.motion.sharedBoundsKey
 import tj.app.quran_todo.ui.reader.components.KeepScreenOnEffect
+import tj.app.quran_todo.ui.store.InAppReview
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -133,6 +136,16 @@ fun LessonScreen(
 
     val working = ui as? LessonUi.Working
     KeepScreenOnEffect(enabled = working != null)
+
+    // A finished lesson is the happy moment for the Google Play review card (InAppReview decides whether it is due). The short wait
+    // lets the summary and its celebration play first.
+    val context = LocalContext.current
+    val finished = ui is LessonUi.Summary
+    LaunchedEffect(finished) {
+        if (!finished) return@LaunchedEffect
+        delay(ReviewPromptDelayMillis)
+        InAppReview.onLessonFinished(context)
+    }
 
     var showExit by rememberSaveable { mutableStateOf(false) }
     val opened = working?.progress?.let { progress ->
@@ -460,3 +473,5 @@ internal fun rememberHifzCopy(): HifzCopy {
     val language = LocalAppLanguage.current
     return remember(language) { hifzCopy(language) }
 }
+
+private const val ReviewPromptDelayMillis = 2_500L

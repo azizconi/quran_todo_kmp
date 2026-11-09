@@ -63,6 +63,9 @@ kotlin {
             implementation(platform("com.google.firebase:firebase-bom:32.7.4"))
             implementation(libs.firebase.analytics)
             implementation(libs.firebase.crashlytics)
+            // Google Play: the in-app review card after a lesson and the in-app update of a new version.
+            implementation(libs.play.review.ktx)
+            implementation(libs.play.app.update.ktx)
         }
         commonMain.dependencies {
             implementation(compose.runtime)

@@ -92,6 +92,7 @@ import tj.app.quran_todo.ui.navigation.LocalTafsirOpener
 import tj.app.quran_todo.ui.catalog.CatalogScreen
 import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.ToastHost
+import tj.app.quran_todo.ui.store.UpdateReadyBanner
 import tj.app.quran_todo.ui.components.rememberToaster
 import tj.app.quran_todo.ui.components.spotlight.SpotlightNavigationEffect
 import tj.app.quran_todo.ui.components.spotlight.SpotlightHost
@@ -332,6 +333,7 @@ fun QuranHifzApp() {
                 // The tips (C2): a layer over the navigation and the mini player, in the same window.
                 SpotlightHost(spotlight, Modifier.fillMaxSize()) { AppNavigation() }
                 ToastHost(Modifier.align(Alignment.TopCenter))
+                UpdateReadyBanner(Modifier.align(Alignment.BottomCenter))
             }
         }
     }
