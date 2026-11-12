@@ -1,5 +1,8 @@
 package tj.app.quran_todo.ui.progress.components
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.PaddingValues
+import tj.app.quran_todo.ui.components.QhNavRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -41,29 +44,20 @@ import tj.app.quran_todo.ui.progress.report.ReportPeriod
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
-/** The card at the bottom of the screen that explains the report for the teacher and opens the choice of the period. */
+/** The row at the bottom of the page that opens the choice of the period of the report for the teacher. */
 @Composable
 internal fun ReportSection(
     copy: ProgressCopy,
     onShare: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = QhTheme.colors
-    QhCard(modifier.fillMaxWidth()) {
-        Text(
-            text = copy.reportAction,
-            style = QhTheme.type.title1,
-            color = colors.ink,
-            modifier = Modifier.semantics { heading() },
-        )
-        Spacer(Modifier.height(QhSpacing.x1))
-        Text(text = copy.reportCardBody, style = QhTheme.type.callout, color = colors.inkSecondary)
-        Spacer(Modifier.height(QhSpacing.x4))
-        QhButton(
-            text = copy.reportShare,
+    QhCard(modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 4.dp)) {
+        QhNavRow(
+            title = copy.reportAction,
+            description = copy.reportRowBody,
             onClick = onShare,
-            size = QhButtonSize.M,
             icon = Icons.Rounded.Share,
+            iconTint = QhTheme.colors.primary,
         )
     }
 }

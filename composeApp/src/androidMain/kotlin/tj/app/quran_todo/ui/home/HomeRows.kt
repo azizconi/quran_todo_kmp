@@ -1,5 +1,6 @@
 package tj.app.quran_todo.ui.home
 
+import tj.app.quran_todo.hifz.schedule.PlanForecast
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.domain.model.ChapterNameModel
@@ -80,9 +81,16 @@ internal object HomeRows {
     /** Kept for existing callers; the rule lives in [SurahNames]. */
     fun cleanRussianName(raw: String): String = SurahNames.cleanRussianName(raw)
 
-    /** Memorized (covered) ayahs of the whole Quran as a 0..1 fraction. */
-    fun overallProgress(coveredAyahs: Map<Int, Int>): Float =
-        (coveredAyahs.values.sum().toFloat() / QuranMeta.TotalAyahs).coerceIn(0f, 1f)
+    /**
+     * The 0..1 fraction of the ring in the top bar: the covered ayahs of the person's PLAN when there is one (the forecast's
+     * numbers, the same the big ring of the Progress tab shows), otherwise of the whole Quran (U24).
+     */
+    fun overallProgress(coveredAyahs: Map<Int, Int>, forecast: PlanForecast? = null): Float {
+        if (forecast != null && forecast.totalAyahs > 0) {
+            return ((forecast.totalAyahs - forecast.remainingAyahs).toFloat() / forecast.totalAyahs).coerceIn(0f, 1f)
+        }
+        return (coveredAyahs.values.sum().toFloat() / QuranMeta.TotalAyahs).coerceIn(0f, 1f)
+    }
 
     /** Pinned surahs first (in the order they were pinned), then the recent ones; no duplicates. */
     fun recent(

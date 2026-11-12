@@ -26,8 +26,6 @@ data class ProgressCopy(
     val back: String,
     /** Spoken by accessibility services for the big ring: `{p}` percent, `{a}` memorized, `{b}` all ayahs. */
     val ringDescriptionPattern: String,
-    /** The same while less than a percent is memorized: `{a}`, `{b}`. */
-    val ringDescriptionBelowOnePattern: String,
     /** "I know by heart: 3 surahs": `{n}` is "3 surahs". */
     val knownPattern: String,
     val learningPattern: String,
@@ -45,6 +43,11 @@ data class ProgressCopy(
     val planAhead: String,
     val planOnTrack: String,
     val planNeedPacePattern: String,
+
+    /** The ring's line when it is measured by the plan: `{scope}` plan name, `{a}` covered, `{b}` plan ayahs, `{p}` percent. */
+    val planRingPattern: String,
+    /** The line for the whole Quran under it: `{a}` covered, `{b}` all ayahs, `{l}` learned. */
+    val wholeQuranPattern: String,
 
     // Tiles
     val tileStreak: String,
@@ -68,6 +71,8 @@ data class ProgressCopy(
 
     // Quran map
     val mapTitle: String,
+    val mapExpand: String,
+    val mapCollapse: String,
     val mapHint: String,
     val statusNotStarted: String,
     val statusLearning: String,
@@ -91,6 +96,8 @@ data class ProgressCopy(
     // The report for the teacher: the entry points and the sheet
     val reportAction: String,
     val reportCardBody: String,
+    /** One short line of the row that opens the report. */
+    val reportRowBody: String,
     val reportShare: String,
     val sheetBody: String,
     val periodWeek: String,
@@ -105,12 +112,17 @@ data class ProgressCopy(
     val emptyBody: String,
     val emptyAction: String,
 ) {
-    fun ringDescription(percent: Int, belowOne: Boolean, covered: Int, total: Int, learned: Int = covered): String =
-        if (belowOne) {
-            ringDescriptionBelowOnePattern.fill("a" to covered, "b" to total, "l" to learned)
-        } else {
-            ringDescriptionPattern.fill("p" to percent, "a" to covered, "b" to total, "l" to learned)
-        }
+    /** Spoken form of the big ring; [scope] is the name of the plan when the ring is measured by it. */
+    fun ringDescription(percent: Int, covered: Int, total: Int, learned: Int = covered, scope: String? = null): String =
+        (scope?.let { "$it: " } ?: "") + ringDescriptionPattern.fill("p" to percent, "a" to covered, "b" to total, "l" to learned)
+
+    /** "Juz Amma: 10 of 564 · 2 %": the ring measured by the plan. */
+    fun planRingLine(scope: HifzScope, covered: Int, total: Int, percent: Int): String =
+        planRingPattern.fill("scope" to scopeName(scope), "a" to covered, "b" to total, "p" to percent)
+
+    /** "Whole Quran: 17 of 6236 · memorized 13". */
+    fun wholeQuranLine(covered: Int, total: Int, learned: Int): String =
+        wholeQuranPattern.fill("a" to covered, "b" to total, "l" to learned)
 
     /** The line under the ring: "Gone through: 17 ayahs · memorized: 13" (the ring and its percentage count the first number). */
     fun heroAyahs(covered: Int, learned: Int): String = when (language) {
@@ -238,7 +250,6 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         title = "Прогресс",
         back = "Назад",
         ringDescriptionPattern = "{p}%: пройдено {a} из {b} аятов, выучено {l}",
-        ringDescriptionBelowOnePattern = "меньше 1 %: пройдено {a} из {b} аятов, выучено {l}",
         knownPattern = "Знаю наизусть: {n}",
         learningPattern = "Учу: {n}",
         percentFirst = false,
@@ -252,6 +263,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         planAhead = "Идёте с опережением",
         planOnTrack = "Идёте по графику",
         planNeedPacePattern = "Чтобы успеть к сроку, нужно {ayahs} в день",
+        planRingPattern = "{scope}: {a} из {b} · {p} %",
+        wholeQuranPattern = "Весь Коран: {a} из {b} · выучено {l}",
         tileStreak = "Дней подряд",
         tileToday = "Сегодня",
         lessonDone = "Урок выполнен",
@@ -259,7 +272,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         lessonNone = "Урока нет",
         tileRetention = "Удержание за 30 дней",
         tileHard = "Трудных аятов сейчас",
-        activityTitle = "Активность за 30 дней",
+        activityTitle = "Неделя занятий",
         activityEmpty = "Выучите отрывок или повторите — здесь вырастут столбики.",
         activityNew = "Новое",
         activityReviewed = "Повторено",
@@ -268,6 +281,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         months = listOf("янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"),
         datePattern = "{d} {m}",
         mapTitle = "Карта Корана",
+        mapExpand = "Показать карту",
+        mapCollapse = "Скрыть карту",
         mapHint = "Нажмите на ячейку, чтобы увидеть суру",
         statusNotStarted = "Не начал",
         statusLearning = "Заучиваю",
@@ -285,6 +300,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         hardAyahDescriptionPattern = "{name}, аят {n}",
         reportAction = "Отчёт для устаза",
         reportCardBody = "Что выучено и повторено за неделю или месяц, трудные аяты и серия — картинкой и текстом для Telegram или WhatsApp.",
+        reportRowBody = "За неделю или месяц: картинкой, PDF или текстом",
         reportShare = "Поделиться отчётом",
         sheetBody = "За какой период?",
         periodWeek = "За неделю",
@@ -303,7 +319,6 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         title = "Progress",
         back = "Back",
         ringDescriptionPattern = "{p}%: {a} of {b} ayahs covered, {l} memorized",
-        ringDescriptionBelowOnePattern = "less than 1%: {a} of {b} ayahs covered, {l} memorized",
         knownPattern = "Know by heart: {n}",
         learningPattern = "Learning: {n}",
         percentFirst = false,
@@ -317,6 +332,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         planAhead = "You are ahead of schedule",
         planOnTrack = "You are on schedule",
         planNeedPacePattern = "To make the date you need {ayahs} a day",
+        planRingPattern = "{scope}: {a} of {b} · {p}%",
+        wholeQuranPattern = "Whole Quran: {a} of {b} · memorized {l}",
         tileStreak = "Day streak",
         tileToday = "Today",
         lessonDone = "Lesson done",
@@ -324,7 +341,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         lessonNone = "No lesson",
         tileRetention = "Retention, 30 days",
         tileHard = "Hard ayahs now",
-        activityTitle = "Last 30 days",
+        activityTitle = "This week",
         activityEmpty = "Learn a passage or review one and the bars will grow here.",
         activityNew = "New",
         activityReviewed = "Reviewed",
@@ -333,6 +350,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         months = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
         datePattern = "{m} {d}",
         mapTitle = "Quran map",
+        mapExpand = "Show the map",
+        mapCollapse = "Hide the map",
         mapHint = "Tap a cell to see the surah",
         statusNotStarted = "Not started",
         statusLearning = "Memorizing",
@@ -350,6 +369,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         hardAyahDescriptionPattern = "{name}, ayah {n}",
         reportAction = "Report for your teacher",
         reportCardBody = "What you learned and reviewed over a week or a month, hard ayahs and your streak: a picture and a text for Telegram or WhatsApp.",
+        reportRowBody = "A week or a month, as a picture, PDF or text",
         reportShare = "Share the report",
         sheetBody = "Which period?",
         periodWeek = "Past week",
@@ -368,7 +388,6 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         title = "Пешрафт",
         back = "Бозгашт",
         ringDescriptionPattern = "{p}%: {a} аз {b} оят гузашт, {l} аз бар шуд",
-        ringDescriptionBelowOnePattern = "камтар аз 1%: {a} аз {b} оят гузашт, {l} аз бар шуд",
         knownPattern = "Аз бар медонам: {n}",
         learningPattern = "Аз бар мекунам: {n}",
         percentFirst = false,
@@ -382,6 +401,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         planAhead = "Аз ҷадвал пеш мераведед",
         planOnTrack = "Мувофиқи ҷадвал пеш мераведед",
         planNeedPacePattern = "Барои ба мӯҳлат расидан дар як рӯз {ayahs} лозим аст",
+        planRingPattern = "{scope}: {a} аз {b} · {p}%",
+        wholeQuranPattern = "Тамоми Қуръон: {a} аз {b} · аз бар шуд {l}",
         tileStreak = "Рӯзи пайваста",
         tileToday = "Имрӯз",
         lessonDone = "Дарс иҷро шуд",
@@ -389,7 +410,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         lessonNone = "Дарс нест",
         tileRetention = "Нигоҳдорӣ дар 30 рӯз",
         tileHard = "Оятҳои душвор ҳоло",
-        activityTitle = "Фаъолият дар 30 рӯз",
+        activityTitle = "Ҳафтаи машғулият",
         activityEmpty = "Порчаеро аз бар кунед ё такрор намоед — ин ҷо сутунҳо меафзоянд.",
         activityNew = "Нав",
         activityReviewed = "Такрор шуд",
@@ -398,6 +419,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         months = listOf("янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"),
         datePattern = "{d} {m}",
         mapTitle = "Харитаи Қуръон",
+        mapExpand = "Нишон додани харита",
+        mapCollapse = "Пинҳон кардани харита",
         mapHint = "Ба ҳуҷайра зер кунед, то сура намоён шавад",
         statusNotStarted = "Оғоз нашудааст",
         statusLearning = "Аз бар мекунам",
@@ -415,6 +438,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         hardAyahDescriptionPattern = "{name}, оят {n}",
         reportAction = "Ҳисобот барои устод",
         reportCardBody = "Чӣ аз бар шуд ва такрор шуд дар як ҳафта ё як моҳ, оятҳои душвор ва силсила — ҳамчун тасвир ва матн барои Telegram ё WhatsApp.",
+        reportRowBody = "Як ҳафта ё як моҳ: тасвир, PDF ё матн",
         reportShare = "Фиристодани ҳисобот",
         sheetBody = "Барои кадом давра?",
         periodWeek = "Барои ҳафта",
@@ -433,7 +457,6 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         title = "Natija",
         back = "Orqaga",
         ringDescriptionPattern = "{p}%: {b} ta oyatdan {a} tasi o‘tildi, {l} tasi yodlandi",
-        ringDescriptionBelowOnePattern = "1% dan kam: {b} ta oyatdan {a} tasi o‘tildi, {l} tasi yodlandi",
         knownPattern = "Yoddan bilaman: {n}",
         learningPattern = "Yodlayapman: {n}",
         percentFirst = false,
@@ -447,6 +470,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         planAhead = "Jadvaldan oldindasiz",
         planOnTrack = "Jadval bo‘yicha ketyapsiz",
         planNeedPacePattern = "Muddatga ulgurish uchun kuniga {ayahs} kerak",
+        planRingPattern = "{scope}: {a} / {b} · {p}%",
+        wholeQuranPattern = "Butun Qur‘on: {a} / {b} · yodlangan {l}",
         tileStreak = "Ketma-ket kun",
         tileToday = "Bugun",
         lessonDone = "Dars bajarildi",
@@ -454,7 +479,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         lessonNone = "Dars yo‘q",
         tileRetention = "30 kunda eslab qolish",
         tileHard = "Hozirgi qiyin oyatlar",
-        activityTitle = "So‘nggi 30 kun",
+        activityTitle = "Shu hafta",
         activityEmpty = "Parcha yodlang yoki takrorlang — ustunlar shu yerda o‘sadi.",
         activityNew = "Yangi",
         activityReviewed = "Takrorlandi",
@@ -463,6 +488,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         months = listOf("yan", "fev", "mar", "apr", "may", "iyn", "iyl", "avg", "sen", "okt", "noy", "dek"),
         datePattern = "{d} {m}",
         mapTitle = "Qur'on xaritasi",
+        mapExpand = "Xaritani ko‘rsatish",
+        mapCollapse = "Xaritani yashirish",
         mapHint = "Surani ko‘rish uchun katakchani bosing",
         statusNotStarted = "Boshlanmagan",
         statusLearning = "Yodlayapman",
@@ -480,6 +507,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         hardAyahDescriptionPattern = "{name}, {n}-oyat",
         reportAction = "Ustoz uchun hisobot",
         reportCardBody = "Hafta yoki oy davomida nima yodlangani va takrorlangani, qiyin oyatlar va ketma-ketlik — Telegram yoki WhatsApp uchun rasm va matn.",
+        reportRowBody = "Hafta yoki oy: rasm, PDF yoki matn",
         reportShare = "Hisobotni ulashish",
         sheetBody = "Qaysi davr uchun?",
         periodWeek = "Hafta uchun",
@@ -498,7 +526,6 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         title = "İlerleme",
         back = "Geri",
         ringDescriptionPattern = "%{p}: {b} ayetten {a} ayet geçildi, {l} ayet ezberlendi",
-        ringDescriptionBelowOnePattern = "%1’den az: {b} ayetten {a} ayet geçildi, {l} ayet ezberlendi",
         knownPattern = "Ezbere bildiğim: {n}",
         learningPattern = "Ezberliyorum: {n}",
         percentFirst = true,
@@ -512,6 +539,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         planAhead = "Programın önündesiniz",
         planOnTrack = "Programa uygun gidiyorsunuz",
         planNeedPacePattern = "Süreye yetişmek için günde {ayahs} gerekir",
+        planRingPattern = "{scope}: {a} / {b} · %{p}",
+        wholeQuranPattern = "Bütün Kur'an: {a} / {b} · ezberlenen {l}",
         tileStreak = "Ardışık gün",
         tileToday = "Bugün",
         lessonDone = "Ders tamamlandı",
@@ -519,7 +548,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         lessonNone = "Ders yok",
         tileRetention = "30 günde akılda kalan",
         tileHard = "Şu an zor ayetler",
-        activityTitle = "Son 30 gün",
+        activityTitle = "Bu hafta",
         activityEmpty = "Bir bölüm ezberleyin ya da tekrar edin; çubuklar burada büyüsün.",
         activityNew = "Yeni",
         activityReviewed = "Tekrar",
@@ -528,6 +557,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         months = listOf("Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"),
         datePattern = "{d} {m}",
         mapTitle = "Kur'an haritası",
+        mapExpand = "Haritayı göster",
+        mapCollapse = "Haritayı gizle",
         mapHint = "Sureyi görmek için bir kareye dokunun",
         statusNotStarted = "Başlanmadı",
         statusLearning = "Ezberliyorum",
@@ -545,6 +576,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         hardAyahDescriptionPattern = "{name}, {n}. ayet",
         reportAction = "Hoca için rapor",
         reportCardBody = "Bir hafta ya da ayda ezberlenenler ve tekrar edilenler, zor ayetler ve seri: Telegram veya WhatsApp için görsel ve metin.",
+        reportRowBody = "Bir hafta ya da ay: görsel, PDF veya metin",
         reportShare = "Raporu paylaş",
         sheetBody = "Hangi dönem?",
         periodWeek = "Haftalık",

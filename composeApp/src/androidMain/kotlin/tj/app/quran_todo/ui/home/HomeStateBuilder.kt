@@ -106,7 +106,7 @@ internal object HomeStateBuilder {
             lessonFirst = lessonFirst(s.onboardingGoals),
             recent = if (content) HomeRows.recent(s.recentSurahs, s.pinnedSurahs, rowsByNumber) else emptyList(),
             rows = rows,
-            overallProgress = HomeRows.overallProgress(s.coveredAyahs),
+            overallProgress = HomeRows.overallProgress(s.coveredAyahs, s.forecast),
             juzRows = if (content) JuzRows.build(s.language, rowsByNumber, s.learnedAyahSets) else emptyList(),
             quizReady = content && s.coveredAyahs.values.sum() >= QuizBuilder.MIN_POOL,
             planRow = planRow(s.plan, s.forecast, lessonCard?.state, s.today),

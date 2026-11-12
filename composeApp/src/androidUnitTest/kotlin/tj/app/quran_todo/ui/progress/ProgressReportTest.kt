@@ -187,7 +187,7 @@ class ProgressReportTest {
             Отчёт по хифзу
             24 окт – 30 окт
 
-            Пройдено: 20 из 6236 аятов · выучено: 11 (<1%)
+            Пройдено: 20 из 6236 аятов · выучено: 11 (1%)
             Пройдено новое: 9 аятов
             • Аль-Масад 1–5
             • Аль-Ихлас 1–4
@@ -212,7 +212,7 @@ class ProgressReportTest {
             listOf("Hifz report", "Oct 24 – Oct 30", ""),
             lines.take(3),
         )
-        assertEquals("Covered: 20 of 6236 ayahs · memorized: 11 (<1%)", lines[3])
+        assertEquals("Covered: 20 of 6236 ayahs · memorized: 11 (1%)", lines[3])
         assertEquals("Newly covered: 9 ayahs", lines[4])
         assertEquals("• Surah 111 1–5", lines[5])
         assertEquals("• Surah 112 1–4", lines[6])
@@ -335,8 +335,8 @@ class ProgressReportTest {
 
     @Test
     fun theRingOfTheCardCarriesThePercentInTheLanguageOfTheText() {
-        assertEquals("<1%", doc(AppLanguage.RU).percentText)
-        assertEquals("<%1", doc(AppLanguage.TR).percentText)
+        assertEquals("1%", doc(AppLanguage.RU).percentText)
+        assertEquals("%1", doc(AppLanguage.TR).percentText)
         val big = sources(passages = listOf(Fx.passage(1, 2, 1, 286), Fx.passage(2, 3, 1, 200)))
         assertEquals("8%", doc(AppLanguage.RU, r = report(s = big)).percentText) // 486 of 6236 = 7.8%
         assertEquals("%8", doc(AppLanguage.TR, r = report(s = big)).percentText)

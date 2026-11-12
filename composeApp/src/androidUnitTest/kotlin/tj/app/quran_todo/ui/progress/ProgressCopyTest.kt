@@ -63,7 +63,8 @@ class ProgressCopyTest {
         // A placeholder lost in a translation would print the number or the name nowhere.
         val needs = mapOf(
             "ringDescriptionPattern" to listOf("{p}", "{a}", "{b}"),
-            "ringDescriptionBelowOnePattern" to listOf("{a}", "{b}"),
+            "planRingPattern" to listOf("{scope}", "{a}", "{b}", "{p}"),
+            "wholeQuranPattern" to listOf("{a}", "{b}", "{l}"),
             "knownPattern" to listOf("{n}"),
             "learningPattern" to listOf("{n}"),
             "planFinishPattern" to listOf("{scope}", "{date}"),
@@ -120,8 +121,10 @@ class ProgressCopyTest {
         for (language in AppLanguage.entries) {
             val copy = progressCopy(language)
             val texts = listOf(
-                copy.ringDescription(7, false, 412, 6236),
-                copy.ringDescription(0, true, 12, 6236),
+                copy.ringDescription(7, 412, 6236),
+                copy.ringDescription(2, 10, 564, scope = copy.scopeName(HifzScope.JUZ_30)),
+                copy.planRingLine(HifzScope.JUZ_30, 10, 564, 2),
+                copy.wholeQuranLine(17, 6236, 13),
                 copy.surahsLine(3, 5).orEmpty(),
                 copy.ayahsOf(12, 83),
                 copy.date(5, 3),
@@ -139,7 +142,7 @@ class ProgressCopyTest {
                 copy.planStatusLine(PlanLineUi(PlanStatus.NeedPace, HifzScope.JUZ_30, 20_500, ayahs = 7)).orEmpty(),
             )
             texts.forEach { text -> assertFalse(text.contains('{') || text.contains('}'), "${language.name}: $text") }
-            assertTrue(copy.ringDescription(7, false, 412, 6236).let { "7" in it && "412" in it && "6236" in it }, language.name)
+            assertTrue(copy.ringDescription(7, 412, 6236).let { "7" in it && "412" in it && "6236" in it }, language.name)
             assertTrue("83" in copy.ayahsOf(12, 83) && "12" in copy.ayahsOf(12, 83), language.name)
             assertTrue("Al-Baqarah" in copy.hardAyahDescription("Al-Baqarah", 255) && "255" in copy.hardAyahDescription("Al-Baqarah", 255), language.name)
             assertTrue("3" in copy.todayText(TodayUi.Left(3, 5)) && "5" in copy.todayText(TodayUi.Left(3, 5)), language.name)
@@ -159,11 +162,17 @@ class ProgressCopyTest {
     }
 
     @Test
-    fun theRingIsDescribedWithLessThanOnePercentInWords() {
-        assertEquals("меньше 1 %: пройдено 12 из 6236 аятов, выучено 5", progressCopy(AppLanguage.RU).ringDescription(0, true, 12, 6236, learned = 5))
-        assertEquals("7%: 412 of 6236 ayahs covered, 300 memorized", progressCopy(AppLanguage.EN).ringDescription(7, false, 412, 6236, learned = 300))
-        assertTrue(progressCopy(AppLanguage.TR).ringDescription(12, false, 1, 2).startsWith("%12"))
-        assertTrue(progressCopy(AppLanguage.TR).ringDescription(0, true, 1, 2).startsWith("%1"))
+    fun theRingIsDescribedByThePlanAndTheWholeQuranIsOneLine() {
+        assertEquals("7%: 412 of 6236 ayahs covered, 300 memorized", progressCopy(AppLanguage.EN).ringDescription(7, 412, 6236, learned = 300))
+        assertTrue(progressCopy(AppLanguage.TR).ringDescription(12, 1, 2).startsWith("%12"))
+        assertEquals("Джуз Амма: 10 из 564 · 2 %", progressCopy(AppLanguage.RU).planRingLine(HifzScope.JUZ_30, 10, 564, 2))
+        assertEquals("Весь Коран: 17 из 6236 · выучено 13", progressCopy(AppLanguage.RU).wholeQuranLine(17, 6236, 13))
+        assertTrue(progressCopy(AppLanguage.TR).planRingLine(HifzScope.JUZ_30, 10, 564, 2).endsWith("%2"))
+        for (language in AppLanguage.entries) {
+            val copy = progressCopy(language)
+            assertFalse("<1" in copy.planRingLine(HifzScope.JUZ_30, 1, 564, 1), language.name)
+            assertTrue(copy.mapExpand.isNotBlank() && copy.mapCollapse.isNotBlank() && copy.reportRowBody.isNotBlank(), language.name)
+        }
     }
 
     @Test

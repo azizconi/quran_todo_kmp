@@ -79,7 +79,6 @@ class ProgressBuilderTest {
         assertEquals(0, ui.hero.coveredAyahs)
         assertEquals(6236, ui.hero.totalAyahs)
         assertEquals(0, ui.hero.percent)
-        assertFalse(ui.hero.belowOnePercent)
         assertEquals(114, ui.cells.size)
         assertTrue(ui.cells.all { it.state == MapState.NotStarted && it.learnedAyahs == 0 })
         assertEquals(30, ui.juz.size)
@@ -101,8 +100,8 @@ class ProgressBuilderTest {
         assertEquals(6, ui.hero.coveredAyahs)
         assertEquals(1, ui.hero.learnedSurahs)
         assertEquals(1, ui.hero.learningSurahs)
-        assertTrue(ui.hero.belowOnePercent)
-        assertEquals(0, ui.hero.percent)
+        // 6 of 6236 is under a percent: the ring never says "<1", it says 1.
+        assertEquals(1, ui.hero.percent)
         val full = ui.cells[111]
         assertEquals(MapState.Learned, full.state)
         assertEquals(4, full.learnedAyahs)
@@ -133,12 +132,8 @@ class ProgressBuilderTest {
     @Test
     fun theRingIsHonestAtTheEdges() {
         assertEquals(0, ProgressBuilder.hero(0, 0, 0, 0).percent)
-        assertFalse(ProgressBuilder.hero(0, 0, 0, 0).belowOnePercent)
-        val one = ProgressBuilder.hero(1, 1, 0, 0)
-        assertEquals(0, one.percent)
-        assertTrue(one.belowOnePercent)
+        assertEquals(1, ProgressBuilder.hero(1, 1, 0, 0).percent)
         assertEquals(1, ProgressBuilder.hero(32, 32, 0, 0).percent) // 0.51%
-        assertFalse(ProgressBuilder.hero(32, 32, 0, 0).belowOnePercent)
         assertEquals(99, ProgressBuilder.hero(6235, 6235, 0, 0).percent)
         assertEquals(100, ProgressBuilder.hero(6236, 6236, 0, 0).percent)
         assertEquals(1f, ProgressBuilder.hero(6236, 6236, 0, 0).fraction)
