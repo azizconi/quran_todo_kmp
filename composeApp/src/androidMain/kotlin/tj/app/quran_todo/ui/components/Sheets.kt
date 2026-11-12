@@ -11,17 +11,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.rememberModalBottomSheetState
-import android.content.res.Configuration
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import java.util.Locale
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
-import tj.app.quran_todo.common.i18n.code
 import tj.app.quran_todo.ui.i18n.rememberA11yCopy
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,15 +43,8 @@ fun QhSheet(
     val colors = QhTheme.colors
     val language = LocalAppLanguage.current
     val a11y = rememberA11yCopy(language)
-    val appContext = LocalContext.current
-    val appConfiguration = LocalConfiguration.current
-    // Material3 says "Close sheet" on the scrim in the phone's language; the sheet is drawn in a context with the app's language,
-    // while its content gets the original context back.
-    val localizedConfiguration = remember(appContext, appConfiguration, language) {
-        Configuration(appConfiguration).apply { setLocale(Locale.forLanguageTag(language.code)) }
-    }
-    val localizedContext = remember(appContext, localizedConfiguration) { appContext.createConfigurationContext(localizedConfiguration) }
-    CompositionLocalProvider(LocalContext provides localizedContext, LocalConfiguration provides localizedConfiguration) {
+    // Material3 names the scrim "Close sheet" from the phone's locale, not the app language: its dialog window brings its
+    // own context, so it cannot be overridden from here (A11Y_FINDINGS.md, item 15).
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,
@@ -79,7 +65,6 @@ fun QhSheet(
             )
         },
     ) {
-        CompositionLocalProvider(LocalContext provides appContext, LocalConfiguration provides appConfiguration) {
         Column(
             Modifier
                 .animateContentSize(QhMotion.gentle<IntSize>().orSnap())
@@ -87,7 +72,5 @@ fun QhSheet(
                 .padding(bottom = QhSpacing.x6),
             content = content,
         )
-        }
-    }
     }
 }
