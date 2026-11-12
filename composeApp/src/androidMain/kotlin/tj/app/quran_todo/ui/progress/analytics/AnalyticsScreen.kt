@@ -50,7 +50,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -82,6 +87,7 @@ import tj.app.quran_todo.ui.components.QhSegmentedControl
 import tj.app.quran_todo.ui.components.Skeleton
 import tj.app.quran_todo.ui.components.SurahNumberBadge
 import tj.app.quran_todo.ui.components.rememberQhTopBarState
+import tj.app.quran_todo.ui.i18n.rememberA11yCopy
 import tj.app.quran_todo.ui.i18n.AnalyticsCopy
 import tj.app.quran_todo.ui.i18n.ProgressCopy
 import tj.app.quran_todo.ui.i18n.analyticsCopy
@@ -327,12 +333,14 @@ private fun HeatSection(ui: AnalyticsUi, copy: AnalyticsCopy, progress: Progress
                 )
             }
             Spacer(Modifier.height(QhSpacing.x2))
-            HeatGrid(heat = heat, progress = progress, selected = selected, onSelect = { selected = it }, summary = copy.activeDays(heat.activeDays))
             val day = selected?.let { epochDay -> heat.weeks.asSequence().flatten().firstOrNull { it?.epochDay == epochDay } }
+            val text = day?.let {
+                val date = LocalDate.fromEpochDays(it.epochDay)
+                copy.bubble(progress.date(date.dayOfMonth, date.monthNumber), it.newCount, it.reviewedCount, it.listened, it.paused)
+            }
+            HeatGrid(heat = heat, progress = progress, selected = selected, selectedText = text, onSelect = { selected = it }, summary = copy.activeDays(heat.activeDays))
             Spacer(Modifier.height(QhSpacing.x3))
-            if (day != null) {
-                val date = LocalDate.fromEpochDays(day.epochDay)
-                val text = copy.bubble(progress.date(date.dayOfMonth, date.monthNumber), day.newCount, day.reviewedCount, day.listened, day.paused)
+            if (text != null) {
                 Text(
                     text = text,
                     style = QhTheme.type.callout,
@@ -341,7 +349,10 @@ private fun HeatSection(ui: AnalyticsUi, copy: AnalyticsCopy, progress: Progress
                         .clip(RoundedCornerShape(QhSpacing.x3))
                         .background(colors.primaryContainer)
                         .padding(horizontal = QhSpacing.x3, vertical = QhSpacing.x2)
-                        .semantics { contentDescription = text },
+                        .semantics {
+                            contentDescription = text
+                            liveRegion = LiveRegionMode.Polite
+                        },
                 )
                 Spacer(Modifier.height(QhSpacing.x3))
             }
@@ -364,9 +375,11 @@ private fun HeatGrid(
     heat: HeatYear,
     progress: ProgressCopy,
     selected: Int?,
+    selectedText: String?,
     onSelect: (Int?) -> Unit,
     summary: String,
 ) {
+    val a11y = rememberA11yCopy()
     val colors = QhTheme.colors
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
@@ -381,13 +394,23 @@ private fun HeatGrid(
             Modifier
                 .fillMaxWidth()
                 .height(height)
-                .semantics { contentDescription = "${heat.year}. $summary" }
+                .semantics {
+                    contentDescription = "${heat.year}. $summary"
+                    // The day itself is reached by steps (no pixel-precise taps): the chosen day is read as the state.
+                    if (selectedText != null) stateDescription = selectedText
+                    customActions = listOf(
+                        CustomAccessibilityAction(a11y.heatPreviousDay) { onSelect(HeatGridHit.step(heat, selected, -1)); true },
+                        CustomAccessibilityAction(a11y.heatNextDay) { onSelect(HeatGridHit.step(heat, selected, 1)); true },
+                        CustomAccessibilityAction(a11y.heatPreviousWeek) { onSelect(HeatGridHit.step(heat, selected, -7)); true },
+                        CustomAccessibilityAction(a11y.heatNextWeek) { onSelect(HeatGridHit.step(heat, selected, 7)); true },
+                    )
+                }
                 .pointerInput(heat, cell) {
+                    // A finger is wider than a 5 dp cell: the nearest day within about 12 dp is the one meant.
+                    val tolerance = 12.dp.toPx()
                     detectTapGestures { offset ->
-                        val week = (offset.x / (cell + gap)).toInt()
-                        val weekday = ((offset.y - monthRow) / (cell + gap)).toInt()
-                        val day = heat.weeks.getOrNull(week)?.getOrNull(weekday)
-                        if (offset.y >= monthRow && day != null) onSelect(if (selected == day.epochDay) null else day.epochDay) else onSelect(null)
+                        val day = HeatGridHit.nearestDay(heat, offset.x, offset.y, cell, gap, monthRow, tolerance)
+                        onSelect(if (day == null || selected == day) null else day)
                     }
                 },
         ) {
