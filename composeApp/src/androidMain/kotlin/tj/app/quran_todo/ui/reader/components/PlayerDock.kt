@@ -96,6 +96,11 @@ import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.haptics.HapticKind
 import tj.app.quran_todo.ui.haptics.LocalHaptics
 import tj.app.quran_todo.ui.i18n.ListenCopy
+import tj.app.quran_todo.common.audio.RepeatMode
+import tj.app.quran_todo.common.audio.RepeatModes
+import tj.app.quran_todo.common.audio.RepeatState
+import tj.app.quran_todo.ui.i18n.PlayerRepeatCopy
+import tj.app.quran_todo.ui.i18n.rememberPlayerRepeatCopy
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.i18n.rememberListenCopy
 import tj.app.quran_todo.ui.motion.AnimatedCounter
@@ -425,6 +430,7 @@ private fun DockStatusLine(
     val reciter by koinInject<UiPrefs>().reciter.collectAsState()
     val reciterName = reciter.shortName(LocalAppLanguage.current)
     val listen = rememberListenCopy()
+    val repeatCopy = rememberPlayerRepeatCopy()
     val queue by viewModel.listenQueue.collectAsState()
     when {
         ui.hasError -> Row(
@@ -462,7 +468,7 @@ private fun DockStatusLine(
         )
         else -> Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = statusSummary(prefs, practice, copy, reciterName, listen, queue.takeIf { ui.active }),
+                text = statusSummary(prefs, practice, copy, repeatCopy, reciterName, listen, queue.takeIf { ui.active }),
                 style = style,
                 color = colors.inkSecondary,
                 maxLines = 1,
@@ -499,6 +505,7 @@ private fun statusSummary(
     prefs: SurahReaderPreferences,
     practice: ReaderPracticeSettings,
     copy: ReaderCopy,
+    repeatCopy: PlayerRepeatCopy,
     reciterName: String,
     listen: ListenCopy? = null,
     queue: ListenQueue? = null,
@@ -516,10 +523,12 @@ private fun statusSummary(
         if (practice.echo && listen != null) {
             append(" · ").append(listen.echoChip).append(" ").append(repeatLabel(practice.echoRepeats))
         }
-        if (practice.rangeEnabled) {
-            append(" · ").append(copy.repeatLabel("${practice.startAyah}–${practice.endAyah}", repeatLabel(practice.rangeRepeatCount)))
-        } else if (prefs.repeatCount != 1) {
-            append(" · ↻ ").append(repeatLabel(prefs.repeatCount))
+        when (RepeatModes.derive(RepeatState(prefs.repeatCount, practice))) {
+            RepeatMode.Passage -> append(" · ").append(
+                repeatCopy.passageStatus("${practice.startAyah}–${practice.endAyah}", repeatLabel(practice.rangeRepeatCount)),
+            )
+            RepeatMode.Ayah -> append(" · ").append(repeatCopy.ayahStatus(repeatLabel(prefs.repeatCount)))
+            RepeatMode.None -> Unit
         }
     }
 

@@ -79,6 +79,16 @@ import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.QhSectionHeader
 import tj.app.quran_todo.ui.components.QhSegmentedControl
 import tj.app.quran_todo.ui.i18n.ReaderCopy
+import tj.app.quran_todo.ui.i18n.rememberPlayerRepeatCopy
+import tj.app.quran_todo.ui.settings.ReciterPickerSheet
+import tj.app.quran_todo.ui.state.UiPrefs
+import tj.app.quran_todo.ui.components.QhSwitchRow
+import tj.app.quran_todo.ui.components.QhValueRow
+import androidx.compose.material.icons.rounded.RecordVoiceOver
+import org.koin.compose.koinInject
+import tj.app.quran_todo.common.audio.RepeatMode
+import tj.app.quran_todo.common.audio.RepeatModes
+import tj.app.quran_todo.common.audio.RepeatState
 import tj.app.quran_todo.ui.i18n.rememberListenCopy
 import tj.app.quran_todo.ui.playback.SleepTimer
 import tj.app.quran_todo.ui.playback.FollowedArabicText
@@ -121,9 +131,11 @@ internal fun DockBody(
         PlayerGuide()
         NowPlayingCard(viewModel = viewModel, ui = ui, surah = surah, showTranslation = showTranslation, copy = copy)
         TransportRow(viewModel = viewModel, ui = ui, practice = practice, copy = copy, onPlay = onPlay)
-        RepeatSection(
+        ReciterRow()
+        RepeatBlock(
             viewModel = viewModel,
             currentNumber = ui.index + 1,
+            prefs = prefs,
             practice = practice,
             total = surah.ayahs.size,
             copy = copy,
@@ -137,6 +149,7 @@ internal fun DockBody(
             onSelect = viewModel::setPauseSeconds,
             hint = copy.pauseHint,
         )
+        AutoAdvanceRow(viewModel = viewModel, prefs = prefs)
         EchoSection(viewModel = viewModel, practice = practice, copy = copy)
         ChipSection(
             title = copy.speed,
@@ -287,12 +300,102 @@ private fun TransportRow(
 
 // -- Practice ------------------------------------------------------------------------------------------------
 
+/** "Reciter: Alafasy": opens the reciter sheet of the settings (the same component), so the voice can be changed while listening. */
 @Composable
-private fun RepeatSection(
+private fun ReciterRow() {
+    val language = LocalAppLanguage.current
+    val repeatCopy = rememberPlayerRepeatCopy(language)
+    val reciter by koinInject<UiPrefs>().reciter.collectAsState()
+    var sheetOpen by remember { mutableStateOf(false) }
+    QhCard(contentPadding = PaddingValues(0.dp)) {
+        QhValueRow(
+            title = repeatCopy.reciterRow,
+            value = reciter.shortName(language),
+            onClick = { sheetOpen = true },
+            icon = Icons.Rounded.RecordVoiceOver,
+            iconTint = QhTheme.colors.gold,
+        )
+    }
+    if (sheetOpen) {
+        ReciterPickerSheet(title = repeatCopy.reciterRow, language = language, onDismiss = { sheetOpen = false })
+    }
+}
+
+/** "Next ayah automatically" next to the pause between ayahs; the same preference as before, no longer in the settings. */
+@Composable
+private fun AutoAdvanceRow(viewModel: ReaderViewModel, prefs: SurahReaderPreferences) {
+    val repeatCopy = rememberPlayerRepeatCopy()
+    QhCard(contentPadding = PaddingValues(0.dp)) {
+        QhSwitchRow(
+            title = repeatCopy.autoAdvanceTitle,
+            description = repeatCopy.autoAdvanceHint,
+            checked = prefs.autoAdvanceAyahs,
+            onCheckedChange = viewModel::setAutoAdvance,
+            icon = Icons.Rounded.SkipNext,
+            iconTint = QhTheme.colors.gold,
+        )
+    }
+}
+
+/**
+ * The one "Repeat" block: Off / Ayah / Passage. The mode is derived from the stored repeats ([RepeatModes.derive]; the passage wins
+ * when both are set); the tab the person has just picked stays shown even before it stores anything (a passage waits for its button).
+ */
+@Composable
+private fun RepeatBlock(
+    viewModel: ReaderViewModel,
+    currentNumber: Int,
+    prefs: SurahReaderPreferences,
+    practice: ReaderPracticeSettings,
+    total: Int,
+    copy: ReaderCopy,
+) {
+    val repeatCopy = rememberPlayerRepeatCopy()
+    val derived = RepeatModes.derive(RepeatState(prefs.repeatCount, practice))
+    var chosen by remember { mutableStateOf(derived) }
+    // A repeat that is set from elsewhere (the ayah sheet) shows up here.
+    LaunchedEffect(derived) { if (derived != RepeatMode.None) chosen = derived }
+    val modes = remember { listOf(RepeatMode.None, RepeatMode.Ayah, RepeatMode.Passage) }
+    Column(verticalArrangement = Arrangement.spacedBy(QhSpacing.x3)) {
+        QhSectionHeader(repeatCopy.repeatTitle)
+        QhSegmentedControl(
+            options = listOf(repeatCopy.modeNone, repeatCopy.modeAyah, repeatCopy.modePassage),
+            selectedIndex = modes.indexOf(chosen),
+            onSelect = {
+                chosen = modes[it]
+                viewModel.selectRepeatMode(modes[it])
+            },
+        )
+        when (chosen) {
+            RepeatMode.None -> Unit
+            RepeatMode.Ayah -> {
+                Text(repeatCopy.ayahHint, style = QhTheme.type.callout, color = QhTheme.colors.inkSecondary)
+                val counts = remember { listOf(1, 3, 5, SurahReaderPreferences.RepeatForever) }
+                QhSegmentedControl(
+                    options = counts.map(::repeatLabel),
+                    selectedIndex = counts.indexOf(prefs.repeatCount).coerceAtLeast(0),
+                    onSelect = { viewModel.setAyahRepeat(counts[it]) },
+                )
+            }
+            RepeatMode.Passage -> PassageRepeat(
+                viewModel = viewModel,
+                currentNumber = currentNumber,
+                practice = practice,
+                total = total,
+                hint = repeatCopy.passageHint,
+                copy = copy,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PassageRepeat(
     viewModel: ReaderViewModel,
     currentNumber: Int,
     practice: ReaderPracticeSettings,
     total: Int,
+    hint: String,
     copy: ReaderCopy,
 ) {
     val colors = QhTheme.colors
@@ -314,7 +417,7 @@ private fun RepeatSection(
     Column(
         verticalArrangement = Arrangement.spacedBy(QhSpacing.x3),
     ) {
-        QhSectionHeader(copy.repeatPassage)
+        Text(hint, style = QhTheme.type.callout, color = colors.inkSecondary)
         Row(
             Modifier
                 .fillMaxWidth()
