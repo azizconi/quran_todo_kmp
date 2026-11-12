@@ -18,7 +18,11 @@ data class SummaryExtrasCopy(
     val askYes: String,
     val askNo: String,
     private val takesAboutFmt: String,
+    private val surahCompleteFmt: String,
 ) {
+    /** "Surah An-Nas is complete" (task U13). */
+    fun surahComplete(name: String): String = surahCompleteFmt.replace("{name}", name)
+
     /** "Your lesson takes about 12 minutes". */
     fun takesAbout(minutes: Int): String = takesAboutFmt.replace("{min}", "$minutes ${minuteWord(minutes)}")
 
@@ -43,6 +47,7 @@ fun summaryExtrasCopy(language: AppLanguage): SummaryExtrasCopy = when (language
         askYes = "Напоминать",
         askNo = "Не сейчас",
         takesAboutFmt = "Ваш урок занимает около {min}",
+        surahCompleteFmt = "Сура {name} пройдена полностью",
     )
     AppLanguage.EN -> SummaryExtrasCopy(
         language = language,
@@ -51,6 +56,7 @@ fun summaryExtrasCopy(language: AppLanguage): SummaryExtrasCopy = when (language
         askYes = "Remind me",
         askNo = "Not now",
         takesAboutFmt = "Your lesson takes about {min}",
+        surahCompleteFmt = "Surah {name} is complete",
     )
     AppLanguage.TG -> SummaryExtrasCopy(
         language = language,
@@ -59,6 +65,7 @@ fun summaryExtrasCopy(language: AppLanguage): SummaryExtrasCopy = when (language
         askYes = "Ёдрас кун",
         askNo = "Ҳозир не",
         takesAboutFmt = "Дарси шумо тақрибан {min} давом мекунад",
+        surahCompleteFmt = "Сураи {name} пурра гузашта шуд",
     )
     AppLanguage.UZ -> SummaryExtrasCopy(
         language = language,
@@ -67,6 +74,7 @@ fun summaryExtrasCopy(language: AppLanguage): SummaryExtrasCopy = when (language
         askYes = "Eslatib tur",
         askNo = "Hozir emas",
         takesAboutFmt = "Darsingiz taxminan {min} davom etadi",
+        surahCompleteFmt = "{name} surasi to‘liq o‘tildi",
     )
     AppLanguage.TR -> SummaryExtrasCopy(
         language = language,
@@ -75,5 +83,6 @@ fun summaryExtrasCopy(language: AppLanguage): SummaryExtrasCopy = when (language
         askYes = "Hatırlat",
         askNo = "Şimdi değil",
         takesAboutFmt = "Dersiniz yaklaşık {min} sürüyor",
+        surahCompleteFmt = "{name} suresi baştan sona tamamlandı",
     )
 }
