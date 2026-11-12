@@ -64,7 +64,7 @@ class TajweedCopyTest {
         assertEquals("Что значат цвета", ru.legendRow)
         assertEquals("Загружаю разметку таджвида · 2,5 МБ", ru.downloading)
         assertEquals("Нужен интернет один раз", ru.needInternet)
-        assertEquals("Повторить", ru.retry)
+        assertEquals("Ещё раз", ru.retry)
     }
 
     @Test

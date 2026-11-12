@@ -71,8 +71,8 @@ class ReaderCopyTest {
         assertEquals("Убрать 3 выученных аята из повторений?", ru.removeLearned(3))
         assertEquals("Убрать 12 выученных аятов из повторений?", ru.removeLearned(12))
         assertEquals("Убрать 21 выученный аят из повторений?", ru.removeLearned(21))
-        assertEquals("Remove 1 learned ayah from your reviews?", readerCopy(AppLanguage.EN).removeLearned(1))
-        assertEquals("Remove 7 learned ayahs from your reviews?", readerCopy(AppLanguage.EN).removeLearned(7))
+        assertEquals("Remove 1 memorized ayah from your reviews?", readerCopy(AppLanguage.EN).removeLearned(1))
+        assertEquals("Remove 7 memorized ayahs from your reviews?", readerCopy(AppLanguage.EN).removeLearned(7))
         AppLanguage.entries.forEach { language ->
             val text = readerCopy(language).removeLearned(7)
             assertTrue("7" in text && '{' !in text, "$language: $text")
@@ -104,8 +104,8 @@ class ReaderCopyTest {
 
     @Test
     fun theStatusNamesFollowTheGlossary() {
-        assertEquals("Заучиваю", readerCopy(AppLanguage.RU).learning)
-        assertEquals("Memorizing", readerCopy(AppLanguage.EN).learning)
+        assertEquals("Учу", readerCopy(AppLanguage.RU).learning)
+        assertEquals("Learning", readerCopy(AppLanguage.EN).learning)
         assertEquals("Аз бар мекунам", readerCopy(AppLanguage.TG).learning)
         assertEquals("Yodlayapman", readerCopy(AppLanguage.UZ).learning)
         assertEquals("Ezberliyorum", readerCopy(AppLanguage.TR).learning)

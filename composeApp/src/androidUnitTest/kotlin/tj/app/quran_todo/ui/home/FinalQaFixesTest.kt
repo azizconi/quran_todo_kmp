@@ -20,13 +20,13 @@ class FinalQaFixesTest {
     @Test
     fun aRowSpeaksItsStatusAndTheMemorizedShare() {
         val ru = texts(AppLanguage.RU)
-        assertEquals("Не начал", ru.stateOf(null, 0f))
-        assertEquals("Заучиваю, выучено 40%", ru.stateOf(SurahTodoStatus.LEARNING, 0.4f))
+        assertEquals("Не начато", ru.stateOf(null, 0f))
+        assertEquals("Учу, выучено 40%", ru.stateOf(SurahTodoStatus.LEARNING, 0.4f))
         assertEquals("Выучено", ru.stateOf(SurahTodoStatus.LEARNED, 1f))
 
         val en = texts(AppLanguage.EN)
         assertEquals("Not started", en.stateOf(null, 0f))
-        assertEquals("Memorizing, 40% memorized", en.stateOf(SurahTodoStatus.LEARNING, 0.4f))
+        assertEquals("Learning, 40% memorized", en.stateOf(SurahTodoStatus.LEARNING, 0.4f))
         assertEquals("Memorized", en.stateOf(SurahTodoStatus.LEARNED, 1f))
     }
 

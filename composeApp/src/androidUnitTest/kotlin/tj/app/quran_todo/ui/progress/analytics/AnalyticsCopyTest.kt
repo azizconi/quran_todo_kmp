@@ -59,8 +59,8 @@ class AnalyticsCopyTest {
     @Test
     fun bubbleNamesOnlyWhatHappened() {
         val en = analyticsCopy(AppLanguage.EN)
-        assertEquals("12 Mar: new 1, repeated 3, listened 2", en.bubble("12 Mar", 1, 3, 2, false))
-        assertEquals("12 Mar: repeated 3", en.bubble("12 Mar", 0, 3, 0, false))
+        assertEquals("12 Mar: new 1, reviewed 3, listened 2", en.bubble("12 Mar", 1, 3, 2, false))
+        assertEquals("12 Mar: reviewed 3", en.bubble("12 Mar", 0, 3, 0, false))
         assertEquals("12 Mar: plan pause", en.bubble("12 Mar", 0, 0, 0, true))
         assertEquals("12 Mar: no studying", en.bubble("12 Mar", 0, 0, 0, false))
         // The listened count alone is still something that happened that day.

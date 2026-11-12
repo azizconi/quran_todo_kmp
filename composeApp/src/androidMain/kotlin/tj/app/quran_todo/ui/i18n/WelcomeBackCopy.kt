@@ -43,7 +43,7 @@ class WelcomeBackCopy(
 
     private fun repetitionsWord(n: Int): String = when (language) {
         AppLanguage.RU -> "$n ${russianPlural(n, "повторение", "повторения", "повторений")}"
-        AppLanguage.EN -> "$n ${if (n == 1) "repetition" else "repetitions"}"
+        AppLanguage.EN -> "$n ${if (n == 1) "review" else "reviews"}"
         AppLanguage.TG -> "$n такрор"
         AppLanguage.UZ -> "$n takror"
         AppLanguage.TR -> "$n tekrar"
@@ -72,7 +72,7 @@ fun welcomeBackCopy(language: AppLanguage): WelcomeBackCopy = when (language) {
         bestPattern = "Best streak: {n}",
         catchUp = "Catch up over a few days",
         lighter = "A lighter week",
-        lighterNote = "7 days: half as much new, repetitions as usual",
+        lighterNote = "7 days: half as much new, reviews as usual",
         lighterLinePattern = "Lighter week: until {date}",
     )
     AppLanguage.TG -> WelcomeBackCopy(

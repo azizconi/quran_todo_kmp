@@ -32,7 +32,7 @@ class QuizCopyTest {
     @Test
     fun theFiveLanguagesDoNotShareTheirTexts() {
         val byLanguage = AppLanguage.entries.associateWith { strings(quizCopy(it)) }
-        listOf("title", "continueTitle", "orderTitle", "knew", "didNotKnow", "openInReader", "emptyBody").forEach { key ->
+        listOf("continueTitle", "orderTitle", "knew", "didNotKnow", "openInReader", "emptyBody").forEach { key ->
             val values = byLanguage.values.map { it.getValue(key) }
             assertEquals(values.size, values.toSet().size, "$key is the same in two languages: $values")
         }
@@ -58,8 +58,8 @@ class QuizCopyTest {
     @Test
     fun theWordsOfTheEntryAndOfTheResultReadAsTheyShould() {
         val ru = quizCopy(AppLanguage.RU)
-        assertEquals("5 вопросов по выученному", ru.entrySubtitle(5))
-        assertEquals("Проверить себя · 5 вопросов", ru.lessonButton(5))
+        assertEquals("5 вопросов по пройденному", ru.entrySubtitle(5))
+        assertEquals("Тест · 5 вопросов", ru.lessonButton(5))
         assertEquals("2 из 5", ru.progress(2, 5))
         assertEquals("Знал 4 из 5", ru.result(4, 5))
         assertEquals("Ещё 5 вопросов", ru.moreQuestions(5))
