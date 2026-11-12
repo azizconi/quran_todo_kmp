@@ -2,6 +2,7 @@ package tj.app.quran_todo.ui.home
 
 import androidx.compose.runtime.Immutable
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
+import tj.app.quran_todo.hifz.model.HifzScope
 
 /** What the screen shows instead of the list while the Quran is not there yet. */
 enum class HomePhase { Loading, Content, Error }
@@ -86,6 +87,22 @@ data class HomeUi(
     val juzListing: List<JuzRowUi> = emptyList(),
     /** Enough is memorized for the quiz "Check" (task F2b): the row under the lesson card shows. */
     val quizReady: Boolean = false,
+    /** The plan row under the lesson card (task U15); null when there is no running plan to show. */
+    val planRow: PlanRowUi? = null,
+)
+
+/**
+ * "Juz Amma · covered 10 of 564 · finish ~2 March · Change" under the lesson card (task U15). The numbers are the coverage
+ * numbers of the forecast the Progress screen shows ([covered] ayahs of [total]); [finishEpochDay] is where the pace leads, null
+ * when unknown. [today] decides whether the date gets a year.
+ */
+@Immutable
+data class PlanRowUi(
+    val scope: HifzScope,
+    val covered: Int,
+    val total: Int,
+    val finishEpochDay: Int?,
+    val today: Int,
 )
 
 /** The floating mini player. Position inside the ayah is a separate flow so this changes rarely. */

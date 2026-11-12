@@ -97,12 +97,14 @@ import tj.app.quran_todo.ui.theme.qhColors
 @OptIn(KoinExperimentalAPI::class)
 @Composable
 fun ProgressScreen(
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
     onOpenDrill: () -> Unit,
     onOpenDetails: () -> Unit = {},
     onOpenNotes: () -> Unit = {},
+    /** The room the tab scaffold needs under the last section (the floating mini player); only read when [onBack] is null. */
+    tabBottomSpace: Dp = 0.dp,
 ) {
     val viewModel = koinViewModel<ProgressViewModel>()
     val language = LocalAppLanguage.current
@@ -121,6 +123,7 @@ fun ProgressScreen(
         ui = ui,
         copy = copy,
         onBack = onBack,
+        tabBottomSpace = tabBottomSpace,
         onOpenReader = onOpenReader,
         onOpenPlan = onOpenPlan,
         onOpenDrill = onOpenDrill,
@@ -201,7 +204,8 @@ private fun rememberReportSharing(
 private fun ProgressContent(
     ui: ProgressUi,
     copy: ProgressCopy,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
+    tabBottomSpace: Dp,
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
     onOpenDrill: () -> Unit,
@@ -222,7 +226,8 @@ private fun ProgressContent(
     }
     var expandedBarPx by remember { mutableIntStateOf(estimatedBarPx) }
     val topPadding = with(density) { expandedBarPx.toDp() } + QhSpacing.x2
-    val navigationBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    // As a tab root the bar of the tabs owns the navigation-bar inset; only the floating player needs room.
+    val navigationBottom = if (onBack == null) tabBottomSpace else WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     Box(
         Modifier
@@ -254,13 +259,15 @@ private fun ProgressContent(
                 // Only an unscrolled bar is fully expanded.
                 if (scrollState.value == 0) expandedBarPx = size.height
             },
-            navigation = {
-                QhIconButton(
-                    icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = copy.back,
-                    onClick = onBack,
-                    filled = false,
-                )
+            navigation = onBack?.let { back ->
+                {
+                    QhIconButton(
+                        icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = copy.back,
+                        onClick = back,
+                        filled = false,
+                    )
+                }
             },
             actions = {
                 if (ui.phase == ProgressPhase.Content) {

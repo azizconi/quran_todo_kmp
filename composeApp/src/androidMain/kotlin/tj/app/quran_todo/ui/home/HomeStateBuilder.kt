@@ -4,7 +4,9 @@ import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.domain.model.SurahModel
+import tj.app.quran_todo.hifz.model.HifzPlan
 import tj.app.quran_todo.hifz.model.SurahHifzStatus
+import tj.app.quran_todo.hifz.schedule.PlanForecast
 import tj.app.quran_todo.hifz.quiz.QuizBuilder
 import tj.app.quran_todo.hifz.schedule.LessonPlan
 import tj.app.quran_todo.presentation.home.QuranLoadState
@@ -39,6 +41,11 @@ internal class HomeSources(
     val learnedAyahSets: Map<Int, Set<Int>> = emptyMap(),
     /** Passages with a "listened" record today ("Listen to the old"); only the lesson card shows it. */
     val listenedToday: Set<Long> = emptySet(),
+    /** The active plan and its forecast (the numbers of the Progress plan section); the plan row under the lesson card reads them. */
+    val plan: HifzPlan? = null,
+    val forecast: PlanForecast? = null,
+    /** The epoch day the forecast was made for. */
+    val today: Int = 0,
 )
 
 /** [HomeUi] without the listing, which also depends on the query and the filter. */
@@ -52,6 +59,7 @@ internal class HomeBase(
     val overallProgress: Float,
     val juzRows: List<JuzRowUi>,
     val quizReady: Boolean,
+    val planRow: PlanRowUi? = null,
 )
 
 internal object HomeStateBuilder {
@@ -76,16 +84,40 @@ internal object HomeStateBuilder {
             else -> HomePhase.Content
         }
         val content = phase == HomePhase.Content
+        val lessonCard = if (content) s.lesson?.let { lesson -> LessonCardBuilder.build(lesson, s.listenedToday) { rowsByNumber[it]?.name ?: "Surah $it" } } else null
         return HomeBase(
             phase = phase,
             continueItem = if (content) HomeRows.resolveContinue(s.lastRead, s.index, rowsByNumber) else null,
-            lesson = if (content) s.lesson?.let { lesson -> LessonCardBuilder.build(lesson, s.listenedToday) { rowsByNumber[it]?.name ?: "Surah $it" } } else null,
+            lesson = lessonCard,
             lessonFirst = lessonFirst(s.onboardingGoals),
             recent = if (content) HomeRows.recent(s.recentSurahs, s.pinnedSurahs, rowsByNumber) else emptyList(),
             rows = rows,
             overallProgress = HomeRows.overallProgress(s.coveredAyahs),
             juzRows = if (content) JuzRows.build(s.language, rowsByNumber, s.learnedAyahSets) else emptyList(),
             quizReady = content && s.coveredAyahs.values.sum() >= QuizBuilder.MIN_POOL,
+            planRow = planRow(s.plan, s.forecast, lessonCard?.state, s.today),
+        )
+    }
+
+    /**
+     * The row under the lesson card (task U15): only for a plan that is running. With no plan, a pause or a finished plan the
+     * card itself says so, and before the card is known there is nothing to show yet. The numbers are the forecast's (coverage:
+     * "covered", not "memorized"), the same the Progress plan section uses.
+     */
+    fun planRow(plan: HifzPlan?, forecast: PlanForecast?, card: LessonCardState?, today: Int): PlanRowUi? {
+        plan ?: return null
+        forecast ?: return null
+        when (card) {
+            null, LessonCardState.NoPlan, LessonCardState.Paused, LessonCardState.PlanFinished -> return null
+            LessonCardState.Start, LessonCardState.Continue, LessonCardState.Done -> Unit
+        }
+        if (forecast.finished || forecast.totalAyahs <= 0) return null
+        return PlanRowUi(
+            scope = plan.scope,
+            covered = (forecast.totalAyahs - forecast.remainingAyahs).coerceIn(0, forecast.totalAyahs),
+            total = forecast.totalAyahs,
+            finishEpochDay = forecast.finishEpochDay,
+            today = today,
         )
     }
 

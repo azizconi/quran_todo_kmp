@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,7 +100,6 @@ import tj.app.quran_todo.ui.components.hints.LocalHints
 import tj.app.quran_todo.ui.components.hints.rememberHintFlags
 import tj.app.quran_todo.ui.downloads.DownloadsScreen
 import tj.app.quran_todo.ui.drill.DrillScreen
-import tj.app.quran_todo.ui.home.HomeScreen
 import tj.app.quran_todo.ui.khatm.KhatmScreen
 import tj.app.quran_todo.ui.lesson.LessonScreen
 import tj.app.quran_todo.ui.motion.LocalNavAnimatedVisibilityScope
@@ -110,7 +110,12 @@ import tj.app.quran_todo.ui.motion.ThemeRevealHost
 import tj.app.quran_todo.ui.motion.rememberSystemReducedMotion
 import tj.app.quran_todo.ui.motion.rememberThemeReveal
 import tj.app.quran_todo.ui.mushaf.MushafScreen
+import tj.app.quran_todo.ui.navigation.BottomChrome
 import tj.app.quran_todo.ui.navigation.Dest
+import tj.app.quran_todo.ui.navigation.LocalBottomChrome
+import tj.app.quran_todo.ui.navigation.MainTab
+import tj.app.quran_todo.ui.navigation.MainTabActions
+import tj.app.quran_todo.ui.navigation.MainTabs
 import tj.app.quran_todo.ui.navigation.NavTransitions
 import tj.app.quran_todo.ui.navigation.ReaderRouting
 import tj.app.quran_todo.ui.onboarding.OnboardingExit
@@ -119,7 +124,6 @@ import tj.app.quran_todo.ui.onboarding.OnboardingStartup
 import tj.app.quran_todo.ui.onboarding.OnboardingScreen
 import tj.app.quran_todo.ui.plan.PlanScreen
 import tj.app.quran_todo.ui.notes.NotesScreen
-import tj.app.quran_todo.ui.progress.ProgressScreen
 import tj.app.quran_todo.ui.progress.analytics.AnalyticsScreen
 import tj.app.quran_todo.ui.quiz.QuizMode
 import tj.app.quran_todo.ui.quiz.QuizScreen
@@ -329,14 +333,18 @@ fun QuranHifzApp() {
             SideEffect { reveal.currentDark = isDark }
             SystemBarsEffect(reveal = reveal, isDark = isDark, background = background)
 
-            ThemeRevealHost(
-                reveal = reveal,
-                modifier = Modifier.fillMaxSize(),
-                background = background,
-            ) {
-                AppNavigation()
-                ToastHost(Modifier.align(Alignment.TopCenter))
-                UpdateReadyBanner(Modifier.align(Alignment.BottomCenter))
+            // How much of the bottom the tab bar takes: the update banner stands above it.
+            val bottomChrome = remember { BottomChrome() }
+            CompositionLocalProvider(LocalBottomChrome provides bottomChrome) {
+                ThemeRevealHost(
+                    reveal = reveal,
+                    modifier = Modifier.fillMaxSize(),
+                    background = background,
+                ) {
+                    AppNavigation()
+                    ToastHost(Modifier.align(Alignment.TopCenter))
+                    UpdateReadyBanner(Modifier.align(Alignment.BottomCenter))
+                }
             }
         }
     }
@@ -393,8 +401,17 @@ private fun AppNavigation() {
     val uiPrefs = koinInject<UiPrefs>()
     val openReader: (Dest.Reader) -> Unit = remember(navController, uiPrefs) { { dest -> navController.openReader(dest, uiPrefs) } }
 
+    // The tab of Home (U14). Saved as an ordinal (a rotation, a process death); -1 until the person or a deep entry chose one, so the
+    // default follows the goal chosen in onboarding (which is passed after this state is created).
+    var savedTab by rememberSaveable { mutableStateOf(NoTabChosen) }
+    val goals by uiPrefs.onboardingGoals.collectAsState()
+    val defaultTab = MainTab.defaultFor(goals)
+    val selectedTab = MainTab.restore(savedTab.takeIf { it != NoTabChosen }, defaultTab)
+    val selectTab: (MainTab) -> Unit = { tab -> savedTab = tab.ordinal }
+
     val currentEntry by navController.currentBackStackEntryAsState()
-    val screenName = currentEntry?.destination?.screenName()
+    val atHomeDestination = currentEntry?.destination?.hasRoute<Dest.Home>() == true
+    val screenName = if (atHomeDestination) selectedTab.screenName else currentEntry?.destination?.screenName()
     LaunchedEffect(screenName) {
         if (screenName != null) AppTelemetry.logScreen(screenName)
     }
@@ -409,7 +426,13 @@ private fun AppNavigation() {
             true
         }
         ReminderOpenRequests.consume(request)
-        if (ready == true) navController.openFromReminder(request.target, uiPrefs)
+        if (ready == true) {
+            // Back from the lesson lands on the "Lesson" tab.
+            if (request.target == ReminderTarget.Lesson && navController.currentBackStack.value.any { it.destination.hasRoute<Dest.Home>() }) {
+                selectTab(MainTab.Lesson)
+            }
+            navController.openFromReminder(request.target, uiPrefs)
+        }
     }
 
     // "What's new: the lesson of the day" for people who updated: decided once, now that needsOnboarding() has marked them. A link from
@@ -417,6 +440,28 @@ private fun AppNavigation() {
     val whatsNewPending = remember { WhatsNewGate.pending(OnboardingStartup.current().flags) }
     var whatsNewSuppressed by remember { mutableStateOf(openRequest != null) }
     LaunchedEffect(openRequest) { if (openRequest != null) whatsNewSuppressed = true }
+
+    val homeActions = remember(navController, openReader, isDebuggable) {
+        MainTabActions(
+            openReader = openReader,
+            openSettings = { navController.navigateOnce(Dest.Settings) },
+            openLesson = { navController.navigateOnce(Dest.Lesson) },
+            openPlan = { navController.navigateOnce(Dest.Plan) },
+            openQuiz = { navController.navigateOnce(Dest.Quiz) },
+            openKhatm = { navController.navigateOnce(Dest.Khatm()) },
+            openKhatmPicker = { navController.navigateOnce(Dest.Khatm(pickTarget = true)) },
+            // A khatm is read in pages: the pages open whatever mode the reader is in.
+            openMushaf = { page -> navController.navigateOnce(Dest.Mushaf(page = page)) },
+            openDrill = { navController.navigateOnce(Dest.HardDrill) },
+            openDetails = { navController.navigateOnce(Dest.ProgressDetails) },
+            openNotes = { navController.navigateOnce(Dest.Notes) },
+            openCatalog = if (isDebuggable) {
+                { navController.navigateOnce(Dest.Catalog) }
+            } else {
+                null
+            },
+        )
+    }
 
     SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(
@@ -453,22 +498,11 @@ private fun AppNavigation() {
                 }
                 composable<Dest.Home> {
                     ProvideNavScope {
-                        HomeScreen(
-                            onOpenReader = openReader,
-                            onOpenSettings = { navController.navigateOnce(Dest.Settings) },
-                            onOpenProgress = { navController.navigateOnce(Dest.Progress) },
-                            onOpenLesson = { navController.navigateOnce(Dest.Lesson) },
-                            onOpenPlan = { navController.navigateOnce(Dest.Plan) },
-                            onOpenQuiz = { navController.navigateOnce(Dest.Quiz) },
-                            onOpenKhatm = { navController.navigateOnce(Dest.Khatm()) },
-                            onOpenKhatmPicker = { navController.navigateOnce(Dest.Khatm(pickTarget = true)) },
-                            // A khatm is read in pages: the pages open whatever mode the reader is in.
-                            onOpenMushaf = { page -> navController.navigateOnce(Dest.Mushaf(page = page)) },
-                            onOpenCatalog = if (isDebuggable) {
-                                { navController.navigateOnce(Dest.Catalog) }
-                            } else {
-                                null
-                            },
+                        MainTabs(
+                            selected = selectedTab,
+                            default = defaultTab,
+                            onSelect = selectTab,
+                            actions = homeActions,
                         )
                     }
                 }
@@ -508,7 +542,11 @@ private fun AppNavigation() {
                             onBack = { navController.popOnce() },
                             onOpenPlan = { navController.navigateOnce(Dest.Plan) },
                             onOpenQuiz = { navController.navigateOnce(Dest.Quiz) },
-                            onHome = { navController.goHome() },
+                            onHome = {
+                                // "To home" lands on the "Lesson" tab.
+                                selectTab(MainTab.Lesson)
+                                navController.goHome()
+                            },
                             onOpenDrill = { navController.navigateOnce(Dest.HardDrill) },
                         )
                     }
@@ -534,18 +572,6 @@ private fun AppNavigation() {
                             onBack = { navController.popOnce() },
                             onOpenReader = openReader,
                             mode = QuizMode.TellApart(focus = AyahKey(route.surah, route.ayah).takeIf { route.surah > 0 }),
-                        )
-                    }
-                }
-                composable<Dest.Progress> {
-                    ProvideNavScope {
-                        ProgressScreen(
-                            onBack = { navController.popOnce() },
-                            onOpenReader = openReader,
-                            onOpenPlan = { navController.navigateOnce(Dest.Plan) },
-                            onOpenDrill = { navController.navigateOnce(Dest.HardDrill) },
-                            onOpenDetails = { navController.navigateOnce(Dest.ProgressDetails) },
-                            onOpenNotes = { navController.navigateOnce(Dest.Notes) },
                         )
                     }
                 }
@@ -634,7 +660,7 @@ private fun AppNavigation() {
 
     WhatsNewHost(
         pending = whatsNewPending,
-        atHome = screenName == "home",
+        atHome = atHomeDestination,
         suppressed = whatsNewSuppressed,
         onOpenLesson = { navController.navigateOnce(Dest.Lesson) },
         onOpenPlan = { navController.navigateOnce(Dest.Plan) },
@@ -694,6 +720,9 @@ private fun NavController.goHome() {
         navigate(Dest.Home) { popUpTo(0) }
     }
 }
+
+/** [savedTab] before any tab was chosen. */
+private const val NoTabChosen = -1
 
 private const val OpenRequestWaitMillis = 3_000L
 private const val OpenRequestPollMillis = 40L

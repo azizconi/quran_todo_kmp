@@ -19,19 +19,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Eco
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.School
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,7 +49,6 @@ import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.components.QhCardStyle
 import tj.app.quran_todo.ui.components.QhDialogButton
-import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.QhIconTile
 import tj.app.quran_todo.ui.home.LessonCardState
 import tj.app.quran_todo.ui.home.LessonCardUi
@@ -65,7 +59,6 @@ import tj.app.quran_todo.ui.home.ListeningUi
 import tj.app.quran_todo.ui.home.OldListenUi
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.ui.i18n.HomeCopy
-import tj.app.quran_todo.ui.i18n.rememberKhatmCopy
 import tj.app.quran_todo.ui.i18n.rememberPauseCopy
 import tj.app.quran_todo.ui.lesson.formatDay
 import tj.app.quran_todo.ui.i18n.ListenCopy
@@ -84,8 +77,8 @@ import tj.app.quran_todo.ui.theme.QhTheme
  * Old), the time estimate and one button that starts, continues or (when everything is done) only reports
  * the lesson; with no plan it invites to make one, with a finished plan it offers a new one.
  *
- * Opening the lesson grows the lesson screen out of the card (`SharedKeys.LessonCard`). A long press or the
- * "..." button leads to "My plan".
+ * Opening the lesson grows the lesson screen out of the card (`SharedKeys.LessonCard`). A long press leads to "My plan"; the plan row
+ * under the card (task U15) is the visible way there.
  */
 @Composable
 internal fun LessonCard(
@@ -99,8 +92,6 @@ internal fun LessonCard(
     listening: ListeningUi? = null,
     /** "Continue now" of a paused plan (asked to confirm first). */
     onResumePlan: () -> Unit = {},
-    /** "Reading plan" (khatm, task F5b): the way to make one, in the menu of the card. */
-    onOpenKhatm: () -> Unit = {},
 ) {
     when (card.state) {
         LessonCardState.Paused -> PausedCard(card = card, onResume = onResumePlan, onOpenPlan = onOpenPlan, modifier = modifier)
@@ -124,7 +115,7 @@ internal fun LessonCard(
         )
 
         LessonCardState.Start, LessonCardState.Continue, LessonCardState.Done ->
-            LessonBody(card, copy, onOpenLesson, onOpenPlan, modifier, onListenOld, listening, onOpenKhatm)
+            LessonBody(card, copy, onOpenLesson, onOpenPlan, modifier, onListenOld, listening)
     }
 }
 
@@ -177,7 +168,6 @@ private fun LessonBody(
     modifier: Modifier,
     onListenOld: () -> Unit,
     listening: ListeningUi?,
-    onOpenKhatm: () -> Unit,
 ) {
     val colors = QhTheme.colors
     val type = QhTheme.type
@@ -209,7 +199,6 @@ private fun LessonBody(
                     maxLines = 1,
                 )
             }
-            PlanMenu(copy, onOpenPlan, onOpenKhatm)
         }
         Column(Modifier.padding(end = QhSpacing.x3)) {
             Spacer(Modifier.height(QhSpacing.x1))
@@ -267,45 +256,6 @@ private fun ListenOldButton(old: OldListenUi, listening: ListeningUi?, listen: L
         size = QhButtonSize.M,
         icon = Icons.Rounded.Headphones,
     )
-}
-
-/** The "..." button of the card and its menu with one entry, "My plan". */
-@Composable
-private fun PlanMenu(copy: HomeCopy, onOpenPlan: () -> Unit, onOpenKhatm: () -> Unit) {
-    val khatm = rememberKhatmCopy()
-    val colors = QhTheme.colors
-    var open by remember { mutableStateOf(false) }
-    Box {
-        QhIconButton(
-            icon = Icons.Rounded.MoreHoriz,
-            contentDescription = copy.lessonMore,
-            onClick = { open = true },
-            filled = false,
-            tint = colors.inkSecondary,
-        )
-        DropdownMenu(
-            expanded = open,
-            onDismissRequest = { open = false },
-            containerColor = colors.surface,
-        ) {
-            DropdownMenuItem(
-                text = { Text(copy.myPlan, style = QhTheme.type.title2, color = colors.ink) },
-                leadingIcon = { Icon(Icons.Rounded.Tune, contentDescription = null, tint = colors.primary) },
-                onClick = {
-                    open = false
-                    onOpenPlan()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(khatm.screenTitle, style = QhTheme.type.title2, color = colors.ink) },
-                leadingIcon = { Icon(Icons.AutoMirrored.Rounded.MenuBook, contentDescription = null, tint = colors.primary) },
-                onClick = {
-                    open = false
-                    onOpenKhatm()
-                },
-            )
-        }
-    }
 }
 
 @Composable
