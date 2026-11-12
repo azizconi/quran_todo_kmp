@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -67,23 +69,26 @@ fun QhSegmentedControl(
     BoxWithConstraints(
         modifier
             .fillMaxWidth()
-            .height(QhSpacing.minTouch)
+            .heightIn(min = QhSpacing.minTouch)
             .clip(shape)
             .background(colors.surfaceMuted)
             .padding(inset),
     ) {
         val segmentWidth = maxWidth / options.size
         val segmentWidthPx = with(LocalDensity.current) { segmentWidth.toPx() }
-        Box(
-            Modifier
-                .offset { IntOffset((position * segmentWidthPx).roundToInt(), 0) }
-                .width(segmentWidth)
-                .fillMaxHeight()
-                .shadow(1.dp, shape)
-                .clip(shape)
-                .background(colors.surface),
-        )
-        Row(Modifier.selectableGroup()) {
+        // The pill follows the row's height, which grows with the text at a large system font scale.
+        Box(Modifier.matchParentSize()) {
+            Box(
+                Modifier
+                    .offset { IntOffset((position * segmentWidthPx).roundToInt(), 0) }
+                    .width(segmentWidth)
+                    .fillMaxHeight()
+                    .shadow(1.dp, shape)
+                    .clip(shape)
+                    .background(colors.surface),
+            )
+        }
+        Row(Modifier.heightIn(min = QhSpacing.minTouch - inset * 2).height(IntrinsicSize.Min).selectableGroup()) {
             options.forEachIndexed { index, label ->
                 val selected = index == selectedIndex
                 val content by animateColorAsState(

@@ -11,6 +11,9 @@ data class A11yCopy(
     val sheetHandle: String,
     /** The description of the dimmed area behind a sheet (tapping it closes the sheet). */
     val sheetClose: String,
+    /** The custom actions of a number wheel: one step up and one step down. */
+    val wheelMore: String,
+    val wheelLess: String,
 )
 
 @Composable
@@ -18,9 +21,9 @@ fun rememberA11yCopy(language: AppLanguage = LocalAppLanguage.current): A11yCopy
     remember(language) { a11yCopy(language) }
 
 fun a11yCopy(language: AppLanguage): A11yCopy = when (language) {
-    AppLanguage.RU -> A11yCopy(sheetHandle = "Ручка панели", sheetClose = "Закрыть панель")
-    AppLanguage.EN -> A11yCopy(sheetHandle = "Sheet handle", sheetClose = "Close sheet")
-    AppLanguage.TG -> A11yCopy(sheetHandle = "Дастаки лавҳа", sheetClose = "Пӯшидани лавҳа")
-    AppLanguage.UZ -> A11yCopy(sheetHandle = "Panel tutqichi", sheetClose = "Panelni yopish")
-    AppLanguage.TR -> A11yCopy(sheetHandle = "Panel tutamacı", sheetClose = "Paneli kapat")
+    AppLanguage.RU -> A11yCopy(sheetHandle = "Ручка панели", sheetClose = "Закрыть панель", wheelMore = "Больше", wheelLess = "Меньше")
+    AppLanguage.EN -> A11yCopy(sheetHandle = "Sheet handle", sheetClose = "Close sheet", wheelMore = "More", wheelLess = "Less")
+    AppLanguage.TG -> A11yCopy(sheetHandle = "Дастаки лавҳа", sheetClose = "Пӯшидани лавҳа", wheelMore = "Бештар", wheelLess = "Камтар")
+    AppLanguage.UZ -> A11yCopy(sheetHandle = "Panel tutqichi", sheetClose = "Panelni yopish", wheelMore = "Ko'proq", wheelLess = "Kamroq")
+    AppLanguage.TR -> A11yCopy(sheetHandle = "Panel tutamacı", sheetClose = "Paneli kapat", wheelMore = "Daha fazla", wheelLess = "Daha az")
 }

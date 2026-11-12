@@ -31,17 +31,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import tj.app.quran_todo.ui.haptics.HapticKind
+import tj.app.quran_todo.ui.i18n.rememberA11yCopy
 import tj.app.quran_todo.ui.haptics.LocalHaptics
 import tj.app.quran_todo.ui.motion.pressable
 import tj.app.quran_todo.ui.theme.QhTheme
@@ -69,6 +76,7 @@ fun AyahWheel(
     val maximum = maxOf(maximum, minimum)
     val colors = QhTheme.colors
     val haptics = LocalHaptics.current
+    val a11y = rememberA11yCopy()
     val scope = rememberCoroutineScope()
     val count = maximum - minimum + 1
     val state = rememberLazyListState(initialFirstVisibleItemIndex = (value - minimum).coerceIn(0, count - 1))
@@ -131,6 +139,27 @@ fun AyahWheel(
                     .semantics {
                         contentDescription = label
                         stateDescription = value.toString()
+                        // Adjustable for TalkBack (volume keys, swipe up/down) and as custom actions.
+                        progressBarRangeInfo = ProgressBarRangeInfo(
+                            current = value.toFloat().coerceIn(minimum.toFloat(), maximum.toFloat()),
+                            range = minimum.toFloat()..maximum.toFloat(),
+                            steps = (count - 2).coerceAtLeast(0),
+                        )
+                        setProgress { target ->
+                            val number = target.roundToInt().coerceIn(minimum, maximum)
+                            scope.launch { state.animateScrollToItem(number - minimum) }
+                            true
+                        }
+                        customActions = listOf(
+                            CustomAccessibilityAction(a11y.wheelMore) {
+                                scope.launch { state.animateScrollToItem(wheelStep(latestValue, minimum, maximum, 1) - minimum) }
+                                true
+                            },
+                            CustomAccessibilityAction(a11y.wheelLess) {
+                                scope.launch { state.animateScrollToItem(wheelStep(latestValue, minimum, maximum, -1) - minimum) }
+                                true
+                            },
+                        )
                     },
             ) {
                 items(count, key = { minimum + it }) { index ->
@@ -169,6 +198,10 @@ private fun WheelRow(number: Int, distance: () -> Float, onClick: () -> Unit) {
         )
     }
 }
+
+/** The wheel's value after [delta] steps from [value], kept inside [minimum]..[maximum] (the wheel does not wrap). */
+internal fun wheelStep(value: Int, minimum: Int, maximum: Int, delta: Int): Int =
+    (value + delta).coerceIn(minimum, maxOf(maximum, minimum))
 
 /** Index of the row closest to the middle of the viewport, or null while nothing is laid out. */
 private fun LazyListState.centredIndex(): Int? {
