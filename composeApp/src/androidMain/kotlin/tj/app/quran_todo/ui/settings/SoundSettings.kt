@@ -80,7 +80,6 @@ import tj.app.quran_todo.ui.theme.QhTheme
 internal fun SoundVoiceRows(language: AppLanguage, reciterTitle: String) {
     val prefs = koinInject<UiPrefs>()
     val reciter by prefs.reciter.collectAsState()
-    val copy = rememberAudioCopy(language)
     var sheetOpen by remember { mutableStateOf(false) }
 
     QhValueRow(
@@ -92,15 +91,26 @@ internal fun SoundVoiceRows(language: AppLanguage, reciterTitle: String) {
     )
 
     if (sheetOpen) {
-        ReciterSheet(
-            title = reciterTitle,
-            copy = copy,
-            language = language,
-            selected = reciter,
-            onSelect = prefs::setReciter,
-            onDismiss = { sheetOpen = false },
-        )
+        ReciterPickerSheet(title = reciterTitle, language = language, onDismiss = { sheetOpen = false })
     }
+}
+
+/**
+ * The reciter sheet bound to the saved reciter. The settings row and the expanded player dock both open it, so the list, the samples
+ * and the storage are the same in both places.
+ */
+@Composable
+internal fun ReciterPickerSheet(title: String, language: AppLanguage, onDismiss: () -> Unit) {
+    val prefs = koinInject<UiPrefs>()
+    val reciter by prefs.reciter.collectAsState()
+    ReciterSheet(
+        title = title,
+        copy = rememberAudioCopy(language),
+        language = language,
+        selected = reciter,
+        onSelect = prefs::setReciter,
+        onDismiss = onDismiss,
+    )
 }
 
 /**

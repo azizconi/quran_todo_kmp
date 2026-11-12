@@ -1,5 +1,8 @@
 package tj.app.quran_todo.ui.reader
 
+import tj.app.quran_todo.common.audio.RepeatMode
+import tj.app.quran_todo.common.audio.RepeatModes
+import tj.app.quran_todo.common.audio.RepeatState
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -705,15 +708,10 @@ class ReaderViewModel(
     /** Repeat the passage [from]..[to] (numbers in the surah) and start playing at its beginning. */
     fun applyPassage(from: Int, to: Int, repeatCount: Int) {
         val surah = _surah.value ?: return
-        val practice = _practice.value.copy(
-            rangeEnabled = true,
-            startAyah = from,
-            endAyah = to,
-            rangeRepeatCount = repeatCount,
-        ).normalized(surah.ayahs.size)
         // A passage repeat replaces the per-ayah repeat of the preferences.
-        val prefs = _prefs.value.copy(repeatCount = 1)
-        commitSettings(prefs, practice)
+        val next = RepeatModes.withPassage(RepeatState(_prefs.value.repeatCount, _practice.value), from, to, repeatCount)
+        val practice = next.practice.normalized(surah.ayahs.size)
+        commitSettings(_prefs.value.copy(repeatCount = next.ayahRepeat), practice)
         val startIndex = practice.startAyah - 1
         selected.value = true
         if (isActive()) {
@@ -722,6 +720,21 @@ class ReaderViewModel(
         } else {
             startHere(startIndex, autoplay = true)
         }
+    }
+
+    /** The three-way "Repeat" block: [RepeatMode.None] and [RepeatMode.Ayah] apply at once, [RepeatMode.Passage] waits for its start button. */
+    fun selectRepeatMode(mode: RepeatMode) = commitRepeat(RepeatModes.select(repeatState(), mode))
+
+    /** Every ayah plays [count] times (1, 3, 5 or -1 for endless); a passage repeat is switched off. */
+    fun setAyahRepeat(count: Int) = commitRepeat(RepeatModes.withAyahCount(repeatState(), count))
+
+    fun setAutoAdvance(on: Boolean) = commitSettings(_prefs.value.copy(autoAdvanceAyahs = on), _practice.value)
+
+    private fun repeatState() = RepeatState(_prefs.value.repeatCount, _practice.value)
+
+    private fun commitRepeat(next: RepeatState) {
+        val surah = _surah.value ?: return
+        commitSettings(_prefs.value.copy(repeatCount = next.ayahRepeat), next.practice.normalized(surah.ayahs.size))
     }
 
     fun stopPassage() {

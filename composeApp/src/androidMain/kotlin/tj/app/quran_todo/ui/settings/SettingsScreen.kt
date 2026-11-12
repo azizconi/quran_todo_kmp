@@ -137,8 +137,6 @@ import tj.app.quran_todo.ui.theme.QhTheme
 
 private enum class SettingsSheet { Typography, Language }
 
-private val SpeedOptions = listOf(0.75f, 1f, 1.25f, 1.5f, 2f)
-private val RepeatOptions = listOf(1, 3, 5, SurahReaderPreferences.RepeatForever)
 
 
 /**
@@ -512,35 +510,6 @@ private fun SettingsContent(
                 onCheckedChange = { on -> viewModel.updateReaderPreferences { it.copy(autoplayOnOpen = on) } },
                 icon = Icons.Rounded.PlayCircle,
                 iconTint = colors.primary,
-            )
-            QhRowDivider()
-            QhSwitchRow(
-                title = copy.autoAdvance,
-                description = copy.autoAdvanceDescription,
-                checked = reader.autoAdvanceAyahs,
-                onCheckedChange = { on -> viewModel.updateReaderPreferences { it.copy(autoAdvanceAyahs = on) } },
-                icon = Icons.Rounded.SkipNext,
-                iconTint = colors.gold,
-            )
-            QhRowDivider()
-            ChipChoiceBlock(
-                title = copy.speed,
-                icon = Icons.Rounded.Speed,
-                tint = colors.due,
-                options = SpeedOptions,
-                selected = reader.playbackSpeed,
-                labelOf = ::speedLabel,
-                onSelect = { speed -> viewModel.updateReaderPreferences { it.copy(playbackSpeed = speed) } },
-            )
-            QhRowDivider()
-            ChipChoiceBlock(
-                title = copy.repeatAyah,
-                icon = Icons.Rounded.Repeat,
-                tint = colors.learned,
-                options = RepeatOptions,
-                selected = reader.repeatCount,
-                labelOf = ::repeatLabel,
-                onSelect = { count -> viewModel.updateReaderPreferences { it.copy(repeatCount = count) } },
             )
             QhRowDivider()
             SoundVoiceRows(language = language, reciterTitle = copy.reciter)
