@@ -375,16 +375,16 @@ private fun ReaderContent(
             }
         }
     }
-    // The index of the first ayah on screen; see ReaderViewModel.NotMeasured and HeaderOnTop for the other values.
+    // The index of the ayah being read (ReadingLine.kt); see ReaderViewModel.NotMeasured and HeaderOnTop for the other values.
     val firstVisibleAyah = remember(listState, total) {
         derivedStateOf {
-            val first = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.offset + it.size > 0 }
-            when {
-                first == null -> ReaderViewModel.NotMeasured
-                first.index == 0 -> ReaderViewModel.HeaderOnTop
-                first.index <= total -> first.index - 1
-                else -> total - 1
-            }
+            val info = listState.layoutInfo
+            ayahOnReadingLine(
+                items = info.visibleItemsInfo.map { ListItemSpan(it.index, it.offset, it.size) },
+                visibleHeight = info.viewportSize.height - info.beforeContentPadding - info.afterContentPadding,
+                atEnd = !listState.canScrollForward && listState.canScrollBackward,
+                total = total,
+            )
         }
     }
     val ayahNumber = remember(firstVisibleAyah) { derivedStateOf { firstVisibleAyah.value.coerceAtLeast(0) + 1 } }
