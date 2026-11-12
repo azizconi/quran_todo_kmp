@@ -11,9 +11,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -41,6 +37,7 @@ import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
 import tj.app.quran_todo.hifz.HifzRepository
 import tj.app.quran_todo.hifz.quiz.QuizBuilder
+import tj.app.quran_todo.hifz.schedule.SurahCompletion
 import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.i18n.rememberQuizCopy
@@ -48,18 +45,17 @@ import tj.app.quran_todo.ui.i18n.rememberSummaryExtrasCopy
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.hifz.model.AyahRange
-import tj.app.quran_todo.ui.components.ProgressRing
 import tj.app.quran_todo.ui.components.QhButton
+import tj.app.quran_todo.ui.components.OrnamentDivider
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.i18n.LessonCopy
 import tj.app.quran_todo.ui.i18n.rememberDrillCopy
-import tj.app.quran_todo.ui.motion.AnimatedCounter
 import tj.app.quran_todo.ui.motion.CelebrationBurst
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /**
- * The end of the lesson: a ring (done of all), the steps, the streak, the forecast of the plan and what waits
+ * The end of the lesson: the title (the header steps already show what was done), the streak, the forecast of the plan and what waits
  * tomorrow. The celebration plays only when the lesson was closed in this visit (not when it is opened again).
  */
 @Composable
@@ -80,21 +76,24 @@ internal fun LessonSummary(
         .collectAsState(initial = false)
     val plan = summary.plan
     val steps = remember(plan) { LessonCards.steps(plan) }
+    // A surah of the plan that today's new passage completed (task U13).
+    val hifzPlan by remember(hifz) { hifz.plan() }.collectAsState(initial = null)
+    val covered by remember(hifz) { hifz.coveredAyahs() }.collectAsState(initial = emptyMap())
+    val finishedSurah = remember(plan, hifzPlan, covered) {
+        SurahCompletion.finishedToday(plan.newBlock, hifzPlan?.surahOrder.orEmpty(), covered)
+    }
     val done = steps.sumOf { it.done }
-    val total = steps.sumOf { it.total }
     val streak by viewModel.streak.collectAsState()
     val forecast by viewModel.forecast.collectAsState()
     val names by viewModel.chapterNames.collectAsState()
     val hardCount by viewModel.hardCount.collectAsState()
     val drillCopy = rememberDrillCopy()
 
-    // The ring fills and its number rolls up; a small burst follows when the lesson was closed just now.
-    var shown by remember { mutableIntStateOf(0) }
+    // A small burst follows when the lesson was closed just now.
     var burst by remember { mutableIntStateOf(0) }
     var celebrated by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(done) {
         delay(240)
-        shown = done
         if (summary.closedNow && !celebrated) {
             delay(260)
             celebrated = true
@@ -118,130 +117,112 @@ internal fun LessonSummary(
     val extrasCopy = rememberSummaryExtrasCopy(language)
     val takesLine = LessonDurations.medianMinutes(durations)?.let { extrasCopy.takesAbout(it) }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = QhSpacing.screen)
-            .padding(top = QhSpacing.x4, bottom = QhSpacing.x3),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(QhSpacing.x4),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            ProgressRing(
-                progress = if (total == 0) 1f else done.toFloat() / total,
-                size = 148.dp,
-                strokeWidth = 12.dp,
-                color = colors.learned,
-                trackColor = colors.surfaceMuted,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    AnimatedCounter(value = shown, style = QhTheme.type.headline, color = colors.ink)
-                    Text(text = " / $total", style = QhTheme.type.title2, color = colors.inkSecondary)
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = QhSpacing.screen)
+                .padding(top = QhSpacing.x6, bottom = QhSpacing.x3),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(QhSpacing.x4),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                CelebrationBurst(trigger = burst, modifier = Modifier.matchParentSize(), radius = 150.dp)
+                Text(
+                    text = copy.summaryTitle,
+                    style = QhTheme.type.headline,
+                    color = colors.ink,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.semantics { heading() },
+                )
+            }
+            Text(
+                text = copy.summaryCaption,
+                style = QhTheme.type.body,
+                color = colors.inkSecondary,
+                textAlign = TextAlign.Center,
+            )
+            finishedSurah?.let { surah ->
+                OrnamentDivider(Modifier.padding(top = QhSpacing.x2))
+                Text(
+                    text = extrasCopy.surahComplete(viewModel.surahTitle(surah, language, names)),
+                    style = QhTheme.type.title2,
+                    color = colors.ink,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            QhCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(QhSpacing.cardLarge)) {
+                Column(verticalArrangement = Arrangement.spacedBy(QhSpacing.x2)) {
+                    if (streak > 0) SummaryLine(copy.streak(streak))
+                    forecastLine?.let { SummaryLine(it) }
+                    // The real time of the lesson (task U3), once enough lessons were measured.
+                    takesLine?.let { SummaryLine(it) }
+                    Text(
+                        text = copy.tomorrow(tomorrowNew, plan.tomorrow.dueCount),
+                        style = QhTheme.type.title2,
+                        color = colors.ink,
+                    )
                 }
             }
-            CelebrationBurst(trigger = burst, modifier = Modifier.matchParentSize(), radius = 150.dp)
-        }
-        Text(
-            text = copy.summaryTitle,
-            style = QhTheme.type.headline,
-            color = colors.ink,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.semantics { heading() },
-        )
-        Text(
-            text = copy.summaryCaption,
-            style = QhTheme.type.body,
-            color = colors.inkSecondary,
-            textAlign = TextAlign.Center,
-        )
 
-        QhCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(QhSpacing.cardLarge)) {
-            steps.forEachIndexed { index, step ->
-                if (index > 0) Box(Modifier.padding(vertical = QhSpacing.x2))
-                StepRow(step = step, copy = copy)
-            }
-            if (streak > 0) {
-                SummaryLine(copy.streak(streak), topGap = QhSpacing.x4)
-            }
-            forecastLine?.let { SummaryLine(it, topGap = if (streak > 0) QhSpacing.x2 else QhSpacing.x4) }
-            // The real time of the lesson (task U3), once enough lessons were measured.
-            takesLine?.let { SummaryLine(it, topGap = if (streak > 0 || forecastLine != null) QhSpacing.x2 else QhSpacing.x4) }
+            ReminderAskCard(language = language)
         }
 
-        Text(
-            text = copy.tomorrow(tomorrowNew, plan.tomorrow.dueCount),
-            style = QhTheme.type.title2,
-            color = colors.ink,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        ReminderAskCard(language = language)
-
-        if (hardCount > 0) {
-            // The difficult ayahs have a drill of their own (task F2a).
-            QhButton(
-                text = drillCopy.train(hardCount),
-                onClick = onOpenDrill,
-                modifier = Modifier.fillMaxWidth(),
-                variant = QhButtonVariant.Tonal,
-                size = QhButtonSize.M,
-            )
-        }
-        if (quizReady) {
-            QhButton(
-                text = quizCopy.lessonButton(QuizBuilder.DEFAULT_COUNT),
-                onClick = onOpenQuiz,
-                modifier = Modifier.fillMaxWidth(),
-                variant = QhButtonVariant.Tonal,
-                size = QhButtonSize.M,
-            )
-        }
-        QhButton(
-            text = copy.toHome,
-            onClick = onHome,
-            modifier = Modifier
+        Column(
+            Modifier
                 .fillMaxWidth()
-                .padding(top = if (quizReady || hardCount > 0) 0.dp else QhSpacing.x2)
+                .padding(horizontal = QhSpacing.screen)
+                .padding(bottom = QhSpacing.x3)
                 .navigationBarsPadding(),
-        )
-    }
-}
-
-@Composable
-private fun StepRow(step: LessonStep, copy: LessonCopy) {
-    val colors = QhTheme.colors
-    val name = when (step.block) {
-        LessonBlock.New -> copy.stepNew
-        LessonBlock.Recent -> copy.stepRecent
-        LessonBlock.Old -> copy.stepOld
-    }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(text = name, style = QhTheme.type.title2, color = colors.ink, modifier = Modifier.weight(1f))
-        if (step.complete) {
-            Icon(
-                imageVector = Icons.Rounded.Check,
-                contentDescription = null,
-                tint = colors.learned,
-                modifier = Modifier.padding(end = QhSpacing.x2),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (hardCount > 0 || quizReady) {
+                // Secondary ways to go on, as text links above the one primary button.
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (hardCount > 0) {
+                        // The difficult ayahs have a drill of their own (task F2a).
+                        QhButton(
+                            text = drillCopy.train(hardCount),
+                            onClick = onOpenDrill,
+                            modifier = Modifier.weight(1f, fill = false),
+                            variant = QhButtonVariant.Ghost,
+                            size = QhButtonSize.M,
+                        )
+                    }
+                    if (quizReady) {
+                        QhButton(
+                            text = quizCopy.lessonButton(QuizBuilder.DEFAULT_COUNT),
+                            onClick = onOpenQuiz,
+                            modifier = Modifier.weight(1f, fill = false),
+                            variant = QhButtonVariant.Ghost,
+                            size = QhButtonSize.M,
+                        )
+                    }
+                }
+            }
+            QhButton(
+                text = copy.toHome,
+                onClick = onHome,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
-        Text(
-            text = copy.stepProgress(step.done, step.total),
-            style = QhTheme.type.callout,
-            color = colors.inkSecondary,
-        )
     }
 }
 
 @Composable
-private fun SummaryLine(text: String, topGap: Dp) {
+private fun SummaryLine(text: String) {
     Text(
         text = text,
         style = QhTheme.type.callout,
         color = QhTheme.colors.inkSecondary,
-        modifier = Modifier.padding(top = topGap),
     )
 }
 
