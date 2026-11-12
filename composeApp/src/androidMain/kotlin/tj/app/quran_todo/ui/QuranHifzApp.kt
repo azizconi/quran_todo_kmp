@@ -63,6 +63,7 @@ import tj.app.quran_todo.common.i18n.LocalAppLanguageSetter
 import tj.app.quran_todo.common.i18n.LocalAppStrings
 import tj.app.quran_todo.common.i18n.stringsFor
 import tj.app.quran_todo.common.reminder.ReminderChannel
+import tj.app.quran_todo.common.reminder.ReminderAbsenceStore
 import tj.app.quran_todo.common.reminder.ReminderSync
 import tj.app.quran_todo.common.settings.AppSettings
 import tj.app.quran_todo.common.settings.LocalAppSettings
@@ -218,7 +219,10 @@ fun QuranHifzApp() {
     // Back from the background the day may have changed (midnight passed while the process slept, or the
     // date / time zone was changed): the lesson card follows the day without a restart.
     val dayTicker = koinInject<EpochDayTicker>()
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { dayTicker.refresh() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        dayTicker.refresh()
+        ReminderAbsenceStore.recordForeground(appContext) // U18: opening the app ends the absence
+    }
 
     val systemReducedMotion = rememberSystemReducedMotion()
     val userReducedMotion by uiPrefs.reduceMotion.collectAsState()
