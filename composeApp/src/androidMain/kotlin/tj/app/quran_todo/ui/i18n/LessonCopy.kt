@@ -174,7 +174,7 @@ fun lessonCopy(language: AppLanguage): LessonCopy = when (language) {
         nothingTitle = "На сегодня заданий нет", nothingBody = "Загляните завтра — урок появится сам.",
         planDoneTitle = "План выполнен",
         planDoneBody = "Все суры плана выучены. Повторения вернутся по расписанию.",
-        toHome = "На главный", saveFailed = "Не удалось сохранить результат",
+        toHome = "На главную", saveFailed = "Не удалось сохранить результат",
         summaryTitle = "Урок выполнен", summaryCaption = "На сегодня всё. Хорошая работа!",
         streakFmt = "Серия: {n} дн.", forecastFinishFmt = "План закончите ≈ {date}",
         forecastBehindFmt = "Отстаёте от срока: {ayahs}", planFinished = "План выполнен",
