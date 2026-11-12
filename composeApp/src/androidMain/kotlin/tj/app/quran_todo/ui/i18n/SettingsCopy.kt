@@ -60,7 +60,7 @@ data class SettingsCopy(
     val hapticsDescription: String,
     val reduceMotion: String,
     val reduceMotionDescription: String,
-    /** The row that brings the spotlight tips back, and the toast after it. */
+    /** The row that brings the inline tips back, and the toast after it. */
     val showTipsAgain: String,
     val showTipsAgainDescription: String,
     val tipsWillShowAgain: String,

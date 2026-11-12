@@ -94,9 +94,8 @@ import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.ToastHost
 import tj.app.quran_todo.ui.store.UpdateReadyBanner
 import tj.app.quran_todo.ui.components.rememberToaster
-import tj.app.quran_todo.ui.components.spotlight.SpotlightNavigationEffect
-import tj.app.quran_todo.ui.components.spotlight.SpotlightHost
-import tj.app.quran_todo.ui.components.spotlight.rememberSpotlightController
+import tj.app.quran_todo.ui.components.hints.LocalHints
+import tj.app.quran_todo.ui.components.hints.rememberHintFlags
 import tj.app.quran_todo.ui.downloads.DownloadsScreen
 import tj.app.quran_todo.ui.drill.DrillScreen
 import tj.app.quran_todo.ui.home.HomeScreen
@@ -225,9 +224,10 @@ fun QuranHifzApp() {
     val userReducedMotion by uiPrefs.reduceMotion.collectAsState()
     val hapticsEnabled by uiPrefs.hapticsEnabled.collectAsState()
     val toaster = rememberToaster()
-    val spotlight = rememberSpotlightController()
+    val hints = rememberHintFlags()
 
     CompositionLocalProvider(
+        LocalHints provides hints,
         LocalAppStrings provides strings,
         LocalAppLanguage provides language,
         LocalAppLanguageSetter provides { next ->
@@ -330,8 +330,7 @@ fun QuranHifzApp() {
                 modifier = Modifier.fillMaxSize(),
                 background = background,
             ) {
-                // The tips (C2): a layer over the navigation and the mini player, in the same window.
-                SpotlightHost(spotlight, Modifier.fillMaxSize()) { AppNavigation() }
+                AppNavigation()
                 ToastHost(Modifier.align(Alignment.TopCenter))
                 UpdateReadyBanner(Modifier.align(Alignment.BottomCenter))
             }
@@ -395,9 +394,6 @@ private fun AppNavigation() {
     LaunchedEffect(screenName) {
         if (screenName != null) AppTelemetry.logScreen(screenName)
     }
-
-    // The tips start only on a screen that is fully shown (its entry is RESUMED once the transition into it is over).
-    SpotlightNavigationEffect(route = screenName, lifecycle = currentEntry?.lifecycle)
 
     // A tap on the daily reminder: the lesson or the reader opens over Home, and back goes to Home.
     val openRequest by ReminderOpenRequests.pending.collectAsState()

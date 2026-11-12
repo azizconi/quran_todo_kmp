@@ -71,7 +71,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
@@ -89,11 +88,9 @@ import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.Skeleton
 import tj.app.quran_todo.ui.components.ToastKind
-import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
-import tj.app.quran_todo.ui.components.spotlight.SpotlightTargets
-import tj.app.quran_todo.ui.components.spotlight.SpotlightTourEffect
-import tj.app.quran_todo.ui.components.spotlight.SpotlightTours
-import tj.app.quran_todo.ui.components.spotlight.spotlightTarget
+import tj.app.quran_todo.ui.components.hints.Hints
+import tj.app.quran_todo.ui.components.hints.InlineHint
+import tj.app.quran_todo.ui.components.hints.LocalHints
 import tj.app.quran_todo.ui.haptics.HapticKind
 import tj.app.quran_todo.ui.hifz.HifzEyeButton
 import tj.app.quran_todo.ui.hifz.HifzMode
@@ -106,6 +103,7 @@ import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.i18n.mushafCopy
 import tj.app.quran_todo.ui.i18n.pagesCopy
 import tj.app.quran_todo.ui.i18n.readerCopy
+import tj.app.quran_todo.ui.i18n.rememberHintsCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.navigation.Origin
@@ -258,6 +256,7 @@ private fun ReaderContent(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPages: (surah: Int, ayah: Int) -> Unit,
 ) {
+    val hints = LocalHints.current
     val colors = QhTheme.colors
     val density = LocalDensity.current
     val settings = LocalAppSettings.current
@@ -465,23 +464,6 @@ private fun ReaderContent(
         rangeEndIndex = { if (practice.rangeEnabled) practice.endAyah - 1 else null },
     )
 
-    // The tips of the reader (C2). Both ayah steps point at one row: the first ayah that is fully on screen once the entrance is over.
-    var tourAyah by remember { mutableIntStateOf(-1) }
-    LaunchedEffect(enter.finished, hifz.active) {
-        if (!enter.finished || hifz.active || tourAyah >= 0) return@LaunchedEffect
-        // A very tall first ayah never fits: after a moment the first ayah that starts on screen is taken instead.
-        tourAyah = withTimeoutOrNull(1_500) { snapshotFlow { listState.firstFullyVisibleAyah(HeaderItems, total) }.first { it != null } }
-            ?: snapshotFlow { listState.firstStartingAyah(HeaderItems, total) }.first { it != null }
-            ?: -1
-    }
-    SpotlightTourEffect(
-        SpotlightTours.Reader,
-        ready = enter.finished && !hifz.active && sheet == null && tourAyah >= 0,
-    )
-    // The player tips come the first time the dock is pulled up (read through a derived state: the dock moves with the finger).
-    val dockOpen by remember(dockState) { derivedStateOf { dockState.progress > 0.98f } }
-    SpotlightTourEffect(SpotlightTours.Player, ready = dockOpen && !hifz.active && sheet == null)
-
     Box(
         Modifier
             .fillMaxSize()
@@ -514,7 +496,6 @@ private fun ReaderContent(
             markedIndex = if (hifz.active) hifz.currentIndex else player.highlightIndex(prefs.highlightPlayingAyah),
             hifz = hifz,
             flashIndex = flashIndex,
-            tourAyah = tourAyah,
             marks = marks,
             mushaf = mushaf,
             passage = if (practice.rangeEnabled) (practice.startAyah - 1)..(practice.endAyah - 1) else null,
@@ -529,7 +510,10 @@ private fun ReaderContent(
                 following = true
                 viewModel.onWordTap(index, startMs)
             },
-            onMore = { index -> sheet = ReaderSheet.Ayah(index) },
+            onMore = { index ->
+                hints.markUsed(Hints.ReaderHold)
+                sheet = ReaderSheet.Ayah(index)
+            },
             onOpenStatus = { sheet = ReaderSheet.Surah(SurahSheetPage.Status) },
             onOpenNext = { onOpenReader(Dest.Reader(surah = surahNumber + 1, origin = Origin.NEXT)) },
             onStartOver = { onOpenReader(Dest.Reader(surah = 1, origin = Origin.NEXT)) },
@@ -556,9 +540,8 @@ private fun ReaderContent(
                     onClick = { onOpenPages(surahNumber, ayahNumber.value) },
                     filled = false,
                 )
-                HifzEyeButton(hifz, Modifier.spotlightTarget(SpotlightTargets.ReaderCheck, SpotlightShape.Circle))
+                HifzEyeButton(hifz)
             },
-            textSettingsModifier = Modifier.spotlightTarget(SpotlightTargets.ReaderText, SpotlightShape.Circle),
         )
         HifzTopBar(hifz, Modifier.align(Alignment.TopCenter))
 
@@ -768,7 +751,6 @@ private fun ReaderList(
     markedIndex: Int?,
     hifz: HifzMode,
     flashIndex: Int?,
-    tourAyah: Int,
     marks: List<AyahMarks>,
     mushaf: MushafCopy,
     passage: IntRange?,
@@ -791,17 +773,25 @@ private fun ReaderList(
         modifier = modifier.fillMaxSize(),
     ) {
         item(key = "header", contentType = "header") {
-            ReaderHeader(
-                data = headerData,
-                status = status,
-                statusLabel = statusLabel,
-                learnedFraction = learnedFraction,
-                celebration = celebration,
-                headerStyle = headerStyle,
-                bismillahStyle = arabicStyle,
-                enter = enter,
-                onStatusClick = onOpenStatus,
-            )
+            // The hint sits inside the header item: the list indexes of the ayahs count one header item.
+            Column {
+                ReaderHeader(
+                    data = headerData,
+                    status = status,
+                    statusLabel = statusLabel,
+                    learnedFraction = learnedFraction,
+                    celebration = celebration,
+                    headerStyle = headerStyle,
+                    bismillahStyle = arabicStyle,
+                    enter = enter,
+                    onStatusClick = onOpenStatus,
+                )
+                InlineHint(
+                    id = Hints.ReaderHold,
+                    text = rememberHintsCopy().readerHold,
+                    modifier = Modifier.padding(start = QhSpacing.screen),
+                )
+            }
         }
         itemsIndexed(ayahs, key = { _, ayah -> ayah.number }, contentType = { _, _ -> "ayah" }) { index, ayah ->
             val hifzRow = hifz.rowState(index)
@@ -820,11 +810,6 @@ private fun ReaderList(
             )
             AyahRow(
                 model = model,
-                modifier = if (index == tourAyah) {
-                    Modifier.spotlightTarget(SpotlightTargets.ReaderAyah, SpotlightShape.Rounded(14.dp), inset = 6.dp)
-                } else {
-                    Modifier
-                },
                 arabicStyle = arabicStyle,
                 translationStyle = translationStyle,
                 copy = copy,
@@ -862,28 +847,6 @@ private fun ReaderList(
             Spacer(Modifier.height(QhSpacing.x4))
         }
     }
-}
-
-/** The index of the first ayah (not the header, not the end card) that is fully inside the free part of the list, or null. */
-private fun LazyListState.firstFullyVisibleAyah(headerItems: Int, total: Int): Int? {
-    val info = layoutInfo
-    val top = info.viewportStartOffset + info.beforeContentPadding
-    val bottom = info.viewportEndOffset - info.afterContentPadding
-    val item = info.visibleItemsInfo.firstOrNull {
-        it.index >= headerItems && it.index - headerItems < total && it.offset >= top && it.offset + it.size <= bottom
-    }
-    return item?.let { it.index - headerItems }
-}
-
-/** The first ayah whose top edge is inside the free part of the list (it may run past the bottom), or null. */
-private fun LazyListState.firstStartingAyah(headerItems: Int, total: Int): Int? {
-    val info = layoutInfo
-    val top = info.viewportStartOffset + info.beforeContentPadding
-    val bottom = info.viewportEndOffset - info.afterContentPadding
-    val item = info.visibleItemsInfo.firstOrNull {
-        it.index >= headerItems && it.index - headerItems < total && it.offset >= top && it.offset < bottom
-    }
-    return item?.let { it.index - headerItems }
 }
 
 /**

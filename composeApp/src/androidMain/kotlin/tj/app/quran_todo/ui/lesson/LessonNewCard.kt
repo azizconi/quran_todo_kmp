@@ -70,8 +70,6 @@ import tj.app.quran_todo.ui.components.QhSwitchRow
 import tj.app.quran_todo.ui.components.QhSegmentedControl
 import tj.app.quran_todo.ui.components.QhSheet
 import tj.app.quran_todo.ui.components.Skeleton
-import tj.app.quran_todo.ui.components.spotlight.SpotlightTourEffect
-import tj.app.quran_todo.ui.components.spotlight.SpotlightTours
 import tj.app.quran_todo.ui.hifz.AyahMark
 import tj.app.quran_todo.ui.hifz.RecallGradeSheet
 import tj.app.quran_todo.ui.hifz.RecallHost
@@ -625,9 +623,6 @@ internal fun RecallStage(viewModel: LessonViewModel, copy: LessonCopy, work: Les
     }
     val reduced = LocalReducedMotion.current
     val finished = session.finished
-    // The tips of "Recall" (C2): "Peek" at the first hidden ayah, "An honest rating" when the two answers appear.
-    SpotlightTourEffect(SpotlightTours.LessonPeek, ready = !finished && !session.revealed && session.index == 0)
-    SpotlightTourEffect(SpotlightTours.LessonGrade, ready = !finished && session.revealed)
     var gradeOpen by remember(work.card.key) { mutableStateOf(false) }
     val voice = rememberVoiceSheetState()
     val voiceRange = work.card.range

@@ -78,9 +78,6 @@ import tj.app.quran_todo.ui.components.QhChip
 import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.QhSectionHeader
 import tj.app.quran_todo.ui.components.QhSegmentedControl
-import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
-import tj.app.quran_todo.ui.components.spotlight.SpotlightTargets
-import tj.app.quran_todo.ui.components.spotlight.spotlightTarget
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.i18n.rememberListenCopy
 import tj.app.quran_todo.ui.playback.SleepTimer
@@ -139,7 +136,6 @@ internal fun DockBody(
             selected = practice.pauseSeconds,
             onSelect = viewModel::setPauseSeconds,
             hint = copy.pauseHint,
-            modifier = Modifier.spotlightTarget(SpotlightTargets.PlayerPause, SpotlightShape.Rounded(16.dp), reveal = true, inset = 4.dp),
         )
         EchoSection(viewModel = viewModel, practice = practice, copy = copy)
         ChipSection(
@@ -316,7 +312,6 @@ private fun RepeatSection(
         practice.rangeRepeatCount == count
 
     Column(
-        Modifier.spotlightTarget(SpotlightTargets.PlayerRepeat, SpotlightShape.Rounded(16.dp), reveal = true, inset = 4.dp),
         verticalArrangement = Arrangement.spacedBy(QhSpacing.x3),
     ) {
         QhSectionHeader(copy.repeatPassage)
