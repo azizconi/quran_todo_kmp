@@ -142,6 +142,7 @@ fun NotesScreen(
                         note = note,
                         title = copy.notesAyah(ui.nameOf(note.surah), note.ayah),
                         date = plan.dateLabel(EpochDays.ofMillis(note.updatedAtMillis, TimeZone.currentSystemDefault()), today),
+                        deleteDescription = copy.notesDeleteDescription,
                         onOpen = { onOpenReader(Dest.Reader(surah = note.surah, ayah = note.ayah, origin = Origin.SEARCH)) },
                         onDelete = {
                             viewModel.delete(note)
@@ -185,6 +186,7 @@ private fun NoteRow(
     note: NoteItem,
     title: String,
     date: String,
+    deleteDescription: String,
     onOpen: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -220,32 +222,41 @@ private fun NoteRow(
             }
         },
     ) {
-        QhCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics(mergeDescendants = true) {
-                    contentDescription = "$title. ${note.text}. $date"
-                },
-            onClick = onOpen,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            QhCard(
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = "$title. ${note.text}. $date"
+                    },
+                onClick = onOpen,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = title,
+                        style = QhTheme.type.title2,
+                        color = colors.ink,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(text = date, style = QhTheme.type.label, color = colors.inkSecondary, modifier = Modifier.padding(start = QhSpacing.x2))
+                }
+                Spacer(Modifier.height(QhSpacing.x1))
                 Text(
-                    text = title,
-                    style = QhTheme.type.title2,
-                    color = colors.ink,
-                    maxLines = 1,
+                    text = note.text,
+                    style = QhTheme.type.body,
+                    color = colors.inkSecondary,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
                 )
-                Text(text = date, style = QhTheme.type.label, color = colors.inkSecondary, modifier = Modifier.padding(start = QhSpacing.x2))
             }
-            Spacer(Modifier.height(QhSpacing.x1))
-            Text(
-                text = note.text,
-                style = QhTheme.type.body,
-                color = colors.inkSecondary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+            QhIconButton(
+                icon = Icons.Rounded.Delete,
+                contentDescription = deleteDescription,
+                onClick = onDelete,
+                filled = false,
+                tint = colors.inkSecondary,
             )
         }
     }
