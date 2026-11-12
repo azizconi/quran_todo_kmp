@@ -19,12 +19,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.StickyNote2
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
@@ -54,11 +60,15 @@ import tj.app.quran_todo.common.utils.getQuranFontFamily
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.components.QhRowDivider
 import tj.app.quran_todo.ui.components.QhSectionHeader
+import tj.app.quran_todo.ui.components.QhSegmentedControl
 import tj.app.quran_todo.ui.components.QhSheet
 import tj.app.quran_todo.ui.components.QhSlider
 import tj.app.quran_todo.ui.components.QhSwitchRow
 import tj.app.quran_todo.ui.haptics.HapticKind
+import tj.app.quran_todo.ui.i18n.GoToCopy
 import tj.app.quran_todo.ui.i18n.ReaderCopy
+import tj.app.quran_todo.ui.similar.SimilarIcon
+import tj.app.quran_todo.ui.i18n.rememberGoToCopy
 import tj.app.quran_todo.ui.i18n.rememberSettingsCopy
 import tj.app.quran_todo.ui.motion.AnimatedCounter
 import tj.app.quran_todo.ui.motion.QhMotion
@@ -101,6 +111,7 @@ fun AppearanceSheet(
     val uiPrefs = koinInject<UiPrefs>()
     val followsSystem by uiPrefs.themeFollowsSystem.collectAsState()
     val settingsCopy = rememberSettingsCopy()
+    val goTo = rememberGoToCopy()
     val keepScreenOn by uiPrefs.keepScreenOn.collectAsState()
     val highlightWords by uiPrefs.highlightWords.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -119,6 +130,16 @@ fun AppearanceSheet(
             verticalArrangement = Arrangement.spacedBy(QhSpacing.x5),
         ) {
             SheetTitle(copy.textSettings)
+
+            // Two parts: the text itself, and everything else. The choice of the part is not kept.
+            var tab by remember { mutableIntStateOf(0) }
+            QhSegmentedControl(
+                options = listOf(goTo.tabText, goTo.tabAdvanced),
+                selectedIndex = tab,
+                onSelect = { tab = it },
+            )
+
+            if (tab == 0) {
 
             // Preview
             Box(
@@ -164,7 +185,7 @@ fun AppearanceSheet(
                 FontCarousel()
             }
 
-            // Switches
+            // Translation
             QhCard(contentPadding = PaddingValues(0.dp)) {
                 QhSwitchRow(
                     title = copy.translation,
@@ -174,7 +195,9 @@ fun AppearanceSheet(
                 QhRowDivider(startIndent = QhSpacing.card)
                 // The edition of the translation (F4a): "Translation: Kuliev" opens the sheet of editions.
                 TranslationEditionRow()
-                QhRowDivider(startIndent = QhSpacing.card)
+            }
+            } else {
+            QhCard(contentPadding = PaddingValues(0.dp)) {
                 QhSwitchRow(
                     title = copy.highlightWords,
                     checked = highlightWords,
@@ -195,6 +218,7 @@ fun AppearanceSheet(
                 )
             }
 
+
             // Theme
             Column(verticalArrangement = Arrangement.spacedBy(QhSpacing.x2)) {
                 QhSectionHeader(copy.theme)
@@ -214,6 +238,9 @@ fun AppearanceSheet(
                         }
                     },
                 )
+            }
+
+            MarksLegend(goTo)
             }
         }
     }
@@ -286,5 +313,34 @@ private fun FontCard(style: ReadingFontStyle, label: String, selected: Boolean, 
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
         )
+    }
+}
+
+/**
+ * "Ayah marks" (Ч8): what the small signs next to an ayah in the list mean. The signs are drawn the way the rows draw them: the
+ * terracotta dot of a hard ayah, the two rings of similar ayahs and the gold note mark.
+ */
+@Composable
+private fun MarksLegend(copy: GoToCopy) {
+    val colors = QhTheme.colors
+    Column(verticalArrangement = Arrangement.spacedBy(QhSpacing.x2)) {
+        QhSectionHeader(copy.legendTitle)
+        LegendRow(copy.legendHard) {
+            Box(Modifier.size(10.dp).background(colors.due, CircleShape))
+        }
+        LegendRow(copy.legendSimilar) {
+            Icon(SimilarIcon, contentDescription = null, tint = colors.inkSecondary, modifier = Modifier.size(22.dp))
+        }
+        LegendRow(copy.legendNote) {
+            Icon(Icons.AutoMirrored.Rounded.StickyNote2, contentDescription = null, tint = colors.gold, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+@Composable
+private fun LegendRow(text: String, mark: @Composable () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.width(36.dp), contentAlignment = Alignment.Center) { mark() }
+        Text(text, style = QhTheme.type.body, color = QhTheme.colors.inkSecondary, modifier = Modifier.padding(start = QhSpacing.x2))
     }
 }

@@ -6,6 +6,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material3.Icon
+import tj.app.quran_todo.ui.motion.pressable
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -65,6 +72,9 @@ fun ReaderHeader(
     bismillahStyle: TextStyle,
     enter: ReaderEnterState,
     onStatusClick: () -> Unit,
+    /** The tap on the name of the surah: opens the sheet "Go to"; [goToLabel] is what a screen reader says for it. */
+    onTitleClick: () -> Unit,
+    goToLabel: String,
     modifier: Modifier = Modifier,
 ) {
     val colors = QhTheme.colors
@@ -115,21 +125,34 @@ fun ReaderHeader(
             )
         }
         Spacer(Modifier.height(QhSpacing.x4))
-        Text(
-            text = data.title,
-            style = type.title1,
-            color = colors.ink,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .then(
-                    if (data.sharesElements) {
-                        Modifier.sharedBoundsKey(SharedKeys.surahTitle(data.origin, data.surahNumber), SharedResize.Scale)
-                    } else {
-                        Modifier
-                    },
-                )
-                .semantics { heading() },
-        )
+        Row(
+            Modifier.pressable(onClick = onTitleClick, shape = RoundedCornerShape(12.dp), onClickLabel = goToLabel),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = data.title,
+                style = type.title1,
+                color = colors.ink,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .then(
+                        if (data.sharesElements) {
+                            Modifier.sharedBoundsKey(SharedKeys.surahTitle(data.origin, data.surahNumber), SharedResize.Scale)
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .semantics { heading() },
+            )
+            // The small arrow says the name can be tapped.
+            Icon(
+                imageVector = Icons.Rounded.ArrowDropDown,
+                contentDescription = null,
+                tint = colors.inkSecondary,
+                modifier = Modifier.size(24.dp),
+            )
+        }
         Column(
             Modifier
                 .fillMaxWidth()

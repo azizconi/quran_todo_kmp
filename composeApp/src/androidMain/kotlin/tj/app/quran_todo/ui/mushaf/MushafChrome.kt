@@ -10,13 +10,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Article
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -33,13 +37,16 @@ import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.Skeleton
+import tj.app.quran_todo.ui.i18n.GoToCopy
 import tj.app.quran_todo.ui.i18n.PagesCopy
+import tj.app.quran_todo.ui.motion.pressable
+import tj.app.quran_todo.ui.reader.components.LabeledAction
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 import tj.app.quran_todo.ui.theme.tabular
 
 /** Height of the button row of the top margin, below the status bar. */
-internal val MushafBarRowHeight = 56.dp
+internal val MushafBarRowHeight = 64.dp
 
 /** Height of the bottom margin (the page number), above the navigation bar. */
 internal val MushafFootHeight = 40.dp
@@ -60,10 +67,13 @@ internal fun MushafTopBar(
     pauseLabel: String,
     checkLabel: String,
     textLabel: String,
+    goTo: GoToCopy,
     onBack: () -> Unit,
     onPlay: () -> Unit,
     onCheck: () -> Unit,
     onText: () -> Unit,
+    /** The tap on the surah name: opens the sheet "Go to". */
+    onGoTo: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = QhTheme.colors
@@ -100,14 +110,28 @@ internal fun MushafTopBar(
                     .padding(start = QhSpacing.x1),
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text(
-                    text = surahName,
-                    style = QhTheme.type.title2,
-                    color = colors.ink,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.semantics { heading() },
-                )
+                Row(
+                    Modifier
+                        .pressable(onClick = onGoTo, shape = RoundedCornerShape(8.dp), onClickLabel = goTo.title, enabled = !checking),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = surahName,
+                        style = QhTheme.type.title2,
+                        color = colors.ink,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .semantics { heading() },
+                    )
+                    Icon(
+                        imageVector = Icons.Rounded.ArrowDropDown,
+                        contentDescription = null,
+                        tint = colors.inkSecondary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
                 Text(
                     text = place,
                     style = QhTheme.type.callout.tabular(),
@@ -116,25 +140,25 @@ internal fun MushafTopBar(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            QhIconButton(
+            LabeledAction(
                 icon = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                label = if (playing) goTo.labelPause else goTo.labelPlay,
                 contentDescription = if (playing) pauseLabel else listenLabel,
                 onClick = onPlay,
-                filled = false,
                 enabled = !checking,
             )
-            QhIconButton(
+            LabeledAction(
                 icon = Icons.Rounded.Visibility,
+                label = goTo.labelByHeart,
                 contentDescription = checkLabel,
                 onClick = onCheck,
-                filled = false,
                 enabled = !checking,
             )
-            QhIconButton(
+            LabeledAction(
                 icon = Icons.Rounded.Article,
+                label = goTo.labelText,
                 contentDescription = textLabel,
                 onClick = onText,
-                filled = false,
                 enabled = !checking,
             )
         }
