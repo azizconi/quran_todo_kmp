@@ -40,6 +40,7 @@ import tj.app.quran_todo.ui.components.Skeleton
 import tj.app.quran_todo.ui.i18n.GoToCopy
 import tj.app.quran_todo.ui.i18n.PagesCopy
 import tj.app.quran_todo.ui.motion.pressable
+import tj.app.quran_todo.ui.reader.components.AdaptiveActionBar
 import tj.app.quran_todo.ui.reader.components.LabeledAction
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
@@ -91,22 +92,23 @@ internal fun MushafTopBar(
             }
             .statusBarsPadding(),
     ) {
-        Row(
-            Modifier
+        // On a narrow phone or with a large font the labels under the icons give way to the surah name (AdaptiveActionBar).
+        AdaptiveActionBar(
+            modifier = Modifier
                 .fillMaxWidth()
                 .height(MushafBarRowHeight)
                 .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            QhIconButton(
-                icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = backLabel,
-                onClick = onBack,
-                filled = false,
-            )
+            leading = {
+                QhIconButton(
+                    icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = backLabel,
+                    onClick = onBack,
+                    filled = false,
+                )
+            },
+            title = {
             Column(
                 Modifier
-                    .weight(1f)
                     .padding(start = QhSpacing.x1),
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -140,6 +142,8 @@ internal fun MushafTopBar(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            },
+            actions = {
             LabeledAction(
                 icon = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                 label = if (playing) goTo.labelPause else goTo.labelPlay,
@@ -161,7 +165,8 @@ internal fun MushafTopBar(
                 onClick = onText,
                 enabled = !checking,
             )
-        }
+            },
+        )
     }
 }
 

@@ -224,7 +224,7 @@ fun listenCopy(language: AppLanguage): ListenCopy {
             listenedBadge = "Eshitildi ✓",
             recalledBadge = "Eslab aytildi ✓",
             startAgain = "Yana tinglash",
-            notRecallNote = "Bu yordam, tekshiruv emas: «Eslayman / Qiyin» bahosini faqat «Eslab ayting» beradi, doira siljimaydi.",
+            notRecallNote = "Bu yordam, tekshiruv emas: «Eslayman / Qiyin» bahosini faqat «Eslang» beradi, doira siljimaydi.",
             dockQueuePattern = "Eski {a}/{b}",
             sheetEmpty = "Bugungi doirada parcha yo‘q.",
             nowPlayingLabel = "Hozir eshitilmoqda",

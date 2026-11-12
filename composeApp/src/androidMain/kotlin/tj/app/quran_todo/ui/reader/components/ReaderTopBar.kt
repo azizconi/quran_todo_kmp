@@ -100,22 +100,23 @@ fun ReaderTopBar(
             }
             .statusBarsPadding(),
     ) {
-        Row(
-            Modifier
+        // On a narrow phone or with a large font the labels under the icons give way to the surah name (AdaptiveActionBar).
+        AdaptiveActionBar(
+            modifier = Modifier
                 .fillMaxWidth()
                 .height(ReaderTopBarRowHeight)
                 .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            QhIconButton(
-                icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = copy.back,
-                onClick = onBack,
-                filled = false,
-            )
+            leading = {
+                QhIconButton(
+                    icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = copy.back,
+                    onClick = onBack,
+                    filled = false,
+                )
+            },
+            title = {
             Column(
                 Modifier
-                    .weight(1f)
                     .padding(start = QhSpacing.x1)
                     .graphicsLayer { alpha = collapsed.value },
                 verticalArrangement = Arrangement.Center,
@@ -157,6 +158,8 @@ fun ReaderTopBar(
                     PlaceLine(place = place, mushaf = mushaf)
                 }
             }
+            },
+            actions = {
             LabeledAction(
                 icon = Icons.Rounded.TextFields,
                 label = goTo.labelView,
@@ -170,7 +173,8 @@ fun ReaderTopBar(
                 contentDescription = copy.more,
                 onClick = onMore,
             )
-        }
+            },
+        )
         Box(
             Modifier
                 .fillMaxWidth()

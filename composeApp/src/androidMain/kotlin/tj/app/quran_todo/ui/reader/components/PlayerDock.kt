@@ -103,6 +103,8 @@ import tj.app.quran_todo.ui.i18n.PlayerRepeatCopy
 import tj.app.quran_todo.ui.i18n.rememberPlayerRepeatCopy
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.i18n.rememberListenCopy
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.text.rememberTextMeasurer
 import tj.app.quran_todo.ui.motion.AnimatedCounter
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
@@ -350,11 +352,24 @@ private fun DockHeader(
             ) {
                 AyahRosette(number = number, size = 44.dp)
                 Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    // "Ayah 12 of 286"; on a narrow phone or with a large font, where that is cut, "12 / 286" (the rosette has the number).
+                    BoxWithConstraints {
                         val titleStyle = QhTheme.type.title2
-                        Text("${copy.ayah} ", style = titleStyle, color = colors.ink)
-                        AnimatedCounter(value = number, style = titleStyle, color = colors.ink)
-                        Text(" ${copy.ofWord} $totalAyahs", style = titleStyle, color = colors.ink, maxLines = 1)
+                        val measurer = rememberTextMeasurer()
+                        val full = "${copy.ayah} $totalAyahs ${copy.ofWord} $totalAyahs"
+                        val fits = remember(full, titleStyle, constraints.maxWidth) {
+                            measurer.measure(full, titleStyle, maxLines = 1).size.width <= constraints.maxWidth
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (fits) Text("${copy.ayah} ", style = titleStyle, color = colors.ink, maxLines = 1)
+                            AnimatedCounter(value = number, style = titleStyle, color = colors.ink)
+                            Text(
+                                if (fits) " ${copy.ofWord} $totalAyahs" else " / $totalAyahs",
+                                style = titleStyle,
+                                color = colors.ink,
+                                maxLines = 1,
+                            )
+                        }
                     }
                     DockStatusLine(
                         ui = ui,

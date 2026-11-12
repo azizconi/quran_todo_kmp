@@ -248,7 +248,7 @@ fun lessonCopy(language: AppLanguage): LessonCopy = when (language) {
         minutesLeftFmt = "Qoldi ≈ {n} daq",
         catchingUp = "Yetib olyapmiz: ba’zi takrorlar keyingi kunlarga ko‘chirildi",
         stepProgressFmt = "{a} / {b}", stepDoneFmt = "{name}: {a} / {b}",
-        phaseListen = "Tinglang", phaseRead = "O‘qing", phaseRecall = "Eslab ayting",
+        phaseListen = "Tinglang", phaseRead = "O‘qing", phaseRecall = "Eslang",
         listenPlay = "Tinglash", listenPause = "Pauza", listenReplay = "Boshidan",
         listenHintFmt = "Har bir oyat ×{n}, keyin butun parcha ×{m}",
         listenHintOnlyAyahsFmt = "Har bir oyat ×{n}",
