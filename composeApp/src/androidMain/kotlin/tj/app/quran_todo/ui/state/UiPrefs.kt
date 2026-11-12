@@ -445,6 +445,17 @@ class UiPrefs(context: Context) {
         prefs.edit().putInt(KEY_LESSON_CLOCK_DAY, clock.day).putLong(KEY_LESSON_CLOCK_MS, clock.accumulatedMs).apply()
     }
 
+    /** The epoch day "Welcome back" (task U17) was answered on; null before the first answer. Not in the backup file. */
+    private val _welcomeBackAnswered = MutableStateFlow(
+        if (prefs.contains(KEY_WELCOME_BACK_ANSWERED)) prefs.getInt(KEY_WELCOME_BACK_ANSWERED, 0) else null,
+    )
+    val welcomeBackAnswered: StateFlow<Int?> = _welcomeBackAnswered.asStateFlow()
+
+    fun setWelcomeBackAnswered(epochDay: Int) {
+        prefs.edit().putInt(KEY_WELCOME_BACK_ANSWERED, epochDay).apply()
+        _welcomeBackAnswered.value = epochDay
+    }
+
     internal companion object {
         /**
          * The stored reminder settings for code that runs without the Compose app (the boot and alarm receivers). Always the
@@ -511,6 +522,7 @@ class UiPrefs(context: Context) {
         const val KEY_LESSON_DURATIONS = "lesson_durations_s"
         const val KEY_LESSON_CLOCK_DAY = "lesson_clock_day"
         const val KEY_LESSON_CLOCK_MS = "lesson_clock_ms"
+        const val KEY_WELCOME_BACK_ANSWERED = "welcome_back_answered_day"
     }
 }
 

@@ -115,4 +115,21 @@ object Streak {
             day--
         }
     }
+
+    /**
+     * The longest run of study days in [daysWithRecords] ever (task U17), with the same bridge over [pauses] as [compute]: a gap
+     * made only of pause days neither adds to the run nor breaks it. 0 for an empty log.
+     */
+    fun best(daysWithRecords: Collection<Int>, pauses: List<PlanPause> = emptyList()): Int {
+        val days = daysWithRecords.toSortedSet().toList()
+        if (days.isEmpty()) return 0
+        var best = 1
+        var run = 1
+        for (i in 1 until days.size) {
+            val bridged = (days[i - 1] + 1 until days[i]).all { gap -> pauses.any { gap in it } }
+            run = if (bridged) run + 1 else 1
+            if (run > best) best = run
+        }
+        return best
+    }
 }

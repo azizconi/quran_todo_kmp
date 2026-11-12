@@ -108,6 +108,8 @@ class LessonInput(
     val metrics: TextMetrics,
     /** The pause of the plan that [today] is inside of, if any (`PlanPauses.covering`): the lesson of such a day is empty. */
     val pause: PlanPause? = null,
+    /** The last day of "a lighter week" (task U17, [LighterWeek]): until then the new passage is planned at half the pace. */
+    val lighterUntil: Int? = null,
 )
 
 /**
@@ -164,7 +166,8 @@ object LessonBuilder {
 
         // --- New ---
         val newToday = todayLog.lastOrNull { it.kind == ReviewKind.NEW }
-        val next = plan?.let { NewPassagePlanner.next(it, coverage, metrics) }
+        // A lighter week (task U17) halves the daily amount here, the one place the lesson reads it; the stored plan keeps its pace.
+        val next = plan?.let { NewPassagePlanner.next(LighterWeek.applied(it, input.lighterUntil, today), coverage, metrics) }
         val planFinished = plan != null && HifzStatuses.currentSurah(plan, coverage) == null
 
         // --- Budget: caps the Recent block only; Old goes in whole, New is deferred only behind a cut repetition ---

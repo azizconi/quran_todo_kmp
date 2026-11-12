@@ -52,7 +52,10 @@ import tj.app.quran_todo.khatm.KhatmPlan
 import tj.app.quran_todo.khatm.KhatmProgress
 import tj.app.quran_todo.khatm.KhatmState
 import tj.app.quran_todo.khatm.KhatmStorage
+import tj.app.quran_todo.hifz.schedule.LighterWeek
+import tj.app.quran_todo.hifz.schedule.ReturnInfo
 import tj.app.quran_todo.hifz.schedule.Streak
+import tj.app.quran_todo.hifz.schedule.WelcomeBack
 import tj.app.quran_todo.hifz.schedule.TextMetrics
 
 /**
@@ -143,6 +146,7 @@ class HifzRepositoryImpl(
                 todayLog = dao.getLog(today, today).map { it.toDomain() },
                 metrics = metrics,
                 pause = PlanPauses.covering(loadPauses(), today),
+                lighterUntil = dao.getMeta(LighterWeek.META_KEY)?.toIntOrNull(),
             ),
         )
     }
@@ -175,6 +179,22 @@ class HifzRepositoryImpl(
     override fun streak(today: Int): Flow<Int> = observe(LOG, META) { Streak.compute(dao.getLogDays(today), today, loadPauses()) }
 
     override fun streak(today: Flow<Int>): Flow<Int> = today.distinctUntilChanged().flatMapLatest { streak(it) }
+
+    override fun returnInfo(today: Flow<Int>): Flow<ReturnInfo> = today.distinctUntilChanged().flatMapLatest { day ->
+        observe(LOG, META) { WelcomeBack.info(dao.getLogDays(day), day, loadPauses()) }
+    }
+
+    override fun lighterUntil(): Flow<Int?> = observe(META) { dao.getMeta(LighterWeek.META_KEY)?.toIntOrNull() }
+
+    override suspend fun setLighterWeek(today: Int?) {
+        write {
+            if (today == null) {
+                dao.deleteMeta(LighterWeek.META_KEY)
+            } else {
+                dao.upsertMeta(HifzMetaEntity(LighterWeek.META_KEY, LighterWeek.untilFor(today).toString()))
+            }
+        }
+    }
 
     override fun pause(today: Int): Flow<PlanPause?> = observe(META) { PlanPauses.active(loadPauses(), today) }
 

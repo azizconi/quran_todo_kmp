@@ -14,6 +14,8 @@ import tj.app.quran_todo.hifz.model.ReviewLogEntry
 import tj.app.quran_todo.hifz.model.SurahCoverage
 import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.hifz.schedule.LessonPlan
+import tj.app.quran_todo.hifz.schedule.LighterWeek
+import tj.app.quran_todo.hifz.schedule.ReturnInfo
 import tj.app.quran_todo.hifz.schedule.PlanForecast
 import tj.app.quran_todo.khatm.KhatmPlan
 import tj.app.quran_todo.khatm.KhatmState
@@ -86,6 +88,15 @@ interface HifzRepository {
     fun streak(today: Int): Flow<Int>
 
     fun streak(today: Flow<Int>): Flow<Int>
+
+    /** "Welcome back" (task U17): the missed days, the last day of study and the best streak of the whole log. */
+    fun returnInfo(today: Flow<Int>): Flow<ReturnInfo>
+
+    /** The last day of "a lighter week" (task U17), or null when none was chosen; it may be in the past. Kept in `hifz_meta`. */
+    fun lighterUntil(): Flow<Int?>
+
+    /** Starts a lighter week from [today] (halves the new amount for 7 days, [LighterWeek]); null clears it. The lesson recomputes. */
+    suspend fun setLighterWeek(today: Int?)
 
     /**
      * The pause of the plan (task F2b) that is on or still ahead of [today]; null when there is none (a pause that is over is null
