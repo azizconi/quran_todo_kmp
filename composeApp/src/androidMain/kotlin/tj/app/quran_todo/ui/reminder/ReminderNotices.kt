@@ -52,6 +52,15 @@ internal object ReminderNotices {
         lesson: LessonPlan,
         lastRead: LastReadPosition?,
         surahName: (Int) -> String,
+    ): ReminderNotice? = build(language, lesson, lastRead, gentle = false, surahName = surahName)
+
+    /** As above; [gentle] swaps the lesson line for the gentle one of a person who has been away (task U18). */
+    fun build(
+        language: AppLanguage,
+        lesson: LessonPlan,
+        lastRead: LastReadPosition?,
+        gentle: Boolean,
+        surahName: (Int) -> String,
     ): ReminderNotice? {
         if (lesson.paused != null) return null
         if (lesson.isComplete) return null
@@ -61,12 +70,17 @@ internal object ReminderNotices {
         val repetitionsLeft = (lesson.recent + lesson.old).count { !it.done }
         if (newToLearn != null || repetitionsLeft > 0) {
             val partlyDone = lesson.newBlock?.state == LessonNewState.DONE || (lesson.recent + lesson.old).any { it.done }
-            val body = copy.lessonBody(
-                newRange = newToLearn?.let { passageRangeLabel(surahName(it.surah), it.startAyah, it.endAyah) },
-                repetitions = repetitionsLeft,
-                minutes = lesson.remainingMinutes,
-                partlyDone = partlyDone,
-            )
+            // A person who has been away for a few days gets the gentle line (task U18) instead of the list of what is due.
+            val body = if (gentle) {
+                copy.gentleBody(lesson.remainingMinutes)
+            } else {
+                copy.lessonBody(
+                    newRange = newToLearn?.let { passageRangeLabel(surahName(it.surah), it.startAyah, it.endAyah) },
+                    repetitions = repetitionsLeft,
+                    minutes = lesson.remainingMinutes,
+                    partlyDone = partlyDone,
+                )
+            }
             return ReminderNotice(ReminderKind.LESSON, copy.lessonTitle, body, ReminderTarget.Lesson)
         }
 

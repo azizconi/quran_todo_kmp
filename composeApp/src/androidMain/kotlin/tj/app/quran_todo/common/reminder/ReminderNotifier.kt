@@ -46,7 +46,17 @@ internal object ReminderNotifier {
         val language = ReminderChannel.currentLanguage()
         val lesson = koin.get<HifzRepository>().lesson(EpochDays.now()).first()
         val names = ReminderSurahNames(koin.get(), koin.get()).forLanguage(language)
-        val notice = ReminderNotices.build(language, lesson, koin.get<UiPrefs>().lastReadPosition.value, names)
+        // How long the person has been away decides whether to speak at all and in which tone (task U18). The days of a pause
+        // are not absence: while the plan rests the count restarts every day.
+        if (lesson.paused != null) ReminderAbsenceStore.recordPauseDay(context)
+        val daysAway = ReminderAbsenceStore.daysAway(context)
+        val decision = reminderDecision(daysAway)
+        if (decision == ReminderDecision.Skip) return null
+        val notice = ReminderNotices.build(
+            language, lesson, koin.get<UiPrefs>().lastReadPosition.value,
+            gentle = decision == ReminderDecision.ShowGentle,
+            surahName = names,
+        )
         if (notice == null) {
             // The lesson was done after an earlier reminder (or by a snooze that comes later): nothing to remind of.
             NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
@@ -54,7 +64,7 @@ internal object ReminderNotifier {
         }
         ReminderChannel.ensure(context, language)
         post(context, notice)
-        AppTelemetry.logEvent("reminder_shown", mapOf("kind" to notice.kind.analyticsName))
+        AppTelemetry.logEvent("reminder_shown", mapOf("kind" to notice.kind.analyticsName, "days_away" to daysAway.toString()))
         return notice.kind
     }
 

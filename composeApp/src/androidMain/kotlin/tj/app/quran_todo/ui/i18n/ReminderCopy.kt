@@ -40,7 +40,12 @@ data class ReminderCopy(
     val leftFmt: String,
     val readingFmt: String,
     val readingNoAyahFmt: String,
+    val gentleFmt: String,
 ) {
+    /** The gentle text for a person who has been away for a few days (task U18): "Coming back is easy: your lesson is waiting, ~5 min". */
+    fun gentleBody(minutes: Int): String =
+        gentleFmt.fill("min" to homeCopy(language).lessonMinutes(minutes.coerceAtLeast(1)))
+
     /**
      * The text of the lesson notification, for example "Today: An-Naba 1–5 and 3 repetitions · ~12 min".
      *
@@ -104,6 +109,7 @@ fun reminderCopy(language: AppLanguage): ReminderCopy = when (language) {
         leftFmt = "Осталось: {what} · {min}",
         readingFmt = "Продолжить чтение: {name}, аят {a}",
         readingNoAyahFmt = "Продолжить чтение: {name}",
+        gentleFmt = "Вернуться легко: урок ждёт, {min}",
     )
     AppLanguage.EN -> ReminderCopy(
         language = language,
@@ -128,6 +134,7 @@ fun reminderCopy(language: AppLanguage): ReminderCopy = when (language) {
         leftFmt = "Left: {what} · {min}",
         readingFmt = "Continue reading: {name}, ayah {a}",
         readingNoAyahFmt = "Continue reading: {name}",
+        gentleFmt = "Coming back is easy: your lesson is waiting, {min}",
     )
     AppLanguage.TG -> ReminderCopy(
         language = language,
@@ -152,6 +159,7 @@ fun reminderCopy(language: AppLanguage): ReminderCopy = when (language) {
         leftFmt = "Боқӣ мондааст: {what} · {min}",
         readingFmt = "Хонишро идома диҳед: {name}, оят {a}",
         readingNoAyahFmt = "Хонишро идома диҳед: {name}",
+        gentleFmt = "Баргаштан осон аст: дарс интизор аст, {min}",
     )
     AppLanguage.UZ -> ReminderCopy(
         language = language,
@@ -176,6 +184,7 @@ fun reminderCopy(language: AppLanguage): ReminderCopy = when (language) {
         leftFmt = "Qoldi: {what} · {min}",
         readingFmt = "O'qishni davom ettiring: {name}, {a}-oyat",
         readingNoAyahFmt = "O'qishni davom ettiring: {name}",
+        gentleFmt = "Qaytish oson: dars kutmoqda, {min}",
     )
     AppLanguage.TR -> ReminderCopy(
         language = language,
@@ -200,5 +209,6 @@ fun reminderCopy(language: AppLanguage): ReminderCopy = when (language) {
         leftFmt = "Kalan: {what} · {min}",
         readingFmt = "Okumaya devam et: {name}, ayet {a}",
         readingNoAyahFmt = "Okumaya devam et: {name}",
+        gentleFmt = "Dönmek kolay: dersin seni bekliyor, {min}",
     )
 }
