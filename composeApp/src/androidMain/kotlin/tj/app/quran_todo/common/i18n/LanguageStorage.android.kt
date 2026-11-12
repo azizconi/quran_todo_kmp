@@ -18,6 +18,7 @@ actual object LanguageStorage {
 
     actual fun saveLanguage(language: AppLanguage) {
         prefs().edit().putString(KEY_LANGUAGE, language.code).apply()
+        AppLocale.apply(language)
     }
 
     actual fun getDeviceLanguage(): AppLanguage {

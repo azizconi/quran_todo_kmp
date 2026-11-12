@@ -1,6 +1,8 @@
 package tj.app.quran_todo
 
+import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
 import androidx.activity.ComponentActivity
@@ -14,7 +16,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.android.ext.android.inject
 import tj.app.quran_todo.common.analytics.AppTelemetry
+import tj.app.quran_todo.common.i18n.AppLocale
 import tj.app.quran_todo.common.platform.AndroidContextHolder
+import tj.app.quran_todo.common.settings.SettingsChangeNotifier
 import tj.app.quran_todo.presentation.home.HomeViewModel
 import tj.app.quran_todo.presentation.home.QuranLoadState
 import tj.app.quran_todo.ui.QuranHifzApp
@@ -31,9 +35,16 @@ class MainActivity : ComponentActivity() {
     /** Google Play in-app updates; registered as a property, before the activity starts. */
     private val appUpdates = AppUpdates(this)
 
+    /** Before Android 13 the app's language reaches Android through the activity's context (AppLocale). */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        // Android 13+: a language picked in the system settings becomes the app's choice (before the first screen reads it).
+        AppLocale.syncFromSystem(this)
         if (savedInstanceState == null) appUpdates.check()
         // The onboarding decision comes from a worker thread (it reads the stored flags, `OnboardingStartup`): the splash screen stays
         // until it is there, so the main thread never waits for the disk and the first screen is never the wrong one.
@@ -109,6 +120,15 @@ class MainActivity : ComponentActivity() {
                 findViewById<View>(android.R.id.content)?.invalidate()
             }
         }
+    }
+
+    /**
+     * The activity handles locale changes itself (`configChanges`), so a language picked in the system settings while the app runs
+     * arrives here: it is saved as the app's choice and the app root re-reads it.
+     */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (AppLocale.syncFromSystem(this)) SettingsChangeNotifier.notifyChanged()
     }
 
     override fun onResume() {
