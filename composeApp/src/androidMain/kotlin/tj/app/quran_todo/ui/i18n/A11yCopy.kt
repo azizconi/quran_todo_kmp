@@ -11,6 +11,11 @@ data class A11yCopy(
     val sheetHandle: String,
     /** The description of the dimmed area behind a sheet (tapping it closes the sheet). */
     val sheetClose: String,
+    /** TalkBack actions of the year calendar: step the chosen day (or week) back and forward. */
+    val heatPreviousDay: String,
+    val heatNextDay: String,
+    val heatPreviousWeek: String,
+    val heatNextWeek: String,
 )
 
 @Composable
@@ -18,9 +23,24 @@ fun rememberA11yCopy(language: AppLanguage = LocalAppLanguage.current): A11yCopy
     remember(language) { a11yCopy(language) }
 
 fun a11yCopy(language: AppLanguage): A11yCopy = when (language) {
-    AppLanguage.RU -> A11yCopy(sheetHandle = "Ручка панели", sheetClose = "Закрыть панель")
-    AppLanguage.EN -> A11yCopy(sheetHandle = "Sheet handle", sheetClose = "Close sheet")
-    AppLanguage.TG -> A11yCopy(sheetHandle = "Дастаки лавҳа", sheetClose = "Пӯшидани лавҳа")
-    AppLanguage.UZ -> A11yCopy(sheetHandle = "Panel tutqichi", sheetClose = "Panelni yopish")
-    AppLanguage.TR -> A11yCopy(sheetHandle = "Panel tutamacı", sheetClose = "Paneli kapat")
+    AppLanguage.RU -> A11yCopy(sheetHandle = "Ручка панели", sheetClose = "Закрыть панель",
+        heatPreviousDay = "Предыдущий день", heatNextDay = "Следующий день",
+        heatPreviousWeek = "Предыдущая неделя", heatNextWeek = "Следующая неделя",
+    )
+    AppLanguage.EN -> A11yCopy(sheetHandle = "Sheet handle", sheetClose = "Close sheet",
+        heatPreviousDay = "Previous day", heatNextDay = "Next day",
+        heatPreviousWeek = "Previous week", heatNextWeek = "Next week",
+    )
+    AppLanguage.TG -> A11yCopy(sheetHandle = "Дастаки лавҳа", sheetClose = "Пӯшидани лавҳа",
+        heatPreviousDay = "Рӯзи гузашта", heatNextDay = "Рӯзи оянда",
+        heatPreviousWeek = "Ҳафтаи гузашта", heatNextWeek = "Ҳафтаи оянда",
+    )
+    AppLanguage.UZ -> A11yCopy(sheetHandle = "Panel tutqichi", sheetClose = "Panelni yopish",
+        heatPreviousDay = "Oldingi kun", heatNextDay = "Keyingi kun",
+        heatPreviousWeek = "Oldingi hafta", heatNextWeek = "Keyingi hafta",
+    )
+    AppLanguage.TR -> A11yCopy(sheetHandle = "Panel tutamacı", sheetClose = "Paneli kapat",
+        heatPreviousDay = "Önceki gün", heatNextDay = "Sonraki gün",
+        heatPreviousWeek = "Önceki hafta", heatNextWeek = "Sonraki hafta",
+    )
 }
