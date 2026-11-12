@@ -35,7 +35,7 @@ import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /**
- * Step 1: the calligraphy bismillah written from right to left on a faint lattice, the promise of the app, and the five languages.
+ * Step 1 (welcome): the calligraphy bismillah written from right to left on a faint lattice, the promise of the app, and the five languages.
  * A language applies at once (the root's setter), so the text of this very screen changes under the finger.
  */
 @Composable
@@ -76,7 +76,7 @@ internal fun LanguageStep(
             Column(
                 Modifier
                     .padding(horizontal = QhSpacing.screen)
-                    .padding(vertical = QhSpacing.x6),
+                    .padding(vertical = QhSpacing.x4),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(QhSpacing.x2),
             ) {
@@ -104,6 +104,14 @@ internal fun LanguageStep(
             animationSpec = if (LocalReducedMotion.current) snap() else tween(QhMotion.Medium),
             label = "choose-language",
         ) { title -> QhSectionHeader(title) }
+        Spacer(Modifier.height(QhSpacing.x2))
+        // The hint sits above the cards: below them it ended half hidden under the main button.
+        CrossfadeText(
+            text = copy.chooseLanguageHint,
+            style = QhTheme.type.callout,
+            color = colors.inkSecondary,
+            textAlign = TextAlign.Center,
+        )
         Spacer(Modifier.height(QhSpacing.x3))
         Column(verticalArrangement = Arrangement.spacedBy(QhSpacing.x2)) {
             LanguageOrder.forEach { option ->
@@ -114,12 +122,5 @@ internal fun LanguageStep(
                 )
             }
         }
-        Spacer(Modifier.height(QhSpacing.x3))
-        CrossfadeText(
-            text = copy.chooseLanguageHint,
-            style = QhTheme.type.callout,
-            color = colors.inkSecondary,
-            textAlign = TextAlign.Center,
-        )
     }
 }

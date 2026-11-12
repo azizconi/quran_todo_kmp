@@ -39,22 +39,8 @@ import tj.app.quran_todo.ui.home.HomeRows
 import tj.app.quran_todo.ui.home.QuranIndex
 import tj.app.quran_todo.ui.home.RowsInput
 import tj.app.quran_todo.ui.home.SurahRowUi
-import tj.app.quran_todo.ui.plan.PaceMode
-import tj.app.quran_todo.ui.reminder.ReminderController
-import tj.app.quran_todo.ui.settings.PreviewAyah
-import tj.app.quran_todo.ui.state.DEFAULT_REMINDER_MINUTE_OF_DAY
 import tj.app.quran_todo.ui.state.OnboardingGoal
 import tj.app.quran_todo.ui.state.UiPrefs
-
-/** What the person decided about the reminder on the reminder step. */
-internal enum class ReminderChoice {
-    Undecided,
-    On,
-    Off,
-
-    /** "Remind me" was pressed and the system did not allow notifications: the reminder is off, the step is passed. */
-    Denied,
-}
 
 /** What the last button of the onboarding opens. */
 internal enum class OnboardingExit(val analyticsName: String) {
@@ -64,7 +50,7 @@ internal enum class OnboardingExit(val analyticsName: String) {
     /** Home. */
     Later("later"),
 
-    /** Home with Al-Fatihah in the reader over it ("Read and listen" path). */
+    /** Home with Al-Fatihah in the reader over it ("Just read and listen for now" link). */
     Reader("reader"),
 }
 
@@ -80,27 +66,20 @@ internal sealed interface OnboardingEvent {
 /** Everything the screen draws. */
 internal data class OnboardingUi(
     val position: FlowPosition = FlowPosition.First,
-    val goal: GoalChoice? = null,
     val selection: PlanSelection = PlanSelection(),
-    val reminder: ReminderChoice = ReminderChoice.Undecided,
-    val reminderMinute: Int = DEFAULT_REMINDER_MINUTE_OF_DAY,
     /** The 114 rows with the names in the language of the app; empty until the surah list is there. */
     val catalog: List<SurahRowUi> = emptyList(),
-    /** One card per preset, with the first lesson around what is known. */
+    /** One card per preset, with the first lesson counted with nothing known (the "known" step comes after the presets). */
     val presets: List<PresetInfo> = emptyList(),
     val firstLesson: AyahRange? = null,
     /** The estimate of the first lesson in minutes; null until counted (or when it can not be). */
     val lessonMinutes: Int? = null,
     val forecast: OnboardingForecast = OnboardingForecast(0, 0, 0, null, null, false),
     val today: Int = 0,
-    /** Al-Fatihah 1-3 for the story: the loaded text, or the built-in sample. */
-    val fatiha: List<PreviewAyah> = FallbackFatihaAyahs,
-    /** Ar-Rahman 1-4 for the reading preview. */
-    val rahman: List<PreviewAyah> = FallbackRahmanAyahs,
     val finishing: Boolean = false,
 ) {
-    val segmentCount: Int get() = OnboardingFlow.segmentCount(goal)
-    val segmentIndex: Int get() = OnboardingFlow.segmentIndex(position, goal)
+    val segmentCount: Int get() = OnboardingFlow.segmentCount
+    val segmentIndex: Int get() = OnboardingFlow.segmentIndex(position)
 
     fun surahName(number: Int): String? = catalog.firstOrNull { it.number == number }?.name
 }
@@ -115,10 +94,10 @@ internal val OnboardingViewModelFactory: ViewModelProvider.Factory = viewModelFa
 }
 
 /**
- * State of the onboarding v2. The step, the goal and every choice live here and in the [SavedStateHandle], so a killed process
+ * State of the onboarding. The step and every choice live here and in the [SavedStateHandle], so a killed process
  * continues from the same step; **nothing of the progress is written until the last screen** ([finish], through
  * [OnboardingFinisher] and `HifzRepository` only). The language, the font and the theme are applied at once through the root's
- * setters by the screen, the reminder through [ReminderController], the goal is written to `UiPrefs` when the goal step is left.
+ * setters by the screen, the goal is written to `UiPrefs` by the last button. The reminder is not asked here; it stays at its stored default.
  *
  * The shared `HomeViewModel` (the Quran text and the surah names) and `HifzRepository` arrive through the constructor, never
  * `koinViewModel`: they are singletons (docs/redesign/API.md).
@@ -130,15 +109,11 @@ internal class OnboardingViewModel(
     private val hifz: HifzRepository,
     private val ticker: EpochDayTicker,
     private val uiPrefs: UiPrefs,
-    private val reminder: ReminderController,
 ) : ViewModel() {
 
     private class Choices(
         val position: FlowPosition,
-        val goal: GoalChoice?,
         val selection: PlanSelection,
-        val reminder: ReminderChoice,
-        val reminderMinute: Int,
     )
 
     private val choices = MutableStateFlow(restore())
@@ -178,12 +153,6 @@ internal class OnboardingViewModel(
         )
     }.flowOn(Dispatchers.Default)
 
-    private val samples: Flow<Pair<List<PreviewAyah>, List<PreviewAyah>>> = home.uiState
-        .map { it.completeQuran }
-        .distinctUntilChanged { a, b -> a === b }
-        .map { quranText -> (fatihaPreview(quranText) ?: FallbackFatihaAyahs) to (rahmanPreview(quranText) ?: FallbackRahmanAyahs) }
-        .flowOn(Dispatchers.Default)
-
     /** The estimate of the first lesson, counted by the repository's own formulas (a read; nothing is written). */
     private val lessonMinutes: Flow<Int?> = combine(choices, ticker.day) { c, today -> OnboardingPlanMath.firstLesson(c.selection, today) }
         .distinctUntilChanged()
@@ -194,25 +163,20 @@ internal class OnboardingViewModel(
 
     private val core: Flow<Core> = combine(choices, finishing, ticker.day, ::Core)
 
-    val ui: StateFlow<OnboardingUi> = combine(core, catalog, samples, lessonMinutes) { core, catalog, (fatiha, rahman), minutes ->
+    val ui: StateFlow<OnboardingUi> = combine(core, catalog, lessonMinutes) { core, catalog, minutes ->
         val c = core.choices
         val selection = c.selection
         OnboardingUi(
             position = c.position,
-            goal = c.goal,
             selection = selection,
-            reminder = c.reminder,
-            reminderMinute = c.reminderMinute,
             catalog = catalog,
             presets = PresetChoice.entries.map {
-                OnboardingPlanMath.presetInfo(it, selection.customQueue, selection.known, OnboardingPlanMath.effectivePerDay(selection, core.today))
+                OnboardingPlanMath.presetInfo(it, selection.customQueue, emptyList(), OnboardingPlanMath.effectivePerDay(selection, core.today))
             },
             firstLesson = OnboardingPlanMath.firstLesson(selection, core.today),
             lessonMinutes = minutes,
             forecast = OnboardingPlanMath.forecast(selection, core.today),
             today = core.today,
-            fatiha = fatiha,
-            rahman = rahman,
             finishing = core.finishing,
         )
     }
@@ -252,61 +216,32 @@ internal class OnboardingViewModel(
     }
 
     private fun moveTo(position: FlowPosition) {
-        update { Choices(position, it.goal, it.selection, it.reminder, it.reminderMinute) }
+        update { Choices(position, it.selection) }
         logStep(position)
     }
 
-    /** "Next". Leaving the goal step writes the goal to `UiPrefs`. */
+    /** "Next". */
     fun next() {
-        val c = choices.value
-        if (c.position.step == OnboardingStep.Goal) saveGoal(c.goal)
-        OnboardingFlow.next(c.position, c.goal)?.let(::moveTo)
+        OnboardingFlow.next(choices.value.position)?.let(::moveTo)
     }
 
     /** "Back" (the arrow and the system gesture). False on the first step: back then leaves the app. */
     fun back(): Boolean {
-        val c = choices.value
-        val previous = OnboardingFlow.back(c.position, c.goal) ?: return false
+        val previous = OnboardingFlow.back(choices.value.position) ?: return false
         moveTo(previous)
         return true
     }
 
-    fun skipStory() {
-        val c = choices.value
-        if (c.position.step != OnboardingStep.Story) return
-        AppTelemetry.logEvent("onboarding_story_skipped")
-        moveTo(OnboardingFlow.skipStory(c.position))
-    }
-
-    /** The pager of the story was swiped to [page]. */
-    fun showStoryPage(page: Int) {
-        val c = choices.value
-        if (c.position.step != OnboardingStep.Story || c.position.storyPage == page) return
-        moveTo(FlowPosition(OnboardingStep.Story, page.coerceIn(0, StoryPageCount - 1)))
-    }
-
-    private fun saveGoal(goal: GoalChoice?) {
+    private fun saveGoal(goal: GoalChoice) {
         when (goal) {
             GoalChoice.Memorize -> uiPrefs.setOnboardingGoals(setOf(OnboardingGoal.MEMORIZE))
             GoalChoice.Read -> uiPrefs.setOnboardingGoals(setOf(OnboardingGoal.READ, OnboardingGoal.LISTEN))
-            null -> Unit
         }
     }
 
     // -- Choices ------------------------------------------------------------------------------
 
-    fun chooseGoal(goal: GoalChoice) = update { Choices(it.position, goal, it.selection, it.reminder, it.reminderMinute) }
-
-    private fun editSelection(change: (PlanSelection) -> PlanSelection) = update {
-        Choices(it.position, it.goal, change(it.selection).settled(), it.reminder, it.reminderMinute)
-    }
-
-    /** A preset that has nothing left to learn can not stay chosen. */
-    private fun PlanSelection.settled(): PlanSelection {
-        val chosen = preset ?: return this
-        val everythingKnown = OnboardingPlanMath.queueOf(chosen, customQueue).let { it.isNotEmpty() && it.all { surah -> surah in known } }
-        return if (everythingKnown && chosen != PresetChoice.Custom) copy(preset = null) else this
-    }
+    private fun editSelection(change: (PlanSelection) -> PlanSelection) = update { Choices(it.position, change(it.selection)) }
 
     fun toggleKnown(surah: Int) = editSelection { selection ->
         val known = if (surah in selection.known) selection.known - surah else (selection.known + surah).sorted()
@@ -327,46 +262,6 @@ internal class OnboardingViewModel(
 
     fun setPerDay(value: Int) = editSelection { it.copy(perDay = value.coerceIn(MinPerDay, MaxPerDay)) }
 
-    fun setMode(mode: PaceMode) = editSelection { selection ->
-        when (mode) {
-            PaceMode.PerDay -> selection.copy(mode = mode)
-            PaceMode.ByDate -> selection.copy(
-                mode = mode,
-                targetDay = selection.targetDay ?: OnboardingPlanMath.suggestedTarget(selection, ticker.day.value),
-            )
-        }
-    }
-
-    fun setTarget(epochDay: Int) = editSelection { it.copy(mode = PaceMode.ByDate, targetDay = epochDay) }
-
-    // -- Reminder -----------------------------------------------------------------------------
-
-    fun setReminderMinute(minuteOfDay: Int) = update { Choices(it.position, it.goal, it.selection, it.reminder, minuteOfDay.coerceIn(0, 1439)) }
-
-    /**
-     * The result of "Remind me": [allowed] is true when notifications can come (the permission was given, or is not needed). Allowed:
-     * the time is stored, the alarm is planned and the step is passed; otherwise the reminder stays off and the step shows why.
-     */
-    fun applyReminder(allowed: Boolean) {
-        val c = choices.value
-        if (!allowed) {
-            reminder.setEnabled(false, track = false)
-            update { Choices(it.position, it.goal, it.selection, ReminderChoice.Denied, it.reminderMinute) }
-            return
-        }
-        reminder.setMinuteOfDay(c.reminderMinute, track = false)
-        reminder.setEnabled(true)
-        update { Choices(it.position, it.goal, it.selection, ReminderChoice.On, it.reminderMinute) }
-        next()
-    }
-
-    /** "Not now": no permission is asked and the reminder is off. */
-    fun skipReminder() {
-        reminder.setEnabled(false, track = false)
-        update { Choices(it.position, it.goal, it.selection, ReminderChoice.Off, it.reminderMinute) }
-        next()
-    }
-
     // -- The end ------------------------------------------------------------------------------
 
     /**
@@ -375,7 +270,7 @@ internal class OnboardingViewModel(
      */
     fun finish(exit: OnboardingExit) {
         val c = choices.value
-        val memorize = c.goal != GoalChoice.Read
+        val memorize = exit != OnboardingExit.Reader
         val today = ticker.day.value
         val commit = OnboardingCommit(
             known = if (memorize) c.selection.known else emptyList(),
@@ -383,6 +278,7 @@ internal class OnboardingViewModel(
         )
         viewModelScope.launch {
             finishing.value = true
+            saveGoal(if (memorize) GoalChoice.Memorize else GoalChoice.Read)
             val result = finisher.finish(commit, today)
             finishing.value = false
             when (result) {
@@ -431,22 +327,15 @@ internal class OnboardingViewModel(
 
     private fun save(c: Choices) {
         handle[KEY_STEP] = c.position.step.name
-        handle[KEY_PAGE] = c.position.storyPage
-        handle[KEY_GOAL] = c.goal?.name.orEmpty()
         handle[KEY_KNOWN] = c.selection.known.toIntArray()
         handle[KEY_PRESET] = c.selection.preset?.name.orEmpty()
         handle[KEY_CUSTOM] = c.selection.customQueue.toIntArray()
-        handle[KEY_MODE] = c.selection.mode.name
         handle[KEY_PER_DAY] = c.selection.perDay
-        handle[KEY_TARGET] = c.selection.targetDay ?: NO_TARGET
-        handle[KEY_REMINDER] = c.reminder.name
-        handle[KEY_REMINDER_MINUTE] = c.reminderMinute
     }
 
     private fun restore(): Choices {
         val default = PlanSelection()
         val step = handle.get<String>(KEY_STEP)?.let { name -> OnboardingStep.entries.firstOrNull { it.name == name } }
-        val goal = handle.get<String>(KEY_GOAL)?.let { name -> GoalChoice.entries.firstOrNull { it.name == name } }
         val selection = PlanSelection(
             known = handle.get<IntArray>(KEY_KNOWN)?.toList() ?: default.known,
             preset = if (handle.contains(KEY_PRESET)) {
@@ -455,36 +344,21 @@ internal class OnboardingViewModel(
                 default.preset
             },
             customQueue = handle.get<IntArray>(KEY_CUSTOM)?.toList() ?: default.customQueue,
-            mode = handle.get<String>(KEY_MODE)?.let { name -> PaceMode.entries.firstOrNull { it.name == name } } ?: default.mode,
-            perDay = handle.get<Int>(KEY_PER_DAY) ?: default.perDay,
-            targetDay = handle.get<Int>(KEY_TARGET)?.takeIf { it != NO_TARGET },
+            perDay = (handle.get<Int>(KEY_PER_DAY) ?: default.perDay).coerceIn(MinPerDay, MaxPerDay),
         )
-        return Choices(
-            position = FlowPosition(step ?: OnboardingStep.Language, handle.get<Int>(KEY_PAGE) ?: 0),
-            goal = goal,
-            selection = selection,
-            reminder = handle.get<String>(KEY_REMINDER)?.let { name -> ReminderChoice.entries.firstOrNull { it.name == name } } ?: ReminderChoice.Undecided,
-            reminderMinute = handle.get<Int>(KEY_REMINDER_MINUTE) ?: DEFAULT_REMINDER_MINUTE_OF_DAY,
-        )
+        return Choices(position = FlowPosition(step ?: OnboardingStep.Language), selection = selection)
     }
 
     private companion object {
         const val StopTimeoutMillis = 5_000L
         const val EstimateDebounceMillis = 150L
         const val MinPerDay = 1
-        const val MaxPerDay = 20
-        const val NO_TARGET = Int.MIN_VALUE
+        const val MaxPerDay = WheelMaxPerDay
 
         const val KEY_STEP = "step"
-        const val KEY_PAGE = "story_page"
-        const val KEY_GOAL = "goal"
         const val KEY_KNOWN = "known"
         const val KEY_PRESET = "preset"
         const val KEY_CUSTOM = "custom_queue"
-        const val KEY_MODE = "pace_mode"
         const val KEY_PER_DAY = "per_day"
-        const val KEY_TARGET = "target_day"
-        const val KEY_REMINDER = "reminder"
-        const val KEY_REMINDER_MINUTE = "reminder_minute"
     }
 }

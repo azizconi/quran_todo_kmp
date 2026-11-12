@@ -24,7 +24,6 @@ import tj.app.quran_todo.ui.quiz.QuizViewModel
 import tj.app.quran_todo.ui.reader.ReaderViewModel
 import tj.app.quran_todo.ui.recording.RecordingStore
 import tj.app.quran_todo.ui.recording.VoiceController
-import tj.app.quran_todo.ui.reminder.ReminderController
 import tj.app.quran_todo.ui.settings.SettingsViewModel
 import tj.app.quran_todo.ui.similar.SimilarStore
 import tj.app.quran_todo.ui.settings.TransferIo
@@ -219,7 +218,6 @@ val onboardingUiModule = module {
             hifz = get(),
             ticker = get(),
             uiPrefs = get(),
-            reminder = ReminderController(androidContext(), get()),
         )
     }
 }
