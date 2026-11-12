@@ -32,10 +32,12 @@ import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.domain.model.SurahModel
 import tj.app.quran_todo.hifz.EpochDayTicker
 import tj.app.quran_todo.hifz.HifzRepository
+import tj.app.quran_todo.hifz.model.HifzPlan
 import tj.app.quran_todo.hifz.model.HifzScope
 import tj.app.quran_todo.hifz.model.SurahCoverage
 import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.hifz.schedule.LessonPlan
+import tj.app.quran_todo.hifz.schedule.PlanForecast
 import tj.app.quran_todo.presentation.home.HomeUiState
 import tj.app.quran_todo.presentation.home.HomeViewModel
 import tj.app.quran_todo.presentation.home.QuranLoadState
@@ -91,13 +93,25 @@ class HomeUiViewModel internal constructor(
             hifz.coveredAyahs().orFallback(emptyMap()),
             hifz.learnedAyahs().orFallback(emptyMap()),
         ) { covered, learned -> covered to learned },
-        hifz.plan().map { it?.surahOrder.orEmpty() }.orFallback(emptyList()),
+        // The plan, its forecast and the day of the forecast: the queue feeds the rows, the rest the plan row under the lesson card.
+        combine(
+            hifz.plan().orFallback(null),
+            hifz.forecast(ticker.day).orFallback(null),
+            ticker.day,
+            ::Triple,
+        ),
         hifz.lesson(ticker.day).map<LessonPlan, LessonPlan?> { it }.orFallback(null),
         // The passages listened to today ("Listen to the old"): the card says "Listened" and nothing else reads this.
         ticker.day.flatMapLatest { day -> hifz.listenLog(day, day) }
             .map { log -> log.mapNotNullTo(HashSet()) { it.passageId } }
             .orFallback(emptySet<Long>()),
-    ) { statuses, ayahs, queue, lesson, listened -> HifzSnapshot(statuses, ayahs.first, queue, lesson, listened, learnedSets = ayahs.second) }
+    ) { statuses, ayahs, planState, lesson, listened ->
+        val (plan, forecast, today) = planState
+        HifzSnapshot(
+            statuses, ayahs.first, plan?.surahOrder.orEmpty(), lesson, listened,
+            learnedSets = ayahs.second, plan = plan, forecast = forecast, today = today,
+        )
+    }
 
     private val prefs: Flow<PrefsSnapshot> = combine(
         uiPrefs.lastReadPosition,
@@ -308,6 +322,7 @@ class HomeUiViewModel internal constructor(
         juzRows = base.juzRows,
         juzListing = JuzRows.search(base.juzRows, query),
         quizReady = base.quizReady,
+        planRow = base.planRow,
     )
 
     private fun initialBase(): HomeBase = HomeStateBuilder.buildBase(
@@ -336,6 +351,9 @@ class HomeUiViewModel internal constructor(
         planQueue = snapshot.planQueue,
         lesson = snapshot.lesson,
         listenedToday = snapshot.listened,
+        plan = snapshot.plan,
+        forecast = snapshot.forecast,
+        today = snapshot.today,
         chapterNames = data.chapterNames,
         loadState = data.loadState,
         lastRead = HomeStateBuilder.lastReadWithLegacy(
@@ -400,6 +418,9 @@ internal class HifzSnapshot(
     val listened: Set<Long> = emptySet(),
     /** The learned ayahs of each surah (their passage is past the 7-day repetition); a subset of [coveredSets]. */
     val learnedSets: Map<Int, Set<Int>> = emptyMap(),
+    val plan: HifzPlan? = null,
+    val forecast: PlanForecast? = null,
+    val today: Int = 0,
 ) {
     val covered: Map<Int, Int> = coveredSets.mapValues { it.value.size }
     val learned: Map<Int, Int> = learnedSets.mapValues { it.value.size }

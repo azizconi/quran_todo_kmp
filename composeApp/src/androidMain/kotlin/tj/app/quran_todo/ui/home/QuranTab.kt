@@ -19,12 +19,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -36,8 +34,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -84,15 +80,7 @@ import tj.app.quran_todo.ui.home.components.HeroListenState
 import tj.app.quran_todo.ui.home.components.HomeSkeletonRow
 import tj.app.quran_todo.ui.home.components.HomeSkeletonTop
 import tj.app.quran_todo.ui.home.components.JuzListRow
-import tj.app.quran_todo.ui.home.components.LessonCard
-import tj.app.quran_todo.ui.khatm.KhatmHomeCards
-import tj.app.quran_todo.ui.home.components.LessonInviteRow
-import tj.app.quran_todo.ui.home.components.QuizRow
 import tj.app.quran_todo.ui.home.components.ListEmptyState
-import tj.app.quran_todo.ui.home.components.MiniPlayerHost
-import tj.app.quran_todo.ui.home.components.MiniPlayerMargin
-import tj.app.quran_todo.ui.home.components.ProgressAction
-import tj.app.quran_todo.ui.home.components.progressPercent
 import tj.app.quran_todo.ui.home.components.RecentSection
 import tj.app.quran_todo.ui.home.components.RowTexts
 import tj.app.quran_todo.ui.home.components.SearchHeader
@@ -107,7 +95,6 @@ import tj.app.quran_todo.ui.i18n.homeCopy
 import tj.app.quran_todo.ui.i18n.pauseCopy
 import tj.app.quran_todo.ui.i18n.mushafCopy
 import tj.app.quran_todo.ui.i18n.translationCopy
-import tj.app.quran_todo.ui.listen.ListenOldSheet
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.orSnap
@@ -125,26 +112,18 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 
 /**
- * The home screen (docs/redesign/ANDROID_REDESIGN.md, 6.3, docs/redesign/PRODUCT_PLAN.md, 3.4): a large
- * "Quran" title with the progress ring and the settings gear, "Today's lesson" and the "Continue" hero
- * (the lesson first for the goal "memorize", the hero first for "read" / "listen"), Recent, a sticky search
- * field with the status segments, the 114 surahs, and the floating mini player.
+ * The "Quran" tab (UX task U14; docs/redesign/ANDROID_REDESIGN.md, 6.3): a large "Quran" title with the settings gear, the "Continue"
+ * hero, Recent, a sticky search field with the status segments, the 114 surahs (or the 30 juz). The lesson of the day lives on the
+ * "Lesson" tab ([LessonTab]); the floating mini player is hosted by the tab scaffold.
  *
  * [onOpenCatalog] is non-null in debug builds only: a long press on the title area opens the
  * component catalog.
  */
 @OptIn(KoinExperimentalAPI::class)
 @Composable
-fun HomeScreen(
+fun QuranTab(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenProgress: () -> Unit,
-    onOpenLesson: () -> Unit,
-    onOpenPlan: () -> Unit,
-    onOpenQuiz: () -> Unit,
-    onOpenKhatm: () -> Unit,
-    onOpenKhatmPicker: () -> Unit,
-    onOpenMushaf: (page: Int) -> Unit,
     onOpenCatalog: (() -> Unit)? = null,
 ) {
     val viewModel = koinViewModel<HomeUiViewModel>()
@@ -171,23 +150,11 @@ fun HomeScreen(
     // under the shared element animation; fresh as soon as the screen is resumed again.
     val ui by viewModel.ui.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
     val player by viewModel.player.collectAsStateWithLifecycle()
-    // "Listen to the old" while its queue plays: the card says where it is.
-    val listening by viewModel.listening.collectAsStateWithLifecycle()
-    // Not read here: only the mini player ring reads it.
-    val playbackProgress = viewModel.playbackProgress.collectAsState()
 
-    val actions = remember(viewModel, translationViewModel, onOpenReader, onOpenSettings, onOpenProgress, onOpenLesson, onOpenPlan, onOpenQuiz, onOpenKhatm, onOpenKhatmPicker, onOpenMushaf) {
+    val actions = remember(viewModel, translationViewModel, onOpenReader, onOpenSettings) {
         HomeActions(
             openReader = onOpenReader,
             openSettings = onOpenSettings,
-            openProgress = onOpenProgress,
-            openLesson = onOpenLesson,
-            openPlan = onOpenPlan,
-            openQuiz = onOpenQuiz,
-            openKhatm = onOpenKhatm,
-            openKhatmPicker = onOpenKhatmPicker,
-            openMushaf = onOpenMushaf,
-            resumePlan = viewModel::resumePlan,
             setQuery = viewModel::setQuery,
             setFilter = viewModel::setFilter,
             retry = viewModel::retry,
@@ -195,8 +162,6 @@ fun HomeScreen(
             coverage = viewModel::coverage,
             togglePin = viewModel::togglePin,
             listen = viewModel::listen,
-            togglePlayback = viewModel::togglePlayback,
-            stopPlayback = viewModel::stopPlayback,
             setTranslationQuery = translationViewModel::setQuery,
             setTranslationActive = translationViewModel::setActive,
             downloadTranslation = translationViewModel::download,
@@ -207,11 +172,9 @@ fun HomeScreen(
         ui = ui,
         translation = translationUi,
         player = player,
-        playbackProgress = playbackProgress,
         copy = copy,
         actions = actions,
         onOpenCatalog = onOpenCatalog,
-        listening = listening,
     )
 }
 
@@ -220,14 +183,6 @@ fun HomeScreen(
 internal class HomeActions(
     val openReader: (Dest.Reader) -> Unit,
     val openSettings: () -> Unit,
-    val openProgress: () -> Unit,
-    val openLesson: () -> Unit,
-    val openPlan: () -> Unit,
-    val openQuiz: () -> Unit,
-    val openKhatm: () -> Unit,
-    val openKhatmPicker: () -> Unit,
-    val openMushaf: (page: Int) -> Unit,
-    val resumePlan: () -> Unit,
     val setQuery: (String) -> Unit,
     val setFilter: (SurahFilter) -> Unit,
     val retry: () -> Unit,
@@ -235,8 +190,6 @@ internal class HomeActions(
     val coverage: (surah: Int) -> Flow<SurahCoverage>,
     val togglePin: (surah: Int) -> Unit,
     val listen: (surah: Int, readAyah: Int) -> Unit,
-    val togglePlayback: () -> Unit,
-    val stopPlayback: () -> Unit,
     val setTranslationQuery: (String) -> Unit,
     val setTranslationActive: (Boolean) -> Unit,
     val downloadTranslation: () -> Unit,
@@ -252,11 +205,9 @@ private fun HomeContent(
     ui: HomeUi,
     translation: TranslationSearchUi,
     player: MiniPlayerUi?,
-    playbackProgress: State<Float>,
     copy: HomeCopy,
     actions: HomeActions,
     onOpenCatalog: (() -> Unit)?,
-    listening: ListeningUi? = null,
 ) {
     val colors = QhTheme.colors
     val type = QhTheme.type
@@ -272,8 +223,6 @@ private fun HomeContent(
     // "Surahs" / "Juz": kept for as long as the screen lives (a rotation, coming back from the reader).
     var tabOrdinal by rememberSaveable { mutableStateOf(0) }
     var sheetSurah by rememberSaveable { mutableStateOf<Int?>(null) }
-    // The sheet "Listen to the old" (task F1b); the queue itself lives in the playback controller, not in this sheet.
-    var listenOpen by rememberSaveable { mutableStateOf(false) }
     var searchFocused by remember { mutableStateOf(false) }
     var celebration by remember { mutableStateOf(Celebration()) }
     val filter = SurahFilter.entries.getOrElse(filterOrdinal) { SurahFilter.All }
@@ -297,7 +246,6 @@ private fun HomeContent(
     LaunchedEffect(shownTab) { actions.setTranslationActive(shownTab == HomeTab.Translation) }
 
     val listState = rememberLazyListState()
-    val lessonHolder = remember { LessonHolder() }
     val stagger = rememberStaggerState(ready = ui.phase == HomePhase.Content)
     val focusRequester = remember { FocusRequester() }
 
@@ -320,11 +268,10 @@ private fun HomeContent(
     val titleBlock = maxOf(estimatedTitleBlock, measuredTitleBlock)
     val topBarState = rememberQhTopBarState(listState, collapseDistance = titleBlock)
 
-    // -- Bottom: navigation bar and the floating mini player ----------------------------------------
+    // -- Bottom: the tab bar (which owns the navigation-bar inset) and the floating mini player of the scaffold ----------
     val imeInsets = WindowInsets.ime
-    val navigationInset = WindowInsets.navigationBars.exclude(imeInsets).asPaddingValues().calculateBottomPadding()
     val bottomPadding by animateDpAsState(
-        targetValue = listBottomPadding(navigationInset, playerVisible = player != null, fontScale = density.fontScale),
+        targetValue = listBottomPadding(0.dp, playerVisible = player != null, fontScale = density.fontScale),
         animationSpec = QhMotion.gentle<Dp>().orSnap(),
         label = "list-bottom-padding",
     )
@@ -350,9 +297,8 @@ private fun HomeContent(
     } else {
         HeroListenState.Idle
     }
-    // Index of the sticky header: the title space and whatever sections exist above it (the lesson card
-    // item is always there in the content phase; it folds to nothing until the lesson is known), then the tabs.
-    val searchHeaderIndex = 1 + (if (hero != null) 1 else 0) + 1 + (if (ui.recent.isNotEmpty()) 1 else 0) + 1
+    // Index of the sticky header: the title space and whatever sections exist above it, then the tabs.
+    val searchHeaderIndex = 1 + (if (hero != null) 1 else 0) + (if (ui.recent.isNotEmpty()) 1 else 0) + 1
     val searchStuck = remember(listState, searchHeaderIndex) { { listState.firstVisibleItemIndex >= searchHeaderIndex } }
 
     // Focusing the field lifts it under the top bar. Only when the sections above it are still on
@@ -428,98 +374,30 @@ private fun HomeContent(
                 }
 
                 HomePhase.Content -> {
-                    // "Today's lesson" and "Continue" swap places with the goal; the lesson is a calm line when
-                    // the goal is only reading and listening.
-                    val lessonFirst = ui.lessonFirst
-                    val lessonIndex = if (lessonFirst) 0 else 1
-                    val heroIndex = if (lessonFirst) 1 else 0
-                    val heroItem: LazyListScope.() -> Unit = {
-                        if (hero != null) {
-                            item(key = "hero", contentType = "hero") {
-                                FoldableSection(visible = !searchMode) {
-                                    HeroCard(
-                                        item = hero,
-                                        copy = copy,
-                                        arabicStyle = heroArabicStyle,
-                                        listenState = heroListen,
-                                        onRead = {
-                                            open(
-                                                Dest.Reader(
-                                                    surah = hero.surah,
-                                                    ayah = if (hero.isFresh) null else hero.ayah,
-                                                    origin = Origin.HERO,
-                                                ),
-                                            )
-                                        },
-                                        onListen = { actions.listen(hero.surah, hero.ayah) },
-                                        compact = lessonFirst,
-                                        modifier = Modifier
-                                            .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x3)
-                                            .staggeredEnter(heroIndex, stagger),
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    val lessonItem: LazyListScope.() -> Unit = {
-                        item(key = "lesson", contentType = "lesson") {
-                            FoldableSection(visible = !searchMode && ui.lesson != null) {
-                                // The last card is kept while the section folds (search, or the lesson being re-read).
-                                val card = ui.lesson ?: lessonHolder.card
-                                if (card != null) {
-                                    lessonHolder.card = card
-                                    val cardModifier = Modifier
+                    if (hero != null) {
+                        item(key = "hero", contentType = "hero") {
+                            FoldableSection(visible = !searchMode) {
+                                HeroCard(
+                                    item = hero,
+                                    copy = copy,
+                                    arabicStyle = heroArabicStyle,
+                                    listenState = heroListen,
+                                    onRead = {
+                                        open(
+                                            Dest.Reader(
+                                                surah = hero.surah,
+                                                ayah = if (hero.isFresh) null else hero.ayah,
+                                                origin = Origin.HERO,
+                                            ),
+                                        )
+                                    },
+                                    onListen = { actions.listen(hero.surah, hero.ayah) },
+                                    modifier = Modifier
                                         .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x3)
-                                        .staggeredEnter(lessonIndex, stagger)
-                                    if (lessonFirst) {
-                                        LessonCard(
-                                            card = card,
-                                            copy = copy,
-                                            onOpenLesson = actions.openLesson,
-                                            onOpenPlan = actions.openPlan,
-                                            modifier = cardModifier,
-                                            onListenOld = { listenOpen = true },
-                                            listening = listening,
-                                            onResumePlan = actions.resumePlan,
-                                            onOpenKhatm = actions.openKhatm,
-                                        )
-                                    } else {
-                                        LessonInviteRow(
-                                            card = card,
-                                            copy = copy,
-                                            onOpenLesson = actions.openLesson,
-                                            onOpenPlan = actions.openPlan,
-                                            modifier = cardModifier,
-                                        )
-                                    }
-                                    // "Check · 5 questions on what you know": a row of its own under the lesson, also while the plan is paused.
-                                    if (ui.quizReady) {
-                                        QuizRow(
-                                            onClick = actions.openQuiz,
-                                            modifier = Modifier
-                                                .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x2)
-                                                .staggeredEnter(lessonIndex, stagger),
-                                        )
-                                    }
-                                    // The reading plan (khatm) and Ramadan (task F5b): each card shows only when there is something to say.
-                                    KhatmHomeCards(
-                                        onOpenKhatm = actions.openKhatm,
-                                        onOpenKhatmPicker = actions.openKhatmPicker,
-                                        onOpenMushaf = actions.openMushaf,
-                                        modifier = Modifier
-                                            .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x2)
-                                            .staggeredEnter(lessonIndex, stagger),
-                                    )
-                                }
+                                        .staggeredEnter(0, stagger),
+                                )
                             }
                         }
-                    }
-                    if (lessonFirst) {
-                        lessonItem()
-                        heroItem()
-                    } else {
-                        heroItem()
-                        lessonItem()
                     }
                     if (ui.recent.isNotEmpty()) {
                         item(key = "recent", contentType = "recent") {
@@ -531,7 +409,7 @@ private fun HomeContent(
                                     copy = copy,
                                     onOpen = { open(Dest.Reader(surah = it, origin = Origin.RECENT)) },
                                     onLongPress = { sheetSurah = it },
-                                    modifier = Modifier.staggeredEnter(2, stagger),
+                                    modifier = Modifier.staggeredEnter(1, stagger),
                                 )
                             }
                         }
@@ -680,14 +558,8 @@ private fun HomeContent(
 
         QhLargeTopBar(
             title = copy.title,
-            overline = copy.greeting,
             state = topBarState,
             actions = {
-                ProgressAction(
-                    progress = ui.overallProgress,
-                    description = copy.progressDescription(progressPercent(ui.overallProgress)),
-                    onClick = actions.openProgress,
-                )
                 SettingsAction(label = copy.settings, onClick = actions.openSettings)
             },
             modifier = Modifier.onSizeChanged { expandedBarPx = maxOf(expandedBarPx, it.height) },
@@ -702,22 +574,7 @@ private fun HomeContent(
                     .combinedClickable(onClick = {}, onLongClick = onOpenCatalog),
             )
         }
-
-        MiniPlayerHost(
-            player = player,
-            progress = playbackProgress,
-            copy = copy,
-            onOpen = { current ->
-                open(Dest.Reader(surah = current.surah, ayah = current.ayah, origin = Origin.PLAYER))
-            },
-            onToggle = actions.togglePlayback,
-            onStop = actions.stopPlayback,
-            bottomInset = navigationInset,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
     }
-
-    if (listenOpen) ListenOldSheet(onDismiss = { listenOpen = false })
 
     val sheetRow = sheetSurah?.let { number -> ui.rows.firstOrNull { it.number == number } }
     if (sheetRow != null) {
@@ -801,10 +658,7 @@ private fun LazyItemScope.rowAnimation(): Modifier =
 
 private val TopBarRowHeight = 56.dp
 private const val SkeletonRowCount = 9
-private const val TabsStaggerIndex = 3
-private const val SearchStaggerIndex = 4
-private const val FirstRowStaggerIndex = 5
+private const val TabsStaggerIndex = 2
+private const val SearchStaggerIndex = 3
+private const val FirstRowStaggerIndex = 4
 private const val CelebrationMillis = 1_100L
-
-/** Remembers the last lesson card between compositions (not state: it only feeds the fold-away animation). */
-private class LessonHolder { var card: LessonCardUi? = null }

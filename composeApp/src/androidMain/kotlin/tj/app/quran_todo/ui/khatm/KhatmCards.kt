@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,6 +57,7 @@ import tj.app.quran_todo.ui.components.QhLinearProgress
 import tj.app.quran_todo.ui.components.ToastKind
 import tj.app.quran_todo.ui.i18n.KhatmCopy
 import tj.app.quran_todo.ui.i18n.rememberKhatmCopy
+import tj.app.quran_todo.ui.motion.pressable
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -68,6 +72,8 @@ internal fun KhatmHomeCards(
     onOpenKhatmPicker: () -> Unit,
     onOpenMushaf: (page: Int) -> Unit,
     modifier: Modifier = Modifier,
+    /** The quiet text row "Reading plan" at the end when there is no plan: the way to make one (UX task U15). */
+    showReadingPlanEntry: Boolean = false,
 ) {
     val viewModel = koinViewModel<KhatmViewModel>()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
@@ -111,6 +117,27 @@ internal fun KhatmHomeCards(
             onRead = onOpenMushaf,
             modifier = modifier,
         )
+    }
+    if (showReadingPlanEntry && state == null) {
+        ReadingPlanEntry(label = copy.screenTitle, onClick = onOpenKhatm, modifier = modifier)
+    }
+}
+
+/** "Reading plan" as one quiet row of text with the book icon: no card, at least 48dp tall. */
+@Composable
+private fun ReadingPlanEntry(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = QhTheme.colors
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = QhSpacing.minTouch)
+            .pressable(onClick = onClick, shape = QhTheme.shapes.md)
+            .padding(horizontal = QhSpacing.x2),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(QhSpacing.x2),
+    ) {
+        Icon(Icons.AutoMirrored.Rounded.MenuBook, contentDescription = null, tint = colors.inkSecondary, modifier = Modifier.size(20.dp))
+        Text(text = label, style = QhTheme.type.callout, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

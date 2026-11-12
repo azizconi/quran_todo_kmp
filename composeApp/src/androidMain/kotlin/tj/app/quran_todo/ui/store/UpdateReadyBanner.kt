@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.ui.components.QhButton
+import tj.app.quran_todo.ui.navigation.LocalBottomChrome
 import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.theme.QhSpacing
@@ -53,12 +54,14 @@ fun UpdateReadyBanner(modifier: Modifier = Modifier) {
     val copy = updateCopy(LocalAppLanguage.current)
     val colors = QhTheme.colors
     val shape = QhTheme.shapes.lg
+    val barHeight = LocalBottomChrome.current.height
 
     AnimatedVisibility(
         visible = ready && !dismissed,
         modifier = modifier
             .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.navigationBars)
+            // On the three tabs the banner stands above their bar (which owns the navigation-bar inset); elsewhere it clears the inset itself.
+            .then(if (barHeight > 0.dp) Modifier.padding(bottom = barHeight) else Modifier.windowInsetsPadding(WindowInsets.navigationBars))
             .padding(start = QhSpacing.x4, end = QhSpacing.x4, bottom = QhSpacing.x4),
         enter = slideInVertically { it } + fadeIn(),
         exit = slideOutVertically { it } + fadeOut(),
