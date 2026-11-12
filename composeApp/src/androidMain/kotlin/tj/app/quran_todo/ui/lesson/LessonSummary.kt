@@ -44,6 +44,7 @@ import tj.app.quran_todo.hifz.quiz.QuizBuilder
 import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.i18n.rememberQuizCopy
+import tj.app.quran_todo.ui.i18n.rememberSummaryExtrasCopy
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.hifz.model.AyahRange
@@ -113,6 +114,10 @@ internal fun LessonSummary(
         }
     }
 
+    val durations by viewModel.lessonDurations.collectAsState()
+    val extrasCopy = rememberSummaryExtrasCopy(language)
+    val takesLine = LessonDurations.medianMinutes(durations)?.let { extrasCopy.takesAbout(it) }
+
     Column(
         Modifier
             .fillMaxSize()
@@ -160,6 +165,8 @@ internal fun LessonSummary(
                 SummaryLine(copy.streak(streak), topGap = QhSpacing.x4)
             }
             forecastLine?.let { SummaryLine(it, topGap = if (streak > 0) QhSpacing.x2 else QhSpacing.x4) }
+            // The real time of the lesson (task U3), once enough lessons were measured.
+            takesLine?.let { SummaryLine(it, topGap = if (streak > 0 || forecastLine != null) QhSpacing.x2 else QhSpacing.x4) }
         }
 
         Text(
@@ -169,6 +176,8 @@ internal fun LessonSummary(
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
+
+        ReminderAskCard(language = language)
 
         if (hardCount > 0) {
             // The difficult ayahs have a drill of their own (task F2a).

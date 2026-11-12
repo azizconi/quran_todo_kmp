@@ -43,6 +43,7 @@ import tj.app.quran_todo.ui.hifz.RecallAudio
 import tj.app.quran_todo.ui.hifz.RecallAudioState
 import tj.app.quran_todo.ui.playback.PlaybackController
 import tj.app.quran_todo.ui.state.HifzHintMode
+import tj.app.quran_todo.ui.state.LessonClock
 import tj.app.quran_todo.ui.state.UiPrefs
 
 /** What the lesson screen shows. */
@@ -304,6 +305,40 @@ class LessonViewModel(
     private var previousComplete = false
     private var previousBlocks: Set<LessonBlock> = emptySet()
 
+    // -- Real lesson time (task U3) ---------------------------------------------------------------------
+
+    private val stopwatch = LessonStopwatch(System::currentTimeMillis).also {
+        uiPrefs.lessonClock().let { saved -> it.restore(saved.day, saved.accumulatedMs) }
+    }
+
+    /** The lesson of the day may be counted: not while it is known to be over (or to have nothing to do). */
+    private var countingAllowed = true
+
+    /** The last durations of completed lessons (seconds), for the line on the summary. */
+    val lessonDurations: StateFlow<List<Int>> = uiPrefs.lessonDurations
+
+    /** The lesson screen is in the foreground: the clock runs. */
+    fun onForeground() {
+        if (!countingAllowed) return
+        stopwatch.resume(ticker.day.value)
+    }
+
+    /** The screen went to the background or was left: the clock stops and what it counted is kept for the same day. */
+    fun onBackground() {
+        stopwatch.pause()
+        saveClock()
+    }
+
+    private fun saveClock() {
+        uiPrefs.setLessonClock(LessonClock(stopwatch.day, stopwatch.accumulatedMs))
+    }
+
+    private fun discardClock() {
+        countingAllowed = false
+        stopwatch.clear()
+        saveClock()
+    }
+
     init {
         viewModelScope.launch {
             lesson.filterNotNull().collect(::observe)
@@ -320,6 +355,8 @@ class LessonViewModel(
             baselineSeen = true
             previousComplete = plan.isComplete
             previousBlocks = blocks
+            // Opened on a finished lesson (or an empty one): there is nothing to measure.
+            if (plan.isComplete || plan.isEmpty) discardClock()
             val nothingDone = plan.recent.none { it.done } && plan.old.none { it.done } &&
                 plan.newBlock?.state != LessonNewState.DONE
             if (!plan.isEmpty && !plan.isComplete && nothingDone && !startedLogged) {
@@ -333,7 +370,17 @@ class LessonViewModel(
         }
         if (!previousComplete && plan.isComplete) {
             celebrating.value = true
-            AppTelemetry.logEvent("lesson_completed", mapOf("minutes_bucket" to LessonCards.minutesBucket(plan.totalMinutes)))
+            val elapsedMs = stopwatch.elapsedMs()
+            discardClock()
+            val seconds = (elapsedMs / 1000L).toInt()
+            uiPrefs.addLessonDuration(seconds)
+            AppTelemetry.logEvent(
+                "lesson_completed",
+                mapOf(
+                    "minutes_bucket" to LessonCards.minutesBucket(plan.totalMinutes),
+                    "minutes" to LessonDurations.minutesOf(elapsedMs).toString(),
+                ),
+            )
         }
         previousComplete = plan.isComplete
         previousBlocks = blocks

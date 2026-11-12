@@ -1,8 +1,6 @@
 package tj.app.quran_todo.ui.reminder
 
 import android.text.format.DateFormat
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -72,7 +70,7 @@ internal fun ReminderSection(language: AppLanguage, modifier: Modifier = Modifie
     var refused by remember { mutableStateOf(false) }
     var pickingTime by remember { mutableStateOf(false) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+    val requestPermission = rememberReminderPermissionRequest { granted ->
         systemRevision++
         if (granted) {
             refused = false
@@ -93,11 +91,7 @@ internal fun ReminderSection(language: AppLanguage, modifier: Modifier = Modifie
                         refused = false
                         controller.setEnabled(false)
                     }
-                    ReminderPermission.needsRequest(context) -> permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                    else -> {
-                        refused = false
-                        controller.setEnabled(true)
-                    }
+                    else -> requestPermission()
                 }
             },
             icon = Icons.Rounded.NotificationsActive,
