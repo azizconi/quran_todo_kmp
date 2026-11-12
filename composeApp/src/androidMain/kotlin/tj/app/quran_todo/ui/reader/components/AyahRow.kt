@@ -1,12 +1,7 @@
 package tj.app.quran_todo.ui.reader.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.automirrored.rounded.StickyNote2
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -48,13 +42,13 @@ import tj.app.quran_todo.common.audio.timing.wordRanges
 import tj.app.quran_todo.data.database.entity.quran.AyahEntity
 import tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus
 import tj.app.quran_todo.ui.components.AyahRosette
-import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.hifz.HifzAyahContent
 import tj.app.quran_todo.ui.hifz.HifzRosette
 import tj.app.quran_todo.ui.hifz.HifzRowState
 import tj.app.quran_todo.ui.hifz.hifzRow
 import tj.app.quran_todo.ui.i18n.MushafCopy
 import tj.app.quran_todo.ui.i18n.ReaderCopy
+import tj.app.quran_todo.ui.i18n.rememberAyahActionsCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.pressable
@@ -91,7 +85,7 @@ data class AyahRowModel(
     val status: AyahTodoStatus?,
     val weak: Boolean,
     val hasNote: Boolean,
-    /** The playing or picked ayah: tinted background, gold bar, "more" button. */
+    /** The playing or picked ayah: tinted background and gold bar. */
     val current: Boolean,
     /** Briefly marked when the reader opened on this ayah. */
     val flash: Boolean,
@@ -130,6 +124,10 @@ fun AyahRow(
      * a wash and the words can be tapped to play from them. Null for every other row, which is then drawn exactly as before.
      */
     follow: WordFollow? = null,
+    /** The row "Listen from here / Repeat / More" is open under this ayah (a tap on the ayah, U19). */
+    actionsOpen: Boolean = false,
+    onListen: (Int) -> Unit = {},
+    onRepeat: (Int) -> Unit = {},
 ) {
     val colors = QhTheme.colors
     val reduced = LocalReducedMotion.current
@@ -208,18 +206,6 @@ fun AyahRow(
                     val sajda = model.marks.sajda
                     if (sajda != null) SajdaSign(sajda = sajda, mushaf = mushaf, modifier = Modifier.padding(start = QhSpacing.x2))
                 }
-                AnimatedVisibility(
-                    visible = model.current && hifz == null,
-                    enter = if (reduced) fadeIn(tween(0)) else fadeIn(tween(QhMotion.Short)) + scaleIn(QhMotion.snappy(), initialScale = 0.6f),
-                    exit = if (reduced) fadeOut(tween(0)) else fadeOut(tween(QhMotion.Instant)) + scaleOut(tween(QhMotion.Instant), targetScale = 0.6f),
-                ) {
-                    QhIconButton(
-                        icon = Icons.Rounded.MoreHoriz,
-                        contentDescription = copy.ayahActions,
-                        onClick = { onMore(index) },
-                        filled = false,
-                    )
-                }
             }
             if (hifz == null) {
                 if (follow != null || meaningsOn) {
@@ -258,6 +244,13 @@ fun AyahRow(
                 } else if (translationMissing) {
                     TranslationMissingNote(copy = copy, onRetry = onRetryTranslation)
                 }
+                AyahActionRow(
+                    visible = actionsOpen,
+                    copy = rememberAyahActionsCopy(),
+                    onListen = { onListen(index) },
+                    onRepeat = { onRepeat(index) },
+                    onMore = { onMore(index) },
+                )
             } else {
                 HifzAyahContent(
                     state = hifz,

@@ -78,6 +78,5 @@ class HintFlags(private val store: HintStore) {
 
 /** The ids of the inline hints. */
 object Hints {
-    const val ReaderHold = "reader_hold"
     const val LessonGrade = "lesson_grade"
 }

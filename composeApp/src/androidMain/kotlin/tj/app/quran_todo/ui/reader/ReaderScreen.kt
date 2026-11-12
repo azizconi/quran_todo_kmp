@@ -14,6 +14,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -72,6 +74,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import tj.app.quran_todo.common.analytics.AppTelemetry
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.core.parameter.parametersOf
@@ -88,9 +91,6 @@ import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.Skeleton
 import tj.app.quran_todo.ui.components.ToastKind
-import tj.app.quran_todo.ui.components.hints.Hints
-import tj.app.quran_todo.ui.components.hints.InlineHint
-import tj.app.quran_todo.ui.components.hints.LocalHints
 import tj.app.quran_todo.ui.haptics.HapticKind
 import tj.app.quran_todo.ui.hifz.HifzEyeButton
 import tj.app.quran_todo.ui.hifz.HifzMode
@@ -103,13 +103,15 @@ import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.i18n.mushafCopy
 import tj.app.quran_todo.ui.i18n.pagesCopy
 import tj.app.quran_todo.ui.i18n.readerCopy
-import tj.app.quran_todo.ui.i18n.rememberHintsCopy
+import tj.app.quran_todo.ui.i18n.rememberAyahActionsCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
+import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.navigation.Origin
 import tj.app.quran_todo.ui.reader.components.AppearanceSheet
 import tj.app.quran_todo.ui.playback.WordFollow
 import tj.app.quran_todo.ui.reader.components.AyahRow
+import tj.app.quran_todo.ui.reader.components.TranslationOfferLine
 import tj.app.quran_todo.ui.reader.components.AyahRowModel
 import tj.app.quran_todo.ui.reader.components.AyahSheet
 import tj.app.quran_todo.ui.reader.components.AyahSheetModel
@@ -256,7 +258,7 @@ private fun ReaderContent(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPages: (surah: Int, ayah: Int) -> Unit,
 ) {
-    val hints = LocalHints.current
+    val uiPrefs = koinInject<UiPrefs>()
     val colors = QhTheme.colors
     val density = LocalDensity.current
     val settings = LocalAppSettings.current
@@ -464,6 +466,34 @@ private fun ReaderContent(
         rangeEndIndex = { if (practice.rangeEnabled) practice.endAyah - 1 else null },
     )
 
+    // The row of actions under a tapped ayah (U19): one at a time, closed by a second tap, by scrolling far away and by the memorize mode.
+    var actionRow by remember { mutableStateOf(AyahActionRowState()) }
+    LaunchedEffect(hifz.active) { if (hifz.active) actionRow = actionRow.closed() }
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val shown = listState.layoutInfo.visibleItemsInfo
+            if (shown.isEmpty()) null else (shown.first().index - HeaderItems) to (shown.last().index - HeaderItems)
+        }.collect { range -> if (range != null) actionRow = actionRow.scrolledAway(range.first, range.second) }
+    }
+    // Once the row has opened, make sure it is not hidden behind the player dock.
+    LaunchedEffect(actionRow.openIndex) {
+        val open = actionRow.openIndex ?: return@LaunchedEffect
+        delay(QhMotion.Short.toLong() + 40)
+        val info = listState.layoutInfo
+        val item = info.visibleItemsInfo.firstOrNull { it.index == open + HeaderItems } ?: return@LaunchedEffect
+        val bottom = info.viewportSize.height - info.afterContentPadding
+        val overflow = (item.offset + item.size - bottom).toFloat()
+        if (overflow > 0f && item.size < bottom - info.beforeContentPadding) {
+            if (reduced) listState.scrollBy(overflow) else listState.animateScrollBy(overflow)
+        }
+    }
+
+    // U22: the question about the translation, once; with the translation already on there is nothing to ask.
+    val offerAnswered by uiPrefs.translationOfferAnswered.collectAsState()
+    LaunchedEffect(prefs.showTranslation, offerAnswered) {
+        if (prefs.showTranslation && !offerAnswered) uiPrefs.setTranslationOfferAnswered(true)
+    }
+
     Box(
         Modifier
             .fillMaxSize()
@@ -502,7 +532,25 @@ private fun ReaderContent(
             nextSurah = if (surahNumber < 114) viewModel.nextSurahDisplay(surahNumber + 1, language, chapterNames, russianNames) else null,
             onSelect = { index ->
                 following = true
+                actionRow = actionRow.tapped(index)
                 viewModel.selectAyah(index)
+            },
+            actionsOpenIndex = if (hifz.active) null else actionRow.openIndex,
+            onListen = { index ->
+                following = true
+                actionRow = actionRow.closed()
+                viewModel.listenFrom(index)
+            },
+            onRepeat = { index ->
+                following = true
+                actionRow = actionRow.closed()
+                viewModel.repeatAyah(index)
+            },
+            offerTranslation = !prefs.showTranslation && !offerAnswered,
+            onOfferAnswer = { yes ->
+                AppTelemetry.logEvent("translation_offer_answer", mapOf("answer" to if (yes) "yes" else "no"))
+                uiPrefs.setTranslationOfferAnswered(true)
+                if (yes) viewModel.setShowTranslation(true)
             },
             followIndex = if (hifz.active) null else player.followIndex,
             followPlaying = player.active && player.isPlaying,
@@ -510,10 +558,7 @@ private fun ReaderContent(
                 following = true
                 viewModel.onWordTap(index, startMs)
             },
-            onMore = { index ->
-                hints.markUsed(Hints.ReaderHold)
-                sheet = ReaderSheet.Ayah(index)
-            },
+            onMore = { index -> sheet = ReaderSheet.Ayah(index) },
             onOpenStatus = { sheet = ReaderSheet.Surah(SurahSheetPage.Status) },
             onOpenNext = { onOpenReader(Dest.Reader(surah = surahNumber + 1, origin = Origin.NEXT)) },
             onStartOver = { onOpenReader(Dest.Reader(surah = 1, origin = Origin.NEXT)) },
@@ -757,6 +802,11 @@ private fun ReaderList(
     passage: IntRange?,
     nextSurah: NextSurahDisplay?,
     onSelect: (Int) -> Unit,
+    actionsOpenIndex: Int?,
+    onListen: (Int) -> Unit,
+    onRepeat: (Int) -> Unit,
+    offerTranslation: Boolean,
+    onOfferAnswer: (yes: Boolean) -> Unit,
     followIndex: Int?,
     followPlaying: Boolean,
     onWordTap: (index: Int, startMs: Int) -> Unit,
@@ -774,7 +824,7 @@ private fun ReaderList(
         modifier = modifier.fillMaxSize(),
     ) {
         item(key = "header", contentType = "header") {
-            // The hint sits inside the header item: the list indexes of the ayahs count one header item.
+            // The question about the translation sits inside the header item: the list indexes of the ayahs count one header item.
             Column {
                 ReaderHeader(
                     data = headerData,
@@ -787,10 +837,10 @@ private fun ReaderList(
                     enter = enter,
                     onStatusClick = onOpenStatus,
                 )
-                InlineHint(
-                    id = Hints.ReaderHold,
-                    text = rememberHintsCopy().readerHold,
-                    modifier = Modifier.padding(start = QhSpacing.screen),
+                TranslationOfferLine(
+                    visible = offerTranslation,
+                    copy = rememberAyahActionsCopy(),
+                    onAnswer = onOfferAnswer,
                 )
             }
         }
@@ -820,6 +870,9 @@ private fun ReaderList(
                 enter = enter,
                 onSelect = onSelect,
                 onMore = onMore,
+                actionsOpen = actionsOpenIndex == index,
+                onListen = onListen,
+                onRepeat = onRepeat,
                 hifz = hifzRow,
                 hifzControls = if (hifzRow != null) hifz.controlsFor(index) else null,
                 translationMissing = translationMissing && index == 0,
