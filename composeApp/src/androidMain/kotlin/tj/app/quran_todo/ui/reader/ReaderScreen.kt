@@ -17,6 +17,7 @@ import tj.app.quran_todo.ui.reader.components.AyahActionRow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.DragInteraction
@@ -708,7 +709,7 @@ private fun ReaderContent(
             }
         }
 
-        DockScrim(dockState = dockState, onClick = { scope.launch { dockState.collapse() } })
+        DockScrim(dockState = dockState, collapseLabel = copy.collapsePlayer, onClick = { scope.launch { dockState.collapse() } })
 
         PlayerDock(
             state = dockState,
@@ -837,6 +838,7 @@ private fun ReaderContent(
 @Composable
 private fun DockScrim(
     dockState: PlayerDockState,
+    collapseLabel: String,
     onClick: () -> Unit,
 ) {
     val scrim = QhTheme.colors.scrim
@@ -851,6 +853,8 @@ private fun DockScrim(
                     Modifier.clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
+                        onClickLabel = collapseLabel,
+                        role = Role.Button,
                         onClick = onClick,
                     )
                 } else {

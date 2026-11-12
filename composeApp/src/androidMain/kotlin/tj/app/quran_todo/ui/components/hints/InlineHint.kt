@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import tj.app.quran_todo.ui.i18n.rememberHintsCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
+import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /** The hints of the app. Without the app root above (previews, the catalog) the flags live in memory. */
@@ -57,7 +59,7 @@ fun InlineHint(
         enter = if (reduced) fadeIn(tween(0)) else fadeIn(tween(QhMotion.Short)) + expandVertically(tween(QhMotion.Medium)),
         exit = if (reduced) fadeOut(tween(0)) else fadeOut(tween(QhMotion.Short)) + shrinkVertically(tween(QhMotion.Medium)),
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().heightIn(min = QhSpacing.minTouch), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = text,
                 style = QhTheme.type.callout,
