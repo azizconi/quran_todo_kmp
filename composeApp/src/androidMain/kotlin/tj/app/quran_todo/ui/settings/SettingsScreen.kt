@@ -439,7 +439,7 @@ private fun SettingsContent(
     ) {
         // 1. Appearance
         SettingsSection(copy.sectionAppearance, Modifier.staggeredEnter(0, stagger)) {
-            SettingsBlock(title = copy.sectionAppearance, icon = Icons.Rounded.Contrast, tint = colors.gold) {
+            SettingsBlock(title = copy.theme, icon = Icons.Rounded.Contrast, tint = colors.gold) {
                 ThemeSegments(
                     copy = copy,
                     selectedIndex = themeIndex,
