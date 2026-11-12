@@ -20,6 +20,12 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
+    sourceSets {
+        // The phoneme model (Hisnlabs/tajweed-v2) runs on ONNX Runtime; the model file itself is downloaded to files/voice/ at run time.
+        androidMain.dependencies {
+            implementation(libs.onnxruntime.android)
+        }
+    }
 }
 
 android {

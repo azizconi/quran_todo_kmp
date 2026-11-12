@@ -63,6 +63,35 @@ class VoiceProtoCopy(private val ru: Boolean) {
     val saved = t("Сохранено", "Saved")
     val benchDone = t("Замер готов (files/voice/bench.json, logcat VoiceBench)", "Bench done (files/voice/bench.json, logcat VoiceBench)")
 
+    // Live (phonemes)
+    val liveTitle = t("Живая проверка (фонемы)", "Live (phonemes)")
+    val liveHint = t(
+        "Читайте отрывок по памяти: слова появляются по мере чтения. После стопа слова получают оценку.",
+        "Recite the passage from memory: the words appear as you say them. After stop the words get their verdicts.",
+    )
+    val downloadModel = t("Скачать модель (23 МБ)", "Download model (23 MB)")
+    fun downloading(percent: Int) = t("Загрузка модели… $percent%", "Downloading the model… $percent%")
+    fun downloadFailed(message: String) = t("Не удалось скачать: $message", "Download failed: $message")
+    val modelReady = t("Модель фонем загружена.", "The phoneme model is ready.")
+    val startLive = t("Начать (фонемы)", "Start live")
+    val stopLive = t("Стоп", "Stop")
+    val runPhonemes = t("Фонемы", "Phonemes")
+    val loadingModel = t("Загрузка модели в память…", "Loading the model…")
+    fun unfit(ref: String) = t(
+        "В отрывке есть аят без фонетической записи ($ref): эта проверка его не умеет.",
+        "The passage has an ayah without a phonetic script ($ref): this engine cannot check it.",
+    )
+    val noPassage = t("Нет такого отрывка.", "No such passage.")
+    fun wordsShown(shown: Int, total: Int) = t("слов: $shown из $total", "words: $shown of $total")
+    fun liveTimings(ticks: Int, mel: Long, model: Long, follow: Long, max: Long, audioSeconds: Double) = t(
+        "шаг $ticks: мел $mel мс, модель $model мс, сопоставление $follow мс; самый долгий шаг $max мс; запись %.1f с",
+        "tick $ticks: mel $mel ms, model $model ms, follow $follow ms; slowest tick $max ms; audio %.1f s",
+    ).format(audioSeconds)
+    fun finalTimings(audioMs: Long, mel: Long, model: Long, judge: Long) = t(
+        "запись %.1f с; мел $mel мс, модель $model мс, оценка $judge мс",
+        "audio %.1f s; mel $mel ms, model $model ms, judge $judge ms",
+    ).format(audioMs / 1000.0)
+
     companion object {
         /** Russian when the app is in Russian, English otherwise. */
         fun forApp(): VoiceProtoCopy =

@@ -116,6 +116,7 @@ private fun VoiceLab(autoBench: Boolean, splitAtPauses: Boolean) {
     val samplesDir = remember { WhisperEngine.samplesDir(context) }
     val arabic = rememberLessonArabicStyle()
     val recorder = remember { PcmRecorder() }
+    val phoneme = remember { PhonemeLabState(context, scope) }
 
     var models by remember { mutableStateOf(engine.availableModels()) }
     var model by remember { mutableStateOf(VoiceProto.defaultModel(models)) }
@@ -258,7 +259,7 @@ private fun VoiceLab(autoBench: Boolean, splitAtPauses: Boolean) {
 
         FlowRow(horizontalArrangement = Arrangement.spacedBy(QhSpacing.x2), verticalArrangement = Arrangement.spacedBy(QhSpacing.x1)) {
             if (!recording) {
-                QhButton(text = copy.record, size = QhButtonSize.S, enabled = !busy, onClick = {
+                QhButton(text = copy.record, size = QhButtonSize.S, enabled = !busy && !phoneme.running, onClick = {
                     if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                         if (recorder.start()) recording = true else status = copy.micFailed
                     } else permission.launch(Manifest.permission.RECORD_AUDIO)
@@ -281,6 +282,9 @@ private fun VoiceLab(autoBench: Boolean, splitAtPauses: Boolean) {
                     Text("$place%.1f s  ${item.date}".format(Locale.US, item.seconds), style = type.label, color = colors.inkTertiary)
                 }
                 QhButton(text = copy.run, size = QhButtonSize.S, variant = QhButtonVariant.Tonal, enabled = !busy, onClick = { run(item) })
+                QhButton(text = copy.runPhonemes, size = QhButtonSize.S, variant = QhButtonVariant.Tonal, enabled = !busy && !phoneme.busy && !phoneme.running, onClick = {
+                    scope.launch { phoneme.runSample(item.file, passageOf(item), copy) }
+                })
                 QhButton(text = copy.delete, size = QhButtonSize.S, variant = QhButtonVariant.Ghost, enabled = !busy, onClick = {
                     item.file.delete(); File(samplesDir, item.file.nameWithoutExtension + ".json").delete(); refresh()
                 })
@@ -288,6 +292,8 @@ private fun VoiceLab(autoBench: Boolean, splitAtPauses: Boolean) {
         }
 
         shown?.let { (passage, result) -> VoiceCheckResultView(passage, result, copy, arabic) }
+
+        PhonemeLabSection(phoneme, surah, from, to, copy, arabic)
     }
 }
 

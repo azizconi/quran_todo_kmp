@@ -76,6 +76,14 @@ class PcmRecorder {
         return shorts
     }
 
+    /** What was recorded so far as 16 bit samples, without stopping (the live check takes it every second). */
+    fun snapshot(): ShortArray {
+        val data = synchronized(bytes) { bytes.toByteArray() }
+        val shorts = ShortArray(data.size / 2)
+        ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
+        return shorts
+    }
+
     private fun peak(block: ByteArray, length: Int): Float {
         var max = 0
         var i = 0
