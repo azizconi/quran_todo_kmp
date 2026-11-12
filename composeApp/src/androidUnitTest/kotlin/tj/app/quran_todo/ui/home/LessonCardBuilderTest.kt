@@ -13,10 +13,13 @@ import tj.app.quran_todo.hifz.schedule.AyahMetric
 import tj.app.quran_todo.hifz.schedule.LessonBuilder
 import tj.app.quran_todo.hifz.schedule.LessonInput
 import tj.app.quran_todo.hifz.schedule.LessonPlan
+import tj.app.quran_todo.hifz.schedule.ReturnInfo
 import tj.app.quran_todo.hifz.schedule.TextMetrics
 import tj.app.quran_todo.ui.home.components.lineText
 import tj.app.quran_todo.ui.home.components.tomorrowText
 import tj.app.quran_todo.ui.i18n.homeCopy
+import tj.app.quran_todo.ui.i18n.lessonCardCopy
+import tj.app.quran_todo.ui.i18n.welcomeBackCopy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -224,6 +227,112 @@ class LessonCardBuilderTest {
         assertEquals(LessonLineKind.Recent, line.kind)
         assertEquals(1, line.doneCount)
         assertTrue(line.done)
+    }
+
+    // -- The faces of U16 ------------------------------------------------------------------------------
+
+    private fun info(missed: Int, startedToday: Boolean = false) =
+        ReturnInfo(missedDays = missed, lastStudyDay = today - missed - 1, startedToday = startedToday, bestStreak = 12)
+
+    private fun cardWith(
+        lesson: LessonPlan,
+        returnInfo: ReturnInfo? = null,
+        answered: Int? = null,
+        lighterUntil: Int? = null,
+        readGoal: Boolean = false,
+    ) = LessonCardBuilder.build(lesson, emptySet(), returnInfo, answered, lighterUntil, readGoal) { "S$it" }
+
+    private val doneLesson get() = lesson(
+        passages = listOf(passage(1, 114, 1, 3, due = today + 1, lastReviewed = today)),
+        todayLog = listOf(log(1, 1, 114, 1, 3, ReviewKind.NEW)),
+    )
+
+    @Test
+    fun returningFaceShowsAfterTwoMissedDaysWhenNotAnswered() {
+        val card = cardWith(lesson(), returnInfo = info(missed = 3))
+        assertEquals(LessonCardState.Returning, card.state)
+        assertEquals(3, card.missedDays)
+        assertEquals(listOf(LessonLineKind.New), card.lines.map { it.kind }, "the usual lines stay")
+        assertTrue(card.minutes >= 1)
+        // One missed day is not a return.
+        assertEquals(LessonCardState.Start, cardWith(lesson(), returnInfo = info(missed = 1)).state)
+        // No information yet: an ordinary start.
+        assertEquals(LessonCardState.Start, cardWith(lesson()).state)
+    }
+
+    @Test
+    fun returningFaceIsGoneOnceAnsweredOrStarted() {
+        val i = info(missed = 4)
+        // Answered today (after the last day of study): the lesson opens as usual, so the card is a plain Start.
+        val answered = cardWith(lesson(), returnInfo = i, answered = today)
+        assertEquals(LessonCardState.Start, answered.state)
+        assertEquals(0, answered.missedDays)
+        // An answer older than the last study day belongs to an earlier return: it asks again.
+        assertEquals(LessonCardState.Returning, cardWith(lesson(), returnInfo = i, answered = i.lastStudyDay!! - 1).state)
+        // Started today: Continue / Done win over Returning.
+        val started = lesson(
+            passages = listOf(passage(1, 114, 1, 3, due = today + 1, lastReviewed = today), passage(2, 113, 1, 2, due = today)),
+            todayLog = listOf(log(1, 1, 114, 1, 3, ReviewKind.NEW)),
+        )
+        assertEquals(LessonCardState.Continue, cardWith(started, returnInfo = i).state)
+        assertEquals(LessonCardState.Done, cardWith(doneLesson, returnInfo = i).state)
+    }
+
+    @Test
+    fun otherFacesIgnoreTheReturn() {
+        val i = info(missed = 5)
+        assertEquals(LessonCardState.NoPlan, cardWith(lesson(plan = null), returnInfo = i).state)
+        val pause = PlanPause(today - 1, today + 3)
+        val paused = LessonBuilder.build(LessonInput(today, plan(), emptyList(), emptyList(), metrics(), pause))
+        assertEquals(LessonCardState.Paused, cardWith(paused, returnInfo = i).state)
+        val whole = passage(1, 114, 1, 6, stage = PassageStage.OLD, due = null, lastReviewed = today - 1)
+        assertEquals(LessonCardState.PlanFinished, cardWith(lesson(passages = listOf(whole)), returnInfo = i).state)
+    }
+
+    @Test
+    fun doneFaceKeepsTomorrowAndHasNoMinutes() {
+        val card = cardWith(doneLesson)
+        assertEquals(LessonCardState.Done, card.state)
+        assertEquals(0, card.minutes)
+        assertTrue(card.tomorrow != null)
+    }
+
+    @Test
+    fun readGoalNoPlanIsQuietAndOthersAreNot() {
+        assertTrue(cardWith(lesson(plan = null), readGoal = true).quietInvite)
+        assertFalse(cardWith(lesson(plan = null), readGoal = false).quietInvite)
+        // The goal changes nothing for a lesson.
+        assertFalse(cardWith(lesson(), readGoal = true).quietInvite)
+    }
+
+    @Test
+    fun lighterWeekLineOnStartContinueAndDoneOnly() {
+        val until = today + 3
+        assertEquals(until, cardWith(lesson(), lighterUntil = until).lighterUntilEpochDay)
+        assertEquals(until, cardWith(doneLesson, lighterUntil = until).lighterUntilEpochDay)
+        val started = lesson(
+            passages = listOf(passage(1, 114, 1, 3, due = today + 1, lastReviewed = today), passage(2, 113, 1, 2, due = today)),
+            todayLog = listOf(log(1, 1, 114, 1, 3, ReviewKind.NEW)),
+        )
+        assertEquals(until, cardWith(started, lighterUntil = until).lighterUntilEpochDay)
+        // Over: no line.
+        assertNull(cardWith(lesson(), lighterUntil = today - 1).lighterUntilEpochDay)
+        assertNull(cardWith(lesson(), lighterUntil = null).lighterUntilEpochDay)
+        // Not on the other faces.
+        assertNull(cardWith(lesson(), returnInfo = info(3), lighterUntil = until).lighterUntilEpochDay)
+        assertNull(cardWith(lesson(plan = null), lighterUntil = until).lighterUntilEpochDay)
+    }
+
+    @Test
+    fun cardCopyIsFilledInEveryLanguage() {
+        for (language in AppLanguage.entries) {
+            val c = lessonCardCopy(language)
+            listOf(c.continueMemorizing, c.lessonSummary, c.quietInvite).forEach {
+                assertTrue(it.isNotBlank() && !it.contains('{'), "${language.name}: $it")
+            }
+        }
+        assertEquals("Продолжить заучивание", lessonCardCopy(AppLanguage.RU).continueMemorizing)
+        assertEquals("Пропущено 3 дн.", welcomeBackCopy(AppLanguage.RU).missed(3))
     }
 
     // -- The words of the card -----------------------------------------------------------------------

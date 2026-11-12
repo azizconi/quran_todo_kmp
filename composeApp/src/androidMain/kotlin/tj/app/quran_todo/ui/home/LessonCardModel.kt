@@ -5,6 +5,9 @@ import tj.app.quran_todo.hifz.model.AyahRange
 import tj.app.quran_todo.hifz.schedule.HifzConstants
 import tj.app.quran_todo.hifz.schedule.LessonNewState
 import tj.app.quran_todo.hifz.schedule.LessonPlan
+import tj.app.quran_todo.hifz.schedule.LighterWeek
+import tj.app.quran_todo.hifz.schedule.ReturnInfo
+import tj.app.quran_todo.hifz.schedule.WelcomeBack
 
 /** Which face the "Today's lesson" card shows. */
 enum class LessonCardState {
@@ -25,6 +28,12 @@ enum class LessonCardState {
 
     /** The plan is finished and nothing is left to repeat today: "Plan complete" and "New plan". */
     PlanFinished,
+
+    /**
+     * Not started, and the "Welcome back" screen is pending for today (task U16/U17, [WelcomeBack.shouldShow]): "Welcome back",
+     * "Missed 3 days", the lines of today and "Continue memorizing", which opens the lesson (where that screen appears).
+     */
+    Returning,
 }
 
 enum class LessonLineKind { New, Recent, Old }
@@ -86,12 +95,30 @@ data class LessonCardUi(
     val oldListen: OldListenUi? = null,
     /** [LessonCardState.Paused] only: the last day of the pause (the lessons come back the day after). */
     val pausedUntilEpochDay: Int = 0,
+    /** [LessonCardState.Returning] only: the full days missed. */
+    val missedDays: Int = 0,
+    /** Start, Continue, Done: the last day of an active lighter week (the quiet line "Lighter week: until ..."); null otherwise. */
+    val lighterUntilEpochDay: Int? = null,
+    /** [LessonCardState.NoPlan] only: the goal is reading and listening, so the invitation is one calm line and a secondary button. */
+    val quietInvite: Boolean = false,
 )
 
 /** Builds the card model from the lesson. Pure. */
 internal object LessonCardBuilder {
-    /** [nameOf] gives the name of a surah in the language of the app. */
-    fun build(lesson: LessonPlan, listenedToday: Set<Long> = emptySet(), nameOf: (Int) -> String): LessonCardUi {
+    /**
+     * [nameOf] gives the name of a surah in the language of the app. [returnInfo] and [welcomeBackAnswered] decide the "Returning" face
+     * with the same rule the lesson screen uses ([WelcomeBack.shouldShow]); [lighterUntil] is the stored end of a lighter week;
+     * [readGoal] is a person whose goal is only reading and listening (a calm "no plan" face).
+     */
+    fun build(
+        lesson: LessonPlan,
+        listenedToday: Set<Long> = emptySet(),
+        returnInfo: ReturnInfo? = null,
+        welcomeBackAnswered: Int? = null,
+        lighterUntil: Int? = null,
+        readGoal: Boolean = false,
+        nameOf: (Int) -> String,
+    ): LessonCardUi {
         // A paused day has no lesson at all: the card says so, whatever else the plan holds.
         lesson.paused?.let { pause -> return LessonCardUi(state = LessonCardState.Paused, pausedUntilEpochDay = pause.untilEpochDay) }
         val tomorrow = tomorrowOf(lesson, nameOf)
@@ -102,7 +129,11 @@ internal object LessonCardBuilder {
                 // A plan with something to learn always puts something into the lesson; this is only a safe answer.
                 else -> LessonCardState.Done
             }
-            return LessonCardUi(state = state, tomorrow = tomorrow.takeIf { state == LessonCardState.Done })
+            return LessonCardUi(
+                state = state,
+                tomorrow = tomorrow.takeIf { state == LessonCardState.Done },
+                quietInvite = state == LessonCardState.NoPlan && readGoal,
+            )
         }
         val oldListen = oldListenOf(lesson, listenedToday)
 
@@ -149,13 +180,20 @@ internal object LessonCardBuilder {
             }
         }
         val anythingDone = lines.any { it.doneCount > 0 }
+        val returning = !lesson.isComplete && !anythingDone && returnInfo != null && WelcomeBack.shouldShow(returnInfo, welcomeBackAnswered)
         val state = when {
             lesson.isComplete -> LessonCardState.Done
             anythingDone -> LessonCardState.Continue
+            returning -> LessonCardState.Returning
             else -> LessonCardState.Start
         }
         return LessonCardUi(
             state = state,
+            missedDays = if (returning) returnInfo!!.missedDays else 0,
+            lighterUntilEpochDay = lighterUntil?.takeIf {
+                LighterWeek.isActive(it, lesson.today) &&
+                    (state == LessonCardState.Start || state == LessonCardState.Continue || state == LessonCardState.Done)
+            },
             lines = lines,
             minutes = if (state == LessonCardState.Done) 0 else lesson.remainingMinutes.coerceAtLeast(1),
             catchingUp = lesson.catchingUp,
