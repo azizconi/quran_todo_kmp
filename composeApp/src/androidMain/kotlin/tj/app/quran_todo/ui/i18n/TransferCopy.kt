@@ -43,6 +43,8 @@ internal class CountNoun(
  */
 class TransferCopy internal constructor(
     val sectionTitle: String,
+    val backupTitle: String,
+    val backupDescription: String,
     val saveTitle: String,
     val saveDescription: String,
     val shareTitle: String,
@@ -144,6 +146,7 @@ fun rememberTransferCopy(language: AppLanguage = LocalAppLanguage.current): Tran
 fun transferCopy(language: AppLanguage): TransferCopy = when (language) {
     AppLanguage.EN -> TransferCopy(
         sectionTitle = "Transfer and backup",
+        backupTitle = "Backup", backupDescription = "Save, share or restore a copy of your data",
         saveTitle = "Save a copy to a file",
         saveDescription = "Progress, notes and settings in one file",
         shareTitle = "Send a copy",
@@ -184,6 +187,7 @@ fun transferCopy(language: AppLanguage): TransferCopy = when (language) {
 
     AppLanguage.RU -> TransferCopy(
         sectionTitle = "Перенос и копия",
+        backupTitle = "Резервная копия", backupDescription = "Сохранить, отправить или восстановить копию данных",
         saveTitle = "Сохранить копию в файл",
         saveDescription = "Прогресс, заметки и настройки — одним файлом",
         shareTitle = "Отправить копию",
@@ -224,6 +228,7 @@ fun transferCopy(language: AppLanguage): TransferCopy = when (language) {
 
     AppLanguage.TG -> TransferCopy(
         sectionTitle = "Интиқол ва нусха",
+        backupTitle = "Нусхаи захиравӣ", backupDescription = "Нусха гирифтан, фиристодан ё барқарор кардан",
         saveTitle = "Нусхаро дар файл захира кардан",
         saveDescription = "Пешрафт, ёддоштҳо ва танзимот дар як файл",
         shareTitle = "Фиристодани нусха",
@@ -264,6 +269,7 @@ fun transferCopy(language: AppLanguage): TransferCopy = when (language) {
 
     AppLanguage.UZ -> TransferCopy(
         sectionTitle = "Ko‘chirish va nusxa",
+        backupTitle = "Zaxira nusxa", backupDescription = "Nusxani saqlash, yuborish yoki tiklash",
         saveTitle = "Nusxani faylga saqlash",
         saveDescription = "Jarayon, eslatmalar va sozlamalar bitta faylda",
         shareTitle = "Nusxani yuborish",
@@ -304,6 +310,7 @@ fun transferCopy(language: AppLanguage): TransferCopy = when (language) {
 
     AppLanguage.TR -> TransferCopy(
         sectionTitle = "Aktarım ve yedek",
+        backupTitle = "Yedek", backupDescription = "Verilerin kopyasını kaydet, paylaş veya geri yükle",
         saveTitle = "Yedeği dosyaya kaydet",
         saveDescription = "İlerleme, notlar ve ayarlar tek dosyada",
         shareTitle = "Yedeği gönder",

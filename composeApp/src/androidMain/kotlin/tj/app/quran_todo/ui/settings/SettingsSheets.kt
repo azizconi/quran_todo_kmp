@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.Restore
+import androidx.compose.material.icons.rounded.SaveAlt
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
@@ -33,6 +36,7 @@ import tj.app.quran_todo.ui.components.QhButton
 import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.components.QhIconTile
+import tj.app.quran_todo.ui.components.QhNavRow
 import tj.app.quran_todo.ui.components.QhSheet
 import tj.app.quran_todo.ui.components.QhSlider
 import tj.app.quran_todo.ui.i18n.SettingsCopy
@@ -217,5 +221,49 @@ internal fun Modifier.bleed(horizontal: Dp): Modifier = layout { measurable, con
     val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
     layout(constraints.maxWidth, placeable.height) {
         placeable.place(-horizontal.roundToPx(), 0)
+    }
+}
+
+/**
+ * The three actions on a backup copy behind the single "Backup" row: save to a file, share, restore. The sheet closes first, then
+ * the system picker or the share chooser opens; the backup format and the transfer logic are untouched.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun BackupSheet(
+    copy: SettingsCopy,
+    onSave: () -> Unit,
+    onShare: () -> Unit,
+    onRestore: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val transfer = copy.transfer
+    val colors = QhTheme.colors
+    QhSheet(onDismiss = onDismiss) {
+        Column(verticalArrangement = Arrangement.spacedBy(QhSpacing.x1)) {
+            Text(text = transfer.backupTitle, style = QhTheme.type.title1, color = colors.ink)
+            Spacer(Modifier.height(QhSpacing.x2))
+            QhNavRow(
+                title = transfer.saveTitle,
+                description = transfer.saveDescription,
+                onClick = { onDismiss(); onSave() },
+                icon = Icons.Rounded.SaveAlt,
+                iconTint = colors.primary,
+            )
+            QhNavRow(
+                title = transfer.shareTitle,
+                description = transfer.shareDescription,
+                onClick = { onDismiss(); onShare() },
+                icon = Icons.Rounded.Share,
+                iconTint = colors.gold,
+            )
+            QhNavRow(
+                title = transfer.restoreTitle,
+                description = transfer.restoreDescription,
+                onClick = { onDismiss(); onRestore() },
+                icon = Icons.Rounded.FileOpen,
+                iconTint = colors.danger,
+            )
+        }
     }
 }
