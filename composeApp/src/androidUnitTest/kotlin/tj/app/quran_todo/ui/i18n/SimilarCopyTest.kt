@@ -59,9 +59,9 @@ class SimilarCopyTest {
         assertEquals("Повторяется 31 раз в суре Ар-Рахман", ru.repeatsInSurah(31, "Ар-Рахман"))
         assertEquals("Повторяется 3 раза", ru.repeats(3))
         assertEquals("Повторяется 10 раз", ru.repeats(10))
-        assertEquals("Различи похожие · 1 пара", ru.entry(1))
-        assertEquals("Различи похожие · 3 пары", ru.entry(3))
-        assertEquals("Различи похожие · 11 пар", ru.entry(11))
+        assertEquals("Различите похожие · 1 пара", ru.entry(1))
+        assertEquals("Различите похожие · 3 пары", ru.entry(3))
+        assertEquals("Различите похожие · 11 пар", ru.entry(11))
         assertEquals("Похож на Аль-Аъраф 19 — сравнить", ru.lessonHint("Аль-Аъраф 19"))
     }
 

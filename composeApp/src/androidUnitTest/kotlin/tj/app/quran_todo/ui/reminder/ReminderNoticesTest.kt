@@ -119,10 +119,10 @@ class ReminderNoticesTest {
                 "Продолжить чтение: Аль-Кахф, аят 12",
             ),
             AppLanguage.EN to listOf(
-                "Today: An-Naba 1–5 and 3 repetitions · ~12 min",
-                "Today: 3 repetitions · ~6 min",
+                "Today: An-Naba 1–5 and 3 reviews · ~12 min",
+                "Today: 3 reviews · ~6 min",
                 "Today: An-Naba 1–5 · ~5 min",
-                "Left: 2 repetitions · ~4 min",
+                "Left: 2 reviews · ~4 min",
                 "Continue reading: Al-Kahf, ayah 12",
             ),
             AppLanguage.TG to listOf(
@@ -190,7 +190,7 @@ class ReminderNoticesTest {
     @Test
     fun englishAndTheOtherLanguagesDoNotBreakOnOne() {
         assertEquals(
-            "Today: 1 repetition · ~2 min",
+            "Today: 1 review · ~2 min",
             reminderCopy(AppLanguage.EN).lessonBody(null, 1, 2, partlyDone = false),
         )
         assertEquals(
@@ -233,7 +233,7 @@ class ReminderNoticesTest {
             recent = listOf(item(1, done = false)),
             remainingMinutes = 3,
         )
-        assertEquals("Today: 1 repetition · ~3 min", build(AppLanguage.EN, deferredOnly)!!.body)
+        assertEquals("Today: 1 review · ~3 min", build(AppLanguage.EN, deferredOnly)!!.body)
     }
 
     @Test
@@ -243,7 +243,7 @@ class ReminderNoticesTest {
             recent = listOf(item(1, done = false)),
             remainingMinutes = 2,
         )
-        assertEquals("Left: 1 repetition · ~2 min", build(AppLanguage.EN, learnedAndOneLeft)!!.body)
+        assertEquals("Left: 1 review · ~2 min", build(AppLanguage.EN, learnedAndOneLeft)!!.body)
     }
 
     // ---- With the lessons the real scheduler makes ----
@@ -269,7 +269,7 @@ class ReminderNoticesTest {
         val lesson = built(passages = listOf(passage(1, 113, 1, 3)))
         val notice = ReminderNotices.build(AppLanguage.EN, lesson, null) { "S$it" }!!
         assertEquals(ReminderKind.LESSON, notice.kind)
-        assertTrue(notice.body.startsWith("Today: S114 1–3 and 1 repetition"), notice.body)
+        assertTrue(notice.body.startsWith("Today: S114 1–3 and 1 review"), notice.body)
     }
 
     @Test

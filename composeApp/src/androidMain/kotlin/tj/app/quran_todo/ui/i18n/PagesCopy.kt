@@ -56,7 +56,7 @@ fun pagesCopy(language: AppLanguage): PagesCopy = when (language) {
     AppLanguage.RU -> PagesCopy(
         language = language,
         openAsText = "Открыть текстом", openAsPages = "Открыть страницами",
-        notLoaded = "Страница не загружена. Нужен интернет один раз", retry = "Повторить",
+        notLoaded = "Страница не загружена. Нужен интернет один раз", retry = "Ещё раз",
         pageOfPattern = "Страница {n} из 604",
         downloadsSection = "Страницы мусхафа",
         downloadsHint = "Раскладка и шрифты режима «Страницы»: с ними страницы открываются без интернета.",
@@ -76,7 +76,7 @@ fun pagesCopy(language: AppLanguage): PagesCopy = when (language) {
     AppLanguage.TG -> PagesCopy(
         language = language,
         openAsText = "Бо матн кушодан", openAsPages = "Бо саҳифаҳо кушодан",
-        notLoaded = "Саҳифа бор нашудааст. Як бор интернет лозим аст", retry = "Такроран",
+        notLoaded = "Саҳифа бор нашудааст. Як бор интернет лозим аст", retry = "Бори дигар",
         pageOfPattern = "Саҳифаи {n} аз 604",
         downloadsSection = "Саҳифаҳои мусҳаф",
         downloadsHint = "Тарҳбандӣ ва шрифтҳои ҳолати «Саҳифаҳо»: бо онҳо саҳифаҳо бе интернет кушода мешаванд.",

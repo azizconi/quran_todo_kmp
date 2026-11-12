@@ -152,13 +152,13 @@ class ProgressCopyTest {
     @Test
     fun theHeroNamesTheSurahsKnownAndBeingLearnedAndLeavesOutZeros() {
         val en = progressCopy(AppLanguage.EN)
-        assertEquals("Know by heart: 3 surahs · Learning: 5 surahs", en.surahsLine(3, 5))
-        assertEquals("Know by heart: 1 surah", en.surahsLine(1, 0))
+        assertEquals("Memorized: 3 surahs · Learning: 5 surahs", en.surahsLine(3, 5))
+        assertEquals("Memorized: 1 surah", en.surahsLine(1, 0))
         assertEquals("Learning: 1 surah", en.surahsLine(0, 1))
         assertNull(en.surahsLine(0, 0))
         val ru = progressCopy(AppLanguage.RU)
-        assertEquals("Знаю наизусть: 3 суры · Учу: 5 сур", ru.surahsLine(3, 5))
-        assertEquals("Знаю наизусть: 21 сура", ru.surahsLine(21, 0))
+        assertEquals("Выучено: 3 суры · Учу: 5 сур", ru.surahsLine(3, 5))
+        assertEquals("Выучено: 21 сура", ru.surahsLine(21, 0))
     }
 
     @Test

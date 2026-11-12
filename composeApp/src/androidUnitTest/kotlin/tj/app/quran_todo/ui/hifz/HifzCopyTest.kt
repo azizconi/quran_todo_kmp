@@ -53,11 +53,11 @@ class HifzCopyTest {
 
     @Test
     fun theModeIsCalledCheckYourselfAndRevealFollowsTheGlossary() {
-        assertEquals("Проверь себя", hifzCopy(AppLanguage.RU).modeName)
+        assertEquals("Проверьте себя", hifzCopy(AppLanguage.RU).modeName)
         assertEquals("Check yourself", hifzCopy(AppLanguage.EN).modeName)
         assertEquals("Худро санҷед", hifzCopy(AppLanguage.TG).modeName)
         assertEquals("O‘zingizni tekshiring", hifzCopy(AppLanguage.UZ).modeName)
-        assertEquals("Kendini sına", hifzCopy(AppLanguage.TR).modeName)
+        assertEquals("Kendinizi sınayın", hifzCopy(AppLanguage.TR).modeName)
         assertEquals("Показать", hifzCopy(AppLanguage.RU).reveal)
         assertEquals("Reveal", hifzCopy(AppLanguage.EN).reveal)
         assertEquals("Нишон додан", hifzCopy(AppLanguage.TG).reveal)

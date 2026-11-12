@@ -806,8 +806,8 @@ private fun surahReaderCopy(language: AppLanguage): SurahReaderCopy = when (lang
     AppLanguage.RU -> SurahReaderCopy(
         ayah = "Аят", ayahs = "аятов", status = "Статус суры", of = "из",
         reciter = "Аль-Афаси", previous = "Предыдущий", next = "Следующий",
-        play = "Воспроизвести", pause = "Пауза", notStarted = "Не начал",
-        learning = "Заучиваю", learned = "Выучил", statusHint = "Выберите текущий статус суры.",
+        play = "Воспроизвести", pause = "Пауза", notStarted = "Не начато",
+        learning = "Учу", learned = "Выучено", statusHint = "Выберите текущий статус суры.",
     )
     AppLanguage.TG -> SurahReaderCopy(
         ayah = "Оят", ayahs = "оят", status = "Ҳолати сура", of = "аз",

@@ -227,6 +227,13 @@ private fun LessonBody(
             }
             Spacer(Modifier.height(QhSpacing.x1))
             card.lines.forEach { line -> LessonLine(line, copy, listen) }
+            // One line each for the two words of the method: what "Recent" and "Old" mean (U26).
+            if (card.lines.any { it.kind == LessonLineKind.Recent }) {
+                Text(cardCopy.recentHint, style = type.callout, color = colors.inkSecondary, modifier = Modifier.padding(top = QhSpacing.x1))
+            }
+            if (card.lines.any { it.kind == LessonLineKind.Old }) {
+                Text(cardCopy.oldHint, style = type.callout, color = colors.inkSecondary, modifier = Modifier.padding(top = QhSpacing.x1))
+            }
             if (card.catchingUp) {
                 Spacer(Modifier.height(QhSpacing.x2))
                 Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(QhSpacing.x2)) {

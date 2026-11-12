@@ -266,7 +266,7 @@ class LessonFlowTest {
         assertEquals("Завтра: 1 повторение", ru.tomorrow(null, 1))
         assertEquals("Завтра: 5 повторений", ru.tomorrow(null, 5))
         assertEquals("До завтра", ru.tomorrow(null, 0))
-        assertEquals("Tomorrow: 1 repetition", lessonCopy(AppLanguage.EN).tomorrow(null, 1))
-        assertEquals("Tomorrow: An-Naba 6–10 and 2 repetitions", lessonCopy(AppLanguage.EN).tomorrow("An-Naba 6–10", 2))
+        assertEquals("Tomorrow: 1 review", lessonCopy(AppLanguage.EN).tomorrow(null, 1))
+        assertEquals("Tomorrow: An-Naba 6–10 and 2 reviews", lessonCopy(AppLanguage.EN).tomorrow("An-Naba 6–10", 2))
     }
 }

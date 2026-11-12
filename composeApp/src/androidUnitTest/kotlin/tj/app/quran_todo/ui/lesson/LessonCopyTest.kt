@@ -56,7 +56,7 @@ class LessonCopyTest {
         val ru = lessonCopy(AppLanguage.RU)
         assertEquals(listOf("Новое", "Недавнее", "Старое"), listOf(ru.stepNew, ru.stepRecent, ru.stepOld))
         assertEquals("Урок дня", ru.title)
-        assertEquals(listOf("Послушай", "Прочитай", "Вспомни"), listOf(ru.phaseListen, ru.phaseRead, ru.phaseRecall))
+        assertEquals(listOf("Слушать", "Читать", "Вспомнить"), listOf(ru.phaseListen, ru.phaseRead, ru.phaseRecall))
     }
 
     @Test

@@ -124,10 +124,10 @@ data class AnalyticsCopy(
 fun analyticsCopy(language: AppLanguage): AnalyticsCopy = when (language) {
     AppLanguage.RU -> AnalyticsCopy(
         language = language,
-        detailsTitle = "Подробно", detailsBody = "Удержание по сурам и джузам, календарь года, прогноз по сурам и самые трудные места.",
+        detailsTitle = "Подробно", detailsBody = "Вспомнили с первого раза: по сурам и джузам, календарь года, прогноз по сурам и самые трудные места.",
         detailsOpen = "Открыть подробности", notesRowTitle = "Мои заметки", notesRowBody = "Все ваши заметки к аятам в одном месте.",
         screenTitle = "Подробно", back = "Назад",
-        retentionTitle = "Удержание", retentionHint = "Доля повторений без «Забыл» за 90 дней. Только там, где было хотя бы 3 повторения; слабые сверху.",
+        retentionTitle = "Вспомнили с первого раза", retentionHint = "Доля повторений без «Забыл» за 90 дней. Только там, где было хотя бы 3 повторения; слабые сверху.",
         toggleSurahs = "Суры", toggleJuz = "Джузы", retentionEmpty = "Пока мало повторений: нужно хотя бы 3 в одной суре.",
         heatTitle = "Календарь года", heatHint = "Каждая клетка — день. Чем темнее, тем больше было занятий.",
         legendLess = "Меньше", legendMore = "Больше", legendPause = "Пауза плана",
@@ -144,21 +144,21 @@ fun analyticsCopy(language: AppLanguage): AnalyticsCopy = when (language) {
         pickRangeTitle = "Выберите даты отчёта", pickRangeConfirm = "Готово", pickRangeCancel = "Отмена",
         reportStripLabel = "Дни периода",
         notesTitle = "Мои заметки", notesSearch = "Поиск по заметкам", notesSearchClear = "Очистить поиск",
-        notesEmptyTitle = "Заметок пока нет", notesEmptyBody = "Откройте аят в ридере, нажмите «Заметка» в листе аята и запишите мысль. Она появится здесь.",
+        notesEmptyTitle = "Заметок пока нет", notesEmptyBody = "Откройте аят в Коране, нажмите «Заметка» в листе аята и запишите мысль. Она появится здесь.",
         notesNoMatchTitle = "Ничего не найдено", notesNoMatchBody = "Попробуйте другое слово.",
         notesDeleted = "Заметка удалена", notesUndo = "Отменить", notesAyahFmt = "{name} · аят {n}", notesDeleteDescription = "Удалить заметку",
     )
     AppLanguage.EN -> AnalyticsCopy(
         language = language,
-        detailsTitle = "In detail", detailsBody = "Retention by surah and juz, a calendar of the year, a forecast by surah and the hardest places.",
+        detailsTitle = "In detail", detailsBody = "Recalled first time, by surah and juz, a calendar of the year, a forecast by surah and the hardest places.",
         detailsOpen = "Open the details", notesRowTitle = "My notes", notesRowBody = "All your notes on ayahs in one place.",
         screenTitle = "In detail", back = "Back",
-        retentionTitle = "Retention", retentionHint = "The share of repetitions without \"Forgot\" over 90 days. Only where there were at least 3 repetitions; the weakest on top.",
-        toggleSurahs = "Surahs", toggleJuz = "Juz", retentionEmpty = "Not enough repetitions yet: at least 3 in one surah.",
+        retentionTitle = "Recalled first time", retentionHint = "The share of reviews without \"Forgot\" over 90 days. Only where there were at least 3 reviews; the weakest on top.",
+        toggleSurahs = "Surahs", toggleJuz = "Juz", retentionEmpty = "Not enough reviews yet: at least 3 in one surah.",
         heatTitle = "Year calendar", heatHint = "Each cell is a day. The darker, the more you studied.",
         legendLess = "Less", legendMore = "More", legendPause = "Plan pause",
         activeDaysFmt = "Days with studying: {n}", previousYear = "Previous year", nextYear = "Next year",
-        bubbleFmt = "{date}: {parts}", dayNewFmt = "new {n}", dayReviewedFmt = "repeated {n}", dayListenedFmt = "listened {n}",
+        bubbleFmt = "{date}: {parts}", dayNewFmt = "new {n}", dayReviewedFmt = "reviewed {n}", dayListenedFmt = "listened {n}",
         dayNothing = "no studying", dayPause = "plan pause",
         forecastTitle = "Forecast by surah", forecastHint = "When you will finish each surah of the plan at the current pace.",
         forecastLearned = "covered", forecastCurrent = "now", forecastLeftFmt = "{n} left", forecastDateFmt = "~{date}",
@@ -176,10 +176,10 @@ fun analyticsCopy(language: AppLanguage): AnalyticsCopy = when (language) {
     )
     AppLanguage.TG -> AnalyticsCopy(
         language = language,
-        detailsTitle = "Муфассал", detailsBody = "Устуворӣ аз рӯи сура ва ҷузъ, тақвими сол, пешгӯии сураҳо ва душвортарин ҷойҳо.",
+        detailsTitle = "Муфассал", detailsBody = "Бори аввал ба ёд омад: аз рӯи сура ва ҷузъ, тақвими сол, пешгӯии сураҳо ва душвортарин ҷойҳо.",
         detailsOpen = "Кушодани муфассал", notesRowTitle = "Ёддоштҳои ман", notesRowBody = "Ҳамаи ёддоштҳои шумо ба оятҳо дар як ҷо.",
         screenTitle = "Муфассал", back = "Бозгашт",
-        retentionTitle = "Устуворӣ", retentionHint = "Ҳиссаи такрорҳо бе «Фаромӯш кардам» дар 90 рӯз. Танҳо дар ҷое, ки ақаллан 3 такрор буд; заифҳо дар боло.",
+        retentionTitle = "Бори аввал ба ёд омад", retentionHint = "Ҳиссаи такрорҳо бе «Фаромӯш кардам» дар 90 рӯз. Танҳо дар ҷое, ки ақаллан 3 такрор буд; заифҳо дар боло.",
         toggleSurahs = "Сураҳо", toggleJuz = "Ҷузъҳо", retentionEmpty = "Ҳоло такрор кам аст: дар як сура ақаллан 3 такрор лозим.",
         heatTitle = "Тақвими сол", heatHint = "Ҳар катак як рӯз аст. Ҳар қадар тиратар, ҳамон қадар машғулият зиёдтар.",
         legendLess = "Камтар", legendMore = "Бештар", legendPause = "Танаффуси нақша",
@@ -202,10 +202,10 @@ fun analyticsCopy(language: AppLanguage): AnalyticsCopy = when (language) {
     )
     AppLanguage.UZ -> AnalyticsCopy(
         language = language,
-        detailsTitle = "Batafsil", detailsBody = "Sura va juz bo‘yicha esda saqlash, yil taqvimi, suralar prognozi va eng qiyin joylar.",
+        detailsTitle = "Batafsil", detailsBody = "Sura va juz bo‘yicha birinchi marta esga tushganlar, yil taqvimi, suralar prognozi va eng qiyin joylar.",
         detailsOpen = "Batafsilni ochish", notesRowTitle = "Eslatmalarim", notesRowBody = "Oyatlarga yozgan barcha eslatmalaringiz bir joyda.",
         screenTitle = "Batafsil", back = "Orqaga",
-        retentionTitle = "Esda saqlash", retentionHint = "90 kunda «Unutdim»siz takrorlar ulushi. Kamida 3 takror bo‘lgan joylar; zaiflari tepada.",
+        retentionTitle = "Birinchi marta esga tushdi", retentionHint = "90 kunda «Unutdim»siz takrorlar ulushi. Kamida 3 takror bo‘lgan joylar; zaiflari tepada.",
         toggleSurahs = "Suralar", toggleJuz = "Juzlar", retentionEmpty = "Takror hali kam: bitta surada kamida 3 ta kerak.",
         heatTitle = "Yil taqvimi", heatHint = "Har bir katak — bir kun. Qanchalik to‘q bo‘lsa, shunchalik ko‘p shug‘ullangansiz.",
         legendLess = "Kamroq", legendMore = "Ko‘proq", legendPause = "Reja pauzasi",
@@ -228,10 +228,10 @@ fun analyticsCopy(language: AppLanguage): AnalyticsCopy = when (language) {
     )
     AppLanguage.TR -> AnalyticsCopy(
         language = language,
-        detailsTitle = "Ayrıntılı", detailsBody = "Sure ve cüze göre akılda kalma, yıl takvimi, sure tahmini ve en zor yerler.",
+        detailsTitle = "Ayrıntılı", detailsBody = "Sure ve cüze göre ilk seferde hatırlananlar, yıl takvimi, sure tahmini ve en zor yerler.",
         detailsOpen = "Ayrıntıları aç", notesRowTitle = "Notlarım", notesRowBody = "Ayetlere yazdığınız tüm notlar tek yerde.",
         screenTitle = "Ayrıntılı", back = "Geri",
-        retentionTitle = "Akılda kalma", retentionHint = "90 günde «Unuttum» denmeyen tekrarların payı. Yalnızca en az 3 tekrar olan yerler; en zayıflar üstte.",
+        retentionTitle = "İlk seferde hatırlanan", retentionHint = "90 günde «Unuttum» denmeyen tekrarların payı. Yalnızca en az 3 tekrar olan yerler; en zayıflar üstte.",
         toggleSurahs = "Sureler", toggleJuz = "Cüzler", retentionEmpty = "Henüz tekrar az: bir surede en az 3 tekrar gerekir.",
         heatTitle = "Yıl takvimi", heatHint = "Her kare bir gün. Ne kadar koyuysa o kadar çok çalıştınız.",
         legendLess = "Az", legendMore = "Çok", legendPause = "Plan molası",

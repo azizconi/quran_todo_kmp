@@ -101,7 +101,7 @@ fun drillCopy(language: AppLanguage): DrillCopy = when (language) {
     AppLanguage.TR -> DrillCopy(
         language = language,
         title = "Zor ayetleri çalış", progressFmt = "{a} / {b}", previousAyah = "Önceki ayet",
-        question = "Ardından gelen ayeti hatırla", ayahFmt = "Ayet {n}", exit = "Çalışmayı kapat",
+        question = "Ardından gelen ayeti hatırlayın", ayahFmt = "Ayet {n}", exit = "Çalışmayı kapat",
         saveFailed = "Sonuç kaydedilemedi",
         doneTitle = "Çalışma bitti", summaryFmt = "Hatırlıyorum: {a} · Hâlâ zor: {b}",
         moreFmt = "Gelecek sefer {n} ayet daha", done = "Bitti",
