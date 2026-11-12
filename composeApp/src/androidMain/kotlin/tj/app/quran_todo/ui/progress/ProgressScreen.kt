@@ -98,6 +98,8 @@ fun ProgressScreen(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
     onOpenDrill: () -> Unit,
+    /** The detailed analytics (`Dest.ProgressDetails`): year calendar, by surah and juz, forecast. */
+    onOpenDetails: () -> Unit,
     /** The room the tab scaffold needs under the last section (the floating mini player); only read when [onBack] is null. */
     tabBottomSpace: Dp = 0.dp,
 ) {
@@ -122,6 +124,7 @@ fun ProgressScreen(
         onOpenReader = onOpenReader,
         onOpenPlan = onOpenPlan,
         onOpenDrill = onOpenDrill,
+        onOpenDetails = onOpenDetails,
         onShareReport = { sheetOpen = true },
     )
     if (sheetOpen) {
@@ -202,6 +205,7 @@ private fun ProgressContent(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
     onOpenDrill: () -> Unit,
+    onOpenDetails: () -> Unit,
     onShareReport: () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -234,6 +238,7 @@ private fun ProgressContent(
                 onOpenReader = onOpenReader,
                 onOpenPlan = onOpenPlan,
                 onOpenDrill = onOpenDrill,
+                onOpenDetails = onOpenDetails,
                 onShareReport = onShareReport,
                 scrollState = scrollState,
                 stagger = stagger,
@@ -279,6 +284,7 @@ private fun Body(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
     onOpenDrill: () -> Unit,
+    onOpenDetails: () -> Unit,
     onShareReport: () -> Unit,
     scrollState: ScrollState,
     stagger: StaggerState,
@@ -333,7 +339,14 @@ private fun Body(
             }
         }
         // The report for the teacher: a row under the blocks (and the share action of the top bar).
-        ReportSection(copy = copy, onShare = onShareReport, modifier = Modifier.staggeredEnter(5, stagger))
+        val language = LocalAppLanguage.current
+        ReportSection(
+            copy = copy,
+            analytics = remember(language) { analyticsCopy(language) },
+            onOpenDetails = onOpenDetails,
+            onShare = onShareReport,
+            modifier = Modifier.staggeredEnter(5, stagger),
+        )
     }
 }
 

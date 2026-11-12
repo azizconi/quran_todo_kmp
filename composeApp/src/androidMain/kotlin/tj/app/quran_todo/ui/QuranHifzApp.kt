@@ -453,6 +453,7 @@ private fun AppNavigation() {
             // A khatm is read in pages: the pages open whatever mode the reader is in.
             openMushaf = { page -> navController.navigateOnce(Dest.Mushaf(page = page)) },
             openDrill = { navController.navigateOnce(Dest.HardDrill) },
+            openDetails = { navController.navigateOnce(Dest.ProgressDetails) },
             openCatalog = if (isDebuggable) {
                 { navController.navigateOnce(Dest.Catalog) }
             } else {

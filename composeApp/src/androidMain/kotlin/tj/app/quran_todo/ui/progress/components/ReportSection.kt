@@ -3,6 +3,8 @@ package tj.app.quran_todo.ui.progress.components
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.PaddingValues
 import tj.app.quran_todo.ui.components.QhNavRow
+import tj.app.quran_todo.ui.components.QhRowDivider
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -44,21 +46,36 @@ import tj.app.quran_todo.ui.progress.report.ReportPeriod
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
-/** The row at the bottom of the page that opens the choice of the period of the report for the teacher. */
+/**
+ * The card at the bottom of the page: "In detail" (the analytics screen: year calendar, by surah and juz, forecast) and the report for
+ * the teacher, which opens the choice of the period.
+ */
 @Composable
 internal fun ReportSection(
     copy: ProgressCopy,
+    analytics: AnalyticsCopy,
+    onOpenDetails: () -> Unit,
     onShare: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     QhCard(modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 4.dp)) {
-        QhNavRow(
-            title = copy.reportAction,
-            description = copy.reportRowBody,
-            onClick = onShare,
-            icon = Icons.Rounded.Share,
-            iconTint = QhTheme.colors.primary,
-        )
+        Column {
+            QhNavRow(
+                title = analytics.detailsTitle,
+                description = analytics.detailsBody,
+                onClick = onOpenDetails,
+                icon = Icons.Rounded.BarChart,
+                iconTint = QhTheme.colors.primary,
+            )
+            QhRowDivider()
+            QhNavRow(
+                title = copy.reportAction,
+                description = copy.reportRowBody,
+                onClick = onShare,
+                icon = Icons.Rounded.Share,
+                iconTint = QhTheme.colors.primary,
+            )
+        }
     }
 }
 

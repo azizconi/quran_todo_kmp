@@ -71,6 +71,7 @@ class MainTabActions(
     val openKhatmPicker: () -> Unit,
     val openMushaf: (page: Int) -> Unit,
     val openDrill: () -> Unit,
+    val openDetails: () -> Unit,
     /** Non-null in debug builds only. */
     val openCatalog: (() -> Unit)?,
 )
@@ -141,6 +142,7 @@ fun MainTabs(
                         onOpenReader = actions.openReader,
                         onOpenPlan = actions.openPlan,
                         onOpenDrill = actions.openDrill,
+                        onOpenDetails = actions.openDetails,
                         tabBottomSpace = listBottomPadding(0.dp, playerVisible = player != null, fontScale = density.fontScale),
                     )
                 }
