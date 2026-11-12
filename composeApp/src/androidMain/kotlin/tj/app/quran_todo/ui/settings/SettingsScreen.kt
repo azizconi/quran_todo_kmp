@@ -27,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Animation
 import androidx.compose.material.icons.rounded.Contrast
-import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Highlight
@@ -36,13 +35,12 @@ import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.SaveAlt
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material.icons.rounded.Repeat
-import androidx.compose.material.icons.rounded.SaveAlt
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.Source
 import androidx.compose.material.icons.rounded.Speed
@@ -128,14 +126,12 @@ import tj.app.quran_todo.ui.motion.sharedElementKey
 import tj.app.quran_todo.ui.motion.staggeredEnter
 import tj.app.quran_todo.ui.reminder.ReminderSection
 import tj.app.quran_todo.ui.state.HifzHintMode
-import tj.app.quran_todo.ui.hifz.HintSheet
 import tj.app.quran_todo.ui.i18n.analyticsCopy
-import tj.app.quran_todo.ui.i18n.hifzCopy
 import tj.app.quran_todo.ui.state.ReaderLayout
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
-private enum class SettingsSheet { Typography, Language }
+private enum class SettingsSheet { Typography, Language, Backup }
 
 
 
@@ -301,9 +297,7 @@ fun SettingsScreen(
                 stagger = stagger,
                 onOpenTypography = { sheet = SettingsSheet.Typography },
                 onOpenLanguage = { sheet = SettingsSheet.Language },
-                onSaveCopy = { saveLauncher.launch(BackupFormat.fileName(System.currentTimeMillis())) },
-                onShareCopy = viewModel::exportForShare,
-                onRestoreFromFile = { openLauncher.launch(arrayOf(BackupFormat.MIME_TYPE, "*/*")) },
+                onOpenBackup = { sheet = SettingsSheet.Backup },
                 onOpenPrivacy = onOpenPrivacy,
                 onOpenSources = onOpenSources,
                 onOpenPlan = onOpenPlan,
@@ -362,6 +356,14 @@ fun SettingsScreen(
             )
         }
 
+        SettingsSheet.Backup -> BackupSheet(
+            copy = copy,
+            onSave = { saveLauncher.launch(BackupFormat.fileName(System.currentTimeMillis())) },
+            onShare = viewModel::exportForShare,
+            onRestore = { openLauncher.launch(arrayOf(BackupFormat.MIME_TYPE, "*/*")) },
+            onDismiss = { sheet = null },
+        )
+
         null -> Unit
     }
 
@@ -386,9 +388,7 @@ private fun SettingsContent(
     stagger: StaggerState,
     onOpenTypography: () -> Unit,
     onOpenLanguage: () -> Unit,
-    onSaveCopy: () -> Unit,
-    onShareCopy: () -> Unit,
-    onRestoreFromFile: () -> Unit,
+    onOpenBackup: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenSources: () -> Unit,
     onOpenPlan: () -> Unit,
@@ -415,7 +415,6 @@ private fun SettingsContent(
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val hapticsEnabled by viewModel.hapticsEnabled.collectAsState()
     val reduceMotion by viewModel.reduceMotion.collectAsState()
-    val hintMode by viewModel.hifzHintMode.collectAsState()
     val followsSystem by viewModel.themeFollowsSystem.collectAsState()
     val analyticsEnabled by viewModel.analyticsEnabled.collectAsState()
     val lastExportAt by viewModel.lastExportAt.collectAsState()
@@ -440,7 +439,7 @@ private fun SettingsContent(
     ) {
         // 1. Appearance
         SettingsSection(copy.sectionAppearance, Modifier.staggeredEnter(0, stagger)) {
-            SettingsBlock(title = copy.theme, icon = Icons.Rounded.Contrast, tint = colors.gold) {
+            SettingsBlock(title = copy.sectionAppearance, icon = Icons.Rounded.Contrast, tint = colors.gold) {
                 ThemeSegments(
                     copy = copy,
                     selectedIndex = themeIndex,
@@ -452,9 +451,8 @@ private fun SettingsContent(
                         }
                     },
                 )
-            }
-            QhRowDivider()
-            SettingsBlock(title = copy.palette, icon = Icons.Rounded.Palette, tint = colors.primary) {
+                // The palette is the second row of the same block.
+                Text(text = copy.palette, style = QhTheme.type.callout, color = colors.inkSecondary)
                 PaletteSwatches(
                     selected = palette,
                     onSelect = themeSwitcher::switchPalette,
@@ -468,6 +466,28 @@ private fun SettingsContent(
                 onClick = onOpenTypography,
                 icon = Icons.Rounded.TextFields,
                 iconTint = colors.due,
+            )
+            QhRowDivider()
+            QhSwitchRow(
+                title = copy.haptics,
+                description = copy.hapticsDescription,
+                checked = hapticsEnabled,
+                onCheckedChange = { on ->
+                    viewModel.setHapticsEnabled(on)
+                    // The theme's own haptics are still off at this moment: let the person feel the new state.
+                    if (on) hapticsDemo.perform(HapticKind.Success)
+                },
+                icon = Icons.Rounded.Vibration,
+                iconTint = colors.primary,
+            )
+            QhRowDivider()
+            QhSwitchRow(
+                title = copy.reduceMotion,
+                description = copy.reduceMotionDescription,
+                checked = reduceMotion,
+                onCheckedChange = viewModel::setReduceMotion,
+                icon = Icons.Rounded.Animation,
+                iconTint = colors.gold,
             )
         }
 
@@ -525,26 +545,6 @@ private fun SettingsContent(
                 icon = Icons.Rounded.Flag,
                 iconTint = colors.gold,
             )
-            QhRowDivider()
-            // The five levels of the hint of "Recall" (task F2a): the same sheet as the chip under the buttons of "Recall".
-            val recallCopy = remember(language) { hifzCopy(language) }
-            var hintOpen by remember { mutableStateOf(false) }
-            QhNavRow(
-                title = copy.hintRow(recallCopy.hintName(hintMode)),
-                description = copy.hintRowDescription,
-                onClick = { hintOpen = true },
-                icon = Icons.Rounded.Lightbulb,
-                iconTint = colors.primary,
-            )
-            if (hintOpen) {
-                HintSheet(
-                    copy = recallCopy,
-                    current = hintMode,
-                    ayah = null,
-                    onPick = viewModel::setHifzHintMode,
-                    onDismiss = { hintOpen = false },
-                )
-            }
         }
 
         // 5. Reminder
@@ -587,67 +587,13 @@ private fun SettingsContent(
             footnote = transfer.footnote,
         ) {
             QhNavRow(
-                title = transfer.saveTitle,
+                title = transfer.backupTitle,
                 description = lastExportAt?.let { transfer.lastBackupLabel(it, System.currentTimeMillis()) }
-                    ?: transfer.saveDescription,
-                onClick = onSaveCopy,
+                    ?: transfer.backupDescription,
+                onClick = onOpenBackup,
                 icon = Icons.Rounded.SaveAlt,
                 iconTint = colors.primary,
                 enabled = !transferBusy,
-            )
-            QhRowDivider()
-            QhNavRow(
-                title = transfer.shareTitle,
-                description = transfer.shareDescription,
-                onClick = onShareCopy,
-                icon = Icons.Rounded.Share,
-                iconTint = colors.gold,
-                enabled = !transferBusy,
-            )
-            QhRowDivider()
-            QhNavRow(
-                title = transfer.restoreTitle,
-                description = transfer.restoreDescription,
-                onClick = onRestoreFromFile,
-                icon = Icons.Rounded.FileOpen,
-                iconTint = colors.danger,
-                enabled = !transferBusy,
-            )
-        }
-
-        // 9. Comfort
-        SettingsSection(copy.sectionComfort, Modifier.staggeredEnter(8, stagger)) {
-            QhSwitchRow(
-                title = copy.haptics,
-                description = copy.hapticsDescription,
-                checked = hapticsEnabled,
-                onCheckedChange = { on ->
-                    viewModel.setHapticsEnabled(on)
-                    // The theme's own haptics are still off at this moment: let the person feel the new state.
-                    if (on) hapticsDemo.perform(HapticKind.Success)
-                },
-                icon = Icons.Rounded.Vibration,
-                iconTint = colors.primary,
-            )
-            QhRowDivider()
-            QhSwitchRow(
-                title = copy.reduceMotion,
-                description = copy.reduceMotionDescription,
-                checked = reduceMotion,
-                onCheckedChange = viewModel::setReduceMotion,
-                icon = Icons.Rounded.Animation,
-                iconTint = colors.gold,
-            )
-            QhRowDivider()
-            QhNavRow(
-                title = copy.showTipsAgain,
-                description = copy.showTipsAgainDescription,
-                onClick = {
-                    hints.resetAll()
-                    toaster.show(copy.tipsWillShowAgain, ToastKind.Success)
-                },
-                icon = Icons.Rounded.Lightbulb,
-                iconTint = colors.gold,
             )
         }
 
@@ -697,6 +643,17 @@ private fun SettingsContent(
                     if (!openStoreListing(context)) toaster.show(copy.storeUnavailable, ToastKind.Error)
                 },
                 icon = Icons.Rounded.ThumbUp,
+                iconTint = colors.gold,
+            )
+            QhRowDivider()
+            QhNavRow(
+                title = copy.showTipsAgain,
+                description = copy.showTipsAgainDescription,
+                onClick = {
+                    hints.resetAll()
+                    toaster.show(copy.tipsWillShowAgain, ToastKind.Success)
+                },
+                icon = Icons.Rounded.Lightbulb,
                 iconTint = colors.gold,
             )
         }
