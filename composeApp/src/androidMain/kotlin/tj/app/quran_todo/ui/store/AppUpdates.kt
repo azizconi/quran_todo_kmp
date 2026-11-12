@@ -35,8 +35,9 @@ import tj.app.quran_todo.common.analytics.AppTelemetry
  * Android Studio, sideloaded APKs) Play answers with an error and nothing is shown.
  */
 class AppUpdates(private val activity: ComponentActivity) {
-    private val manager: AppUpdateManager = AppUpdateManagerFactory.create(activity.applicationContext)
-    private val prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    // Lazy: this object is made as a property of the activity, when the activity has no context yet (it gets one in onCreate).
+    private val manager: AppUpdateManager by lazy { AppUpdateManagerFactory.create(activity.applicationContext) }
+    private val prefs by lazy { activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
     private var offeredVersion: Int = 0
 
     private val launcher: ActivityResultLauncher<IntentSenderRequest> =
