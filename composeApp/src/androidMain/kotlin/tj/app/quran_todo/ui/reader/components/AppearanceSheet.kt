@@ -19,9 +19,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.DarkMode
-import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -57,12 +54,12 @@ import tj.app.quran_todo.common.utils.getQuranFontFamily
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.components.QhRowDivider
 import tj.app.quran_todo.ui.components.QhSectionHeader
-import tj.app.quran_todo.ui.components.QhSegmentedControl
 import tj.app.quran_todo.ui.components.QhSheet
 import tj.app.quran_todo.ui.components.QhSlider
 import tj.app.quran_todo.ui.components.QhSwitchRow
 import tj.app.quran_todo.ui.haptics.HapticKind
 import tj.app.quran_todo.ui.i18n.ReaderCopy
+import tj.app.quran_todo.ui.i18n.rememberSettingsCopy
 import tj.app.quran_todo.ui.motion.AnimatedCounter
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.orSnap
@@ -70,6 +67,7 @@ import tj.app.quran_todo.ui.motion.pressable
 import tj.app.quran_todo.ui.motion.rememberThemeSwitcher
 import tj.app.quran_todo.ui.motion.themeRevealOriginTracker
 import tj.app.quran_todo.ui.reader.BismillahText
+import tj.app.quran_todo.ui.settings.ThemeSegments
 import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.tajweed.TajweedSettingsRows
 import tj.app.quran_todo.ui.similar.SimilarMarksSwitchRow
@@ -96,12 +94,13 @@ fun AppearanceSheet(
     onDismiss: () -> Unit,
 ) {
     val colors = QhTheme.colors
-    val strings = LocalAppStrings.current
     val settings = LocalAppSettings.current
     val setSettings = LocalAppSettingsSetter.current
     val themeMode = LocalThemeMode.current
     val themeSwitcher = rememberThemeSwitcher()
     val uiPrefs = koinInject<UiPrefs>()
+    val followsSystem by uiPrefs.themeFollowsSystem.collectAsState()
+    val settingsCopy = rememberSettingsCopy()
     val keepScreenOn by uiPrefs.keepScreenOn.collectAsState()
     val highlightWords by uiPrefs.highlightWords.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -199,11 +198,21 @@ fun AppearanceSheet(
             // Theme
             Column(verticalArrangement = Arrangement.spacedBy(QhSpacing.x2)) {
                 QhSectionHeader(copy.theme)
-                QhSegmentedControl(
-                    options = listOf(strings.themeLight, strings.themeDark),
-                    selectedIndex = if (themeMode == ThemeMode.DARK) 1 else 0,
-                    onSelect = { themeSwitcher.switch(if (it == 1) ThemeMode.DARK else ThemeMode.LIGHT) },
-                    icons = listOf(Icons.Rounded.LightMode, Icons.Rounded.DarkMode),
+                // The same Light / Dark / System control and preference as the settings screen.
+                ThemeSegments(
+                    copy = settingsCopy,
+                    selectedIndex = when {
+                        followsSystem -> 2
+                        themeMode == ThemeMode.DARK -> 1
+                        else -> 0
+                    },
+                    onSelect = { index ->
+                        when (index) {
+                            0 -> themeSwitcher.switch(ThemeMode.LIGHT)
+                            1 -> themeSwitcher.switch(ThemeMode.DARK)
+                            else -> themeSwitcher.reveal { uiPrefs.setThemeFollowsSystem(true) }
+                        }
+                    },
                 )
             }
         }
