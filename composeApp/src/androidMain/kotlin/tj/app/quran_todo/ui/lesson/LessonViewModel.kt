@@ -29,6 +29,7 @@ import tj.app.quran_todo.data.database.entity.quran.SurahWithAyahs
 import tj.app.quran_todo.domain.model.ChapterNameModel
 import tj.app.quran_todo.hifz.EpochDayTicker
 import tj.app.quran_todo.hifz.HifzRepository
+import tj.app.quran_todo.hifz.model.AyahRange
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.hifz.schedule.LessonNewState
 import tj.app.quran_todo.hifz.schedule.LessonPlan
@@ -137,6 +138,25 @@ class LessonViewModel(
 
     fun onLanguage(language: AppLanguage) {
         surahViewModel.loadChapterNames(language)
+    }
+
+    // -- Translation (Listen and Read) --------------------------------------------------------------------
+
+    /** The "Translation" chip of Listen and Read; its own choice, not the reader's setting. */
+    val translationOn: StateFlow<Boolean> = uiPrefs.lessonTranslation
+
+    fun setTranslationOn(on: Boolean) = uiPrefs.setLessonTranslation(on)
+
+    /** Translations by global ayah number, from the same source and edition as the reader ([SurahViewModel]). */
+    val translations: StateFlow<Map<Int, String>> = surahViewModel.ayahTranslations
+
+    /** "Translation not loaded · Retry": the chip is on and the translation of [surah] could not be loaded. */
+    val translationFailedSurah: StateFlow<Int?> = surahViewModel.translationFailedSurah
+
+    /** Loads the translation of the card's surah (the reader's rule: once per surah and edition); [force] is the "Retry". */
+    fun ensureTranslations(work: LessonUi.Working, language: AppLanguage, force: Boolean = false) {
+        val surah = work.surah ?: return
+        surahViewModel.loadTranslations(work.card.range.surah, language, surah.ayahs.size, force)
     }
 
     /** The name of a surah by the one rule of the Android UI ([SurahNames]). */
@@ -404,6 +424,43 @@ class LessonViewModel(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    // How far the Listen sequence has got: the session's place in the explicit script, kept with the plan it was built from.
+    private val listenRun = MutableStateFlow<ListenRun?>(null)
+    private val _listenProgress = MutableStateFlow<ListenProgress?>(null)
+
+    /** Where the Listen sequence is ("Ayah 2 of 6 · repeat 1 of 3"), or null when it is not running; [ListenProgress.done] at its end. */
+    val listenProgress: StateFlow<ListenProgress?> = _listenProgress
+
+    init {
+        viewModelScope.launch {
+            combine(listenRun, playback.nowPlaying, playback.state) { run, now, state -> Triple(run, now?.surahNumber, state) }
+                .collect { (run, surah, state) ->
+                    _listenProgress.value = ListenProgress.next(_listenProgress.value, run, surah, state)
+                }
+        }
+    }
+
+    private fun setListenRun(run: ListenRun?) {
+        _listenProgress.value = null
+        listenRun.value = run
+    }
+
+    private fun listenRunOf(range: AyahRange) = ListenRun(
+        surah = range.surah,
+        ayahCount = range.endAyah - range.startAyah + 1,
+        ayahRepeats = uiPrefs.lessonAyahRepeats.value,
+        passageRepeats = uiPrefs.lessonPassageRepeats.value,
+    )
+
+    /**
+     * The Listen sequence played to its end: the card goes on to "Read". Once: [goTo] forgets the run, so coming back to "Listen"
+     * later does not jump again.
+     */
+    fun onListenFinished(work: LessonUi.Working) {
+        if (work.progress.phase != CardPhase.Listen || _listenProgress.value?.done != true) return
+        goTo(work, CardPhase.Read)
+    }
+
     private fun audioFor(surah: Int): RecallAudio {
         val current = audioHolder.value
         if (current != null && audioSurah == surah) return current
@@ -419,19 +476,24 @@ class LessonViewModel(
         val sequence = ListenPlan.sequence(
             range.startAyah, range.endAyah, uiPrefs.lessonAyahRepeats.value, uiPrefs.lessonPassageRepeats.value,
         )
-        audioFor(range.surah).toggleSequence(surah, sequence, echo = uiPrefs.lessonEcho.value)
+        val audio = audioFor(range.surah)
+        // Pausing or resuming keeps the run; a start begins a new one.
+        if (!audio.state.value.active) setListenRun(listenRunOf(range))
+        audio.toggleSequence(surah, sequence, echo = uiPrefs.lessonEcho.value)
     }
 
     /** "Listen first" of a repetition: the passage once. */
     fun toggleListenOnce(work: LessonUi.Working) {
         val surah = work.surah ?: return
         val range = work.card.range
+        setListenRun(null)
         audioFor(range.surah).toggleSequence(surah, ListenPlan.once(range.startAyah, range.endAyah))
     }
 
     /** One ayah: a tap in the "Read" phase, the headphones in "Recall". */
     fun toggleListenAyah(work: LessonUi.Working, inSurah: Int) {
         val surah = work.surah ?: return
+        setListenRun(null)
         audioFor(work.card.range.surah).toggleAyah(surah, inSurah)
     }
 
@@ -442,11 +504,13 @@ class LessonViewModel(
         val sequence = ListenPlan.sequence(
             range.startAyah, range.endAyah, uiPrefs.lessonAyahRepeats.value, uiPrefs.lessonPassageRepeats.value,
         )
+        setListenRun(listenRunOf(range))
         audioFor(range.surah).restartSequence(surah, sequence, echo = uiPrefs.lessonEcho.value)
     }
 
     /** Silences the lesson's own sound (a phase or a card is over). */
     fun stopAudio() {
+        setListenRun(null)
         audioHolder.value?.stopAll()
     }
 

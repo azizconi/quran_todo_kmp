@@ -30,6 +30,12 @@ data class ReaderAudioState(
     val positionMs: Long = 0,
     val durationMs: Long = 0,
     val hasError: Boolean = false,
+    /** While an explicit script ([ReaderAudioSession.playScript]) is on: the place in it (0-based), else -1. */
+    val scriptPosition: Int = -1,
+    /** The number of steps of that script; 0 outside a script. */
+    val scriptLength: Int = 0,
+    /** The script has been played to its very end by itself (not stopped, skipped away or restarted). */
+    val scriptDone: Boolean = false,
 )
 
 /** Owned by a reader screen. All commands and callbacks run on the main dispatcher. */
@@ -220,7 +226,10 @@ class ReaderAudioSession internal constructor(
         repeatsRemaining = step.repeatsRemaining
         echoRound = step.echoRound
         sequenceCompleted = false
-        mutableState.value = ReaderAudioState(index = step.index, isPlaying = true, isPreparing = true)
+        mutableState.value = ReaderAudioState(
+            index = step.index, isPlaying = true, isPreparing = true,
+            scriptPosition = if (script != null) step.repeatsRemaining else -1, scriptLength = script?.size ?: 0,
+        )
         savePosition(step.index)
         pendingJob = scope.launch {
             val audioSource = source(ayah, surahNumber)
@@ -283,6 +292,7 @@ class ReaderAudioSession internal constructor(
         mutableState.value = state.value.copy(
             isPlaying = false, canResume = false, positionMs = state.value.durationMs,
             pauseRemainingSeconds = 0, pauseTotalSeconds = 0,
+            scriptDone = natural && script != null,
         )
     }
 
