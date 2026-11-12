@@ -331,6 +331,15 @@ class UiPrefs(context: Context) {
         _lessonEcho.value = value
     }
 
+    /** "Translation" chip of "Listen" and "Read" in the lesson (U8): off by default, separate from the reader's own setting. */
+    private val _lessonTranslation = MutableStateFlow(prefs.getBoolean(KEY_LESSON_TRANSLATION, false))
+    val lessonTranslation: StateFlow<Boolean> = _lessonTranslation.asStateFlow()
+
+    fun setLessonTranslation(value: Boolean) {
+        prefs.edit().putBoolean(KEY_LESSON_TRANSLATION, value).apply()
+        _lessonTranslation.value = value
+    }
+
     /** "Listen to the old" (task F1b): the way the person last listened, with the echo silences or once. */
     private val _listenEcho = MutableStateFlow(prefs.getBoolean(KEY_LISTEN_ECHO, false))
     val listenEcho: StateFlow<Boolean> = _listenEcho.asStateFlow()
@@ -493,6 +502,7 @@ class UiPrefs(context: Context) {
         const val KEY_LESSON_AYAH_REPEATS = "lesson_ayah_repeats"
         const val KEY_LESSON_PASSAGE_REPEATS = "lesson_passage_repeats"
         const val KEY_LESSON_ECHO = "lesson_echo"
+        const val KEY_LESSON_TRANSLATION = "lesson_translation"
         const val KEY_LISTEN_ECHO = "listen_echo"
         const val KEY_LAST_EXPORT_AT = "last_export_at"
         const val KEY_REMINDER_ENABLED = "reminder_enabled"

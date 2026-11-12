@@ -283,7 +283,7 @@ fun AyahRow(
 
 /** "Translation not loaded · Retry": the retry part is a button (a 48 dp touch target without a visible box). */
 @Composable
-private fun TranslationMissingNote(
+internal fun TranslationMissingNote(
     copy: ReaderCopy,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,

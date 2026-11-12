@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -77,7 +78,9 @@ import tj.app.quran_todo.ui.hifz.RecallPassage
 import tj.app.quran_todo.ui.hifz.VoiceProtoHook
 import tj.app.quran_todo.ui.i18n.HifzCopy
 import tj.app.quran_todo.ui.i18n.LessonCopy
+import tj.app.quran_todo.ui.i18n.rememberLessonListenCopy
 import tj.app.quran_todo.ui.i18n.rememberListenCopy
+import tj.app.quran_todo.ui.reader.components.TranslationMissingNote
 import tj.app.quran_todo.ui.listen.EchoRing
 import tj.app.quran_todo.ui.listen.YourTurnLine
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
@@ -226,13 +229,23 @@ private fun ListenPhase(viewModel: LessonViewModel, copy: LessonCopy, work: Less
     val echo by uiPrefs.lessonEcho.collectAsState()
     val listenCopy = rememberListenCopy()
     var settingsOpen by remember { mutableStateOf(false) }
+    val lessonListenCopy = rememberLessonListenCopy()
+    val progress by viewModel.listenProgress.collectAsState()
+    val translationOn by viewModel.translationOn.collectAsState()
+    val translation = rememberPassageTranslation(viewModel, work)
+    // The whole sequence has played to its end by itself: on to "Read" (leaving the phase, pausing or restarting never gets here).
+    val finished = progress?.done == true
+    LaunchedEffect(finished) {
+        if (finished) viewModel.onListenFinished(work)
+    }
 
     Column(Modifier.fillMaxSize()) {
-        Text(
-            text = copy.listenHint(ayahRepeats, passageRepeats),
-            style = QhTheme.type.callout,
-            color = colors.inkSecondary,
-            modifier = Modifier.padding(horizontal = QhSpacing.screen, vertical = QhSpacing.x1),
+        PhaseTopLine(
+            text = progress?.takeIf { !it.done }?.place?.label(lessonListenCopy) ?: copy.listenHint(ayahRepeats, passageRepeats),
+            copy = lessonListenCopy,
+            translationOn = translationOn,
+            onTranslation = viewModel::setTranslationOn,
+            progress = progress?.takeIf { !it.done }?.fraction,
         )
         PassageList(
             ayahs = work.ayahs,
@@ -242,6 +255,7 @@ private fun ListenPhase(viewModel: LessonViewModel, copy: LessonCopy, work: Less
             modifier = Modifier.weight(1f),
             follow = remember(audio.playing) { WordFollow(playing = audio.playing) },
             similarHints = true,
+            translation = translation,
         )
         Column(
             Modifier
@@ -398,12 +412,14 @@ private fun ListenSettingsSheet(
 private fun ReadPhase(viewModel: LessonViewModel, copy: LessonCopy, work: LessonUi.Working) {
     val colors = QhTheme.colors
     val audio by viewModel.audioState.collectAsState()
+    val translationOn by viewModel.translationOn.collectAsState()
+    val translation = rememberPassageTranslation(viewModel, work)
     Column(Modifier.fillMaxSize()) {
-        Text(
+        PhaseTopLine(
             text = copy.readHint,
-            style = QhTheme.type.callout,
-            color = colors.inkSecondary,
-            modifier = Modifier.padding(horizontal = QhSpacing.screen, vertical = QhSpacing.x1),
+            copy = rememberLessonListenCopy(),
+            translationOn = translationOn,
+            onTranslation = viewModel::setTranslationOn,
         )
         PassageList(
             ayahs = work.ayahs,
@@ -413,6 +429,7 @@ private fun ReadPhase(viewModel: LessonViewModel, copy: LessonCopy, work: Lesson
             modifier = Modifier.weight(1f),
             follow = remember(audio.playing) { WordFollow(playing = audio.playing) },
             similarHints = true,
+            translation = translation,
         )
         QhButton(
             text = copy.next,
@@ -441,6 +458,8 @@ internal fun PassageList(
     follow: WordFollow? = null,
     /** F6: under an ayah that looks like one that is already memorized, the line "Similar to Al-A'raf 19 - compare" (Listen and Read only). */
     similarHints: Boolean = false,
+    /** U8: the translation under every ayah while the chip is on (null: none). */
+    translation: PassageTranslation? = null,
 ) {
     // The ayahs of this passage are being learned: they are not "already memorized" for the hints.
     val passage = remember(ayahs) { ayahs.mapTo(HashSet()) { AyahKey(it.surahNumber, it.numberInSurah) } }
@@ -467,6 +486,8 @@ internal fun PassageList(
                 onTap = onTap,
                 follow = if (marked) follow else null,
                 similarHint = if (similarHints) passage else null,
+                translation = translation?.byAyah?.get(ayah.number),
+                translationMissing = translation?.takeIf { it.missing && ayah === ayahs.first() },
             )
         }
     }
@@ -480,6 +501,8 @@ private fun PassageRow(
     onTap: ((Int) -> Unit)?,
     follow: WordFollow? = null,
     similarHint: Set<AyahKey>? = null,
+    translation: String? = null,
+    translationMissing: PassageTranslation? = null,
 ) {
     val colors = QhTheme.colors
     val reduced = LocalReducedMotion.current
@@ -489,7 +512,7 @@ private fun PassageRow(
         label = "passage-highlight",
     )
     val number = ayah.numberInSurah
-    Column(
+    Row(
         Modifier
             .fillMaxWidth()
             .then(
@@ -513,35 +536,43 @@ private fun PassageRow(
                     )
                 }
             }
-            .padding(horizontal = QhSpacing.screen)
-            .padding(top = QhSpacing.x3, bottom = QhSpacing.x4),
-        verticalArrangement = Arrangement.spacedBy(QhSpacing.x2),
+            .heightIn(min = QhSpacing.minTouch)
+            .padding(horizontal = QhSpacing.screen, vertical = QhSpacing.x2),
+        horizontalArrangement = Arrangement.spacedBy(QhSpacing.x3),
     ) {
-        AyahRosette(number = number)
-        if (follow != null) {
-            FollowedArabicText(
-                surah = ayah.surahNumber,
-                ayahInSurah = number,
-                words = remember(ayah) { displayWords(ayah.surahNumber, number, ayah.text) },
-                follow = follow,
-                style = arabicStyle,
-                color = colors.ink,
-                textAlign = TextAlign.Start,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        } else {
-            // Tajweed (F3b): the colours of the rules over this very text when the setting is on.
-            TajweedArabicText(
-                surah = ayah.surahNumber,
-                ayahInSurah = number,
-                text = remember(ayah) { splitBismillah(ayah.surahNumber, number, ayah.text) },
-                style = arabicStyle,
-                color = colors.ink,
-                textAlign = TextAlign.Start,
-                modifier = Modifier.fillMaxWidth(),
-            )
+        // U9: the number sits in the line of the text (at the start side), so a short ayah takes a short row.
+        AyahRosette(number = number, size = 30.dp, modifier = Modifier.padding(top = QhSpacing.x2))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(QhSpacing.x1)) {
+            if (follow != null) {
+                FollowedArabicText(
+                    surah = ayah.surahNumber,
+                    ayahInSurah = number,
+                    words = remember(ayah) { displayWords(ayah.surahNumber, number, ayah.text) },
+                    follow = follow,
+                    style = arabicStyle,
+                    color = colors.ink,
+                    textAlign = TextAlign.Start,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                // Tajweed (F3b): the colours of the rules over this very text when the setting is on.
+                TajweedArabicText(
+                    surah = ayah.surahNumber,
+                    ayahInSurah = number,
+                    text = remember(ayah) { splitBismillah(ayah.surahNumber, number, ayah.text) },
+                    style = arabicStyle,
+                    color = colors.ink,
+                    textAlign = TextAlign.Start,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            if (!translation.isNullOrBlank()) {
+                Text(text = translation, style = QhTheme.type.callout, color = colors.inkSecondary)
+            } else if (translationMissing != null) {
+                TranslationMissingNote(copy = translationMissing.copy, onRetry = translationMissing.onRetry)
+            }
+            if (similarHint != null) SimilarLessonHint(surah = ayah.surahNumber, ayah = number, passage = similarHint)
         }
-        if (similarHint != null) SimilarLessonHint(surah = ayah.surahNumber, ayah = number, passage = similarHint)
     }
 }
 
