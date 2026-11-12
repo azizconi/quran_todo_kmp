@@ -9,6 +9,7 @@ import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.hifz.schedule.PlanForecast
 import tj.app.quran_todo.hifz.quiz.QuizBuilder
 import tj.app.quran_todo.hifz.schedule.LessonPlan
+import tj.app.quran_todo.hifz.schedule.ReturnInfo
 import tj.app.quran_todo.presentation.home.QuranLoadState
 import tj.app.quran_todo.ui.plan.PlanMath
 import tj.app.quran_todo.ui.state.LastReadPosition
@@ -46,6 +47,10 @@ internal class HomeSources(
     val forecast: PlanForecast? = null,
     /** The epoch day the forecast was made for. */
     val today: Int = 0,
+    /** "Welcome back" inputs (the same the lesson screen reads): missed days, the day the screen was answered, the end of a lighter week. */
+    val returnInfo: ReturnInfo? = null,
+    val welcomeBackAnswered: Int? = null,
+    val lighterUntil: Int? = null,
 )
 
 /** [HomeUi] without the listing, which also depends on the query and the filter. */
@@ -84,7 +89,16 @@ internal object HomeStateBuilder {
             else -> HomePhase.Content
         }
         val content = phase == HomePhase.Content
-        val lessonCard = if (content) s.lesson?.let { lesson -> LessonCardBuilder.build(lesson, s.listenedToday) { rowsByNumber[it]?.name ?: "Surah $it" } } else null
+        val lessonCard = if (content) s.lesson?.let { lesson -> 
+            LessonCardBuilder.build(
+                lesson = lesson,
+                listenedToday = s.listenedToday,
+                returnInfo = s.returnInfo,
+                welcomeBackAnswered = s.welcomeBackAnswered,
+                lighterUntil = s.lighterUntil,
+                readGoal = !lessonFirst(s.onboardingGoals),
+            ) { rowsByNumber[it]?.name ?: "Surah $it" }
+        } else null
         return HomeBase(
             phase = phase,
             continueItem = if (content) HomeRows.resolveContinue(s.lastRead, s.index, rowsByNumber) else null,
@@ -109,7 +123,7 @@ internal object HomeStateBuilder {
         forecast ?: return null
         when (card) {
             null, LessonCardState.NoPlan, LessonCardState.Paused, LessonCardState.PlanFinished -> return null
-            LessonCardState.Start, LessonCardState.Continue, LessonCardState.Done -> Unit
+            LessonCardState.Start, LessonCardState.Continue, LessonCardState.Done, LessonCardState.Returning -> Unit
         }
         if (forecast.finished || forecast.totalAyahs <= 0) return null
         return PlanRowUi(

@@ -6,6 +6,7 @@ import tj.app.quran_todo.ui.home.LessonCardUi
 import tj.app.quran_todo.ui.home.LessonLineKind
 import tj.app.quran_todo.ui.home.components.tomorrowText
 import tj.app.quran_todo.ui.i18n.homeCopy
+import tj.app.quran_todo.ui.i18n.lessonCardCopy
 import tj.app.quran_todo.ui.i18n.passageRangeLabel
 import tj.app.quran_todo.ui.i18n.pauseCopy
 import tj.app.quran_todo.ui.i18n.widgetCopy
@@ -36,7 +37,7 @@ internal object LessonWidgetBuilder {
         val extra = widgetCopy(language)
         val streak = extra.streak(streakDays).takeIf { streakDays > 0 }
         return when (card.state) {
-            LessonCardState.Start, LessonCardState.Continue -> {
+            LessonCardState.Start, LessonCardState.Continue, LessonCardState.Returning -> {
                 val continuing = card.state == LessonCardState.Continue
                 val minutes = if (continuing) home.lessonMinutesLeft(card.minutes) else home.lessonMinutes(card.minutes)
                 LessonWidgetModel(
@@ -44,7 +45,11 @@ internal object LessonWidgetBuilder {
                     title = "${home.lessonTitle} · $minutes",
                     detail = remainingLine(card, language),
                     streak = streak,
-                    action = if (continuing) home.lessonContinue else home.lessonStart,
+                    action = when {
+                        continuing -> home.lessonContinue
+                        card.state == LessonCardState.Returning -> lessonCardCopy(language).continueMemorizing
+                        else -> home.lessonStart
+                    },
                     opensLesson = true,
                 )
             }

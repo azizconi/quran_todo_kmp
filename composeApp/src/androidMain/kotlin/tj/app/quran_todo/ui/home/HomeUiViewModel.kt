@@ -37,6 +37,7 @@ import tj.app.quran_todo.hifz.model.HifzScope
 import tj.app.quran_todo.hifz.model.SurahCoverage
 import tj.app.quran_todo.hifz.model.SurahHifzStatus
 import tj.app.quran_todo.hifz.schedule.LessonPlan
+import tj.app.quran_todo.hifz.schedule.ReturnInfo
 import tj.app.quran_todo.hifz.schedule.PlanForecast
 import tj.app.quran_todo.presentation.home.HomeUiState
 import tj.app.quran_todo.presentation.home.HomeViewModel
@@ -101,15 +102,23 @@ class HomeUiViewModel internal constructor(
             ::Triple,
         ),
         hifz.lesson(ticker.day).map<LessonPlan, LessonPlan?> { it }.orFallback(null),
-        // The passages listened to today ("Listen to the old"): the card says "Listened" and nothing else reads this.
-        ticker.day.flatMapLatest { day -> hifz.listenLog(day, day) }
-            .map { log -> log.mapNotNullTo(HashSet()) { it.passageId } }
-            .orFallback(emptySet<Long>()),
-    ) { statuses, ayahs, planState, lesson, listened ->
+        combine(
+            // The passages listened to today ("Listen to the old"): the card says "Listened" and nothing else reads this.
+            ticker.day.flatMapLatest { day -> hifz.listenLog(day, day) }
+                .map { log -> log.mapNotNullTo(HashSet()) { it.passageId } }
+                .orFallback(emptySet<Long>()),
+            // "Welcome back" inputs, the same the lesson screen reads: the card shows "Returning" by the same rule.
+            hifz.returnInfo(ticker.day).map<ReturnInfo, ReturnInfo?> { it }.orFallback(null),
+            hifz.lighterUntil().orFallback(null),
+            uiPrefs.welcomeBackAnswered,
+            ::WelcomeSnapshot,
+        ),
+    ) { statuses, ayahs, planState, lesson, welcome ->
         val (plan, forecast, today) = planState
         HifzSnapshot(
-            statuses, ayahs.first, plan?.surahOrder.orEmpty(), lesson, listened,
+            statuses, ayahs.first, plan?.surahOrder.orEmpty(), lesson, welcome.listened,
             learnedSets = ayahs.second, plan = plan, forecast = forecast, today = today,
+            returnInfo = welcome.returnInfo, lighterUntil = welcome.lighterUntil, welcomeBackAnswered = welcome.answered,
         )
     }
 
@@ -354,6 +363,9 @@ class HomeUiViewModel internal constructor(
         plan = snapshot.plan,
         forecast = snapshot.forecast,
         today = snapshot.today,
+        returnInfo = snapshot.returnInfo,
+        welcomeBackAnswered = snapshot.welcomeBackAnswered,
+        lighterUntil = snapshot.lighterUntil,
         chapterNames = data.chapterNames,
         loadState = data.loadState,
         lastRead = HomeStateBuilder.lastReadWithLegacy(
@@ -407,6 +419,14 @@ private fun <T> Flow<T>.orFallback(fallback: T): Flow<T> = catch { error ->
     emit(fallback)
 }
 
+/** The passages listened to today and the "Welcome back" inputs of the lesson card, read together. */
+private class WelcomeSnapshot(
+    val listened: Set<Long>,
+    val returnInfo: ReturnInfo?,
+    val lighterUntil: Int?,
+    val answered: Int?,
+)
+
 /** What the home screen reads from the hifz model; empty until the first answer. */
 internal class HifzSnapshot(
     val statuses: Map<Int, SurahHifzStatus> = emptyMap(),
@@ -421,6 +441,9 @@ internal class HifzSnapshot(
     val plan: HifzPlan? = null,
     val forecast: PlanForecast? = null,
     val today: Int = 0,
+    val returnInfo: ReturnInfo? = null,
+    val lighterUntil: Int? = null,
+    val welcomeBackAnswered: Int? = null,
 ) {
     val covered: Map<Int, Int> = coveredSets.mapValues { it.value.size }
     val learned: Map<Int, Int> = learnedSets.mapValues { it.value.size }

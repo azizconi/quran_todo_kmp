@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Eco
 import androidx.compose.material.icons.rounded.Headphones
@@ -49,7 +48,6 @@ import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.components.QhCard
 import tj.app.quran_todo.ui.components.QhCardStyle
 import tj.app.quran_todo.ui.components.QhDialogButton
-import tj.app.quran_todo.ui.components.QhIconTile
 import tj.app.quran_todo.ui.home.LessonCardState
 import tj.app.quran_todo.ui.home.LessonCardUi
 import tj.app.quran_todo.ui.home.LessonLineKind
@@ -59,7 +57,9 @@ import tj.app.quran_todo.ui.home.ListeningUi
 import tj.app.quran_todo.ui.home.OldListenUi
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.ui.i18n.HomeCopy
+import tj.app.quran_todo.ui.i18n.rememberLessonCardCopy
 import tj.app.quran_todo.ui.i18n.rememberPauseCopy
+import tj.app.quran_todo.ui.i18n.welcomeBackCopy
 import tj.app.quran_todo.ui.lesson.formatDay
 import tj.app.quran_todo.ui.i18n.ListenCopy
 import tj.app.quran_todo.ui.i18n.rememberListenCopy
@@ -96,14 +96,27 @@ internal fun LessonCard(
     when (card.state) {
         LessonCardState.Paused -> PausedCard(card = card, onResume = onResumePlan, onOpenPlan = onOpenPlan, modifier = modifier)
 
-        LessonCardState.NoPlan -> PlanInvitation(
-            icon = Icons.Rounded.School,
-            title = copy.lessonInviteTitle,
-            body = copy.lessonInviteBody,
-            action = copy.lessonMakePlan,
-            onAction = onOpenPlan,
-            modifier = modifier,
-        )
+        // The goal "read and listen": one calm line and a secondary button, not a call to action.
+        LessonCardState.NoPlan -> if (card.quietInvite) {
+            PlanInvitation(
+                icon = Icons.Rounded.School,
+                title = null,
+                body = rememberLessonCardCopy().quietInvite,
+                action = copy.lessonMakePlan,
+                onAction = onOpenPlan,
+                modifier = modifier,
+                primary = false,
+            )
+        } else {
+            PlanInvitation(
+                icon = Icons.Rounded.School,
+                title = copy.lessonInviteTitle,
+                body = copy.lessonInviteBody,
+                action = copy.lessonMakePlan,
+                onAction = onOpenPlan,
+                modifier = modifier,
+            )
+        }
 
         LessonCardState.PlanFinished -> PlanInvitation(
             icon = Icons.Rounded.Eco,
@@ -114,7 +127,7 @@ internal fun LessonCard(
             modifier = modifier,
         )
 
-        LessonCardState.Start, LessonCardState.Continue, LessonCardState.Done ->
+        LessonCardState.Start, LessonCardState.Continue, LessonCardState.Done, LessonCardState.Returning ->
             LessonBody(card, copy, onOpenLesson, onOpenPlan, modifier, onListenOld, listening)
     }
 }
@@ -172,7 +185,13 @@ private fun LessonBody(
     val colors = QhTheme.colors
     val type = QhTheme.type
     val listen = rememberListenCopy()
+    val cardCopy = rememberLessonCardCopy()
+    val language = LocalAppLanguage.current
+    val welcome = remember(language) { welcomeBackCopy(language) }
     val done = card.state == LessonCardState.Done
+    val returning = card.state == LessonCardState.Returning
+    // A tap on the body does what the main control does: starts or continues the lesson, or (when done) opens its summary,
+    // the same as the link "Lesson summary".
     QhCard(
         modifier = modifier
             .fillMaxWidth()
@@ -201,6 +220,11 @@ private fun LessonBody(
             }
         }
         Column(Modifier.padding(end = QhSpacing.x3)) {
+            if (returning) {
+                Spacer(Modifier.height(QhSpacing.x1))
+                Text(welcome.title, style = type.title1, color = colors.ink)
+                Text(welcome.missed(card.missedDays), style = type.callout, color = colors.inkSecondary)
+            }
             Spacer(Modifier.height(QhSpacing.x1))
             card.lines.forEach { line -> LessonLine(line, copy, listen) }
             if (card.catchingUp) {
@@ -210,27 +234,49 @@ private fun LessonBody(
                     Text(copy.lessonCatchingUp, style = type.callout, color = colors.inkSecondary)
                 }
             }
+            card.lighterUntilEpochDay?.let { until ->
+                Spacer(Modifier.height(QhSpacing.x2))
+                Text(
+                    text = welcome.lighterLine(formatDay(until, language)),
+                    style = type.callout,
+                    color = colors.inkSecondary,
+                )
+            }
             Spacer(Modifier.height(QhSpacing.x4))
             if (done) {
-                QhButton(
-                    text = copy.lessonDone,
-                    onClick = onOpenLesson,
-                    modifier = Modifier.fillMaxWidth(),
-                    variant = QhButtonVariant.Tonal,
-                    icon = Icons.Rounded.Check,
-                )
+                // "Lesson done" is a status, not a button: no ripple, no click. The summary is the link under "Tomorrow".
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics(mergeDescendants = true) { contentDescription = copy.lessonDone },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(QhSpacing.x2),
+                ) {
+                    Icon(Icons.Rounded.Check, contentDescription = null, tint = colors.learned, modifier = Modifier.size(22.dp))
+                    Text(copy.lessonDone, style = type.title2, color = colors.ink)
+                }
                 card.tomorrow?.let { tomorrow ->
                     Spacer(Modifier.height(QhSpacing.x2))
                     Text(
                         text = tomorrowText(tomorrow, copy),
                         style = type.callout,
                         color = colors.inkSecondary,
-                        modifier = Modifier.padding(horizontal = QhSpacing.x1),
                     )
                 }
+                QhButton(
+                    text = cardCopy.lessonSummary,
+                    onClick = onOpenLesson,
+                    modifier = Modifier.fillMaxWidth(),
+                    variant = QhButtonVariant.Ghost,
+                    size = QhButtonSize.M,
+                )
             } else {
                 QhButton(
-                    text = if (card.state == LessonCardState.Continue) copy.lessonContinue else copy.lessonStart,
+                    text = when (card.state) {
+                        LessonCardState.Continue -> copy.lessonContinue
+                        LessonCardState.Returning -> cardCopy.continueMemorizing
+                        else -> copy.lessonStart
+                    },
                     onClick = onOpenLesson,
                     modifier = Modifier.fillMaxWidth(),
                     icon = Icons.Rounded.PlayArrow,
@@ -312,12 +358,14 @@ private fun CheckDot(done: Boolean) {
 @Composable
 private fun PlanInvitation(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
+    title: String?,
     body: String,
     action: String,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    /** False: the button is secondary (tonal), for an invitation that must stay calm. */
+    primary: Boolean = true,
 ) {
     val colors = QhTheme.colors
     QhCard(
@@ -337,61 +385,20 @@ private fun PlanInvitation(
                 Icon(icon, contentDescription = null, tint = colors.gold, modifier = Modifier.size(26.dp))
             }
             Column(Modifier.weight(1f)) {
-                Text(title, style = QhTheme.type.title1, color = colors.ink)
-                Spacer(Modifier.height(QhSpacing.x1))
+                if (title != null) {
+                    Text(title, style = QhTheme.type.title1, color = colors.ink)
+                    Spacer(Modifier.height(QhSpacing.x1))
+                }
                 Text(body, style = QhTheme.type.callout, color = colors.inkSecondary)
             }
         }
         Spacer(Modifier.height(QhSpacing.x4))
-        QhButton(text = action, onClick = onAction, modifier = Modifier.fillMaxWidth())
-    }
-}
-
-/**
- * The same lesson as one calm line, for people whose goal is reading and listening: an icon tile, "Today's
- * lesson", what it is right now, and a chevron. Opens the lesson (or the plan when there is none).
- */
-@Composable
-internal fun LessonInviteRow(
-    card: LessonCardUi,
-    copy: HomeCopy,
-    onOpenLesson: () -> Unit,
-    onOpenPlan: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colors = QhTheme.colors
-    val language = LocalAppLanguage.current
-    val opensLesson = card.state == LessonCardState.Start || card.state == LessonCardState.Continue || card.state == LessonCardState.Done
-    val subtitle = when (card.state) {
-        LessonCardState.Paused -> rememberPauseCopy().rowActive(formatDay(card.pausedUntilEpochDay, language))
-        LessonCardState.Start -> copy.lessonMinutes(card.minutes)
-        LessonCardState.Continue -> "${copy.lessonContinue} · ${copy.lessonMinutesLeft(card.minutes)}"
-        LessonCardState.Done -> copy.lessonDone
-        LessonCardState.NoPlan -> copy.lessonInviteTitle
-        LessonCardState.PlanFinished -> copy.lessonPlanFinished
-    }
-    QhCard(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(if (opensLesson) Modifier.sharedBoundsKey(SharedKeys.LessonCard, SharedResize.Remeasure) else Modifier)
-            .semantics(mergeDescendants = true) { contentDescription = "${copy.lessonTitle}. $subtitle" },
-        onClick = if (opensLesson) onOpenLesson else onOpenPlan,
-        onLongClick = onOpenPlan,
-        contentPadding = PaddingValues(horizontal = QhSpacing.card, vertical = QhSpacing.x3),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QhSpacing.x3)) {
-            QhIconTile(Icons.Rounded.School, tint = colors.gold)
-            Column(Modifier.weight(1f)) {
-                Text(copy.lessonTitle, style = QhTheme.type.title2, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(subtitle, style = QhTheme.type.callout, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            Icon(
-                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                tint = colors.inkTertiary,
-                modifier = Modifier.size(QhSpacing.iconBar),
-            )
-        }
+        QhButton(
+            text = action,
+            onClick = onAction,
+            modifier = Modifier.fillMaxWidth(),
+            variant = if (primary) QhButtonVariant.Primary else QhButtonVariant.Tonal,
+        )
     }
 }
 
