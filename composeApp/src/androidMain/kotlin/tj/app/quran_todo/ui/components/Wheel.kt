@@ -47,7 +47,7 @@ import tj.app.quran_todo.ui.motion.pressable
 import tj.app.quran_todo.ui.theme.QhTheme
 import tj.app.quran_todo.ui.theme.tabular
 
-private val ItemHeight = 40.dp
+private val ItemHeight = 48.dp
 private const val VisibleRows = 5
 
 /**

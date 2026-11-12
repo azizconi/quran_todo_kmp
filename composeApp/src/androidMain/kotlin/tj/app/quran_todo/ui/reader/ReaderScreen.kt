@@ -144,6 +144,7 @@ import tj.app.quran_todo.ui.state.ReaderLayout
 import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
+import tj.app.quran_todo.ui.theme.rememberArabicSize
 
 /** Items before the first ayah in the list: the header. */
 private const val HeaderItems = 1
@@ -746,9 +747,10 @@ private fun ReaderContent(
                         ayah.numberInSurah,
                         surahName = title,
                     )
+                    val sheetArabicSize = rememberArabicSize(24f)
                     AyahSheet(
                         model = sheetModel,
-                        arabicStyle = remember(type, quranFamily) { type.quranBody(quranFamily, 24.sp) },
+                        arabicStyle = remember(type, quranFamily, sheetArabicSize) { type.quranBody(quranFamily, sheetArabicSize) },
                         copy = copy,
                         onListenFromHere = {
                             following = true
