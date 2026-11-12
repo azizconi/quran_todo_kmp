@@ -13,6 +13,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import tj.app.quran_todo.ui.reader.components.AyahActionRow
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.scrollBy
@@ -516,6 +519,18 @@ private fun ReaderContent(
             if (reduced) listState.scrollBy(overflow) else listState.animateScrollBy(overflow)
         }
     }
+    // An ayah taller than the screen (2:255 with its translation, 2:282) cannot be scrolled whole into view: while the row under it
+    // is below the dock, the same row stands above the dock instead.
+    val dockTopGapPx = with(density) { QhSpacing.x8.roundToPx() }
+    val pinnedActionIndex by remember(listState) {
+        derivedStateOf {
+            val open = actionRow.openIndex ?: return@derivedStateOf null
+            val info = listState.layoutInfo
+            val item = info.visibleItemsInfo.firstOrNull { it.index == open + HeaderItems } ?: return@derivedStateOf null
+            val dockTop = info.viewportSize.height - (info.afterContentPadding - dockTopGapPx)
+            if (item.offset + item.size > dockTop) open else null
+        }
+    }
 
     // U22: the question about the translation, once; with the translation already on there is nothing to ask.
     val offerAnswered by uiPrefs.translationOfferAnswered.collectAsState()
@@ -636,6 +651,31 @@ private fun ReaderContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(QhSpacing.x2),
         ) {
+            val pinned = if (hifz.active) null else pinnedActionIndex
+            AyahActionRow(
+                visible = pinned != null,
+                copy = rememberAyahActionsCopy(),
+                onListen = {
+                    val index = pinned ?: return@AyahActionRow
+                    following = true
+                    actionRow = actionRow.closed()
+                    viewModel.listenFrom(index)
+                },
+                onRepeat = {
+                    val index = pinned ?: return@AyahActionRow
+                    following = true
+                    actionRow = actionRow.closed()
+                    viewModel.repeatAyah(index)
+                },
+                onMore = { pinned?.let { sheet = ReaderSheet.Ayah(it) } },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = QhSpacing.screen)
+                    .shadow(QhSpacing.x2, QhTheme.shapes.lg)
+                    .clip(QhTheme.shapes.lg)
+                    .background(colors.surface)
+                    .padding(start = QhSpacing.x3, end = QhSpacing.x3, bottom = QhSpacing.x3),
+            )
             AnimatedVisibility(
                 visible = player.elsewhereSurah != null,
                 enter = fadeIn(tween(160)) + slideInVertically(tween(220)) { it / 2 },
