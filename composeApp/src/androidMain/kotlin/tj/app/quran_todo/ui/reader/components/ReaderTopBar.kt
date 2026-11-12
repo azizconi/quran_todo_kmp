@@ -149,10 +149,13 @@ fun ReaderTopBar(
                             modifier = Modifier.size(20.dp),
                         )
                     }
-                    Spacer(Modifier.width(QhSpacing.x1))
-                    CompactAyahCounter(ayahNumber = ayahNumber, totalAyahs = totalAyahs, copy = copy)
                 }
-                PlaceLine(place = place, mushaf = mushaf)
+                // The counter sits on the second line: next to the name it squeezed the name down to "Аль-…".
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CompactAyahCounter(ayahNumber = ayahNumber, totalAyahs = totalAyahs, copy = copy)
+                    Spacer(Modifier.width(QhSpacing.x2))
+                    PlaceLine(place = place, mushaf = mushaf)
+                }
             }
             LabeledAction(
                 icon = Icons.Rounded.TextFields,

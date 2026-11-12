@@ -26,23 +26,23 @@ fun rememberAyahActionsCopy(language: AppLanguage = LocalAppLanguage.current): A
 
 fun ayahActionsCopy(language: AppLanguage): AyahActionsCopy = when (language) {
     AppLanguage.RU -> AyahActionsCopy(
-        listen = "Слушать отсюда", repeat = "Повторять", more = "Ещё",
+        listen = "Слушать", repeat = "Повтор", more = "Ещё",
         offerQuestion = "Показать перевод под аятами?", yes = "Да", no = "Нет",
     )
     AppLanguage.EN -> AyahActionsCopy(
-        listen = "Listen from here", repeat = "Repeat", more = "More",
+        listen = "Listen", repeat = "Repeat", more = "More",
         offerQuestion = "Show the translation under the ayahs?", yes = "Yes", no = "No",
     )
     AppLanguage.TG -> AyahActionsCopy(
-        listen = "Гӯш кардан аз ин ҷо", repeat = "Такрор", more = "Бештар",
+        listen = "Шунидан", repeat = "Такрор", more = "Бештар",
         offerQuestion = "Тарҷумаро дар зери оятҳо нишон диҳем?", yes = "Ҳа", no = "Не",
     )
     AppLanguage.UZ -> AyahActionsCopy(
-        listen = "Shu yerdan tinglash", repeat = "Takrorlash", more = "Yana",
+        listen = "Tinglash", repeat = "Takror", more = "Yana",
         offerQuestion = "Oyatlar ostida tarjima ko'rsatilsinmi?", yes = "Ha", no = "Yo'q",
     )
     AppLanguage.TR -> AyahActionsCopy(
-        listen = "Buradan dinle", repeat = "Tekrarla", more = "Daha fazla",
+        listen = "Dinle", repeat = "Tekrar", more = "Diğer",
         offerQuestion = "Ayetlerin altında çeviri gösterilsin mi?", yes = "Evet", no = "Hayır",
     )
 }
