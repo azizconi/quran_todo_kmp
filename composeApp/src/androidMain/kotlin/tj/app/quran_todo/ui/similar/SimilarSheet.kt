@@ -53,6 +53,7 @@ import tj.app.quran_todo.ui.reader.components.SheetTitle
 import tj.app.quran_todo.ui.reader.components.rememberSheetCloser
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
+import tj.app.quran_todo.ui.theme.rememberArabicSize
 
 /** Origin of a reader opened from the sheet of similar ayahs: it matches no shared element, so the reader simply slides in. */
 internal const val SimilarOrigin = "similar"
@@ -122,7 +123,8 @@ private fun SimilarSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val close = rememberSheetCloser(sheetState, onDismiss)
     val family = getQuranFontFamily()
-    val arabicStyle = remember(type, family) { type.quranBody(family, 24.sp) }
+    val arabicSize = rememberArabicSize(24f)
+    val arabicStyle = remember(type, family, arabicSize) { type.quranBody(family, arabicSize) }
     val accent = colors.primary
 
     QhSheet(onDismiss = onDismiss, sheetState = sheetState) {

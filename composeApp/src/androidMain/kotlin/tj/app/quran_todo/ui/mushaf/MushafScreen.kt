@@ -105,6 +105,7 @@ import tj.app.quran_todo.ui.reader.cutBismillah
 import tj.app.quran_todo.ui.state.ReaderLayout
 import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.theme.QhTheme
+import tj.app.quran_todo.ui.theme.rememberArabicSize
 
 /** The page follows the sound only when the person has not turned a page for this long. */
 private const val FollowIdleMillis = 5_000L
@@ -443,9 +444,10 @@ fun MushafScreen(
             key.ayah,
             surahName = model.surahName,
         )
+        val sheetArabicSize = rememberArabicSize(24f)
         AyahSheet(
             model = model,
-            arabicStyle = remember(type, quranFamily) { type.quranBody(quranFamily, 24.sp) },
+            arabicStyle = remember(type, quranFamily, sheetArabicSize) { type.quranBody(quranFamily, sheetArabicSize) },
             copy = reader,
             onListenFromHere = { viewModel.listenFrom(key) },
             onRepeat = { viewModel.repeatAyah(key) },

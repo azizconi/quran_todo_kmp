@@ -36,6 +36,7 @@ import tj.app.quran_todo.ui.i18n.LessonCopy
 import tj.app.quran_todo.ui.i18n.rememberListenCopy
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
+import tj.app.quran_todo.ui.theme.rememberArabicSize
 
 /**
  * One repetition of the Recent or Old block ("2 of 5"): first the card of the passage with "listen first", then
@@ -74,7 +75,8 @@ private fun ReviewIntro(viewModel: LessonViewModel, copy: LessonCopy, work: Less
     val title = viewModel.surahTitle(range.surah, language, names)
     val arabic = viewModel.surahArabicName(range.surah, names)
     val family = getQuranFontFamily()
-    val arabicStyle = remember(type, family) { type.quranHeader(family, 38.sp) }
+    val arabicSize = rememberArabicSize(38f)
+    val arabicStyle = remember(type, family, arabicSize) { type.quranHeader(family, arabicSize) }
     val item = card.item
 
     Column(
