@@ -10,12 +10,16 @@ enum class ProgressPhase { Loading, Empty, Content }
 /** State of one surah on the Quran map. */
 enum class MapState { NotStarted, Learning, Learned }
 
-/** The big ring and the lines under it. [percent] is whole percent, never 100 before the last ayah. */
+/**
+ * The big ring and the lines under it. The ring is measured against the person's PLAN ([planScope] set: its surahs are the
+ * whole), and against the whole Quran when there is no plan ([planScope] null). [percent] is whole percent: 0 only when nothing
+ * of the ring's whole is covered, 100 only when all of it is.
+ */
 @Immutable
 data class HeroUi(
-    /** Ayahs gone through ("covered" by passages): the ring and the percentage count these. */
+    /** Ayahs gone through ("covered") in the whole Quran. */
     val coveredAyahs: Int,
-    /** Ayahs that are learned: their passage is past the 7-day repetition. */
+    /** Ayahs of the whole Quran that are learned: their passage is past the 7-day repetition. */
     val learnedAyahs: Int,
     val totalAyahs: Int,
     /** Surahs whose every ayah is learned ("I know by heart"). */
@@ -23,10 +27,14 @@ data class HeroUi(
     /** Surahs being learned: some ayahs covered but not all learned, or the current surah of the plan. */
     val learningSurahs: Int,
     val percent: Int,
-    /** Something is memorized but less than 1%: the ring says "<1" instead of a discouraging 0. */
-    val belowOnePercent: Boolean,
-    /** Covered ayahs / all ayahs, 0..1: the same number the small ring on the home screen shows. */
+    /** Covered ayahs / the ring's whole, 0..1: the same number the small ring on the home screen shows. */
     val fraction: Float,
+    /** The preset of the active plan the ring is measured against; null = the ring is the whole Quran. */
+    val planScope: HifzScope? = null,
+    /** Covered and learned ayahs inside the ring's whole, and the whole itself (plan ayahs, or 6236 without a plan). */
+    val ringCovered: Int = coveredAyahs,
+    val ringLearned: Int = learnedAyahs,
+    val ringTotal: Int = totalAyahs,
 )
 
 /** One of the 114 cells of the Quran map. */
@@ -168,7 +176,7 @@ data class ProgressUi(
     val phase: ProgressPhase = ProgressPhase.Loading,
     /** The epoch day the screen is for: dates in the plan line get their year relative to it. */
     val today: Int = 0,
-    val hero: HeroUi = HeroUi(0, 0, 0, 0, 0, 0, false, 0f),
+    val hero: HeroUi = HeroUi(0, 0, 0, 0, 0, 0, 0f),
     val cells: List<MapCellUi> = emptyList(),
     val tiles: TilesUi = TilesUi(0, TodayUi.None, null, 0, 0),
     val activity: ActivityUi = ActivityUi(emptyList()),
@@ -176,3 +184,6 @@ data class ProgressUi(
     val plan: PlanLineUi = PlanLineUi(PlanStatus.NoPlan),
     val hard: List<HardSpotUi> = emptyList(),
 )
+
+/** The four blocks of the page, top to bottom (UX task U25). The report for the teacher is the action of the top bar, not a block. */
+enum class ProgressBlock { PlanAndStreak, Week, HardPlaces, QuranMap }

@@ -69,17 +69,14 @@ import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.navigation.Origin
 import tj.app.quran_todo.ui.progress.components.ActivitySection
 import tj.app.quran_todo.ui.progress.components.BigRing
-import tj.app.quran_todo.ui.progress.components.DetailsEntries
 import tj.app.quran_todo.ui.progress.components.HardSpotsSection
-import tj.app.quran_todo.ui.progress.components.JuzSection
 import tj.app.quran_todo.ui.progress.components.PlanSection
-import tj.app.quran_todo.ui.progress.components.QuranMapSection
+import tj.app.quran_todo.ui.progress.components.QuranMapBlock
 import tj.app.quran_todo.ui.progress.components.ReportSection
 import tj.app.quran_todo.ui.progress.components.ReportFormat
 import tj.app.quran_todo.ui.progress.components.ReportRequest
 import tj.app.quran_todo.ui.progress.components.ReportSheet
 import tj.app.quran_todo.ui.progress.components.RingHero
-import tj.app.quran_todo.ui.progress.components.StatTiles
 import tj.app.quran_todo.ui.progress.report.ReportCardStyle
 import tj.app.quran_todo.ui.progress.report.ReportImage
 import tj.app.quran_todo.ui.progress.report.ReportShare
@@ -90,9 +87,9 @@ import tj.app.quran_todo.ui.theme.qhColors
 
 /**
  * The progress screen, on the review log and the coverage of `HifzRepository` (docs/redesign/PRODUCT_PLAN.md, 2.4): the big
- * ring that the home screen's small ring flies into, the tiles (streak, today's lesson, retention, hard ayahs), the plan,
- * 30 days of activity, the Quran map, the juz, the hard spots and the report for the teacher. With nothing learned yet it
- * invites to make a plan instead.
+ * ring (by the plan) that the home screen's small ring flies into and four blocks (UX task U25): the plan and the streak, the week
+ * of sessions, the hard places with a "Train" button and the Quran map with the juz (collapsed); the report for the teacher is
+ * a row under them. With nothing learned yet it invites to make a plan instead.
  */
 @OptIn(KoinExperimentalAPI::class)
 @Composable
@@ -101,8 +98,6 @@ fun ProgressScreen(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
     onOpenDrill: () -> Unit,
-    onOpenDetails: () -> Unit = {},
-    onOpenNotes: () -> Unit = {},
     /** The room the tab scaffold needs under the last section (the floating mini player); only read when [onBack] is null. */
     tabBottomSpace: Dp = 0.dp,
 ) {
@@ -127,8 +122,6 @@ fun ProgressScreen(
         onOpenReader = onOpenReader,
         onOpenPlan = onOpenPlan,
         onOpenDrill = onOpenDrill,
-        onOpenDetails = onOpenDetails,
-        onOpenNotes = onOpenNotes,
         onShareReport = { sheetOpen = true },
     )
     if (sheetOpen) {
@@ -209,8 +202,6 @@ private fun ProgressContent(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
     onOpenDrill: () -> Unit,
-    onOpenDetails: () -> Unit,
-    onOpenNotes: () -> Unit,
     onShareReport: () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -243,8 +234,6 @@ private fun ProgressContent(
                 onOpenReader = onOpenReader,
                 onOpenPlan = onOpenPlan,
                 onOpenDrill = onOpenDrill,
-                onOpenDetails = onOpenDetails,
-                onOpenNotes = onOpenNotes,
                 onShareReport = onShareReport,
                 scrollState = scrollState,
                 stagger = stagger,
@@ -290,8 +279,6 @@ private fun Body(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenPlan: () -> Unit,
     onOpenDrill: () -> Unit,
-    onOpenDetails: () -> Unit,
-    onOpenNotes: () -> Unit,
     onShareReport: () -> Unit,
     scrollState: ScrollState,
     stagger: StaggerState,
@@ -306,48 +293,47 @@ private fun Body(
             .padding(horizontal = QhSpacing.screen),
         verticalArrangement = Arrangement.spacedBy(QhSpacing.section),
     ) {
-        // The ring is what the home screen's ring flies to: it is there at once, the rest follows.
+        // The ring is what the home screen's ring flies to: it is there at once, the rest follows. Four blocks (U25).
         RingHero(hero = ui.hero, copy = copy)
-        StatTiles(tiles = ui.tiles, copy = copy, onOpenDrill = onOpenDrill, modifier = Modifier.staggeredEnter(1, stagger))
-        PlanSection(
-            line = ui.plan,
-            today = ui.today,
-            copy = copy,
-            onOpenPlan = onOpenPlan,
-            modifier = Modifier.staggeredEnter(2, stagger),
-        )
-        ActivitySection(activity = ui.activity, copy = copy, modifier = Modifier.staggeredEnter(3, stagger))
-        DetailsEntries(
-            copy = analyticsCopy(copy.language),
-            onOpenDetails = onOpenDetails,
-            onOpenNotes = onOpenNotes,
-            modifier = Modifier.staggeredEnter(3, stagger),
-        )
-        QuranMapSection(
-            cells = ui.cells,
-            copy = copy,
-            scrollState = scrollState,
-            onOpen = { surah -> onOpenReader(Dest.Reader(surah = surah, origin = Origin.MAP)) },
-            modifier = Modifier.staggeredEnter(4, stagger),
-        )
-        JuzSection(
-            juz = ui.juz,
-            copy = copy,
-            onOpen = { juz ->
-                // The reader opens at the first ayah of the juz (no highlight needed when it is the first ayah of the surah).
-                onOpenReader(
-                    Dest.Reader(surah = juz.startSurah, ayah = juz.startAyah.takeIf { it > 1 }, origin = Origin.MAP),
+        ProgressBuilder.blocks(ui).forEachIndexed { index, block ->
+            val modifier = Modifier.staggeredEnter(index + 1, stagger)
+            when (block) {
+                // 1. The plan and the streak (the ring above is the plan's).
+                ProgressBlock.PlanAndStreak -> PlanSection(
+                    line = ui.plan,
+                    streakDays = ui.tiles.streakDays,
+                    today = ui.today,
+                    copy = copy,
+                    onOpenPlan = onOpenPlan,
+                    modifier = modifier,
                 )
-            },
-            modifier = Modifier.staggeredEnter(5, stagger),
-        )
-        HardSpotsSection(
-            spots = ui.hard,
-            copy = copy,
-            onOpenAyah = onOpenReader,
-            modifier = Modifier.staggeredEnter(6, stagger),
-        )
-        ReportSection(copy = copy, onShare = onShareReport, modifier = Modifier.staggeredEnter(7, stagger))
+                // 2. This week of sessions.
+                ProgressBlock.Week -> ActivitySection(activity = ProgressBuilder.week(ui.activity), copy = copy, modifier = modifier)
+                // 3. The hard places, with the way to train them.
+                ProgressBlock.HardPlaces -> HardSpotsSection(
+                    spots = ui.hard,
+                    copy = copy,
+                    onOpenAyah = onOpenReader,
+                    onTrain = onOpenDrill,
+                    modifier = modifier,
+                )
+                // 4. The Quran map with the juz inside it, collapsed.
+                ProgressBlock.QuranMap -> QuranMapBlock(
+                    cells = ui.cells,
+                    juz = ui.juz,
+                    copy = copy,
+                    scrollState = scrollState,
+                    onOpenSurah = { surah -> onOpenReader(Dest.Reader(surah = surah, origin = Origin.MAP)) },
+                    onOpenJuz = { juz ->
+                        // The reader opens at the first ayah of the juz (no highlight needed when it is the first ayah of the surah).
+                        onOpenReader(Dest.Reader(surah = juz.startSurah, ayah = juz.startAyah.takeIf { it > 1 }, origin = Origin.MAP))
+                    },
+                    modifier = modifier,
+                )
+            }
+        }
+        // The report for the teacher: a row under the blocks (and the share action of the top bar).
+        ReportSection(copy = copy, onShare = onShareReport, modifier = Modifier.staggeredEnter(5, stagger))
     }
 }
 

@@ -62,11 +62,7 @@ internal object ReportComposer {
         val nameOf = { surah: Int -> names.getOrNull(surah - 1) ?: "№ $surah" }
         val hero = report.hero
 
-        val percentText = if (hero.belowOnePercent) {
-            if (progress.percentFirst) "<%1" else "<1%"
-        } else {
-            progress.percentText(hero.percent)
-        }
+        val percentText = progress.percentText(hero.percent)
 
         val rows = buildList {
             add(

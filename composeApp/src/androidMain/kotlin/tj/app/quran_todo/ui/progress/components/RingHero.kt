@@ -44,8 +44,8 @@ internal val BigRingSize = 160.dp
 private val BigRingStroke = 14.dp
 
 /**
- * The hero of the screen: a big ring with the covered share of the Quran counting up in its middle,
- * "412 of 6236 ayahs" and the surahs known / being learned under it. The ring is the shared element that the small ring in the home
+ * The hero of the screen: a big ring with the covered share of the PLAN counting up in its middle (the whole Quran without a
+ * plan), "Juz Amma: 10 of 564 · 2 %" and the whole Quran as one line under it, and the surahs known / being learned. The ring is the shared element that the small ring in the home
  * top bar flies into (`SharedKeys.ProgressRing`).
  */
 @Composable
@@ -62,12 +62,30 @@ internal fun RingHero(
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             BigRing(hero = hero, copy = copy)
             Spacer(Modifier.height(QhSpacing.x5))
-            Text(
-                text = copy.heroAyahs(hero.coveredAyahs, hero.learnedAyahs),
-                style = QhTheme.type.callout.copy(fontWeight = FontWeight.SemiBold),
-                color = QhTheme.colors.ink,
-                textAlign = TextAlign.Center,
-            )
+            val scope = hero.planScope
+            if (scope != null) {
+                // By the plan: "Juz Amma: 10 of 564 · 2 %", and the whole Quran as one line under it.
+                Text(
+                    text = copy.planRingLine(scope, hero.ringCovered, hero.ringTotal, hero.percent),
+                    style = QhTheme.type.callout.copy(fontWeight = FontWeight.SemiBold),
+                    color = QhTheme.colors.ink,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(QhSpacing.x1))
+                Text(
+                    text = copy.wholeQuranLine(hero.coveredAyahs, hero.totalAyahs, hero.learnedAyahs),
+                    style = QhTheme.type.callout,
+                    color = QhTheme.colors.inkSecondary,
+                    textAlign = TextAlign.Center,
+                )
+            } else {
+                Text(
+                    text = copy.heroAyahs(hero.coveredAyahs, hero.learnedAyahs),
+                    style = QhTheme.type.callout.copy(fontWeight = FontWeight.SemiBold),
+                    color = QhTheme.colors.ink,
+                    textAlign = TextAlign.Center,
+                )
+            }
             // "I know by heart: 3 surahs · Learning: 5 surahs"; a part that is zero is left out.
             copy.surahsLine(hero.learnedSurahs, hero.learningSurahs)?.let { line ->
                 Spacer(Modifier.height(QhSpacing.x1))
@@ -90,7 +108,7 @@ internal fun BigRing(
     modifier: Modifier = Modifier,
 ) {
     val colors = QhTheme.colors
-    val description = copy.ringDescription(hero.percent, hero.belowOnePercent, hero.coveredAyahs, hero.totalAyahs, hero.learnedAyahs)
+    val description = copy.ringDescription(hero.percent, hero.ringCovered, hero.ringTotal, hero.ringLearned, hero.planScope?.let(copy::scopeName))
     val settledAtFirstFrame = rememberSharedSettled()
     val percent = rememberRollingValue(target = hero.percent, startDelayMillis = CounterStartMillis)
     // Arriving on the flight of the small ring: the big one starts at its value instead of filling from 0 under the full one.
@@ -111,24 +129,20 @@ internal fun BigRing(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CalligraphyText(Calligraphy.Hifz, size = 20.dp, revealMillis = 700, shimmer = false)
             Spacer(Modifier.height(QhSpacing.x1))
-            Percentage(value = percent, belowOne = hero.belowOnePercent, signFirst = copy.percentFirst)
+            Percentage(value = percent, signFirst = copy.percentFirst)
         }
     }
 }
 
-/** "42%" ("%42" in Turkish) with the sign as a small superscript; "<1" while less than a percent is memorized. */
+/** "42%" ("%42" in Turkish) with the sign as a small superscript. */
 @Composable
-private fun Percentage(value: Int, belowOne: Boolean, signFirst: Boolean) {
+private fun Percentage(value: Int, signFirst: Boolean) {
     val colors = QhTheme.colors
     val number = QhTheme.type.display.copy(fontSize = 40.sp, lineHeight = 44.sp, letterSpacing = (-1).sp)
     val sign = QhTheme.type.title1.copy(fontWeight = FontWeight.Bold)
     Row(verticalAlignment = Alignment.Top) {
         if (signFirst) Text("%", style = sign, color = colors.inkSecondary, modifier = Modifier.padding(top = QhSpacing.x1, end = 2.dp))
-        if (belowOne) {
-            Text("<1", style = number.tabular(), color = colors.ink)
-        } else {
-            AnimatedCounter(value = value, style = number, color = colors.ink)
-        }
+        AnimatedCounter(value = value, style = number, color = colors.ink)
         if (!signFirst) Text("%", style = sign, color = colors.inkSecondary, modifier = Modifier.padding(top = QhSpacing.x1, start = 2.dp))
     }
 }

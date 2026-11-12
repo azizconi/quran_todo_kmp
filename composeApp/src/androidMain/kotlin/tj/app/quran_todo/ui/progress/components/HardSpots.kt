@@ -1,5 +1,6 @@
 package tj.app.quran_todo.ui.progress.components
 
+import tj.app.quran_todo.ui.i18n.rememberDrillCopy
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -63,7 +64,7 @@ private const val MaxChips = 12
 internal fun HardSpotUi.readerAt(ayah: Int): Dest.Reader = Dest.Reader(surah = surah, ayah = ayah, origin = Origin.MAP)
 
 /**
- * "Hard spots": the surahs with difficult ayahs (the marks inside the passages, from `HifzRepository.hardAyahs()`), the most
+ * "Hard spots" (with a "Train" button that opens the drill): the surahs with difficult ayahs (the marks inside the passages, from `HifzRepository.hardAyahs()`), the most
  * affected first. Each row names the surah and has a chip for every hard ayah; a chip opens the reader at that ayah. Without
  * hard ayahs a calm card says so.
  */
@@ -72,6 +73,7 @@ internal fun HardSpotsSection(
     spots: List<HardSpotUi>,
     copy: ProgressCopy,
     onOpenAyah: (Dest.Reader) -> Unit,
+    onTrain: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -105,6 +107,14 @@ internal fun HardSpotsSection(
                 }
             }
         }
+        // The drill of the hard ayahs (`Dest.HardDrill`): the way from "these are hard" to doing something about it.
+        Spacer(Modifier.height(QhSpacing.x3))
+        QhButton(
+            text = rememberDrillCopy().tileTrain,
+            onClick = onTrain,
+            modifier = Modifier.fillMaxWidth(),
+            size = QhButtonSize.L,
+        )
     }
 }
 

@@ -123,8 +123,6 @@ internal fun QuranMapSection(
 ) {
     val colors = QhTheme.colors
     Column(modifier.fillMaxWidth()) {
-        QhSectionHeader(title = copy.mapTitle)
-        Spacer(Modifier.height(QhSpacing.x1))
         Text(text = copy.mapHint, style = QhTheme.type.callout, color = colors.inkSecondary)
         Spacer(Modifier.height(QhSpacing.x3))
         QhCard(contentPadding = PaddingValues(QhSpacing.card)) {

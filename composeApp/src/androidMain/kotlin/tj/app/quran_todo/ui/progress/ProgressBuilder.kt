@@ -4,6 +4,7 @@ import kotlin.math.roundToInt
 import tj.app.quran_todo.common.i18n.AppLanguage
 import tj.app.quran_todo.data.bundled.QuranFacts
 import tj.app.quran_todo.hifz.model.HifzPlan
+import tj.app.quran_todo.hifz.model.HifzScope
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.hifz.model.ReviewKind
 import tj.app.quran_todo.hifz.model.ReviewLogEntry
@@ -69,7 +70,7 @@ internal object ProgressBuilder {
         return ProgressUi(
             phase = if (nothingYet) ProgressPhase.Empty else ProgressPhase.Content,
             today = s.today,
-            hero = hero(coveredCount, learnedCount, learnedSurahs, learningSurahs),
+            hero = hero(coveredCount, learnedCount, learnedSurahs, learningSurahs, ringOf(s.plan, s.covered, s.learned)),
             cells = cells(s),
             tiles = TilesUi(
                 streakDays = s.streak,
@@ -85,28 +86,71 @@ internal object ProgressBuilder {
         )
     }
 
+    /** The plan's whole as the ring counts it: its distinct surahs, the ayahs covered and learned among them. */
+    class PlanRing(val scope: HifzScope, val covered: Int, val learned: Int, val total: Int)
+
+    /** The ring of the plan from the covered and learned ayahs; null without a plan (or with a plan of no surahs). */
+    fun ringOf(plan: HifzPlan?, covered: Map<Int, Set<Int>>, learned: Map<Int, Set<Int>>): PlanRing? {
+        plan ?: return null
+        val surahs = plan.surahOrder.distinct().filter { it in 1..QuranFacts.SURAH_COUNT }
+        val total = surahs.sumOf { QuranFacts.ayahCount(it) }
+        if (total <= 0) return null
+        return PlanRing(
+            scope = plan.scope,
+            covered = surahs.sumOf { (covered[it]?.size ?: 0).coerceAtMost(QuranFacts.ayahCount(it)) },
+            learned = surahs.sumOf { (learned[it]?.size ?: 0).coerceAtMost(QuranFacts.ayahCount(it)) },
+            total = total,
+        )
+    }
+
     /**
-     * The ring: covered ("gone through") ayahs of 6236, with the learned ones beside. Honest at the edges: the percentage is 0
-     * only when nothing is covered and 100 only when every ayah is.
+     * Whole percent of [covered] in [total]. Honest at the edges and never "<1": 0 only when nothing is covered, 100 only when
+     * everything is, otherwise rounded to the nearest and kept inside 1..99.
      */
-    fun hero(coveredAyahs: Int, learnedAyahs: Int, learnedSurahs: Int, learningSurahs: Int): HeroUi {
+    fun percentOf(covered: Int, total: Int): Int = when {
+        total <= 0 || covered <= 0 -> 0
+        covered >= total -> 100
+        else -> (covered * 100f / total).roundToInt().coerceIn(1, 99)
+    }
+
+    /**
+     * The ring: with a [plan] ring, its covered ayahs of the plan's ayahs; without one the covered ayahs of the whole Quran.
+     * The whole Quran numbers stay in the hero for the line under the ring.
+     */
+    fun hero(
+        coveredAyahs: Int,
+        learnedAyahs: Int,
+        learnedSurahs: Int,
+        learningSurahs: Int,
+        plan: PlanRing? = null,
+    ): HeroUi {
         val total = QuranFacts.AYAH_COUNT
-        val percent = when {
-            coveredAyahs <= 0 -> 0
-            coveredAyahs >= total -> 100
-            else -> (coveredAyahs * 100f / total).roundToInt().coerceIn(0, 99)
-        }
+        val ringCovered = plan?.covered ?: coveredAyahs
+        val ringTotal = plan?.total ?: total
         return HeroUi(
             coveredAyahs = coveredAyahs,
             learnedAyahs = learnedAyahs,
             totalAyahs = total,
             learnedSurahs = learnedSurahs,
             learningSurahs = learningSurahs,
-            percent = percent,
-            belowOnePercent = coveredAyahs > 0 && percent == 0,
-            fraction = (coveredAyahs.toFloat() / total).coerceIn(0f, 1f),
+            percent = percentOf(ringCovered, ringTotal),
+            fraction = (ringCovered.toFloat() / ringTotal).coerceIn(0f, 1f),
+            planScope = plan?.scope,
+            ringCovered = ringCovered,
+            ringLearned = plan?.learned ?: learnedAyahs,
+            ringTotal = ringTotal,
         )
     }
+
+    /** Days of the week block: the last seven, today included. */
+    const val WeekDays = 7
+
+    /** The week block's days (oldest first, today last) out of the 30 days of the activity. */
+    fun week(activity: ActivityUi): ActivityUi = ActivityUi(activity.days.takeLast(WeekDays))
+
+    /** The blocks of the page in order; nothing before the first lesson, where the invitation stands alone. */
+    fun blocks(ui: ProgressUi): List<ProgressBlock> =
+        if (ui.phase == ProgressPhase.Content) ProgressBlock.entries else emptyList()
 
     /** The 114 cells of the map: the derived status of the surah and how many of its ayahs are learned. */
     fun cells(s: ProgressSources): List<MapCellUi> = List(QuranFacts.SURAH_COUNT) { index ->

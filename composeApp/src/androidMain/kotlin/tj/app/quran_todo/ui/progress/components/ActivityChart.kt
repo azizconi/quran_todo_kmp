@@ -92,11 +92,14 @@ private const val BubbleLifetimeMillis = 4_500L
 /** The days under which a date is written (the first one, then every sixth) and the last one says "Today". */
 private const val LabelEvery = 6
 
+/** A chart of this many days or fewer (the week) writes a date under every other bar. */
+private const val WeekLabelDays = 8
+
 /** A date is not written this close to "Today" (the two would run into each other). */
 private const val LabelClearance = 9
 
 /**
- * Activity over the last 30 days: one stacked bar per day, the ayahs repeated at the bottom and the new ones on top, in two
+ * Activity over the days given (the week, 7 days): one stacked bar per day, the ayahs repeated at the bottom and the new ones on top, in two
  * tones (and a legend). Empty days are a short hairline, so they are visible. The bars grow when the section appears; a tap on
  * a day, or a finger dragged along the bars, shows its date and numbers in a bubble above the bar.
  */
@@ -138,14 +141,14 @@ internal fun ActivitySection(
 
 /**
  * "Listened: 3 passages" (task F1b, "Listen to the old"): a line of its own under the legend, not a part of the bars and not a
- * repetition. Today's count when there is one, otherwise the count of the 30 days; nothing when nothing was listened to.
+ * repetition. Today's count when there is one, otherwise the count of the shown days; nothing when nothing was listened to.
  */
 @Composable
 private fun ListenedLine(activity: ActivityUi) {
     val listen = rememberListenCopy()
     val text = when {
         activity.listenedToday > 0 -> listen.progressListened(activity.listenedToday)
-        activity.totalListened > 0 -> listen.progressListenedMonth(activity.totalListened)
+        activity.totalListened > 0 -> listen.progressListened(activity.totalListened)
         else -> return
     }
     Row(
@@ -343,7 +346,11 @@ private fun DayLabels(days: List<ActivityDayUi>, copy: ProgressCopy) {
     Row(Modifier.fillMaxWidth()) {
         days.forEachIndexed { index, day ->
             val isToday = index == count - 1
-            val labelled = (index % LabelEvery == 0 && index <= count - LabelClearance) || isToday
+            val labelled = if (count <= WeekLabelDays) {
+                (index % 2 == 0 && index <= count - 2) || isToday
+            } else {
+                (index % LabelEvery == 0 && index <= count - LabelClearance) || isToday
+            }
             val align = when {
                 index == 0 -> Alignment.Start
                 isToday -> Alignment.End

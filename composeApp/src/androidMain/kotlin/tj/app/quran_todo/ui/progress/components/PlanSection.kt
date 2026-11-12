@@ -1,5 +1,7 @@
 package tj.app.quran_todo.ui.progress.components
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,12 +38,13 @@ import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /**
- * The plan in one card, from `HifzRepository.forecast`: "Juz Amma: you will finish ~16 February" and under it whether the
+ * The plan and the streak in one card, from `HifzRepository.forecast`: "Juz Amma: you will finish ~16 February" and under it whether the
  * person is behind or ahead of the date they set. A tap opens "My plan". Without a plan the card invites to make one.
  */
 @Composable
 internal fun PlanSection(
     line: PlanLineUi,
+    streakDays: Int,
     today: Int,
     copy: ProgressCopy,
     onOpenPlan: () -> Unit,
@@ -68,6 +71,7 @@ internal fun PlanSection(
                     variant = QhButtonVariant.Tonal,
                     size = QhButtonSize.M,
                 )
+                StreakLine(streakDays, copy)
             }
             return@Column
         }
@@ -96,7 +100,25 @@ internal fun PlanSection(
                     modifier = Modifier.size(QhSpacing.iconBar),
                 )
             }
+            StreakLine(streakDays, copy)
         }
+    }
+}
+
+/** "5 days in a row" under the plan; nothing while there is no streak. */
+@Composable
+private fun StreakLine(days: Int, copy: ProgressCopy) {
+    if (days <= 0) return
+    val colors = QhTheme.colors
+    Spacer(Modifier.height(QhSpacing.x3))
+    Row(
+        Modifier.semantics(mergeDescendants = true) { contentDescription = "$days, ${copy.tileStreak}" },
+        horizontalArrangement = Arrangement.spacedBy(QhSpacing.x2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.LocalFireDepartment, contentDescription = null, tint = colors.gold, modifier = Modifier.size(QhSpacing.iconInline))
+        Text(text = "$days", style = QhTheme.type.title2, color = colors.ink)
+        Text(text = copy.tileStreak, style = QhTheme.type.callout, color = colors.inkSecondary)
     }
 }
 
