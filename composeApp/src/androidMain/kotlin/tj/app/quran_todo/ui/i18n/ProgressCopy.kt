@@ -105,12 +105,21 @@ data class ProgressCopy(
     val emptyBody: String,
     val emptyAction: String,
 ) {
-    fun ringDescription(percent: Int, belowOne: Boolean, learned: Int, total: Int): String =
+    fun ringDescription(percent: Int, belowOne: Boolean, covered: Int, total: Int, learned: Int = covered): String =
         if (belowOne) {
-            ringDescriptionBelowOnePattern.fill("a" to learned, "b" to total)
+            ringDescriptionBelowOnePattern.fill("a" to covered, "b" to total, "l" to learned)
         } else {
-            ringDescriptionPattern.fill("p" to percent, "a" to learned, "b" to total)
+            ringDescriptionPattern.fill("p" to percent, "a" to covered, "b" to total, "l" to learned)
         }
+
+    /** The line under the ring: "Gone through: 17 ayahs · memorized: 13" (the ring and its percentage count the first number). */
+    fun heroAyahs(covered: Int, learned: Int): String = when (language) {
+        AppLanguage.RU -> "Пройдено: ${ayahCountLabel(covered, language)} · выучено: $learned"
+        AppLanguage.EN -> "Covered: ${ayahCountLabel(covered, language)} · memorized: $learned"
+        AppLanguage.TG -> "Гузашта: ${ayahCountLabel(covered, language)} · аз бар шуда: $learned"
+        AppLanguage.UZ -> "O‘tilgan: ${ayahCountLabel(covered, language)} · yodlangan: $learned"
+        AppLanguage.TR -> "Geçilen: ${ayahCountLabel(covered, language)} · ezberlenen: $learned"
+    }
 
     /** "412 of 6236 ayahs" (also "3 of 40 ayahs" in a map bubble). */
     fun ayahsOf(learned: Int, total: Int): String = ayahsOfPattern.fill("a" to learned, "b" to total)
@@ -228,8 +237,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         language = language,
         title = "Прогресс",
         back = "Назад",
-        ringDescriptionPattern = "{p}%: выучено {a} из {b} аятов",
-        ringDescriptionBelowOnePattern = "меньше 1 %: выучено {a} из {b} аятов",
+        ringDescriptionPattern = "{p}%: пройдено {a} из {b} аятов, выучено {l}",
+        ringDescriptionBelowOnePattern = "меньше 1 %: пройдено {a} из {b} аятов, выучено {l}",
         knownPattern = "Знаю наизусть: {n}",
         learningPattern = "Учу: {n}",
         percentFirst = false,
@@ -238,7 +247,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         planNoneBody = "Составьте план — здесь появится прогноз окончания",
         planCreate = "Составить план",
         planFinishPattern = "{scope}: закончите ~{date}",
-        planFinishedPattern = "{scope}: все суры выучены",
+        planFinishedPattern = "{scope}: все суры пройдены",
         planBehindPattern = "Отстаёте на {ayahs}",
         planAhead = "Идёте с опережением",
         planOnTrack = "Идёте по графику",
@@ -293,8 +302,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         language = language,
         title = "Progress",
         back = "Back",
-        ringDescriptionPattern = "{p}%: {a} of {b} ayahs memorized",
-        ringDescriptionBelowOnePattern = "less than 1%: {a} of {b} ayahs memorized",
+        ringDescriptionPattern = "{p}%: {a} of {b} ayahs covered, {l} memorized",
+        ringDescriptionBelowOnePattern = "less than 1%: {a} of {b} ayahs covered, {l} memorized",
         knownPattern = "Know by heart: {n}",
         learningPattern = "Learning: {n}",
         percentFirst = false,
@@ -303,7 +312,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         planNoneBody = "Make a plan and the finish forecast will show up here",
         planCreate = "Make a plan",
         planFinishPattern = "{scope}: you will finish ~{date}",
-        planFinishedPattern = "{scope}: all surahs memorized",
+        planFinishedPattern = "{scope}: all surahs covered",
         planBehindPattern = "You are {ayahs} behind",
         planAhead = "You are ahead of schedule",
         planOnTrack = "You are on schedule",
@@ -358,8 +367,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         language = language,
         title = "Пешрафт",
         back = "Бозгашт",
-        ringDescriptionPattern = "{p}%: {a} аз {b} оят аз бар шуд",
-        ringDescriptionBelowOnePattern = "камтар аз 1%: {a} аз {b} оят аз бар шуд",
+        ringDescriptionPattern = "{p}%: {a} аз {b} оят гузашт, {l} аз бар шуд",
+        ringDescriptionBelowOnePattern = "камтар аз 1%: {a} аз {b} оят гузашт, {l} аз бар шуд",
         knownPattern = "Аз бар медонам: {n}",
         learningPattern = "Аз бар мекунам: {n}",
         percentFirst = false,
@@ -368,7 +377,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         planNoneBody = "Нақша тартиб диҳед — ин ҷо пешбинии анҷом пайдо мешавад",
         planCreate = "Тартиб додани нақша",
         planFinishPattern = "{scope}: анҷом медиҳед ~{date}",
-        planFinishedPattern = "{scope}: ҳамаи сураҳо аз бар шудаанд",
+        planFinishedPattern = "{scope}: ҳамаи сураҳо гузашта шуданд",
         planBehindPattern = "{ayahs} ақиб мондаед",
         planAhead = "Аз ҷадвал пеш мераведед",
         planOnTrack = "Мувофиқи ҷадвал пеш мераведед",
@@ -423,8 +432,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         language = language,
         title = "Natija",
         back = "Orqaga",
-        ringDescriptionPattern = "{p}%: {b} ta oyatdan {a} tasi yodlangan",
-        ringDescriptionBelowOnePattern = "1% dan kam: {b} ta oyatdan {a} tasi yodlangan",
+        ringDescriptionPattern = "{p}%: {b} ta oyatdan {a} tasi o‘tildi, {l} tasi yodlandi",
+        ringDescriptionBelowOnePattern = "1% dan kam: {b} ta oyatdan {a} tasi o‘tildi, {l} tasi yodlandi",
         knownPattern = "Yoddan bilaman: {n}",
         learningPattern = "Yodlayapman: {n}",
         percentFirst = false,
@@ -433,7 +442,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         planNoneBody = "Reja tuzing — shu yerda tugash prognozi ko‘rinadi",
         planCreate = "Reja tuzish",
         planFinishPattern = "{scope}: tugatasiz ~{date}",
-        planFinishedPattern = "{scope}: barcha suralar yodlangan",
+        planFinishedPattern = "{scope}: barcha suralar o‘tildi",
         planBehindPattern = "{ayahs} orqadasiz",
         planAhead = "Jadvaldan oldindasiz",
         planOnTrack = "Jadval bo‘yicha ketyapsiz",
@@ -488,8 +497,8 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         language = language,
         title = "İlerleme",
         back = "Geri",
-        ringDescriptionPattern = "%{p}: {b} ayetten {a} ayet ezberlendi",
-        ringDescriptionBelowOnePattern = "%1’den az: {b} ayetten {a} ayet ezberlendi",
+        ringDescriptionPattern = "%{p}: {b} ayetten {a} ayet geçildi, {l} ayet ezberlendi",
+        ringDescriptionBelowOnePattern = "%1’den az: {b} ayetten {a} ayet geçildi, {l} ayet ezberlendi",
         knownPattern = "Ezbere bildiğim: {n}",
         learningPattern = "Ezberliyorum: {n}",
         percentFirst = true,
@@ -498,7 +507,7 @@ fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
         planNoneBody = "Bir plan yapın; bitiş tahmini burada görünsün",
         planCreate = "Plan yap",
         planFinishPattern = "{scope}: bitirirsiniz ~{date}",
-        planFinishedPattern = "{scope}: tüm sureler ezberlendi",
+        planFinishedPattern = "{scope}: tüm sureler geçildi",
         planBehindPattern = "{ayahs} geridesiniz",
         planAhead = "Programın önündesiniz",
         planOnTrack = "Programa uygun gidiyorsunuz",
@@ -581,7 +590,7 @@ data class ReportCopy(
     val onTrackText: String,
     val needPacePattern: String,
 ) {
-    fun total(learned: Int, total: Int): String = totalPattern.fill("a" to learned, "b" to total)
+    fun total(covered: Int, total: Int, learned: Int = covered): String = totalPattern.fill("a" to covered, "b" to total, "l" to learned)
 
     fun surahs(list: String): String = surahsPattern.fill("list" to list)
 
@@ -598,8 +607,8 @@ fun reportCopy(language: AppLanguage): ReportCopy = when (language) {
     AppLanguage.RU -> ReportCopy(
         language = language,
         title = "Отчёт по хифзу",
-        totalPattern = "Выучено всего: {a} из {b} аятов",
-        newLabel = "Выучено новое",
+        totalPattern = "Пройдено: {a} из {b} аятов · выучено: {l}",
+        newLabel = "Пройдено новое",
         none = "нет",
         reviewedLabel = "Повторено",
         surahsPattern = "Суры: {list}",
@@ -610,7 +619,7 @@ fun reportCopy(language: AppLanguage): ReportCopy = when (language) {
         streakLabel = "Серия",
         planLabel = "План",
         finishPattern = "Прогноз окончания: ~{date}",
-        finishedText = "все суры плана выучены",
+        finishedText = "все суры плана пройдены",
         behindPattern = "Отставание от срока: {ayahs}",
         aheadText = "Опережает срок",
         onTrackText = "Идёт по графику",
@@ -620,8 +629,8 @@ fun reportCopy(language: AppLanguage): ReportCopy = when (language) {
     AppLanguage.EN -> ReportCopy(
         language = language,
         title = "Hifz report",
-        totalPattern = "Memorized in total: {a} of {b} ayahs",
-        newLabel = "Newly memorized",
+        totalPattern = "Covered: {a} of {b} ayahs · memorized: {l}",
+        newLabel = "Newly covered",
         none = "none",
         reviewedLabel = "Reviewed",
         surahsPattern = "Surahs: {list}",
@@ -632,7 +641,7 @@ fun reportCopy(language: AppLanguage): ReportCopy = when (language) {
         streakLabel = "Streak",
         planLabel = "Plan",
         finishPattern = "Expected finish: ~{date}",
-        finishedText = "all surahs of the plan are memorized",
+        finishedText = "all surahs of the plan are covered",
         behindPattern = "Behind schedule: {ayahs}",
         aheadText = "Ahead of schedule",
         onTrackText = "On schedule",
@@ -642,8 +651,8 @@ fun reportCopy(language: AppLanguage): ReportCopy = when (language) {
     AppLanguage.TG -> ReportCopy(
         language = language,
         title = "Ҳисобот оид ба ҳифз",
-        totalPattern = "Ҳамагӣ аз бар шуд: {a} аз {b} оят",
-        newLabel = "Нав аз бар шуд",
+        totalPattern = "Гузашта: {a} аз {b} оят · аз бар шуда: {l}",
+        newLabel = "Нав гузашта",
         none = "нест",
         reviewedLabel = "Такрор шуд",
         surahsPattern = "Сураҳо: {list}",
@@ -654,7 +663,7 @@ fun reportCopy(language: AppLanguage): ReportCopy = when (language) {
         streakLabel = "Силсила",
         planLabel = "Нақша",
         finishPattern = "Пешбинии анҷом: ~{date}",
-        finishedText = "ҳамаи сураҳои нақша аз бар шудаанд",
+        finishedText = "ҳамаи сураҳои нақша гузашта шуданд",
         behindPattern = "Аз мӯҳлат ақиб: {ayahs}",
         aheadText = "Аз мӯҳлат пеш",
         onTrackText = "Мувофиқи ҷадвал",
@@ -664,8 +673,8 @@ fun reportCopy(language: AppLanguage): ReportCopy = when (language) {
     AppLanguage.UZ -> ReportCopy(
         language = language,
         title = "Hifz hisoboti",
-        totalPattern = "Jami yodlangan: {b} ta oyatdan {a} tasi",
-        newLabel = "Yangi yodlangan",
+        totalPattern = "O‘tilgan: {b} ta oyatdan {a} tasi · yodlangan: {l}",
+        newLabel = "Yangi o‘tilgan",
         none = "yo‘q",
         reviewedLabel = "Takrorlangan",
         surahsPattern = "Suralar: {list}",
@@ -676,7 +685,7 @@ fun reportCopy(language: AppLanguage): ReportCopy = when (language) {
         streakLabel = "Ketma-ketlik",
         planLabel = "Reja",
         finishPattern = "Taxminiy tugash: ~{date}",
-        finishedText = "rejadagi barcha suralar yodlangan",
+        finishedText = "rejadagi barcha suralar o‘tildi",
         behindPattern = "Muddatdan orqada: {ayahs}",
         aheadText = "Muddatdan oldinda",
         onTrackText = "Jadval bo‘yicha",
@@ -686,8 +695,8 @@ fun reportCopy(language: AppLanguage): ReportCopy = when (language) {
     AppLanguage.TR -> ReportCopy(
         language = language,
         title = "Ezber raporu",
-        totalPattern = "Toplam ezberlenen: {b} ayetten {a} ayet",
-        newLabel = "Yeni ezberlenen",
+        totalPattern = "Geçilen: {b} ayetten {a} ayet · ezberlenen: {l}",
+        newLabel = "Yeni geçilen",
         none = "yok",
         reviewedLabel = "Tekrar edilen",
         surahsPattern = "Sureler: {list}",
@@ -698,7 +707,7 @@ fun reportCopy(language: AppLanguage): ReportCopy = when (language) {
         streakLabel = "Seri",
         planLabel = "Plan",
         finishPattern = "Tahmini bitiş: ~{date}",
-        finishedText = "plandaki tüm sureler ezberlendi",
+        finishedText = "plandaki tüm sureler geçildi",
         behindPattern = "Süreden geride: {ayahs}",
         aheadText = "Süreden önde",
         onTrackText = "Programa uygun",

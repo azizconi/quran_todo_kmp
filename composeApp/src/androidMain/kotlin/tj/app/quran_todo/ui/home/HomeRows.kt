@@ -15,7 +15,7 @@ internal class RowsInput(
     val chapterNames: Map<Int, ChapterNameModel>,
     /** Statuses derived from the passages; a surah without an entry is "not started". */
     val statuses: Map<Int, SurahHifzStatus>,
-    /** Number of memorized (covered) ayahs per surah; a surah without an entry has none. */
+    /** Number of learned ayahs per surah (the passage is past the 7-day repetition); a surah without an entry has none. */
     val coveredAyahs: Map<Int, Int>,
     /** The surah the plan is learning now, if there is a plan. */
     val currentPlanSurah: Int?,

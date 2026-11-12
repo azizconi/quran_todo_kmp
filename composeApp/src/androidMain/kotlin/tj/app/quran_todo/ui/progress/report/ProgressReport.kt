@@ -33,7 +33,7 @@ internal data class ProgressReport(
     val period: ReportPeriod,
     val fromDay: Int,
     val toDay: Int,
-    /** The ring: everything memorized so far. */
+    /** The ring: everything gone through so far, and how much of it is learned. */
     val hero: HeroUi,
     /** What was learned for the first time in the period, per surah in the order it was learned, neighbours merged. */
     val newRanges: List<ReportRange>,
@@ -90,6 +90,7 @@ internal object ReportBuilder {
         for (entry in repeated) for (ayah in entry.startAyah..entry.endAyah) reviewedAyahs.add(entry.surah * 1000 + ayah)
 
         val coveredCount = s.covered.values.sumOf { it.size }
+        val learnedCount = s.learned.values.sumOf { it.size }
         val hard = ProgressBuilder.hardSpots(s).map { ReportHard(it.surah, it.ayahs) }
         return ProgressReport(
             period = period,
@@ -97,6 +98,7 @@ internal object ReportBuilder {
             toDay = to,
             hero = ProgressBuilder.hero(
                 coveredAyahs = coveredCount,
+                learnedAyahs = learnedCount,
                 learnedSurahs = s.statuses.values.count { it == SurahHifzStatus.LEARNED },
                 learningSurahs = s.statuses.values.count { it == SurahHifzStatus.LEARNING },
             ),

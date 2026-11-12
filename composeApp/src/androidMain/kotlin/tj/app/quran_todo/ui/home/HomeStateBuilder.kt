@@ -33,6 +33,10 @@ internal class HomeSources(
     val onboardingGoals: Set<String>,
     /** The covered ayah numbers of every surah (one read for all of them): the "Juz" tab counts inside juz boundaries with it. */
     val coveredAyahSets: Map<Int, Set<Int>> = emptyMap(),
+    /** Learned ayahs per surah (the passage is past the 7-day repetition): the rings of the rows follow these. */
+    val learnedAyahs: Map<Int, Int> = emptyMap(),
+    /** The learned ayah numbers of every surah: the "Juz" tab counts inside juz boundaries with it. */
+    val learnedAyahSets: Map<Int, Set<Int>> = emptyMap(),
     /** Passages with a "listened" record today ("Listen to the old"); only the lesson card shows it. */
     val listenedToday: Set<Long> = emptySet(),
 )
@@ -59,7 +63,7 @@ internal object HomeStateBuilder {
                 index = s.index,
                 chapterNames = s.chapterNames,
                 statuses = s.statuses,
-                coveredAyahs = s.coveredAyahs,
+                coveredAyahs = s.learnedAyahs,
                 currentPlanSurah = PlanMath.currentSurah(s.planQueue, s.coveredAyahs),
                 pinned = s.pinnedSurahs,
             ),
@@ -80,7 +84,7 @@ internal object HomeStateBuilder {
             recent = if (content) HomeRows.recent(s.recentSurahs, s.pinnedSurahs, rowsByNumber) else emptyList(),
             rows = rows,
             overallProgress = HomeRows.overallProgress(s.coveredAyahs),
-            juzRows = if (content) JuzRows.build(s.language, rowsByNumber, s.coveredAyahSets) else emptyList(),
+            juzRows = if (content) JuzRows.build(s.language, rowsByNumber, s.learnedAyahSets) else emptyList(),
             quizReady = content && s.coveredAyahs.values.sum() >= QuizBuilder.MIN_POOL,
         )
     }

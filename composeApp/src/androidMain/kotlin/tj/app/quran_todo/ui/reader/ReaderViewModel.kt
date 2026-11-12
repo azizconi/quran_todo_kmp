@@ -180,9 +180,16 @@ class ReaderViewModel(
     val coverage: StateFlow<SurahCoverage?> = hifz.surahCoverage(surahNumber)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /** Learned ayahs by GLOBAL ayah number (`AyahEntity.number`), for the rosette rings. */
+    /**
+     * Covered ayahs by GLOBAL ayah number (`AyahEntity.number`), for the rosette rings: LEARNED when the passage is past the 7-day
+     * repetition, LEARNING while it is still on the first steps of the ladder. An ayah that is not in the map is not covered.
+     */
     val ayahStatuses: StateFlow<Map<Int, AyahTodoStatus>> = coverage
-        .map { c -> c?.coveredAyahs.orEmpty().associate { globalNumber(it) to AyahTodoStatus.LEARNED } }
+        .map { c ->
+            c?.coveredAyahs.orEmpty().associate { ayah ->
+                globalNumber(ayah) to if (ayah in c!!.learnedAyahs) AyahTodoStatus.LEARNED else AyahTodoStatus.LEARNING
+            }
+        }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 

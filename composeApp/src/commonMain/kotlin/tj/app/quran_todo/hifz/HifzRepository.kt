@@ -116,8 +116,17 @@ interface HifzRepository {
     /** Deletes the reading plan and its progress. */
     suspend fun clearKhatm()
 
-    /** The derived statuses of the surahs that have one (a surah that is not in the map is not started). */
+    /**
+     * The displayed statuses of the surahs that have one (a surah that is not in the map is not started): learned when every ayah
+     * is learned (its passage is past the 7-day repetition), learning when some are covered.
+     */
     fun surahStatuses(): Flow<Map<Int, SurahHifzStatus>>
+
+    /** The statuses by coverage ("gone through"): what the plan and the downloads follow. */
+    fun coverageStatuses(): Flow<Map<Int, SurahHifzStatus>>
+
+    /** The learned ayahs of each surah (numbers in the surah), a subset of [coveredAyahs]: only the surahs with any are in the map. */
+    fun learnedAyahs(): Flow<Map<Int, Set<Int>>>
 
     /**
      * How many ayahs of each surah are covered by passages: only the surahs with at least one covered ayah are in the map.

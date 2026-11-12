@@ -95,7 +95,7 @@ internal class PlanViewModel(
     private val hifzData: Flow<HifzData> = combine(
         hifz.plan().orElse(null),
         hifz.coveredCounts().orElse(emptyMap()),
-        hifz.surahStatuses().orElse(emptyMap()),
+        hifz.coverageStatuses().orElse(emptyMap()),
         hifz.oldWeight().orElse(0),
         ::HifzData,
     )

@@ -191,6 +191,7 @@ class JuzRowsTest {
             pinnedSurahs = emptySet(),
             onboardingGoals = emptySet(),
             coveredAyahSets = mapOf(114 to (1..6).toSet()),
+            learnedAyahSets = mapOf(114 to (1..6).toSet()),
         )
         val base = HomeStateBuilder.buildBase(sources)
         assertEquals(30, base.juzRows.size)

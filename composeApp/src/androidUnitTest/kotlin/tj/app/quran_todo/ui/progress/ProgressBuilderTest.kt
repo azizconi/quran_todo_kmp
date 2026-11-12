@@ -10,6 +10,7 @@ import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.hifz.model.ReviewKind
 import tj.app.quran_todo.hifz.model.ReviewLogEntry
 import tj.app.quran_todo.hifz.schedule.Coverage
+import tj.app.quran_todo.hifz.schedule.LearnedAyahs
 import tj.app.quran_todo.hifz.schedule.Forecast
 import tj.app.quran_todo.hifz.schedule.HifzStatuses
 import tj.app.quran_todo.hifz.schedule.LessonBuilder
@@ -40,13 +41,16 @@ class ProgressBuilderTest {
         val metrics = Fx.flat
         val coverage = Coverage(passages, metrics)
         val covered = (1..114).filter { coverage.coveredCount(it) > 0 }.associateWith { coverage.coveredAyahs(it) }
+        val learnedAyahs = LearnedAyahs(passages, metrics)
+        val learned = (1..114).filter { learnedAyahs.learnedCount(it) > 0 }.associateWith { learnedAyahs.learnedAyahs(it) }
         val newLog = log.filter { it.kind == ReviewKind.NEW }
         return ProgressSources(
             today = today,
             language = AppLanguage.EN,
             names = List(114) { "S${it + 1}" },
-            statuses = HifzStatuses.all(passages, plan, metrics),
+            statuses = HifzStatuses.allDisplay(passages, plan, metrics),
             covered = covered,
+            learned = learned,
             hard = HifzStatuses.hardAyahs(passages),
             log = log,
             streak = streak,
@@ -72,14 +76,14 @@ class ProgressBuilderTest {
     fun nothingLearnedAndNothingLoggedIsTheEmptyState() {
         val ui = ProgressBuilder.build(sources())
         assertEquals(ProgressPhase.Empty, ui.phase)
-        assertEquals(0, ui.hero.learnedAyahs)
+        assertEquals(0, ui.hero.coveredAyahs)
         assertEquals(6236, ui.hero.totalAyahs)
         assertEquals(0, ui.hero.percent)
         assertFalse(ui.hero.belowOnePercent)
         assertEquals(114, ui.cells.size)
         assertTrue(ui.cells.all { it.state == MapState.NotStarted && it.learnedAyahs == 0 })
         assertEquals(30, ui.juz.size)
-        assertTrue(ui.juz.all { it.coveredAyahs == 0 && it.percent == 0 })
+        assertTrue(ui.juz.all { it.learnedAyahs == 0 && it.percent == 0 })
         assertEquals(PlanStatus.NoPlan, ui.plan.status)
         assertTrue(ui.hard.isEmpty())
         assertNull(ui.tiles.retentionPercent)
@@ -94,7 +98,7 @@ class ProgressBuilderTest {
         )
         val ui = ProgressBuilder.build(sources(passages))
         assertEquals(ProgressPhase.Content, ui.phase)
-        assertEquals(6, ui.hero.learnedAyahs)
+        assertEquals(6, ui.hero.coveredAyahs)
         assertEquals(1, ui.hero.learnedSurahs)
         assertEquals(1, ui.hero.learningSurahs)
         assertTrue(ui.hero.belowOnePercent)
@@ -128,17 +132,17 @@ class ProgressBuilderTest {
 
     @Test
     fun theRingIsHonestAtTheEdges() {
-        assertEquals(0, ProgressBuilder.hero(0, 0, 0).percent)
-        assertFalse(ProgressBuilder.hero(0, 0, 0).belowOnePercent)
-        val one = ProgressBuilder.hero(1, 0, 0)
+        assertEquals(0, ProgressBuilder.hero(0, 0, 0, 0).percent)
+        assertFalse(ProgressBuilder.hero(0, 0, 0, 0).belowOnePercent)
+        val one = ProgressBuilder.hero(1, 1, 0, 0)
         assertEquals(0, one.percent)
         assertTrue(one.belowOnePercent)
-        assertEquals(1, ProgressBuilder.hero(32, 0, 0).percent) // 0.51%
-        assertFalse(ProgressBuilder.hero(32, 0, 0).belowOnePercent)
-        assertEquals(99, ProgressBuilder.hero(6235, 0, 0).percent)
-        assertEquals(100, ProgressBuilder.hero(6236, 0, 0).percent)
-        assertEquals(1f, ProgressBuilder.hero(6236, 0, 0).fraction)
-        assertEquals(50, ProgressBuilder.hero(3118, 0, 0).percent)
+        assertEquals(1, ProgressBuilder.hero(32, 32, 0, 0).percent) // 0.51%
+        assertFalse(ProgressBuilder.hero(32, 32, 0, 0).belowOnePercent)
+        assertEquals(99, ProgressBuilder.hero(6235, 6235, 0, 0).percent)
+        assertEquals(100, ProgressBuilder.hero(6236, 6236, 0, 0).percent)
+        assertEquals(1f, ProgressBuilder.hero(6236, 6236, 0, 0).fraction)
+        assertEquals(50, ProgressBuilder.hero(3118, 3118, 0, 0).percent)
     }
 
     // -- The tiles ------------------------------------------------------------------------------------
@@ -299,7 +303,7 @@ class ProgressBuilderTest {
         )
         val juz30 = ProgressBuilder.juz(covered)[29]
         assertEquals(564, juz30.ayahCount)
-        assertEquals(13, juz30.coveredAyahs)
+        assertEquals(13, juz30.learnedAyahs)
         assertEquals(2, juz30.percent) // 2.3%
         assertTrue(juz30.fraction > 0.02f && juz30.fraction < 0.03f)
     }
@@ -309,10 +313,10 @@ class ProgressBuilderTest {
         // Juz 1 is 1:1 - 2:141, juz 2 starts at 2:142.
         val covered = mapOf(1 to (1..7).toSet(), 2 to (130..150).toSet())
         val juz = ProgressBuilder.juz(covered)
-        assertEquals(7 + 12, juz[0].coveredAyahs) // 2:130-141
-        assertEquals(9, juz[1].coveredAyahs) // 2:142-150
+        assertEquals(7 + 12, juz[0].learnedAyahs) // 2:130-141
+        assertEquals(9, juz[1].learnedAyahs) // 2:142-150
         assertEquals(2 to 142, juz[1].startSurah to juz[1].startAyah)
-        assertEquals(0, juz[2].coveredAyahs)
+        assertEquals(0, juz[2].learnedAyahs)
     }
 
     @Test
@@ -328,7 +332,7 @@ class ProgressBuilderTest {
     @Test
     fun juzComeFromTheCoveredAyahsOfTheSources() {
         val ui = ProgressBuilder.build(sources(listOf(Fx.passage(1, 114, 1, 6), Fx.passage(2, 113, 1, 5))))
-        assertEquals(11, ui.juz[29].coveredAyahs)
+        assertEquals(11, ui.juz[29].learnedAyahs)
     }
 
     // -- The plan -------------------------------------------------------------------------------------

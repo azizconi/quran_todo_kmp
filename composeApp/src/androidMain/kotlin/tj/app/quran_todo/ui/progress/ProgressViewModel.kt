@@ -85,13 +85,14 @@ class ProgressViewModel internal constructor(
         val lesson: LessonPlan?,
         val plan: HifzPlan?,
         val forecast: PlanForecast?,
+        val learned: Map<Int, Set<Int>> = emptyMap(),
     )
 
     private val hifzSnapshot: Flow<HifzSnapshot> = combine(
         combine(
             hifz.surahStatuses().orFallback(emptyMap()),
             hifz.coveredAyahs().orFallback(emptyMap()),
-            hifz.hardAyahs().orFallback(emptyMap()),
+            combine(hifz.learnedAyahs().orFallback(emptyMap()), hifz.hardAyahs().orFallback(emptyMap()), ::Pair),
             ::Triple,
         ),
         combine(
@@ -106,8 +107,8 @@ class ProgressViewModel internal constructor(
             hifz.forecast(ticker.day).orFallback(null),
             ::Triple,
         ),
-    ) { (statuses, covered, hard), (logs, streak, today), (lesson, plan, forecast) ->
-        HifzSnapshot(today, statuses, covered, hard, logs.first, logs.second, streak, lesson, plan, forecast)
+    ) { (statuses, covered, learnedAndHard), (logs, streak, today), (lesson, plan, forecast) ->
+        HifzSnapshot(today, statuses, covered, learnedAndHard.second, logs.first, logs.second, streak, lesson, plan, forecast, learned = learnedAndHard.first)
     }
 
     private val sources: Flow<ProgressSources> = combine(hifzSnapshot, names, language) { snapshot, names, language ->
@@ -117,6 +118,7 @@ class ProgressViewModel internal constructor(
             names = names,
             statuses = snapshot.statuses,
             covered = snapshot.covered,
+            learned = snapshot.learned,
             hard = snapshot.hard,
             log = snapshot.log,
             listenLog = snapshot.listenLog,

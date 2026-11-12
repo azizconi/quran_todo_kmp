@@ -126,12 +126,15 @@ data class SurahCoverage(
     val ayahCount: Int,
     /** Ayahs (numbers in the surah) covered by a passage. */
     val coveredAyahs: Set<Int>,
+    /** Ayahs (numbers in the surah) that are learned: their passage is past the 7-day repetition (R14, R30, OLD). A subset of [coveredAyahs]. */
+    val learnedAyahs: Set<Int>,
     /** Covered ayahs the person marked as difficult. */
     val hardAyahs: Set<Int>,
     /** The passages of the surah, in mushaf order. */
     val passages: List<Passage>,
     /** True when this is the surah the plan is learning now. */
     val isCurrent: Boolean,
+    /** The displayed status: learned only when every ayah is in [learnedAyahs]. */
     val status: SurahHifzStatus?,
 )
 

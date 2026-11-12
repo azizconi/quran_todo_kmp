@@ -51,6 +51,7 @@ class HomeStateBuilderTest {
         index = index,
         statuses = statuses,
         coveredAyahs = covered,
+        learnedAyahs = covered,
         planQueue = planQueue,
         lesson = lesson,
         chapterNames = names,

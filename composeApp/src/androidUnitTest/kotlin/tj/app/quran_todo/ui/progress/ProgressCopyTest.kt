@@ -160,8 +160,8 @@ class ProgressCopyTest {
 
     @Test
     fun theRingIsDescribedWithLessThanOnePercentInWords() {
-        assertEquals("меньше 1 %: выучено 12 из 6236 аятов", progressCopy(AppLanguage.RU).ringDescription(0, true, 12, 6236))
-        assertEquals("7%: 412 of 6236 ayahs memorized", progressCopy(AppLanguage.EN).ringDescription(7, false, 412, 6236))
+        assertEquals("меньше 1 %: пройдено 12 из 6236 аятов, выучено 5", progressCopy(AppLanguage.RU).ringDescription(0, true, 12, 6236, learned = 5))
+        assertEquals("7%: 412 of 6236 ayahs covered, 300 memorized", progressCopy(AppLanguage.EN).ringDescription(7, false, 412, 6236, learned = 300))
         assertTrue(progressCopy(AppLanguage.TR).ringDescription(12, false, 1, 2).startsWith("%12"))
         assertTrue(progressCopy(AppLanguage.TR).ringDescription(0, true, 1, 2).startsWith("%1"))
     }
@@ -208,7 +208,7 @@ class ProgressCopyTest {
         assertEquals("Отстаёте на 12 аятов", ru.planStatusLine(PlanLineUi(PlanStatus.Behind, HifzScope.JUZ_30, finish, 12)))
         assertEquals("Идёте с опережением", ru.planStatusLine(PlanLineUi(PlanStatus.Ahead, HifzScope.JUZ_30, finish)))
         assertEquals("Идёте по графику", ru.planStatusLine(PlanLineUi(PlanStatus.OnTrack, HifzScope.JUZ_30, finish)))
-        assertEquals("Джуз Амма: все суры выучены", ru.planHeadline(PlanLineUi(PlanStatus.Finished, HifzScope.JUZ_30), today))
+        assertEquals("Джуз Амма: все суры пройдены", ru.planHeadline(PlanLineUi(PlanStatus.Finished, HifzScope.JUZ_30), today))
         assertEquals("Свои суры", ru.planHeadline(PlanLineUi(PlanStatus.Finish, HifzScope.CUSTOM), today))
         assertNull(ru.planHeadline(PlanLineUi(PlanStatus.NoPlan), today))
     }
