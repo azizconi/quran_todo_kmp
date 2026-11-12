@@ -52,6 +52,8 @@ fun HifzRosette(
     weak: Boolean,
     state: HifzRowState,
     modifier: Modifier = Modifier,
+    /** The name of the answer next to the rosette; the compact rows of the lesson leave it out (the mark on the rosette says it). */
+    showLabel: Boolean = true,
 ) {
     val mark = state.mark
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
@@ -67,7 +69,7 @@ fun HifzRosette(
                 )
             }
         }
-        if (mark != null) {
+        if (mark != null && showLabel) {
             Text(
                 text = state.copy.label(mark),
                 style = QhTheme.type.label,

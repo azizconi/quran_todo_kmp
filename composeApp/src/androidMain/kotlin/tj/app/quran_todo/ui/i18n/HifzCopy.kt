@@ -71,6 +71,12 @@ data class HifzCopy(
     val hiddenShareFmt: String,
     // Peeking
     val peekedFmt: String,
+    // The result row of the lesson (task U5) and the short names of the bar (task U6)
+    val resultFmt: String,
+    val change: String,
+    val returnsTomorrow: String,
+    val returnsInDaysFmt: String,
+    val recordShort: String,
 ) {
     fun label(grade: ReviewGrade): String = when (grade) {
         ReviewGrade.FORGOT -> forgot
@@ -114,6 +120,12 @@ data class HifzCopy(
     /** "25 % hidden": how much of the ayah the progressive hint has hidden so far. */
     fun hiddenShare(percent: Int): String = hiddenShareFmt.replace("{n}", percent.toString())
 
+    /** "Passage: Good". */
+    fun result(grade: ReviewGrade): String = resultFmt.replace("{grade}", label(grade))
+
+    /** "back tomorrow" / "back in 3 days": when the passage comes back, [days] after today (at least 1). */
+    fun returns(days: Int): String = if (days <= 1) returnsTomorrow else returnsInDaysFmt.replace("{n}", days.toString())
+
     /** "Peeked: 2 words": [n] counts a tapped word as one and a held ayah as two. */
     fun peeked(n: Int): String = peekedFmt.replace("{n}", wordCountLabel(n, language))
 }
@@ -131,7 +143,7 @@ fun hifzCopy(language: AppLanguage): HifzCopy = when (language) {
     AppLanguage.RU -> HifzCopy(
         language = language,
         modeName = "Проверь себя", eyeAction = "Проверь себя", exit = "Выйти из проверки", ayah = "Аят",
-        hiddenText = "Текст аята скрыт", peekHint = "Нажмите на скрытое слово или удерживайте аят, чтобы подсмотреть",
+        hiddenText = "Текст аята скрыт", peekHint = "Нажмите на аят, чтобы открыть его; удерживайте, чтобы подсмотреть",
         reciteFromMemory = "Повторите по памяти", listen = "Послушать", listenPause = "Пауза", reveal = "Показать",
         markTitle = "Как получилось с этим аятом?", remembered = "Помню", hardMark = "Трудно",
         answeredFmt = "Ответ: {mark}",
@@ -154,11 +166,12 @@ fun hifzCopy(language: AppLanguage): HifzCopy = when (language) {
         hintProgressiveInfo = "Аят виден целиком, вы скрываете его по четвертям",
         hideMore = "Скрыть ещё", hiddenShareFmt = "Скрыто {n} %",
         peekedFmt = "Подсмотрено: {n}",
+        resultFmt = "Отрывок: {grade}", change = "Изменить", returnsTomorrow = "вернётся завтра", returnsInDaysFmt = "вернётся через {n} дн.", recordShort = "Записать чтение",
     )
     AppLanguage.EN -> HifzCopy(
         language = language,
         modeName = "Check yourself", eyeAction = "Check yourself", exit = "Leave the check", ayah = "Ayah",
-        hiddenText = "Ayah text is hidden", peekHint = "Tap a hidden word or hold the ayah to peek",
+        hiddenText = "Ayah text is hidden", peekHint = "Tap the ayah to open it; hold it to peek",
         reciteFromMemory = "Recite from memory", listen = "Listen", listenPause = "Pause", reveal = "Reveal",
         markTitle = "How did this ayah go?", remembered = "I remember", hardMark = "Hard",
         answeredFmt = "Answer: {mark}",
@@ -181,11 +194,12 @@ fun hifzCopy(language: AppLanguage): HifzCopy = when (language) {
         hintProgressiveInfo = "The ayah starts whole and you hide it a quarter at a time",
         hideMore = "Hide more", hiddenShareFmt = "{n}% hidden",
         peekedFmt = "Peeked: {n}",
+        resultFmt = "Passage: {grade}", change = "Change", returnsTomorrow = "back tomorrow", returnsInDaysFmt = "back in {n} days", recordShort = "Record reading",
     )
     AppLanguage.TG -> HifzCopy(
         language = language,
         modeName = "Худро санҷед", eyeAction = "Худро санҷед", exit = "Баромадан аз санҷиш", ayah = "Оят",
-        hiddenText = "Матни оят пинҳон аст", peekHint = "Барои дидан ба калимаи пинҳон зер кунед ё оятро нигоҳ доред",
+        hiddenText = "Матни оят пинҳон аст", peekHint = "Барои кушодани оят зер кунед; барои дидан нигоҳ доред",
         reciteFromMemory = "Аз ёд такрор кунед", listen = "Гӯш кардан", listenPause = "Таваққуф", reveal = "Нишон додан",
         markTitle = "Ин оят чӣ тавр гузашт?", remembered = "Дар ёд дорам", hardMark = "Душвор",
         answeredFmt = "Ҷавоб: {mark}",
@@ -209,12 +223,13 @@ fun hifzCopy(language: AppLanguage): HifzCopy = when (language) {
         hintProgressiveInfo = "Оят аввал пурра аст, шумо онро қисм-қисм пинҳон мекунед",
         hideMore = "Боз пинҳон кардан", hiddenShareFmt = "{n}% пинҳон аст",
         peekedFmt = "Нигоҳ карда шуд: {n}",
+        resultFmt = "Порча: {grade}", change = "Тағйир додан", returnsTomorrow = "фардо бармегардад", returnsInDaysFmt = "пас аз {n} рӯз бармегардад", recordShort = "Сабти қироат",
     )
     AppLanguage.UZ -> HifzCopy(
         language = language,
         modeName = "O‘zingizni tekshiring", eyeAction = "O‘zingizni tekshiring", exit = "Tekshiruvdan chiqish",
         ayah = "Oyat",
-        hiddenText = "Oyat matni yashirilgan", peekHint = "Ko‘rish uchun yashirin so‘zni bosing yoki oyatni bosib turing",
+        hiddenText = "Oyat matni yashirilgan", peekHint = "Oyatni ochish uchun bosing; ko‘rish uchun bosib turing",
         reciteFromMemory = "Yoddan takrorlang", listen = "Tinglash", listenPause = "Pauza", reveal = "Ko‘rsatish",
         markTitle = "Bu oyat qanday chiqdi?", remembered = "Esimda", hardMark = "Qiyin",
         answeredFmt = "Javob: {mark}",
@@ -238,11 +253,12 @@ fun hifzCopy(language: AppLanguage): HifzCopy = when (language) {
         hintProgressiveInfo = "Oyat avval butun, uni choraklab yashirasiz",
         hideMore = "Yana yashirish", hiddenShareFmt = "{n}% yashirilgan",
         peekedFmt = "Qarab olindi: {n}",
+        resultFmt = "Parcha: {grade}", change = "O‘zgartirish", returnsTomorrow = "ertaga qaytadi", returnsInDaysFmt = "{n} kundan keyin qaytadi", recordShort = "O‘qishni yozish",
     )
     AppLanguage.TR -> HifzCopy(
         language = language,
         modeName = "Kendini sına", eyeAction = "Kendini sına", exit = "Sınamadan çık", ayah = "Ayet",
-        hiddenText = "Ayet metni gizli", peekHint = "Göz atmak için gizli kelimeye dokunun ya da ayete basılı tutun",
+        hiddenText = "Ayet metni gizli", peekHint = "Ayeti açmak için dokunun; göz atmak için basılı tutun",
         reciteFromMemory = "Ezberden oku", listen = "Dinle", listenPause = "Duraklat", reveal = "Göster",
         markTitle = "Bu ayet nasıl geçti?", remembered = "Hatırlıyorum", hardMark = "Zor",
         answeredFmt = "Cevap: {mark}",
@@ -266,5 +282,6 @@ fun hifzCopy(language: AppLanguage): HifzCopy = when (language) {
         hintProgressiveInfo = "Ayet önce bütün, siz onu parça parça gizlersiniz",
         hideMore = "Biraz daha gizle", hiddenShareFmt = "%{n} gizli",
         peekedFmt = "Göz atıldı: {n}",
+        resultFmt = "Bölüm: {grade}", change = "Değiştir", returnsTomorrow = "yarın döner", returnsInDaysFmt = "{n} gün sonra döner", recordShort = "Okumayı kaydet",
     )
 }

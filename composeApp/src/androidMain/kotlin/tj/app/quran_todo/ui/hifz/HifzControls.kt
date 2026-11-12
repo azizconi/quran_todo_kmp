@@ -291,7 +291,7 @@ private fun HideMoreButton(copy: HifzCopy, host: RecallHost, position: Int, modi
 
 /** "Hint: First word": the level that is in force; a tap opens the sheet of the five levels. */
 @Composable
-private fun HintChip(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun HintChip(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = QhTheme.colors
     val shape = QhTheme.shapes.full
     Row(
@@ -381,7 +381,7 @@ private fun MarkControls(host: RecallHost, session: HifzSession) {
 
 /** The two answers; [early] is before the reveal (the progressive hint, from the first hidden quarter on). */
 @Composable
-private fun AnswerPills(host: RecallHost, item: HifzItem, position: Int, early: Boolean, modifier: Modifier = Modifier) {
+internal fun AnswerPills(host: RecallHost, item: HifzItem, position: Int, early: Boolean, modifier: Modifier = Modifier) {
     val copy = host.copy
     val fontScale = LocalDensity.current.fontScale
     val hints = LocalHints.current
@@ -445,7 +445,7 @@ private fun MarkPill(
     val shape = QhTheme.shapes.full
     Row(
         modifier
-            .heightIn(min = 52.dp)
+            .heightIn(min = 56.dp)
             .pressable(onClick = onClick, haptic = haptic, shape = shape, scale = 0.95f, onClickLabel = label)
             .clip(shape)
             .background(container)
