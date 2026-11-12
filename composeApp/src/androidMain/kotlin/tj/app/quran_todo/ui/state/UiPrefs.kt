@@ -131,6 +131,18 @@ class UiPrefs(context: Context) {
     }
 
     /**
+     * The one-time question under the surah header of the text reader, "Show the translation under the ayahs?" (UX_PLAN U22), was
+     * answered (yes or no) or is moot because the translation is already on. Never shown again after that. Not in the backup file.
+     */
+    private val _translationOfferAnswered = MutableStateFlow(prefs.getBoolean(KEY_TRANSLATION_OFFER_ANSWERED, false))
+    val translationOfferAnswered: StateFlow<Boolean> = _translationOfferAnswered.asStateFlow()
+
+    fun setTranslationOfferAnswered(value: Boolean) {
+        prefs.edit().putBoolean(KEY_TRANSLATION_OFFER_ANSWERED, value).apply()
+        _translationOfferAnswered.value = value
+    }
+
+    /**
      * "Tajweed" (the "Aa" sheet of the reader, task F3b): the rules of recitation are coloured in the text of the reader and of the
      * lesson. Off by default. The markup is fetched the first time it is turned on (`ui/tajweed/TajweedStore`); the switch stays on without
      * network and the colours come when the file does. It is in the backup file (`BackupSettings.tajweed`, optional).
@@ -496,6 +508,7 @@ class UiPrefs(context: Context) {
         const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
         const val KEY_HIGHLIGHT_WORDS = "highlight_words"
         const val KEY_TAJWEED = "tajweed"
+        const val KEY_TRANSLATION_OFFER_ANSWERED = "translation_offer_answered"
         const val KEY_WORD_MEANINGS = "word_meanings"
         const val KEY_SIMILAR_MARKS = "similar_marks"
         const val KEY_TAFSIR_SOURCE = "tafsir_source"

@@ -12,36 +12,34 @@ class HintFlagsTest {
     @Test
     fun nothingIsUsedAtFirst() {
         val flags = HintFlags(InMemoryHintStore())
-        assertFalse(flags.isUsed(Hints.ReaderHold))
         assertFalse(flags.isUsed(Hints.LessonGrade))
     }
 
     @Test
     fun aMarkIsPerHintAndSurvivesARestart() {
         val store = InMemoryHintStore()
-        HintFlags(store).markUsed(Hints.ReaderHold)
+        HintFlags(store).markUsed(Hints.LessonGrade)
         val after = HintFlags(store)
-        assertTrue(after.isUsed(Hints.ReaderHold))
-        assertFalse(after.isUsed(Hints.LessonGrade))
+        assertTrue(after.isUsed(Hints.LessonGrade))
+        assertFalse(after.isUsed("other"))
     }
 
     @Test
     fun markingTwiceIsHarmless() {
         val store = InMemoryHintStore()
         val flags = HintFlags(store)
-        flags.markUsed(Hints.ReaderHold)
-        flags.markUsed(Hints.ReaderHold)
-        assertEquals(setOf(Hints.ReaderHold), store.read())
+        flags.markUsed(Hints.LessonGrade)
+        flags.markUsed(Hints.LessonGrade)
+        assertEquals(setOf(Hints.LessonGrade), store.read())
     }
 
     @Test
     fun resetBringsAllHintsBack() {
         val store = InMemoryHintStore()
         val flags = HintFlags(store)
-        flags.markUsed(Hints.ReaderHold)
         flags.markUsed(Hints.LessonGrade)
+        flags.markUsed("other")
         flags.resetAll()
-        assertFalse(flags.isUsed(Hints.ReaderHold))
         assertFalse(flags.isUsed(Hints.LessonGrade))
         assertTrue(store.read().isEmpty())
         assertFalse(HintFlags(store).isUsed(Hints.LessonGrade))
@@ -51,7 +49,7 @@ class HintFlagsTest {
     fun everyLanguageHasTheHintTexts() {
         AppLanguage.entries.forEach { language ->
             val copy = hintsCopy(language)
-            listOf(copy.dismiss, copy.readerHold, copy.lessonGrade).forEach { assertTrue(it.isNotBlank(), language.name) }
+            listOf(copy.dismiss, copy.lessonGrade).forEach { assertTrue(it.isNotBlank(), language.name) }
         }
     }
 }
