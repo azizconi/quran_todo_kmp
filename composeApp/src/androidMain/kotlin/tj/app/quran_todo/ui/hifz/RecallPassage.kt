@@ -24,9 +24,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import tj.app.quran_todo.data.database.entity.quran.AyahEntity
-import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
-import tj.app.quran_todo.ui.components.spotlight.SpotlightTargets
-import tj.app.quran_todo.ui.components.spotlight.spotlightTarget
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.reader.splitBismillah
 import tj.app.quran_todo.ui.state.HifzHintMode
@@ -145,12 +142,6 @@ private fun RecallRow(
                 arabicStyle = arabicStyle,
                 translation = null,
                 translationStyle = QhTheme.type.body,
-                // The tip "Peek" (lesson tour) points at the hidden ayah that is being recalled.
-                modifier = if (state.phase == HifzPhase.Current && !state.revealed) {
-                    Modifier.spotlightTarget(SpotlightTargets.LessonHiddenAyah, SpotlightShape.Rounded(14.dp), inset = 2.dp)
-                } else {
-                    Modifier
-                },
             )
             RecallControlsHost(host = host, inSurah = ayah.numberInSurah)
         }

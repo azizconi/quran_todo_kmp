@@ -13,7 +13,7 @@ import tj.app.quran_todo.di.androidModule
 import tj.app.quran_todo.di.commonModule
 import tj.app.quran_todo.di.viewModelModule
 import tj.app.quran_todo.hifz.HifzRepository
-import tj.app.quran_todo.ui.components.spotlight.SharedPreferencesSpotlightStore
+import tj.app.quran_todo.ui.components.hints.SharedPreferencesHintStore
 import tj.app.quran_todo.ui.di.uiModules
 import tj.app.quran_todo.ui.downloads.DownloadsManager
 import tj.app.quran_todo.ui.onboarding.OnboardingStartup
@@ -54,7 +54,7 @@ class QuranTodoApplication: Application() {
             listOf(
                 "quran_todo_prefs", // language, theme, reading settings (UserSettingsStorage, LanguageStorage, ThemeStorage)
                 UiPrefs.PREFS_NAME,
-                SharedPreferencesSpotlightStore.FileName,
+                SharedPreferencesHintStore.FileName,
                 "downloads_prefs",
                 "quran_todo_cloud_sync",
                 "debug_today",

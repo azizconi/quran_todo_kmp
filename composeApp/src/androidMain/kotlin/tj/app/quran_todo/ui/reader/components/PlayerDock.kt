@@ -99,9 +99,6 @@ import tj.app.quran_todo.ui.i18n.ListenCopy
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.i18n.rememberListenCopy
 import tj.app.quran_todo.ui.motion.AnimatedCounter
-import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
-import tj.app.quran_todo.ui.components.spotlight.SpotlightTargets
-import tj.app.quran_todo.ui.components.spotlight.spotlightTarget
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.SharedKeys
@@ -231,8 +228,7 @@ fun PlayerDock(
                 scope.launch { if (state.isExpanding) state.collapse() else state.expand() }
             },
             modifier = Modifier
-                .onSizeChanged { headerPx = it.height }
-                .spotlightTarget(SpotlightTargets.ReaderDock, SpotlightShape.Rounded(28.dp)),
+                .onSizeChanged { headerPx = it.height },
         )
         Box(
             Modifier

@@ -52,11 +52,12 @@ import kotlinx.coroutines.flow.StateFlow
 import tj.app.quran_todo.ui.components.QhButton
 import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
-import tj.app.quran_todo.ui.components.spotlight.SpotlightShape
-import tj.app.quran_todo.ui.components.spotlight.SpotlightTargets
-import tj.app.quran_todo.ui.components.spotlight.spotlightTarget
+import tj.app.quran_todo.ui.components.hints.Hints
+import tj.app.quran_todo.ui.components.hints.InlineHint
+import tj.app.quran_todo.ui.components.hints.LocalHints
 import tj.app.quran_todo.ui.haptics.HapticKind
 import tj.app.quran_todo.ui.i18n.HifzCopy
+import tj.app.quran_todo.ui.i18n.rememberHintsCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.pressable
@@ -366,12 +367,11 @@ private fun MarkControls(host: RecallHost, session: HifzSession) {
     val copy = host.copy
     val colors = QhTheme.colors
     val item = session.current
-    // The tip "An honest rating" (lesson tour) points at the two answers.
-    val answers = Modifier.spotlightTarget(SpotlightTargets.LessonGrade, SpotlightShape.Rounded(28.dp))
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = copy.markTitle, style = QhTheme.type.callout, color = colors.inkSecondary)
         if (item != null) {
-            AnswerPills(host = host, item = item, position = session.index, early = false, modifier = answers)
+            AnswerPills(host = host, item = item, position = session.index, early = false)
+            InlineHint(id = Hints.LessonGrade, text = rememberHintsCopy().lessonGrade)
             if (item.suggestsHard) {
                 Text(text = copy.peeked(item.peeks), style = QhTheme.type.label, color = colors.inkSecondary)
             }
@@ -384,7 +384,11 @@ private fun MarkControls(host: RecallHost, session: HifzSession) {
 private fun AnswerPills(host: RecallHost, item: HifzItem, position: Int, early: Boolean, modifier: Modifier = Modifier) {
     val copy = host.copy
     val fontScale = LocalDensity.current.fontScale
-    val onMark: (AyahMark) -> Unit = { mark -> if (early) host.markEarly(mark, position) else host.mark(mark, position) }
+    val hints = LocalHints.current
+    val onMark: (AyahMark) -> Unit = { mark ->
+        hints.markUsed(Hints.LessonGrade)
+        if (early) host.markEarly(mark, position) else host.mark(mark, position)
+    }
     val hardFirst = item.suggestsHard
     if (fontScale > LargeFontScale) {
         Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {

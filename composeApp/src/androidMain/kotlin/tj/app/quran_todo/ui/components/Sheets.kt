@@ -12,12 +12,10 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import tj.app.quran_todo.ui.components.spotlight.LocalSpotlight
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.orSnap
 import tj.app.quran_todo.ui.theme.QhSpacing
@@ -39,12 +37,6 @@ fun QhSheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = QhTheme.colors
-    // A visible sheet holds back the spotlight tips (they start only when the sheet is gone).
-    val spotlight = LocalSpotlight.current
-    DisposableEffect(spotlight) {
-        spotlight.sheetShown()
-        onDispose { spotlight.sheetHidden() }
-    }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,

@@ -111,7 +111,7 @@ import tj.app.quran_todo.ui.components.QhValueRow
 import tj.app.quran_todo.ui.components.ToastKind
 import tj.app.quran_todo.ui.components.rememberQhTopBarState
 import tj.app.quran_todo.ui.haptics.HapticKind
-import tj.app.quran_todo.ui.components.spotlight.LocalSpotlight
+import tj.app.quran_todo.ui.components.hints.LocalHints
 import tj.app.quran_todo.ui.haptics.rememberHaptics
 import tj.app.quran_todo.ui.i18n.SettingsCopy
 import tj.app.quran_todo.ui.i18n.planCopy
@@ -403,7 +403,7 @@ private fun SettingsContent(
     val colors = QhTheme.colors
     val context = LocalContext.current
     val toaster = LocalToaster.current
-    val spotlight = LocalSpotlight.current
+    val hints = LocalHints.current
 
     val themeMode = LocalThemeMode.current
     val palette = LocalThemePalette.current
@@ -674,7 +674,7 @@ private fun SettingsContent(
                 title = copy.showTipsAgain,
                 description = copy.showTipsAgainDescription,
                 onClick = {
-                    spotlight.resetAll()
+                    hints.resetAll()
                     toaster.show(copy.tipsWillShowAgain, ToastKind.Success)
                 },
                 icon = Icons.Rounded.Lightbulb,
