@@ -10,6 +10,8 @@ import tj.app.quran_todo.common.audio.Reciter
 import tj.app.quran_todo.common.audio.Reciters
 import tj.app.quran_todo.common.settings.UserSettingsStorage
 import tj.app.quran_todo.common.theme.ThemeStorage
+import tj.app.quran_todo.ui.lesson.LessonDurations
+import tj.app.quran_todo.ui.lesson.LessonStopwatch
 
 enum class ReaderLayout { LIST, MUSHAF }
 
@@ -399,6 +401,41 @@ class UiPrefs(context: Context) {
         _reminderMinuteOfDay.value = next
     }
 
+    /**
+     * The person has answered "Remind you about tomorrow's lesson?" on the lesson summary (task U2), with yes, no or a refused
+     * permission. The question is never shown again. Not in the backup file.
+     */
+    private val _reminderAsked = MutableStateFlow(prefs.getBoolean(KEY_REMINDER_ASKED, false))
+    val reminderAsked: StateFlow<Boolean> = _reminderAsked.asStateFlow()
+
+    fun setReminderAsked(value: Boolean) {
+        prefs.edit().putBoolean(KEY_REMINDER_ASKED, value).apply()
+        _reminderAsked.value = value
+    }
+
+    /**
+     * Seconds the last completed lessons took (at most [tj.app.quran_todo.ui.lesson.LessonDurations.KEEP], oldest first), task U3.
+     * The summary shows "Your lesson takes about N minutes" from them. Not in the backup file.
+     */
+    private val _lessonDurations = MutableStateFlow(decodeInts(prefs.getString(KEY_LESSON_DURATIONS, null)))
+    val lessonDurations: StateFlow<List<Int>> = _lessonDurations.asStateFlow()
+
+    fun addLessonDuration(seconds: Int) {
+        val next = LessonDurations.append(_lessonDurations.value, seconds)
+        prefs.edit().putString(KEY_LESSON_DURATIONS, encodeInts(next)).apply()
+        _lessonDurations.value = next
+    }
+
+    /** The foreground time already counted for the lesson of [LessonClock.day], so a lesson picked up later the same day adds to it. */
+    fun lessonClock(): LessonClock = LessonClock(
+        day = prefs.getInt(KEY_LESSON_CLOCK_DAY, LessonStopwatch.NO_DAY),
+        accumulatedMs = prefs.getLong(KEY_LESSON_CLOCK_MS, 0L),
+    )
+
+    fun setLessonClock(clock: LessonClock) {
+        prefs.edit().putInt(KEY_LESSON_CLOCK_DAY, clock.day).putLong(KEY_LESSON_CLOCK_MS, clock.accumulatedMs).apply()
+    }
+
     internal companion object {
         /**
          * The stored reminder settings for code that runs without the Compose app (the boot and alarm receivers). Always the
@@ -460,6 +497,10 @@ class UiPrefs(context: Context) {
         const val KEY_LAST_EXPORT_AT = "last_export_at"
         const val KEY_REMINDER_ENABLED = "reminder_enabled"
         const val KEY_REMINDER_MINUTE = "reminder_minute_of_day"
+        const val KEY_REMINDER_ASKED = "reminder_asked"
+        const val KEY_LESSON_DURATIONS = "lesson_durations_s"
+        const val KEY_LESSON_CLOCK_DAY = "lesson_clock_day"
+        const val KEY_LESSON_CLOCK_MS = "lesson_clock_ms"
     }
 }
 
@@ -468,6 +509,9 @@ class UiPrefs(context: Context) {
  * [v2Started]: the onboarding v2 screen was shown at least once on this install. [whatsNewShown]: the "What's new" sheet was shown.
  */
 data class OnboardingFlags(val completed: Boolean, val v2Started: Boolean, val whatsNewShown: Boolean)
+
+/** The foreground time counted for the lesson of [day] (an epoch day), in milliseconds. */
+data class LessonClock(val day: Int, val accumulatedMs: Long)
 
 /** The reminder settings as stored: on or off, and the time as minutes after midnight. */
 data class ReminderPrefs(val enabled: Boolean, val minuteOfDay: Int)
