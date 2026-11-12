@@ -130,7 +130,7 @@ private fun PlanSummary(
             SummaryRow(
                 icon = Icons.AutoMirrored.Rounded.MenuBook,
                 tint = colors.primary,
-                text = copy.readyLesson(passageRangeLabel(name, lesson.startAyah, lesson.endAyah), ui.lessonMinutes),
+                text = copy.readyLesson(passageRangeLabel(name, lesson.startAyah, lesson.endAyah), minutes = null), // the time is the range line below, not a second promise here
                 strong = true,
             )
         }
