@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -33,7 +34,10 @@ import tj.app.quran_todo.hifz.model.AyahRange
 import tj.app.quran_todo.hifz.model.ReviewGrade
 import tj.app.quran_todo.hifz.schedule.LessonNewState
 import tj.app.quran_todo.hifz.schedule.LessonPlan
+import tj.app.quran_todo.hifz.schedule.LighterWeek
 import tj.app.quran_todo.hifz.schedule.PlanForecast
+import tj.app.quran_todo.hifz.schedule.ReturnInfo
+import tj.app.quran_todo.hifz.schedule.WelcomeBack
 import tj.app.quran_todo.presentation.home.HomeViewModel
 import tj.app.quran_todo.presentation.surah.SurahViewModel
 import tj.app.quran_todo.ui.common.SurahNames
@@ -71,6 +75,16 @@ sealed interface LessonUi {
     /** Everything is done. [closedNow] says the last card was finished in this visit (the celebration plays). */
     data class Summary(val plan: LessonPlan, val closedNow: Boolean) : LessonUi
 }
+
+/** What "Welcome back" shows (task U17). [bestStreak] is 0 when there is nothing worth showing. */
+@Immutable
+data class WelcomeBackUi(
+    val missedDays: Int,
+    val repetitions: Int,
+    val minutes: Int,
+    val hasNew: Boolean,
+    val bestStreak: Int,
+)
 
 /** One-off things the screen reacts to with a toast. */
 sealed interface LessonEvent {
@@ -113,6 +127,70 @@ class LessonViewModel(
     /** Days in a row with a record in the log, for the summary. */
     val streak: StateFlow<Int> = hifz.streak(ticker.day)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    // -- Welcome back (task U17) ------------------------------------------------------------------------
+
+    /** The last day of a lighter week while it holds today; null otherwise (the quiet line "Lighter week: until ..."). */
+    val lighterWeekUntil: StateFlow<Int?> = combine(hifz.lighterUntil(), ticker.day) { until, day ->
+        until?.takeIf { LighterWeek.isActive(it, day) }
+    }
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val returnInfo: Flow<ReturnInfo?> = hifz.returnInfo(ticker.day).map<ReturnInfo, ReturnInfo?> { it }.catch { emit(null) }
+
+    private var welcomeShownLogged = false
+
+    /**
+     * The screen that opens the lesson after missed days, or null when it must not show: no plan, a pause, a finished plan, nothing to
+     * do, a lesson already started, fewer than [WelcomeBack.MIN_MISSED_DAYS] missed days or an answer already given for this return.
+     */
+    val welcomeBack: StateFlow<WelcomeBackUi?> = combine(lesson, returnInfo, uiPrefs.welcomeBackAnswered) { plan, info, answered ->
+        if (plan == null || info == null) return@combine null
+        val untouched = plan.recent.none { it.done } && plan.old.none { it.done } && plan.newBlock?.state != LessonNewState.DONE
+        if (!plan.hasPlan || plan.paused != null || plan.planFinished || plan.isEmpty || plan.isComplete || !untouched) {
+            return@combine null
+        }
+        if (!WelcomeBack.shouldShow(info, answered)) return@combine null
+        WelcomeBackUi(
+            missedDays = info.missedDays,
+            repetitions = plan.recent.size + plan.old.size,
+            minutes = plan.totalMinutes,
+            hasNew = plan.newBlock?.state == LessonNewState.PENDING,
+            bestStreak = info.bestStreak,
+        )
+    }
+        .distinctUntilChanged()
+        .onEach { ui ->
+            if (ui != null && !welcomeShownLogged) {
+                welcomeShownLogged = true
+                AppTelemetry.logEvent("welcome_back_shown", mapOf("missed_days" to ui.missedDays.toString()))
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** "Catch up over a few days": the lesson goes on as it is built. */
+    fun chooseCatchUp() {
+        AppTelemetry.logEvent("welcome_back_choice", mapOf("choice" to "catch_up"))
+        uiPrefs.setWelcomeBackAnswered(ticker.day.value)
+    }
+
+    /** "A lighter week": half the new amount for 7 days from today; the lesson of today is rebuilt by the repository flow. */
+    fun chooseLighter() {
+        AppTelemetry.logEvent("welcome_back_choice", mapOf("choice" to "lighter"))
+        val today = ticker.day.value
+        viewModelScope.launch {
+            try {
+                hifz.setLighterWeek(today)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                AppTelemetry.logError(e, context = "lighter_week_failed")
+                events.trySend(LessonEvent.SaveFailed)
+            }
+            uiPrefs.setWelcomeBackAnswered(today)
+        }
+    }
 
     /**
      * The passages with a "listened" record today ("Listen to the old", task F1b). Only the card of an old passage reads it, to say

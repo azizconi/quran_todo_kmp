@@ -73,6 +73,7 @@ import tj.app.quran_todo.ui.i18n.LessonCopy
 import tj.app.quran_todo.ui.i18n.hifzCopy
 import tj.app.quran_todo.ui.i18n.lessonCopy
 import tj.app.quran_todo.ui.i18n.rememberPauseCopy
+import tj.app.quran_todo.ui.i18n.welcomeBackCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.SharedKeys
@@ -148,7 +149,8 @@ fun LessonScreen(
         }
     }
 
-    val working = ui as? LessonUi.Working
+    val welcome by viewModel.welcomeBack.collectAsState()
+    val working = (ui as? LessonUi.Working)?.takeIf { welcome == null }
     KeepScreenOnEffect(enabled = working != null)
 
     // A finished lesson is the happy moment for the Google Play review card (InAppReview decides whether it is due). The short wait
@@ -184,6 +186,17 @@ fun LessonScreen(
                 actionLabel = copy.toHome,
                 onAction = onHome,
             )
+        } else if (welcome != null) {
+            // "Welcome back" (task U17): before the first card; back leaves the lesson without answering.
+            welcome?.let { info ->
+                WelcomeBackScreen(
+                    ui = info,
+                    lessonCopy = copy,
+                    onCatchUp = viewModel::chooseCatchUp,
+                    onLighter = viewModel::chooseLighter,
+                    onBack = onBack,
+                )
+            }
         } else when (val state = ui) {
             LessonUi.Loading -> LessonLoading(copy = copy, onBack = onBack)
             LessonUi.NoPlan -> LessonEmpty(
@@ -254,6 +267,12 @@ private fun LessonBody(
         )
         LessonSteps(steps = steps, current = current, copy = copy)
         if (plan.catchingUp) CatchingUpNote(copy)
+        val lighterUntil by viewModel.lighterWeekUntil.collectAsState()
+        lighterUntil?.let { until ->
+            val language = LocalAppLanguage.current
+            val welcomeCopy = remember(language) { welcomeBackCopy(language) }
+            QuietNote(welcomeCopy.lighterLine(formatDay(until, language)))
+        }
         AnimatedContent(
             targetState = ui,
             modifier = Modifier
@@ -301,7 +320,7 @@ private fun LessonBody(
 }
 
 @Composable
-private fun LessonTopBar(copy: LessonCopy, subtitle: String?, onBack: () -> Unit) {
+internal fun LessonTopBar(copy: LessonCopy, subtitle: String?, onBack: () -> Unit) {
     val colors = QhTheme.colors
     Row(
         Modifier
@@ -397,10 +416,13 @@ private fun StepProgress(step: LessonStep, selected: Boolean, copy: LessonCopy, 
 
 /** The quiet note under the steps while repetitions are moved to later days. */
 @Composable
-private fun CatchingUpNote(copy: LessonCopy) {
+private fun CatchingUpNote(copy: LessonCopy) = QuietNote(copy.catchingUp)
+
+@Composable
+private fun QuietNote(text: String) {
     val colors = QhTheme.colors
     Text(
-        text = copy.catchingUp,
+        text = text,
         style = QhTheme.type.callout,
         color = colors.inkSecondary,
         modifier = Modifier
