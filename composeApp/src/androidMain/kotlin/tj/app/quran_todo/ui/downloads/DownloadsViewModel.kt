@@ -137,7 +137,7 @@ internal class DownloadsViewModel(
     /** The surahs of "My plan" (see [DownloadSelection.planSurahs]); empty without a plan. */
     private val planSurahs: Flow<List<Int>> = combine(
         hifz.plan().catch { emit(null) },
-        hifz.surahStatuses().catch { emit(emptyMap<Int, SurahHifzStatus>()) },
+        hifz.coverageStatuses().catch { emit(emptyMap<Int, SurahHifzStatus>()) },
         DownloadSelection::planSurahs,
     ).distinctUntilChanged()
 

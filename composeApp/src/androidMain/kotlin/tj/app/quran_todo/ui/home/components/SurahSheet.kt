@@ -100,7 +100,9 @@ internal fun SurahSheet(
         SurahTodoStatus.LEARNED -> SurahHifzStatus.LEARNED
     }
     val shownTarget = picked?.target ?: SurahStatusChange.targetOf(currentStatus)
-    val coveredCount = coverage?.coveredAyahs?.size ?: Math.round(row.learnedFraction * row.ayahCount)
+    val learnedCount = coverage?.learnedAyahs?.size ?: Math.round(row.learnedFraction * row.ayahCount)
+    // What leaves the repetitions is everything covered, learned or not.
+    val coveredCount = coverage?.coveredAyahs?.size ?: learnedCount
 
     /**
      * Slides the sheet away, then runs [action]: the row behind it changes (the badge pops, the burst
@@ -184,7 +186,7 @@ internal fun SurahSheet(
         Spacer(Modifier.height(QhSpacing.x3))
         // Where the surah stands now: memorized ayahs of all, and the ones marked difficult.
         Text(
-            text = copy.coverageLine(coveredCount, row.ayahCount, coverage?.hardAyahs?.size ?: 0),
+            text = copy.coverageLine(coveredCount, row.ayahCount, coverage?.hardAyahs?.size ?: 0, learned = learnedCount),
             style = type.callout,
             color = colors.inkSecondary,
             modifier = Modifier.padding(horizontal = QhSpacing.x1),

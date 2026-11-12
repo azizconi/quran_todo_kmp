@@ -76,8 +76,10 @@ class AyahSheetModel(
     val surahName: String,
     val arabic: String,
     val translation: String?,
-    /** The ayah is covered by a passage (learned). */
+    /** The ayah is covered by a passage (it can be taken out of the repetitions). */
     val learned: Boolean,
+    /** LEARNED when its passage is past the 7-day repetition, LEARNING while it is still being learned, null when not covered. */
+    val status: AyahTodoStatus? = null,
     /** The ayah is marked as difficult. */
     val hard: Boolean,
     /** When a learned ayah comes back; null when it is not learned. */
@@ -123,7 +125,7 @@ fun AyahSheet(
             ) {
                 AyahRosette(
                     number = number,
-                    status = if (model.learned) AyahTodoStatus.LEARNED else null,
+                    status = model.status,
                     weak = model.hard,
                     size = 48.dp,
                 )

@@ -343,6 +343,11 @@ internal class MushafViewModel(
                     arabic = splitBismillah(key.surah, key.ayah, ayah.text),
                     translation = null,
                     learned = key.ayah in coverage.coveredAyahs,
+                    status = when (key.ayah) {
+                        in coverage.learnedAyahs -> tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus.LEARNED
+                        in coverage.coveredAyahs -> tj.app.quran_todo.data.database.entity.todo.AyahTodoStatus.LEARNING
+                        else -> null
+                    },
                     hard = key.ayah in coverage.hardAyahs,
                     schedule = scheduleOf(coverage, key.ayah),
                     note = notes.firstOrNull { it.ayahNumber == ayah.number }?.note.orEmpty(),

@@ -23,7 +23,9 @@ internal enum class StatusStep {
 /**
  * How a choice in the surah sheet turns into repository calls (the same meaning as in the reader's sheet):
  *
- * - "Know by heart" (`markKnown`): the ayahs that are not covered become OLD passages; the covered ones stay as they are.
+ * - "Know by heart" (`markKnown`): the ayahs that are not covered become OLD passages. A surah that is being learned has
+ *   covered ayahs still on the first steps of the ladder: they are taken out first (`forget`), so that they become OLD
+ *   passages too and the whole surah is learned at once. A surah that is learned already is left as it is.
  * - "Memorizing" (`learnNext`): the surah goes to the front of the plan. A memorized surah is first taken out of the
  *   passages (`forget`), otherwise it would stay memorized.
  * - "Not started" (`forget`): the surah leaves the passages and the queue of the plan, so that it is not "learning" through
@@ -61,7 +63,8 @@ internal object SurahStatusChange {
 
     fun steps(current: SurahHifzStatus?, target: SurahTarget, inPlan: Boolean): List<StatusStep> = when {
         isNoop(current, target) -> emptyList()
-        target == SurahTarget.Known -> listOf(StatusStep.MarkKnown)
+        target == SurahTarget.Known ->
+            if (current == SurahHifzStatus.LEARNING) listOf(StatusStep.Forget, StatusStep.MarkKnown) else listOf(StatusStep.MarkKnown)
         target == SurahTarget.Learning ->
             if (current == SurahHifzStatus.LEARNED) listOf(StatusStep.Forget, StatusStep.LearnNext) else listOf(StatusStep.LearnNext)
         else -> buildList {

@@ -83,12 +83,14 @@ class ProgressReportTest {
     ): ProgressSources {
         val metrics = Fx.flat
         val coverage = Coverage(passages, metrics)
+        val learnedAyahs = tj.app.quran_todo.hifz.schedule.LearnedAyahs(passages, metrics)
         return ProgressSources(
             today = today,
             language = language,
             names = names,
-            statuses = HifzStatuses.all(passages, plan, metrics),
+            statuses = HifzStatuses.allDisplay(passages, plan, metrics),
             covered = (1..114).filter { coverage.coveredCount(it) > 0 }.associateWith { coverage.coveredAyahs(it) },
+            learned = (1..114).filter { learnedAyahs.learnedCount(it) > 0 }.associateWith { learnedAyahs.learnedAyahs(it) },
             hard = HifzStatuses.hardAyahs(passages),
             log = log,
             streak = streak,
@@ -169,7 +171,8 @@ class ProgressReportTest {
         assertEquals(3, week.streak)
         assertEquals(PlanStatus.Finish, week.plan.status)
         assertEquals(HifzScope.CUSTOM, week.plan.scope)
-        assertEquals(20, week.hero.learnedAyahs)
+        assertEquals(20, week.hero.coveredAyahs)
+        assertEquals(11, week.hero.learnedAyahs)
         assertEquals(PlanLineUi(PlanStatus.NoPlan), report(s = sources(plan = null)).plan)
     }
 
@@ -184,8 +187,8 @@ class ProgressReportTest {
             Отчёт по хифзу
             24 окт – 30 окт
 
-            Выучено всего: 20 из 6236 аятов (<1%)
-            Выучено новое: 9 аятов
+            Пройдено: 20 из 6236 аятов · выучено: 11 (<1%)
+            Пройдено новое: 9 аятов
             • Аль-Масад 1–5
             • Аль-Ихлас 1–4
             Повторено: 14 аятов · 4 повторения
@@ -209,8 +212,8 @@ class ProgressReportTest {
             listOf("Hifz report", "Oct 24 – Oct 30", ""),
             lines.take(3),
         )
-        assertEquals("Memorized in total: 20 of 6236 ayahs (<1%)", lines[3])
-        assertEquals("Newly memorized: 9 ayahs", lines[4])
+        assertEquals("Covered: 20 of 6236 ayahs · memorized: 11 (<1%)", lines[3])
+        assertEquals("Newly covered: 9 ayahs", lines[4])
         assertEquals("• Surah 111 1–5", lines[5])
         assertEquals("• Surah 112 1–4", lines[6])
         assertEquals("Reviewed: 14 ayahs · 4 repetitions", lines[7])
@@ -281,16 +284,16 @@ class ProgressReportTest {
     fun anEmptyWeekSaysNoneInsteadOfInventingNumbers() {
         val r = report(s = sources(log = emptyList(), streak = 0, plan = null))
         val rows = doc(AppLanguage.RU, r = r).rows.associateBy { it.label }
-        assertEquals("нет", rows.getValue("Выучено новое").value)
+        assertEquals("нет", rows.getValue("Пройдено новое").value)
         assertEquals("нет", rows.getValue("Повторено").value)
-        assertTrue(rows.getValue("Выучено новое").lines.isEmpty())
+        assertTrue(rows.getValue("Пройдено новое").lines.isEmpty())
         assertTrue(rows.getValue("Повторено").lines.isEmpty())
         assertEquals("0/7", rows.getValue("Дней с занятиями").value)
         assertFalse("Вспомнено без ошибок" in rows) // nothing to measure
         assertFalse("Серия" in rows)
         assertFalse("План" in rows)
         val english = doc(AppLanguage.EN, r = r).rows.associateBy { it.label }
-        assertEquals("none", english.getValue("Newly memorized").value)
+        assertEquals("none", english.getValue("Newly covered").value)
     }
 
     @Test
@@ -373,7 +376,7 @@ class ProgressReportTest {
         assertEquals(listOf("Прогноз окончания: ~9 декабря", "Идёт по графику"), planLines(AppLanguage.RU, lines[5]))
         assertEquals(listOf("Прогноз окончания: ~9 декабря", "Опережает срок"), planLines(AppLanguage.RU, lines[4]))
         assertEquals(listOf("Прогноз окончания: ~9 декабря", "Для срока нужно 7 аятов в день"), planLines(AppLanguage.RU, lines[3]))
-        assertEquals(listOf("все суры плана выучены"), planLines(AppLanguage.RU, lines[0]))
+        assertEquals(listOf("все суры плана пройдены"), planLines(AppLanguage.RU, lines[0]))
     }
 
     @Test

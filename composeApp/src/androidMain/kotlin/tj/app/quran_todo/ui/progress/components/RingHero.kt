@@ -63,7 +63,7 @@ internal fun RingHero(
             BigRing(hero = hero, copy = copy)
             Spacer(Modifier.height(QhSpacing.x5))
             Text(
-                text = copy.ayahsOf(hero.learnedAyahs, hero.totalAyahs),
+                text = copy.heroAyahs(hero.coveredAyahs, hero.learnedAyahs),
                 style = QhTheme.type.callout.copy(fontWeight = FontWeight.SemiBold),
                 color = QhTheme.colors.ink,
                 textAlign = TextAlign.Center,
@@ -90,7 +90,7 @@ internal fun BigRing(
     modifier: Modifier = Modifier,
 ) {
     val colors = QhTheme.colors
-    val description = copy.ringDescription(hero.percent, hero.belowOnePercent, hero.learnedAyahs, hero.totalAyahs)
+    val description = copy.ringDescription(hero.percent, hero.belowOnePercent, hero.coveredAyahs, hero.totalAyahs, hero.learnedAyahs)
     val settledAtFirstFrame = rememberSharedSettled()
     val percent = rememberRollingValue(target = hero.percent, startDelayMillis = CounterStartMillis)
     // Arriving on the flight of the small ring: the big one starts at its value instead of filling from 0 under the full one.

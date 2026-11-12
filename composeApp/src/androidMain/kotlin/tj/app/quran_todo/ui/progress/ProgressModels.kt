@@ -13,11 +13,14 @@ enum class MapState { NotStarted, Learning, Learned }
 /** The big ring and the lines under it. [percent] is whole percent, never 100 before the last ayah. */
 @Immutable
 data class HeroUi(
+    /** Ayahs gone through ("covered" by passages): the ring and the percentage count these. */
+    val coveredAyahs: Int,
+    /** Ayahs that are learned: their passage is past the 7-day repetition. */
     val learnedAyahs: Int,
     val totalAyahs: Int,
-    /** Surahs whose every ayah is covered ("I know by heart"). */
+    /** Surahs whose every ayah is learned ("I know by heart"). */
     val learnedSurahs: Int,
-    /** Surahs being learned: some ayahs covered, or the current surah of the plan. */
+    /** Surahs being learned: some ayahs covered but not all learned, or the current surah of the plan. */
     val learningSurahs: Int,
     val percent: Int,
     /** Something is memorized but less than 1%: the ring says "<1" instead of a discouraging 0. */
@@ -32,11 +35,11 @@ data class MapCellUi(
     val number: Int,
     val name: String,
     val ayahCount: Int,
-    /** Covered ayahs; every ayah for a memorized surah. */
+    /** Learned ayahs; every ayah for a memorized surah. */
     val learnedAyahs: Int,
     val state: MapState,
 ) {
-    /** Share of covered ayahs, 0..1: how far the cell is filled from the bottom. */
+    /** Share of learned ayahs, 0..1: how far the cell is filled from the bottom. */
     val fraction: Float
         get() = if (ayahCount > 0) (learnedAyahs.toFloat() / ayahCount).coerceIn(0f, 1f) else 0f
 }
@@ -100,25 +103,25 @@ data class ActivityUi(val days: List<ActivityDayUi>) {
     val isEmpty: Boolean get() = days.all { it.total == 0 }
 }
 
-/** One of the 30 juz: how much of it is covered. */
+/** One of the 30 juz: how much of it is learned. */
 @Immutable
 data class JuzUi(
     val juz: Int,
     val arabicName: String,
     val ayahCount: Int,
-    val coveredAyahs: Int,
+    val learnedAyahs: Int,
     /** Where the juz starts: the reader opens here. */
     val startSurah: Int,
     val startAyah: Int,
 ) {
     val fraction: Float
-        get() = if (ayahCount > 0) (coveredAyahs.toFloat() / ayahCount).coerceIn(0f, 1f) else 0f
+        get() = if (ayahCount > 0) (learnedAyahs.toFloat() / ayahCount).coerceIn(0f, 1f) else 0f
 
-    /** Whole percent: 0 only when nothing is covered, 100 only when everything is. */
+    /** Whole percent: 0 only when nothing is learned, 100 only when everything is. */
     val percent: Int
         get() = when {
-            coveredAyahs <= 0 -> 0
-            coveredAyahs >= ayahCount -> 100
+            learnedAyahs <= 0 -> 0
+            learnedAyahs >= ayahCount -> 100
             else -> (fraction * 100f).roundToInt().coerceIn(1, 99)
         }
 }
@@ -165,7 +168,7 @@ data class ProgressUi(
     val phase: ProgressPhase = ProgressPhase.Loading,
     /** The epoch day the screen is for: dates in the plan line get their year relative to it. */
     val today: Int = 0,
-    val hero: HeroUi = HeroUi(0, 0, 0, 0, 0, false, 0f),
+    val hero: HeroUi = HeroUi(0, 0, 0, 0, 0, 0, false, 0f),
     val cells: List<MapCellUi> = emptyList(),
     val tiles: TilesUi = TilesUi(0, TodayUi.None, null, 0, 0),
     val activity: ActivityUi = ActivityUi(emptyList()),

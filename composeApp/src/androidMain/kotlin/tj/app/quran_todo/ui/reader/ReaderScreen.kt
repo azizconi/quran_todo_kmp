@@ -641,6 +641,7 @@ private fun ReaderContent(
                         arabic = arabic,
                         translation = translation,
                         learned = ayah.number in statuses,
+                        status = statuses[ayah.number],
                         hard = ayah.number in weak,
                         schedule = viewModel.scheduleOf(ayah.numberInSurah),
                         note = notes[ayah.number]?.note.orEmpty(),

@@ -95,6 +95,8 @@ class OnboardingFinisherTest {
         override fun surahStatuses(): Flow<Map<Int, SurahHifzStatus>> = error("unused")
         override fun coveredCounts(): Flow<Map<Int, Int>> = error("unused")
         override fun coveredAyahs(): Flow<Map<Int, Set<Int>>> = error("unused")
+        override fun learnedAyahs(): Flow<Map<Int, Set<Int>>> = error("unused")
+        override fun coverageStatuses(): Flow<Map<Int, SurahHifzStatus>> = error("unused")
         override fun hardAyahs(): Flow<Map<Int, Set<Int>>> = error("unused")
         override fun surahCoverage(surah: Int): Flow<SurahCoverage> = error("unused")
         override fun reviewLog(fromDay: Int, toDay: Int): Flow<List<ReviewLogEntry>> = error("unused")

@@ -57,7 +57,12 @@ class SurahStatusChangeTest {
     @Test
     fun knowByHeartMarksTheRestKnown() {
         assertEquals(listOf(StatusStep.MarkKnown), SurahStatusChange.steps(null, SurahTarget.Known, inPlan = false))
-        assertEquals(listOf(StatusStep.MarkKnown), SurahStatusChange.steps(learning, SurahTarget.Known, inPlan = true))
+        // A surah being learned has covered ayahs on the first steps of the ladder: they are forgotten first so that the
+        // whole surah becomes OLD (learned) at once.
+        assertEquals(
+            listOf(StatusStep.Forget, StatusStep.MarkKnown),
+            SurahStatusChange.steps(learning, SurahTarget.Known, inPlan = true),
+        )
     }
 
     @Test

@@ -38,6 +38,7 @@ import tj.app.quran_todo.hifz.schedule.Coverage
 import tj.app.quran_todo.hifz.schedule.Forecast
 import tj.app.quran_todo.hifz.schedule.HifzConstants
 import tj.app.quran_todo.hifz.schedule.HifzStatuses
+import tj.app.quran_todo.hifz.schedule.LearnedAyahs
 import tj.app.quran_todo.hifz.schedule.LegacyMirror
 import tj.app.quran_todo.hifz.schedule.LessonBuilder
 import tj.app.quran_todo.hifz.schedule.LessonInput
@@ -226,7 +227,20 @@ class HifzRepositoryImpl(
     }
 
     override fun surahStatuses(): Flow<Map<Int, SurahHifzStatus>> = observeWithMetrics(PASSAGES, PLAN) { metrics ->
+        HifzStatuses.allDisplay(loadPassages(), loadPlan(), metrics)
+    }
+
+    override fun coverageStatuses(): Flow<Map<Int, SurahHifzStatus>> = observeWithMetrics(PASSAGES, PLAN) { metrics ->
         HifzStatuses.all(loadPassages(), loadPlan(), metrics)
+    }
+
+    override fun learnedAyahs(): Flow<Map<Int, Set<Int>>> = observeWithMetrics(PASSAGES) { metrics ->
+        val learned = LearnedAyahs(loadPassages(), metrics)
+        val ayahs = LinkedHashMap<Int, Set<Int>>()
+        for (surah in 1..QuranFacts.SURAH_COUNT) {
+            if (learned.learnedCount(surah) > 0) ayahs[surah] = learned.learnedAyahs(surah)
+        }
+        ayahs
     }
 
     override fun coveredCounts(): Flow<Map<Int, Int>> = observeWithMetrics(PASSAGES) { metrics ->

@@ -87,14 +87,17 @@ class HomeUiViewModel internal constructor(
      */
     private val hifzSnapshot: Flow<HifzSnapshot> = combine(
         hifz.surahStatuses().orFallback(emptyMap()),
-        hifz.coveredAyahs().orFallback(emptyMap()),
+        combine(
+            hifz.coveredAyahs().orFallback(emptyMap()),
+            hifz.learnedAyahs().orFallback(emptyMap()),
+        ) { covered, learned -> covered to learned },
         hifz.plan().map { it?.surahOrder.orEmpty() }.orFallback(emptyList()),
         hifz.lesson(ticker.day).map<LessonPlan, LessonPlan?> { it }.orFallback(null),
         // The passages listened to today ("Listen to the old"): the card says "Listened" and nothing else reads this.
         ticker.day.flatMapLatest { day -> hifz.listenLog(day, day) }
             .map { log -> log.mapNotNullTo(HashSet()) { it.passageId } }
             .orFallback(emptySet<Long>()),
-    ) { statuses, covered, queue, lesson, listened -> HifzSnapshot(statuses, covered, queue, lesson, listened) }
+    ) { statuses, ayahs, queue, lesson, listened -> HifzSnapshot(statuses, ayahs.first, queue, lesson, listened, learnedSets = ayahs.second) }
 
     private val prefs: Flow<PrefsSnapshot> = combine(
         uiPrefs.lastReadPosition,
@@ -328,6 +331,8 @@ class HomeUiViewModel internal constructor(
         statuses = snapshot.statuses,
         coveredAyahs = snapshot.covered,
         coveredAyahSets = snapshot.coveredSets,
+        learnedAyahs = snapshot.learned,
+        learnedAyahSets = snapshot.learnedSets,
         planQueue = snapshot.planQueue,
         lesson = snapshot.lesson,
         listenedToday = snapshot.listened,
@@ -393,8 +398,11 @@ internal class HifzSnapshot(
     val lesson: LessonPlan? = null,
     /** The passages with a "listened" record today. */
     val listened: Set<Long> = emptySet(),
+    /** The learned ayahs of each surah (their passage is past the 7-day repetition); a subset of [coveredSets]. */
+    val learnedSets: Map<Int, Set<Int>> = emptyMap(),
 ) {
     val covered: Map<Int, Int> = coveredSets.mapValues { it.value.size }
+    val learned: Map<Int, Int> = learnedSets.mapValues { it.value.size }
 }
 
 /** The parts of [HomeUiState] this screen reads; compared by reference so progress updates do not recompute. */

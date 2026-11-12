@@ -109,7 +109,7 @@ internal object ReportComposer {
             period = "${dateOf(report.fromDay, language)} – ${dateOf(report.toDay, language)}",
             percentText = percentText,
             fraction = hero.fraction,
-            caption = copy.total(hero.learnedAyahs, hero.totalAyahs),
+            caption = copy.total(hero.coveredAyahs, hero.totalAyahs, hero.learnedAyahs),
             rows = rows,
             strip = report.strip,
             stripLabel = analyticsCopy(language).reportStripLabel,

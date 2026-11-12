@@ -152,14 +152,23 @@ data class HomeCopy(
         return if (parts.isEmpty()) lessonTomorrowNothing else lessonTomorrowPattern.fill("what" to parts.joinToString(" · "))
     }
 
-    /** "Memorized 23 of 40 ayahs", with " · 2 hard" when some ayahs are marked difficult. */
-    fun coverageLine(covered: Int, total: Int, hard: Int): String {
-        val main = when (language) {
+    /**
+     * "Memorized 23 of 40 ayahs", with " · 2 hard" when some ayahs are marked difficult. When some of the [covered] ayahs are not
+     * [learned] yet, it reads "Covered 23 of 40 ayahs · memorized 17".
+     */
+    fun coverageLine(covered: Int, total: Int, hard: Int, learned: Int = covered): String {
+        val main = if (learned >= covered) when (language) {
             AppLanguage.RU -> "Выучено $covered из $total аятов"
             AppLanguage.EN -> "Memorized $covered of $total ayahs"
             AppLanguage.TG -> "$covered аз $total оят аз бар шудааст"
             AppLanguage.UZ -> "$total ta oyatdan $covered tasi yodlangan"
             AppLanguage.TR -> "$total ayetten $covered ayet ezberlendi"
+        } else when (language) {
+            AppLanguage.RU -> "Пройдено $covered из $total аятов · выучено $learned"
+            AppLanguage.EN -> "Covered $covered of $total ayahs · memorized $learned"
+            AppLanguage.TG -> "Гузашта: $covered аз $total оят · аз бар шуда: $learned"
+            AppLanguage.UZ -> "O‘tilgan: $covered / $total oyat · yodlangan: $learned"
+            AppLanguage.TR -> "Geçilen: $covered / $total ayet · ezberlenen: $learned"
         }
         if (hard <= 0) return main
         val hardText = when (language) {
@@ -285,7 +294,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         lessonInviteBody = "Каждый день будет готовый урок: новое, недавнее и старое.",
         lessonMakePlan = "Составить план",
         lessonPlanFinished = "План выполнен",
-        lessonPlanFinishedBody = "Все суры плана выучены. Составьте следующий.",
+        lessonPlanFinishedBody = "Все суры плана пройдены. Составьте следующий.",
         lessonNewPlan = "Новый план",
         myPlan = "Мой план",
         lessonMore = "Ещё",
@@ -363,7 +372,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         lessonInviteBody = "Every day you get a ready lesson: new, recent and old.",
         lessonMakePlan = "Create a plan",
         lessonPlanFinished = "Plan complete",
-        lessonPlanFinishedBody = "All the surahs of the plan are memorized. Make the next one.",
+        lessonPlanFinishedBody = "You have been through all the surahs of the plan. Make the next one.",
         lessonNewPlan = "New plan",
         myPlan = "My plan",
         lessonMore = "More",
@@ -441,7 +450,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         lessonInviteBody = "Ҳар рӯз дарси тайёр хоҳад буд: нав, навакак ва кӯҳна.",
         lessonMakePlan = "Сохтани нақша",
         lessonPlanFinished = "Нақша иҷро шуд",
-        lessonPlanFinishedBody = "Ҳамаи сураҳои нақша аз бар шуданд. Нақшаи навбатиро созед.",
+        lessonPlanFinishedBody = "Ҳамаи сураҳои нақша гузашта шуданд. Нақшаи навбатиро созед.",
         lessonNewPlan = "Нақшаи нав",
         myPlan = "Нақшаи ман",
         lessonMore = "Бештар",
@@ -520,7 +529,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         lessonInviteBody = "Har kuni tayyor dars bo‘ladi: yangi, yaqinda va eski.",
         lessonMakePlan = "Reja tuzish",
         lessonPlanFinished = "Reja bajarildi",
-        lessonPlanFinishedBody = "Rejadagi barcha suralar yodlangan. Keyingisini tuzing.",
+        lessonPlanFinishedBody = "Rejadagi barcha suralar o‘tildi. Keyingisini tuzing.",
         lessonNewPlan = "Yangi reja",
         myPlan = "Mening rejam",
         lessonMore = "Yana",
@@ -598,7 +607,7 @@ fun homeCopy(language: AppLanguage): HomeCopy = when (language) {
         lessonInviteBody = "Her gün hazır bir ders olur: yeni, yakın zamanda ve eski.",
         lessonMakePlan = "Plan yap",
         lessonPlanFinished = "Plan tamamlandı",
-        lessonPlanFinishedBody = "Plandaki tüm sureler ezberlendi. Sıradaki planı yapın.",
+        lessonPlanFinishedBody = "Plandaki tüm sureler geçildi. Sıradaki planı yapın.",
         lessonNewPlan = "Yeni plan",
         myPlan = "Planım",
         lessonMore = "Daha fazla",

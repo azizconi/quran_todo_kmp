@@ -26,8 +26,10 @@ internal class ProgressSources(
     val names: List<String>,
     /** `surahStatuses()`: only surahs with a status; a surah that is not in the map is not started. */
     val statuses: Map<Int, SurahHifzStatus>,
-    /** `coveredAyahs()`: covered ayah numbers (in the surah) of every surah that has any. */
+    /** `coveredAyahs()`: covered ("gone through") ayah numbers (in the surah) of every surah that has any. */
     val covered: Map<Int, Set<Int>>,
+    /** `learnedAyahs()`: learned ayah numbers (the passage is past the 7-day repetition), a subset of [covered]. */
+    val learned: Map<Int, Set<Int>> = emptyMap(),
     /** `hardAyahs()`: difficult ayah numbers (in the surah) of every surah that has any. */
     val hard: Map<Int, Set<Int>>,
     /** `reviewLog(today - 29, today)`: the last [ProgressBuilder.LogDays] days, oldest first. */
@@ -59,6 +61,7 @@ internal object ProgressBuilder {
 
     fun build(s: ProgressSources): ProgressUi {
         val coveredCount = s.covered.values.sumOf { it.size }
+        val learnedCount = s.learned.values.sumOf { it.size }
         val learnedSurahs = s.statuses.values.count { it == SurahHifzStatus.LEARNED }
         val learningSurahs = s.statuses.values.count { it == SurahHifzStatus.LEARNING }
         val nothingYet = coveredCount == 0 && s.log.none { it.kind.countsAsStudy }
@@ -66,7 +69,7 @@ internal object ProgressBuilder {
         return ProgressUi(
             phase = if (nothingYet) ProgressPhase.Empty else ProgressPhase.Content,
             today = s.today,
-            hero = hero(coveredCount, learnedSurahs, learningSurahs),
+            hero = hero(coveredCount, learnedCount, learnedSurahs, learningSurahs),
             cells = cells(s),
             tiles = TilesUi(
                 streakDays = s.streak,
@@ -76,17 +79,17 @@ internal object ProgressBuilder {
                 hardAyahs = s.hard.values.sumOf { it.size },
             ),
             activity = ActivityUi(withListened(activity(s.log, s.today), s.listenLog)),
-            juz = juz(s.covered),
+            juz = juz(s.learned),
             plan = planLine(s.plan, s.forecast),
             hard = hardSpots(s),
         )
     }
 
     /**
-     * The ring: covered ayahs of 6236. Honest at the edges: the percentage is 0 only when nothing is covered and 100 only
-     * when every ayah is.
+     * The ring: covered ("gone through") ayahs of 6236, with the learned ones beside. Honest at the edges: the percentage is 0
+     * only when nothing is covered and 100 only when every ayah is.
      */
-    fun hero(coveredAyahs: Int, learnedSurahs: Int, learningSurahs: Int): HeroUi {
+    fun hero(coveredAyahs: Int, learnedAyahs: Int, learnedSurahs: Int, learningSurahs: Int): HeroUi {
         val total = QuranFacts.AYAH_COUNT
         val percent = when {
             coveredAyahs <= 0 -> 0
@@ -94,7 +97,8 @@ internal object ProgressBuilder {
             else -> (coveredAyahs * 100f / total).roundToInt().coerceIn(0, 99)
         }
         return HeroUi(
-            learnedAyahs = coveredAyahs,
+            coveredAyahs = coveredAyahs,
+            learnedAyahs = learnedAyahs,
             totalAyahs = total,
             learnedSurahs = learnedSurahs,
             learningSurahs = learningSurahs,
@@ -104,11 +108,11 @@ internal object ProgressBuilder {
         )
     }
 
-    /** The 114 cells of the map: the derived status of the surah and how many of its ayahs are covered. */
+    /** The 114 cells of the map: the derived status of the surah and how many of its ayahs are learned. */
     fun cells(s: ProgressSources): List<MapCellUi> = List(QuranFacts.SURAH_COUNT) { index ->
         val number = index + 1
         val count = QuranFacts.ayahCount(number)
-        val covered = (s.covered[number]?.size ?: 0).coerceAtMost(count)
+        val covered = (s.learned[number]?.size ?: 0).coerceAtMost(count)
         MapCellUi(
             number = number,
             name = s.nameOf(number),
@@ -198,13 +202,13 @@ internal object ProgressBuilder {
         return days.map { day -> counts[day.epochDay]?.let { day.copy(listened = it) } ?: day }
     }
 
-    /** The 30 juz with the share of their ayahs that are covered (`JuzIndex.coveredCount` over `coveredAyahs()`). */
-    fun juz(covered: Map<Int, Set<Int>>): List<JuzUi> = JuzIndex.all.map { range ->
+    /** The 30 juz with the share of their ayahs that are learned (`JuzIndex.coveredCount` over `learnedAyahs()`). */
+    fun juz(learned: Map<Int, Set<Int>>): List<JuzUi> = JuzIndex.all.map { range ->
         JuzUi(
             juz = range.juz,
             arabicName = JuzIndex.arabicName(range.juz),
             ayahCount = JuzIndex.ayahCount(range.juz),
-            coveredAyahs = JuzIndex.coveredCount(range.juz, covered),
+            learnedAyahs = JuzIndex.coveredCount(range.juz, learned),
             startSurah = range.startSurah,
             startAyah = range.startAyah,
         )
