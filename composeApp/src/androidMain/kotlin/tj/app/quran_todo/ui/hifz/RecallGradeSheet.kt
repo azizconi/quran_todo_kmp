@@ -74,12 +74,14 @@ fun RecallGradeSheet(
     busy: Boolean,
     onConfirm: (grade: ReviewGrade, hard: Set<Int>) -> Unit,
     onDismiss: () -> Unit,
+    /** The choice made on this sheet before (the lesson opens it again from "Change"); null starts from the answers. */
+    initial: RecallResult? = null,
 ) {
     val colors = QhTheme.colors
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var hard by remember { mutableStateOf(session.hardAyahs) }
-    var picked by remember { mutableStateOf<ReviewGrade?>(null) }
+    var hard by remember { mutableStateOf(initial?.hard ?: session.hardAyahs) }
+    var picked by remember { mutableStateOf(initial?.grade?.takeIf { it != RecallGrading.suggest(session.size, hard.size) }) }
     val suggested = RecallGrading.suggest(session.size, hard.size)
     val grade = picked ?: suggested
 

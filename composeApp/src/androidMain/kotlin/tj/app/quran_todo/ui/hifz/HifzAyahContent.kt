@@ -184,24 +184,18 @@ fun HifzAyahContent(
     val somethingHidden = keep.size < words.wordCount
 
     // The tap and the hold work on the latest state without restarting the gesture.
-    val latestKeep by rememberUpdatedState(keep)
     val latestState by rememberUpdatedState(state)
-    val slack = with(LocalDensity.current) { WordTapSlackDp.dp.toPx() }
 
     Box(
         modifier
             .then(
                 if (canPeek) {
                     Modifier.recallGesture(
-                        onTap = { point ->
-                            val word = wordLayout.wordNear(point, slack, skip = latestKeep)
-                            if (word == null) {
-                                false
-                            } else {
-                                haptics.perform(HapticKind.Tick)
-                                latestState.host?.peekWord(latestState.position, word)
-                                true
-                            }
+                        // A tap on the hidden ayah reveals it (task U6); holding it peeks, a tap on a single word no longer does.
+                        onTap = { _ ->
+                            haptics.perform(HapticKind.Tick)
+                            latestState.host?.reveal()
+                            true
                         },
                         onHoldStart = {
                             haptics.perform(HapticKind.LongPress)

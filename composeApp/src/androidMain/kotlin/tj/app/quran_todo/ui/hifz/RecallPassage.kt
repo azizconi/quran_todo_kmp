@@ -1,6 +1,7 @@
 package tj.app.quran_todo.ui.hifz
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -41,6 +42,8 @@ private const val GlideDelayMillis = 160L
  * - [session] and [host] are the state and the commands; the host is what the controls talk to.
  * - [hard] are ayahs of the passage that are marked difficult already: their rosettes carry the mark.
  * - [bottomContent] comes after the last ayah (the "grade" button once everything is answered).
+ * - [compact] is the lesson (task U6): the rows are short, the number sits on the line of the text, and the controls are not under the
+ *   ayah but in a bar the screen pins to its bottom; the list keeps the ayah being recalled (and the one before it) in view above it.
  */
 @Composable
 fun RecallPassage(
@@ -53,6 +56,7 @@ fun RecallPassage(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
+    compact: Boolean = false,
     bottomContent: (@Composable () -> Unit)? = null,
 ) {
     val reduced by rememberUpdatedState(LocalReducedMotion.current)
@@ -62,7 +66,9 @@ fun RecallPassage(
         val position = currentIndex ?: return@LaunchedEffect
         if (position == 0) return@LaunchedEffect
         delay(if (reduced) 0L else GlideDelayMillis)
-        if (reduced) listState.scrollToItem(position) else listState.animateScrollToItem(position)
+        // The compact list keeps the ayah answered last above the current one, as the way back to what was just said.
+        val target = if (compact) position - 1 else position
+        if (reduced) listState.scrollToItem(target) else listState.animateScrollToItem(target)
     }
 
     LazyColumn(
@@ -81,6 +87,7 @@ fun RecallPassage(
                 host = host,
                 arabicStyle = arabicStyle,
                 weak = inSurah in hard,
+                compact = compact,
             )
         }
         if (bottomContent != null) {
@@ -115,8 +122,13 @@ private fun RecallRow(
     host: RecallHost,
     arabicStyle: TextStyle,
     weak: Boolean,
+    compact: Boolean,
 ) {
     val colors = QhTheme.colors
+    if (compact) {
+        CompactRecallRow(state = state, ayah = ayah, arabicStyle = arabicStyle, weak = weak)
+        return
+    }
     Column(
         Modifier
             .fillMaxWidth()
@@ -144,6 +156,47 @@ private fun RecallRow(
                 translationStyle = QhTheme.type.body,
             )
             RecallControlsHost(host = host, inSurah = ayah.numberInSurah)
+        }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = QhSpacing.screen)
+                .height(1.dp)
+                .background(colors.hairline),
+        )
+    }
+}
+
+/** A row of the lesson: the rosette at the start of the line of the text, little air above and below, no controls. */
+@Composable
+private fun CompactRecallRow(
+    state: HifzRowState,
+    ayah: AyahEntity,
+    arabicStyle: TextStyle,
+    weak: Boolean,
+) {
+    val colors = QhTheme.colors
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .hifzRow(state),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = QhSpacing.screen)
+                .padding(vertical = QhSpacing.x2),
+            horizontalArrangement = Arrangement.spacedBy(QhSpacing.x3),
+        ) {
+            HifzRosette(number = ayah.numberInSurah, status = null, weak = weak, state = state, showLabel = false)
+            HifzAyahContent(
+                state = state,
+                arabic = splitBismillah(ayah.surahNumber, ayah.numberInSurah, ayah.text),
+                arabicStyle = arabicStyle,
+                translation = null,
+                translationStyle = QhTheme.type.body,
+                modifier = Modifier.weight(1f),
+            )
         }
         Box(
             Modifier
