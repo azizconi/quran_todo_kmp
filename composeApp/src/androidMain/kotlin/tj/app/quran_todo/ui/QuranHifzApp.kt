@@ -514,6 +514,10 @@ private fun AppNavigation() {
                             onBack = { navController.popOnce() },
                             // The next surah and the chip "playing elsewhere" are the text reader's own moves: they stay in the text.
                             onOpenReader = { navController.navigateOnce(it) },
+                            // "Go to" another surah: the new reader replaces this one, so back does not pile up the surahs.
+                            onReplaceReader = { dest ->
+                                navController.navigateOnce(dest) { popUpTo<Dest.Reader> { inclusive = true } }
+                            },
                             onOpenPages = { surah, ayah ->
                                 // The switch "Text to Pages": the page of the first ayah on screen replaces the reader.
                                 navController.navigateOnce(ReaderRouting.pagesFor(surah, ayah)) {

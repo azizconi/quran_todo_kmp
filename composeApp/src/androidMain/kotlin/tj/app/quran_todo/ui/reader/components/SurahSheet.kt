@@ -10,7 +10,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -33,7 +32,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -42,7 +40,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
@@ -53,7 +50,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import tj.app.quran_todo.data.database.entity.todo.SurahTodoStatus
 import tj.app.quran_todo.hifz.model.SurahHifzStatus
-import tj.app.quran_todo.ui.components.AyahWheel
 import tj.app.quran_todo.ui.components.QhButton
 import tj.app.quran_todo.ui.components.QhButtonSize
 import tj.app.quran_todo.ui.components.QhButtonVariant
@@ -72,7 +68,7 @@ import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /** Pages of the sheet behind the "more" button and the status pill. */
-enum class SurahSheetPage { Menu, Status, GoTo }
+enum class SurahSheetPage { Menu, Status }
 
 /** Slides the sheet out before reporting the dismissal, so a button press does not make it vanish. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -96,7 +92,8 @@ internal fun SheetTitle(text: String, modifier: Modifier = Modifier) {
 
 /**
  * The sheet of the surah: a small menu (status, go to ayah) whose pages slide into one another, opened by
- * the "more" button; the status pill of the header opens it directly on the status page.
+ * the "more" button; the status pill of the header opens it directly on the status page. The row "Go to ayah..." hands over to the sheet
+ * "Go to" ([GoToSheet]) through [onGoTo].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,17 +103,14 @@ fun SurahSheet(
     status: SurahTodoStatus?,
     /** How many ayahs of the surah are covered by passages; "not started" with some asks first. */
     learnedAyahs: Int,
-    totalAyahs: Int,
-    currentAyah: Int,
     copy: ReaderCopy,
     onChoice: (SurahTarget) -> Unit,
-    onGoTo: (Int) -> Unit,
+    onGoTo: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val close = rememberSheetCloser(sheetState, onDismiss)
     var page by remember { mutableStateOf(initialPage) }
-    var ayah by remember { mutableIntStateOf(currentAyah.coerceIn(1, totalAyahs.coerceAtLeast(1))) }
 
     QhSheet(onDismiss = onDismiss, sheetState = sheetState) {
         AnimatedContent(
@@ -139,21 +133,19 @@ fun SurahSheet(
                             filled = false,
                             modifier = Modifier.offset(x = (-12).dp),
                         )
-                        SheetTitle(if (current == SurahSheetPage.Status) copy.surahStatusTitle else copy.goToTitle)
+                        SheetTitle(copy.surahStatusTitle)
                     }
                 } else if (current == SurahSheetPage.Menu) {
                     SheetTitle(surahName)
-                } else if (current == SurahSheetPage.Status) {
+                } else {
                     SheetTitle(copy.surahStatusTitle)
-                } else if (current == SurahSheetPage.GoTo) {
-                    SheetTitle(copy.goToTitle)
                 }
                 when (current) {
                     SurahSheetPage.Menu -> MenuPage(
                         statusLabel = status.label(copy),
                         copy = copy,
                         onStatus = { page = SurahSheetPage.Status },
-                        onGoTo = { page = SurahSheetPage.GoTo },
+                        onGoTo = onGoTo,
                     )
                     SurahSheetPage.Status -> StatusPage(
                         status = status,
@@ -164,16 +156,6 @@ fun SurahSheet(
                             close()
                         },
                         onCancel = close,
-                    )
-                    SurahSheetPage.GoTo -> GoToPage(
-                        value = ayah,
-                        total = totalAyahs,
-                        copy = copy,
-                        onValueChange = { ayah = it },
-                        onGo = {
-                            onGoTo(ayah)
-                            close()
-                        },
                     )
                 }
             }
@@ -326,34 +308,5 @@ private fun StatusOption(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-    }
-}
-
-@Composable
-private fun GoToPage(
-    value: Int,
-    total: Int,
-    copy: ReaderCopy,
-    onValueChange: (Int) -> Unit,
-    onGo: () -> Unit,
-) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(top = QhSpacing.x2),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        // A wheel that has reached its end must not pass the drag on to the sheet and dismiss it.
-        Box(Modifier.fillMaxWidth(0.5f).nestedScroll(ConsumeLeftoverScroll)) {
-            AyahWheel(
-                label = copy.ayah,
-                minimum = 1,
-                maximum = total.coerceAtLeast(1),
-                value = value,
-                onValueChange = onValueChange,
-            )
-        }
-        Spacer(Modifier.height(QhSpacing.x4))
-        QhButton(text = copy.goTo, onClick = onGo, modifier = Modifier.fillMaxWidth())
     }
 }

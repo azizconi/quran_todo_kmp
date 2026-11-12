@@ -40,6 +40,12 @@ object ReaderRouting {
      */
     const val FROM_PAGES = "mushaf"
 
+    /** Origin of a reader opened by "Go to" from the title of another surah: it matches no shared element, so it simply slides in. */
+    const val FROM_GOTO = "goto"
+
+    /** The text reader on [ayah] of [surah]: what "Go to" asks for when the surah is another one (the mode is the text already). */
+    fun goTo(surah: Int, ayah: Int): Dest.Reader = Dest.Reader(surah = surah, ayah = ayah, origin = FROM_GOTO)
+
     /** The text reader on the first ayah of [page]: what the switch "Pages to Text" and "Open as text" open. */
     fun textFor(page: Int): Dest.Reader {
         val first = MushafPages.firstAyahOf(page)

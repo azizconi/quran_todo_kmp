@@ -92,7 +92,10 @@ import tj.app.quran_todo.ui.i18n.pagesCopy
 import tj.app.quran_todo.ui.i18n.readerCopy
 import tj.app.quran_todo.ui.mushaf.data.LoadedPage
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
+import tj.app.quran_todo.ui.i18n.goToCopy
 import tj.app.quran_todo.ui.navigation.Dest
+import tj.app.quran_todo.ui.reader.components.GoToSheet
+import tj.app.quran_todo.ui.reader.components.GoToSurah
 import tj.app.quran_todo.ui.navigation.ReaderRouting
 import tj.app.quran_todo.ui.reader.MushafPlace
 import tj.app.quran_todo.ui.reader.ayahShareText
@@ -140,6 +143,7 @@ fun MushafScreen(
     val reader = remember(language) { readerCopy(language) }
     val hifzText = remember(language) { hifzCopy(language) }
     val mushafText = remember(language) { mushafCopy(language) }
+    val goToText = remember(language) { goToCopy(language) }
     val homeText = remember(language) { homeCopy(language) }
 
     LaunchedEffect(language) { viewModel.onLanguage(language) }
@@ -172,6 +176,7 @@ fun MushafScreen(
     var selectedText by rememberSaveable { mutableStateOf<String?>(null) }
     val selected = AyahKey.parse(selectedText)
     var flash by remember { mutableStateOf(viewModel.initialFlash) }
+    var goToOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (flash != null) {
             delay(FlashMillis)
@@ -336,6 +341,8 @@ fun MushafScreen(
                 pauseLabel = hifzText.listenPause,
                 checkLabel = hifzText.eyeAction,
                 textLabel = pages.openAsText,
+                goTo = goToText,
+                onGoTo = { goToOpen = true },
                 onBack = onBack,
                 onPlay = { viewModel.playPage((loads[currentPage] as? PageLoad.Ready)?.loaded?.page, selected) },
                 onCheck = {
@@ -401,6 +408,28 @@ fun MushafScreen(
     }
 
     // -- Sheets ----------------------------------------------------------------------------------------------------
+    // "Go to" from the surah name: the pager turns to the page that holds the ayah and the ayah is marked for a moment.
+    if (goToOpen) {
+        GoToSheet(
+            surahs = remember(names, arabicNames) {
+                (1..114).map { GoToSurah(number = it, name = names[it].orEmpty().ifBlank { "№ $it" }, arabic = arabicNames[it].orEmpty()) }
+            },
+            currentSurah = MushafPages.firstAyahOf(currentPage).surah,
+            copy = goToText,
+            onGoTo = { target ->
+                val page = MushafPages.pageOf(target.surah, target.ayah)
+                val mark = AyahKey(target.surah, target.ayah)
+                selectedText = null
+                flash = mark
+                scope.launch {
+                    if (reduced) pagerState.scrollToPage(page - 1) else pagerState.animateScrollToPage(page - 1)
+                    delay(FlashMillis)
+                    if (flash == mark) flash = null
+                }
+            },
+            onDismiss = { goToOpen = false },
+        )
+    }
     val key = sheetAyah
     val model = sheetModel
     if (key != null && model != null) {

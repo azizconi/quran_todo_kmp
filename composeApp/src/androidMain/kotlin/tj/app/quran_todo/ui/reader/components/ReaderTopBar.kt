@@ -5,15 +5,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.TextFields
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
@@ -32,15 +36,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.QhLinearProgress
+import tj.app.quran_todo.ui.i18n.GoToCopy
 import tj.app.quran_todo.ui.i18n.MushafCopy
 import tj.app.quran_todo.ui.i18n.ReaderCopy
 import tj.app.quran_todo.ui.motion.AnimatedCounter
+import tj.app.quran_todo.ui.motion.pressable
 import tj.app.quran_todo.ui.reader.MushafPlace
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /** Height of the bar's button row (below the status bar). */
-val ReaderTopBarRowHeight = 56.dp
+val ReaderTopBarRowHeight = 64.dp
 
 /**
  * The reader's top bar. Over the surah header it is only the back button and the two actions; once the
@@ -62,9 +68,12 @@ fun ReaderTopBar(
     progress: State<Float>,
     copy: ReaderCopy,
     mushaf: MushafCopy,
+    goTo: GoToCopy,
     onBack: () -> Unit,
     onTextSettings: () -> Unit,
     onMore: () -> Unit,
+    /** The tap on the surah name of the collapsed bar: opens the sheet "Go to". */
+    onGoTo: () -> Unit,
     modifier: Modifier = Modifier,
     /** An extra action between "Aa" and "more" (the eye of the memorize mode); null leaves the bar as it was. */
     extraAction: (@Composable () -> Unit)? = null,
@@ -112,33 +121,51 @@ fun ReaderTopBar(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = surahName,
-                        style = QhTheme.type.title2,
-                        color = colors.ink,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
+                    // The name opens "Go to"; the small arrow says it can be tapped. Only while the title is visible.
+                    Row(
+                        Modifier
                             .weight(1f, fill = false)
-                            .semantics { heading() },
-                    )
-                    Spacer(Modifier.width(QhSpacing.x2))
+                            .pressable(
+                                onClick = { if (collapsed.value > 0.5f) onGoTo() },
+                                shape = RoundedCornerShape(8.dp),
+                                onClickLabel = goTo.title,
+                            ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = surahName,
+                            style = QhTheme.type.title2,
+                            color = colors.ink,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .semantics { heading() },
+                        )
+                        Icon(
+                            imageVector = Icons.Rounded.ArrowDropDown,
+                            contentDescription = null,
+                            tint = colors.inkSecondary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    Spacer(Modifier.width(QhSpacing.x1))
                     CompactAyahCounter(ayahNumber = ayahNumber, totalAyahs = totalAyahs, copy = copy)
                 }
                 PlaceLine(place = place, mushaf = mushaf)
             }
-            QhIconButton(
+            LabeledAction(
                 icon = Icons.Rounded.TextFields,
+                label = goTo.labelView,
                 contentDescription = copy.textSettings,
                 onClick = onTextSettings,
-                filled = false,
             )
             extraAction?.invoke()
-            QhIconButton(
+            LabeledAction(
                 icon = Icons.Rounded.MoreVert,
+                label = goTo.labelMore,
                 contentDescription = copy.more,
                 onClick = onMore,
-                filled = false,
             )
         }
         Box(

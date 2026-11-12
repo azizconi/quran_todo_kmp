@@ -39,6 +39,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -92,7 +93,6 @@ import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.Skeleton
 import tj.app.quran_todo.ui.components.ToastKind
 import tj.app.quran_todo.ui.haptics.HapticKind
-import tj.app.quran_todo.ui.hifz.HifzEyeButton
 import tj.app.quran_todo.ui.hifz.HifzMode
 import tj.app.quran_todo.ui.hifz.HifzOverlays
 import tj.app.quran_todo.ui.hifz.HifzTopBar
@@ -107,8 +107,13 @@ import tj.app.quran_todo.ui.i18n.rememberAyahActionsCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.navigation.Dest
+import tj.app.quran_todo.ui.navigation.ReaderRouting
 import tj.app.quran_todo.ui.navigation.Origin
 import tj.app.quran_todo.ui.reader.components.AppearanceSheet
+import tj.app.quran_todo.ui.reader.components.GoToSheet
+import tj.app.quran_todo.ui.reader.components.GoToSurah
+import tj.app.quran_todo.ui.reader.components.LabeledAction
+import tj.app.quran_todo.ui.i18n.rememberGoToCopy
 import tj.app.quran_todo.ui.playback.WordFollow
 import tj.app.quran_todo.ui.reader.components.AyahRow
 import tj.app.quran_todo.ui.reader.components.TranslationOfferLine
@@ -157,6 +162,8 @@ fun ReaderScreen(
     route: Dest.Reader,
     onBack: () -> Unit,
     onOpenReader: (Dest.Reader) -> Unit,
+    /** "Go to" another surah: the reader of that surah replaces this one (no new back-stack entry). */
+    onReplaceReader: (Dest.Reader) -> Unit = onOpenReader,
     /** The switch "Text / Pages" (F3a): opens the page of the ayah on top (surah, ayah) in place of the reader. */
     onOpenPages: (surah: Int, ayah: Int) -> Unit = { _, _ -> },
 ) {
@@ -193,6 +200,7 @@ fun ReaderScreen(
             copy = copy,
             onBack = onBack,
             onOpenReader = onOpenReader,
+            onReplaceReader = onReplaceReader,
             onOpenPages = { surah, ayah ->
                 // The choice is remembered: the entrances of the app open the pages from now on.
                 uiPrefs.setReaderLayout(ReaderLayout.MUSHAF)
@@ -207,6 +215,7 @@ private sealed interface ReaderSheet {
     data class Surah(val page: SurahSheetPage) : ReaderSheet
     data class Ayah(val index: Int) : ReaderSheet
     data object Appearance : ReaderSheet
+    data object GoTo : ReaderSheet
 }
 
 @Composable
@@ -256,6 +265,7 @@ private fun ReaderContent(
     copy: ReaderCopy,
     onBack: () -> Unit,
     onOpenReader: (Dest.Reader) -> Unit,
+    onReplaceReader: (Dest.Reader) -> Unit,
     onOpenPages: (surah: Int, ayah: Int) -> Unit,
 ) {
     val uiPrefs = koinInject<UiPrefs>()
@@ -298,6 +308,24 @@ private fun ReaderContent(
     val headerStyle = remember(type, quranFamily) { type.quranHeader(quranFamily, 34.sp) }
     val nextNameStyle = remember(type, quranFamily) { type.quranInline(quranFamily, 22.sp) }
     val translationStyle = type.body
+
+    val goToText = rememberGoToCopy()
+    val goToSurahs = remember(chapterNames, russianNames, language) {
+        (1..114).map { number ->
+            val chapter = chapterNames[number]
+            GoToSurah(
+                number = number,
+                name = SurahNames.displayName(
+                    language = language,
+                    russianName = russianNames[number],
+                    transliteration = chapter?.transliteration,
+                    fallback = "№ $number",
+                ),
+                alternatives = listOfNotNull(chapter?.transliteration, chapter?.translated).filter { it.isNotBlank() },
+                arabic = chapter?.arabic.orEmpty(),
+            )
+        }
+    }
 
     val names = chapterNames[surahNumber]
     val title = SurahNames.displayName(
@@ -560,6 +588,7 @@ private fun ReaderContent(
             },
             onMore = { index -> sheet = ReaderSheet.Ayah(index) },
             onOpenStatus = { sheet = ReaderSheet.Surah(SurahSheetPage.Status) },
+            onOpenGoTo = { sheet = ReaderSheet.GoTo },
             onOpenNext = { onOpenReader(Dest.Reader(surah = surahNumber + 1, origin = Origin.NEXT)) },
             onStartOver = { onOpenReader(Dest.Reader(surah = 1, origin = Origin.NEXT)) },
         )
@@ -573,19 +602,26 @@ private fun ReaderContent(
             progress = readingProgress,
             copy = copy,
             mushaf = mushaf,
+            goTo = goToText,
             onBack = onBack,
             onTextSettings = { sheet = ReaderSheet.Appearance },
             onMore = { sheet = ReaderSheet.Surah(SurahSheetPage.Menu) },
+            onGoTo = { sheet = ReaderSheet.GoTo },
             modifier = Modifier.align(Alignment.TopCenter),
             extraAction = {
                 // The switch "Text / Pages" (F3a), then the eye of "Check yourself".
-                QhIconButton(
+                LabeledAction(
                     icon = Icons.Rounded.MenuBook,
+                    label = goToText.labelPages,
                     contentDescription = pagesText.openAsPages,
                     onClick = { onOpenPages(surahNumber, ayahNumber.value) },
-                    filled = false,
                 )
-                HifzEyeButton(hifz)
+                LabeledAction(
+                    icon = Icons.Rounded.Visibility,
+                    label = goToText.labelByHeart,
+                    contentDescription = hifz.copy.eyeAction,
+                    onClick = hifz::start,
+                )
             },
         )
         HifzTopBar(hifz, Modifier.align(Alignment.TopCenter))
@@ -659,17 +695,27 @@ private fun ReaderContent(
                 surahName = title,
                 status = status,
                 learnedAyahs = coverage?.coveredAyahs?.size ?: 0,
-                totalAyahs = total,
-                currentAyah = (firstVisibleAyah.value.coerceAtLeast(0)) + 1,
                 copy = copy,
                 onChoice = viewModel::chooseSurah,
-                onGoTo = { number ->
-                    val index = (number - 1).coerceIn(0, total - 1)
-                    flashIndex = index
-                    scrollToAyah(index)
-                    scope.launch {
-                        delay(1_500)
-                        if (flashIndex == index) flashIndex = null
+                onGoTo = { sheet = ReaderSheet.GoTo },
+                onDismiss = { sheet = null },
+            )
+            ReaderSheet.GoTo -> GoToSheet(
+                surahs = goToSurahs,
+                currentSurah = surahNumber,
+                copy = goToText,
+                onGoTo = { target ->
+                    if (target.surah == surahNumber) {
+                        val index = (target.ayah - 1).coerceIn(0, total - 1)
+                        flashIndex = index
+                        scrollToAyah(index)
+                        scope.launch {
+                            delay(1_500)
+                            if (flashIndex == index) flashIndex = null
+                        }
+                    } else {
+                        // Another surah: the normal open-at-ayah request, replacing this reader.
+                        onReplaceReader(ReaderRouting.goTo(target.surah, target.ayah))
                     }
                 },
                 onDismiss = { sheet = null },
@@ -812,6 +858,7 @@ private fun ReaderList(
     onWordTap: (index: Int, startMs: Int) -> Unit,
     onMore: (Int) -> Unit,
     onOpenStatus: () -> Unit,
+    onOpenGoTo: () -> Unit,
     onOpenNext: () -> Unit,
     onStartOver: () -> Unit,
     modifier: Modifier = Modifier,
@@ -836,6 +883,8 @@ private fun ReaderList(
                     bismillahStyle = arabicStyle,
                     enter = enter,
                     onStatusClick = onOpenStatus,
+                    onTitleClick = onOpenGoTo,
+                    goToLabel = rememberGoToCopy().title,
                 )
                 TranslationOfferLine(
                     visible = offerTranslation,
