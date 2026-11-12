@@ -26,7 +26,7 @@ class OnboardingCopyTest {
     fun everyStringIsFilledInEveryLanguage() {
         for (language in AppLanguage.entries) {
             val all = strings(onboardingCopy(language))
-            assertTrue(all.size > 60, "the fields of $language were read")
+            assertTrue(all.size > 35, "the fields of $language were read")
             for ((name, text) in all) assertTrue(text.isNotBlank(), "$language.$name is empty")
         }
     }
@@ -38,7 +38,7 @@ class OnboardingCopyTest {
         for (language in AppLanguage.entries) {
             val other = strings(onboardingCopy(language))
             for ((name, text) in other) {
-                if (!name.endsWith("Fmt") && name != "stepOf" && name != "slideOf") continue
+                if (!name.endsWith("Fmt") && name != "stepOf") continue
                 assertEquals(
                     placeholder.findAll(english.getValue(name)).map { it.value }.toSet(),
                     placeholder.findAll(text).map { it.value }.toSet(),
@@ -53,8 +53,7 @@ class OnboardingCopyTest {
         for (language in AppLanguage.entries) {
             val copy = onboardingCopy(language)
             val filled = listOf(
-                copy.stepLabel(3, 9),
-                copy.slideLabel(2, 3),
+                copy.stepLabel(3, 4),
                 copy.knownCount(5),
                 copy.remove("Al-Falaq"),
                 copy.presetStart("Al-Falaq", 5),
@@ -63,7 +62,7 @@ class OnboardingCopyTest {
                 copy.readyLesson("An-Nas 1–6", null),
                 copy.readyKnown(3),
                 copy.readyForecast("Juz Amma", "14 March"),
-                copy.readyReminder("20:00"),
+                copy.readyMinutes(5),
             )
             filled.forEach { text -> assertFalse('{' in text || '}' in text, "$language: $text") }
         }
@@ -96,6 +95,19 @@ class OnboardingCopyTest {
         assertEquals(listOf("1 месяц", "2 месяца", "5 месяцев", "11 месяцев", "21 месяц"), listOf(1, 2, 5, 11, 21).map { span(SpanUnit.Month, it) })
         assertEquals(listOf("1 год", "2 года", "5 лет", "11 лет", "21 год"), listOf(1, 2, 5, 11, 21).map { span(SpanUnit.Year, it) })
         assertEquals("≈ 4 месяца · ~14 марта", russian.forecast(PaceSpan(SpanUnit.Month, 4), "14 марта"))
+    }
+
+    @Test
+    fun theLessonLengthIsARangeInEveryLanguage() {
+        assertEquals("5–10 минут в день", russian.readyMinutes(5))
+        assertEquals("1–2 минуты в день", russian.readyMinutes(1))
+        assertEquals("11–22 минуты в день", russian.readyMinutes(11))
+        assertEquals("5–10 minutes a day", onboardingCopy(AppLanguage.EN).readyMinutes(5))
+        assertEquals("5–10 дақиқа дар як рӯз", onboardingCopy(AppLanguage.TG).readyMinutes(5))
+        assertEquals("Kuniga 5–10 daqiqa", onboardingCopy(AppLanguage.UZ).readyMinutes(5))
+        assertEquals("Günde 5–10 dakika", onboardingCopy(AppLanguage.TR).readyMinutes(5))
+        // A missing or zero estimate never gives "0–0".
+        assertEquals("1–2 minutes a day", onboardingCopy(AppLanguage.EN).readyMinutes(0))
     }
 
     @Test

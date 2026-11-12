@@ -38,9 +38,9 @@ import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /**
- * Step 7 (only "Memorize"): what to learn. Four cards, each with the first lesson it would give with the known surahs left out
- * ("We start with Al-Falaq · 5 ayahs"). A preset that is known entirely says so and can not be chosen. "Choose surahs" opens the
- * search and keeps the order they were chosen in.
+ * Step 2: what to learn. Four cards, each with the first lesson it would give (nothing is known yet at this point:
+ * "We start with Al-Falaq · 5 ayahs"). "Choose surahs" opens the search and keeps the order they were chosen in. Under the cards a
+ * quiet link leaves the onboarding for the reader ([onReadOnly]).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -51,6 +51,8 @@ internal fun PresetStep(
     onChoose: (PresetChoice) -> Unit,
     onAddCustom: (Int) -> Unit,
     onRemoveCustom: (Int) -> Unit,
+    onReadOnly: () -> Unit,
+    readOnlyEnabled: Boolean,
 ) {
     val reduced = LocalReducedMotion.current
     val selected = ui.selection.preset
@@ -110,6 +112,15 @@ internal fun PresetStep(
                 }
             }
         }
+        // The way out for people who only want the reader: finishes the onboarding with the Read goal.
+        QhButton(
+            text = copy.presetReadOnly,
+            onClick = onReadOnly,
+            modifier = Modifier.fillMaxWidth(),
+            variant = QhButtonVariant.Ghost,
+            size = QhButtonSize.M,
+            enabled = readOnlyEnabled,
+        )
     }
 
     if (adding) {
@@ -141,22 +152,14 @@ private fun PresetCard(
         isCustom && info.surahCount == 0 -> copy.customEmpty
         else -> planCopy.scopeInfo(info.surahCount, info.ayahCount)
     }
-    val lessonLine = when {
-        info.allKnown -> when (info.preset) {
-            PresetChoice.JuzAmma -> copy.allKnownJuzAmma
-            PresetChoice.JuzTabarak -> copy.allKnownJuzTabarak
-            PresetChoice.FromStart -> copy.allKnownFromStart
-            PresetChoice.Custom -> copy.allKnownCustom
-        }
-        lesson != null -> copy.presetStart(surahName(lesson.surah) ?: lesson.surah.toString(), lesson.ayahCount)
-        else -> null
-    }
-    ChoiceCard(selected = selected, onClick = onClick, enabled = info.selectable) {
+    // The first lesson is counted with nothing known: the "known" step comes after this one.
+    val lessonLine = lesson?.let { copy.presetStart(surahName(it.surah) ?: it.surah.toString(), it.ayahCount) }
+    ChoiceCard(selected = selected, onClick = onClick) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = title,
                 style = QhTheme.type.title1,
-                color = if (info.selectable) colors.ink else colors.inkTertiary,
+                color = colors.ink,
                 modifier = Modifier.weight(1f),
             )
             if (selected) {
@@ -168,7 +171,7 @@ private fun PresetCard(
             Text(
                 text = lessonLine,
                 style = QhTheme.type.title2,
-                color = if (info.allKnown) colors.inkSecondary else colors.primary,
+                color = colors.primary,
             )
         }
     }

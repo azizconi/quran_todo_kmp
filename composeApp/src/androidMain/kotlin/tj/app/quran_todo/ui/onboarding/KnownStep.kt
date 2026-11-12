@@ -57,8 +57,9 @@ import tj.app.quran_todo.ui.theme.QhTheme
 internal val KnownGrid: List<Int> = listOf(1) + (114 downTo 78).toList()
 
 /**
- * Step 6 (only "Memorize"): which surahs the person already knows by heart. A grid of the short ones, a search for any other
- * ("Other surahs"), the added ones as chips. A touch marks; nothing is written until the last screen.
+ * Step 3: which surahs the person already knows by heart (it comes after the preset). A grid of the short ones, a search for any
+ * other ("Other surahs"), the added ones as chips. A touch marks; nothing is written until the last screen. When the marks cover
+ * the whole chosen list the footer says so and keeps its button off (see [OnboardingPlanMath.nothingToLearn]).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

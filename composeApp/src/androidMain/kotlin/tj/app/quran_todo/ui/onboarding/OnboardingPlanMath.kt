@@ -223,4 +223,11 @@ internal object OnboardingPlanMath {
         val queue = selection.queue
         return queue.isNotEmpty() && queue.any { it !in selection.known }
     }
+
+    /**
+     * The "known" step marked every surah of a chosen, non-empty list: nothing is left to learn, so the step says so and does not
+     * go on. False for a missing preset or an empty list (that is the preset step's business).
+     */
+    fun nothingToLearn(selection: PlanSelection): Boolean =
+        selection.preset != null && selection.queue.isNotEmpty() && !canLearn(selection)
 }

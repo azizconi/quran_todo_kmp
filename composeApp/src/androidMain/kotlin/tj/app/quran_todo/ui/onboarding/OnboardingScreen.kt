@@ -1,10 +1,6 @@
 package tj.app.quran_todo.ui.onboarding
 
-import android.Manifest
-import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -58,7 +54,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -70,14 +65,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import tj.app.quran_todo.common.i18n.LocalAppLanguage
 import tj.app.quran_todo.common.i18n.LocalAppLanguageSetter
-import tj.app.quran_todo.common.settings.LocalAppSettings
-import tj.app.quran_todo.common.settings.LocalAppSettingsSetter
-import tj.app.quran_todo.common.theme.LocalReadingFontStyle
-import tj.app.quran_todo.common.theme.LocalReadingFontStyleSetter
-import tj.app.quran_todo.common.theme.LocalThemeMode
-import tj.app.quran_todo.common.theme.LocalThemePalette
-import tj.app.quran_todo.common.theme.LocalThemePaletteSetter
-import tj.app.quran_todo.common.theme.ThemeMode
 import tj.app.quran_todo.ui.components.DotSpinner
 import tj.app.quran_todo.ui.components.LocalToaster
 import tj.app.quran_todo.ui.components.QhButton
@@ -86,72 +73,47 @@ import tj.app.quran_todo.ui.components.QhButtonVariant
 import tj.app.quran_todo.ui.components.QhIconButton
 import tj.app.quran_todo.ui.components.ToastKind
 import tj.app.quran_todo.ui.components.softShadow
-import tj.app.quran_todo.ui.i18n.passageRangeLabel
 import tj.app.quran_todo.ui.i18n.planCopy
 import tj.app.quran_todo.ui.i18n.rememberOnboardingCopy
-import tj.app.quran_todo.ui.i18n.rememberReminderCopy
 import tj.app.quran_todo.ui.i18n.rememberSettingsCopy
 import tj.app.quran_todo.ui.i18n.rememberTrustCopy
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.motion.orSnap
 import tj.app.quran_todo.ui.motion.pressable
-import tj.app.quran_todo.ui.motion.rememberThemeSwitcher
-import tj.app.quran_todo.ui.reminder.ReminderPermission
-import tj.app.quran_todo.ui.reminder.formatReminderTime
-import tj.app.quran_todo.ui.settings.MaxReadingFontSize
-import tj.app.quran_todo.ui.settings.MinReadingFontSize
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
 /**
- * The onboarding v2 (docs/redesign/tasks/PC1-onboarding-v2.md): one screen, one question at a time, in a shared-axis transition.
- * "Back" (the arrow and the system gesture) returns to the previous step, on the first step the system gesture leaves the app. The
- * language, the font, the size, the theme and the palette apply at once through the root's setters; the reminder is turned on at
- * its step; the memorization progress is written only by the button of the last screen (see [OnboardingViewModel.finish]).
+ * The onboarding (docs/redesign/UX_PLAN.md, U1): four screens - welcome and language, what to learn, what is known, the plan - one
+ * question at a time, in a shared-axis transition. "Back" (the arrow and the system gesture) returns to the previous step, on the
+ * first step the system gesture leaves the app. The language applies at once through the root's setter; the memorization progress
+ * is written only by the button of the last screen or by the "just read and listen" link (see [OnboardingViewModel.finish]).
+ * The font, the size and the theme keep their defaults (they live in the reader's text sheet and the settings); the reminder is
+ * not asked here.
  */
 @Composable
 internal fun OnboardingScreen(onFinished: (OnboardingExit) -> Unit) {
     val viewModel: OnboardingViewModel = viewModel(factory = OnboardingViewModelFactory)
     val ui by viewModel.ui.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val toaster = LocalToaster.current
     val colors = QhTheme.colors
     val reduced = LocalReducedMotion.current
 
     val language = LocalAppLanguage.current
     val setLanguage = LocalAppLanguageSetter.current
-    val fontStyle = LocalReadingFontStyle.current
-    val setFontStyle = LocalReadingFontStyleSetter.current
-    val settings = LocalAppSettings.current
-    val setSettings = LocalAppSettingsSetter.current
-    val themeMode = LocalThemeMode.current
-    val palette = LocalThemePalette.current
-    val setPalette = LocalThemePaletteSetter.current
-    // Theme and palette changes ripple out from the finger (circular reveal), as in the settings.
-    val themeSwitcher = rememberThemeSwitcher()
-    val followsSystem by viewModel.themeFollowsSystem.collectAsStateWithLifecycle()
     val analyticsEnabled by viewModel.analyticsEnabled.collectAsStateWithLifecycle()
 
     val copy = rememberOnboardingCopy(language)
     val settingsCopy = rememberSettingsCopy(language)
     val trustCopy = rememberTrustCopy(language)
-    val reminderCopy = rememberReminderCopy(language)
     val planCopy = remember(language) { planCopy(language) }
     LaunchedEffect(language) { viewModel.setLanguage(language) }
 
     val position = ui.position
     val step = position.step
-    val memorize = ui.goal != GoalChoice.Read
-    val fontSize = settings.readingFontSize.coerceIn(MinReadingFontSize, MaxReadingFontSize)
-    val is24Hour = remember(context) { DateFormat.is24HourFormat(context) }
 
     BackHandler(enabled = position != FlowPosition.First) { viewModel.back() }
-
-    // "Remind me" asks for the notification permission here, at the step where the reminder is explained.
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        viewModel.applyReminder(allowed = granted && !ReminderPermission.isBlocked(context))
-    }
 
     LaunchedEffect(viewModel) {
         viewModel.eventFlow.collect { event ->
@@ -166,12 +128,6 @@ internal fun OnboardingScreen(onFinished: (OnboardingExit) -> Unit) {
     fun leave() {
         when (step) {
             OnboardingStep.Language -> setLanguage(language)
-            OnboardingStep.Comfort -> {
-                setFontStyle(fontStyle)
-                setSettings(settings.copy(readingFontSize = fontSize))
-                viewModel.setThemeFollowsSystem(followsSystem)
-                setPalette(palette)
-            }
             else -> Unit
         }
     }
@@ -195,7 +151,7 @@ internal fun OnboardingScreen(onFinished: (OnboardingExit) -> Unit) {
                 showBack = position != FlowPosition.First,
                 segmentCount = ui.segmentCount,
                 segmentIndex = ui.segmentIndex,
-                currentFill = if (step == OnboardingStep.Story) (position.storyPage + 1f) / StoryPageCount else 1f,
+                currentFill = 1f,
                 progressLabel = copy.stepLabel(ui.segmentIndex + 1, ui.segmentCount),
                 backLabel = settingsCopy.native.back,
                 onBack = { viewModel.back() },
@@ -229,16 +185,17 @@ internal fun OnboardingScreen(onFinished: (OnboardingExit) -> Unit) {
                 when (shown) {
                     OnboardingStep.Language -> LanguageStep(copy = copy, language = language, onSelectLanguage = setLanguage)
 
-                    OnboardingStep.Story -> StoryStep(
+                    OnboardingStep.Preset -> PresetStep(
                         copy = copy,
-                        page = position.storyPage,
-                        fatiha = ui.fatiha,
-                        fatihaName = ui.surahName(1) ?: copy.fatihaName,
-                        fontStyle = fontStyle,
-                        onPage = viewModel::showStoryPage,
+                        planCopy = planCopy,
+                        ui = ui,
+                        onChoose = viewModel::choosePreset,
+                        onAddCustom = viewModel::addCustom,
+                        onRemoveCustom = viewModel::removeCustom,
+                        // "Just read and listen for now": the onboarding ends here, in the reader.
+                        onReadOnly = { viewModel.finish(OnboardingExit.Reader) },
+                        readOnlyEnabled = !ui.finishing,
                     )
-
-                    OnboardingStep.Goal -> GoalStep(copy = copy, goal = ui.goal, onChoose = viewModel::chooseGoal)
 
                     OnboardingStep.Known -> KnownStep(
                         copy = copy,
@@ -248,67 +205,14 @@ internal fun OnboardingScreen(onFinished: (OnboardingExit) -> Unit) {
                         onAdd = viewModel::addKnown,
                     )
 
-                    OnboardingStep.Preset -> PresetStep(
-                        copy = copy,
-                        planCopy = planCopy,
-                        ui = ui,
-                        onChoose = viewModel::choosePreset,
-                        onAddCustom = viewModel::addCustom,
-                        onRemoveCustom = viewModel::removeCustom,
-                    )
-
-                    OnboardingStep.Pace -> PaceStep(
-                        copy = copy,
-                        planCopy = planCopy,
-                        ui = ui,
-                        onPerDay = viewModel::setPerDay,
-                        onMode = viewModel::setMode,
-                        onTarget = viewModel::setTarget,
-                    )
-
-                    OnboardingStep.Reminder -> ReminderStep(
-                        copy = copy,
-                        reminderCopy = reminderCopy,
-                        lessonRange = ui.firstLesson?.let { range ->
-                            passageRangeLabel(ui.surahName(range.surah) ?: range.surah.toString(), range.startAyah, range.endAyah)
-                        },
-                        lessonMinutes = ui.lessonMinutes,
-                        minuteOfDay = ui.reminderMinute,
-                        denied = ui.reminder == ReminderChoice.Denied,
-                        onMinute = viewModel::setReminderMinute,
-                    )
-
-                    OnboardingStep.Comfort -> ComfortStep(
-                        copy = copy,
-                        settingsCopy = settingsCopy,
-                        ayahs = ui.rahman,
-                        fontStyle = fontStyle,
-                        fontSize = fontSize,
-                        onSelectFont = setFontStyle,
-                        onFontSizeChange = { size -> setSettings(settings.copy(readingFontSize = size)) },
-                        themeIndex = themeSegment(followsSystem, themeMode),
-                        onSelectTheme = { index ->
-                            when (index) {
-                                0 -> themeSwitcher.switch(ThemeMode.LIGHT)
-                                1 -> themeSwitcher.switch(ThemeMode.DARK)
-                                else -> themeSwitcher.reveal { viewModel.setThemeFollowsSystem(true) }
-                            }
-                        },
-                        palette = palette,
-                        onSelectPalette = themeSwitcher::switchPalette,
-                    )
-
                     OnboardingStep.Ready -> ReadyStep(
                         copy = copy,
                         planCopy = planCopy,
                         trustCopy = trustCopy,
                         ui = ui,
-                        memorize = memorize,
-                        reminderTime = if (ui.reminder == ReminderChoice.On) formatReminderTime(ui.reminderMinute, is24Hour) else null,
-                        fontStyle = fontStyle,
-                        fontSize = fontSize,
                         analyticsEnabled = analyticsEnabled,
                         onAnalytics = viewModel::setAnalyticsEnabled,
+                        onPerDay = viewModel::setPerDay,
                     )
                 }
             }
@@ -317,57 +221,45 @@ internal fun OnboardingScreen(onFinished: (OnboardingExit) -> Unit) {
             // the label crossfades, the colours animate and the second button / the note grow and shrink instead of popping.
             val known = ui.selection.known
             val footer = when (step) {
-                // "Skip" on a slide leads to the goal; it sits under the main button, where the thumb is and where a long word fits.
-                OnboardingStep.Story -> FooterSpec(
-                    primary = copy.next,
-                    onPrimary = ::next,
-                    secondary = copy.skip,
-                    onSecondary = viewModel::skipStory,
-                )
-
-                OnboardingStep.Goal -> FooterSpec(copy.next, onPrimary = ::next, enabled = ui.goal != null)
-
-                OnboardingStep.Known -> FooterSpec(
-                    primary = if (known.isEmpty()) copy.knownNone else copy.next,
-                    note = if (known.isEmpty()) null else copy.knownCount(known.size),
-                    onPrimary = ::next,
-                )
+                OnboardingStep.Language -> FooterSpec(copy.start, onPrimary = ::next)
 
                 OnboardingStep.Preset -> FooterSpec(
                     primary = copy.next,
-                    enabled = ui.selection.preset != null && OnboardingPlanMath.canLearn(ui.selection),
+                    // A chosen list with something in it; "Choose surahs" stays off until a surah is added.
+                    enabled = ui.selection.preset != null && ui.selection.queue.isNotEmpty() && !ui.finishing,
                     onPrimary = ::next,
                 )
 
-                OnboardingStep.Reminder -> if (ui.reminder == ReminderChoice.Denied) {
-                    FooterSpec(copy.next, onPrimary = ::next)
+                // Everything of the chosen list marked as known: say so and keep the button off.
+                OnboardingStep.Known -> if (OnboardingPlanMath.nothingToLearn(ui.selection)) {
+                    FooterSpec(
+                        primary = copy.next,
+                        enabled = false,
+                        note = when (ui.selection.preset) {
+                            PresetChoice.JuzAmma -> copy.allKnownJuzAmma
+                            PresetChoice.JuzTabarak -> copy.allKnownJuzTabarak
+                            PresetChoice.FromStart -> copy.allKnownFromStart
+                            PresetChoice.Custom, null -> copy.allKnownCustom
+                        },
+                        onPrimary = ::next,
+                    )
                 } else {
                     FooterSpec(
-                        primary = copy.reminderOn,
-                        showArrow = false,
-                        onPrimary = {
-                            if (ReminderPermission.needsRequest(context)) {
-                                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            } else {
-                                viewModel.applyReminder(allowed = !ReminderPermission.isBlocked(context))
-                            }
-                        },
-                        secondary = copy.reminderNotNow,
-                        onSecondary = viewModel::skipReminder,
+                        primary = if (known.isEmpty()) copy.knownNone else copy.next,
+                        note = if (known.isEmpty()) null else copy.knownCount(known.size),
+                        onPrimary = ::next,
                     )
                 }
 
                 OnboardingStep.Ready -> FooterSpec(
-                    primary = if (memorize) copy.readyStart else copy.readyReadOpen,
+                    primary = copy.readyStart,
                     showArrow = false,
                     loading = ui.finishing,
-                    onPrimary = { viewModel.finish(if (memorize) OnboardingExit.Lesson else OnboardingExit.Reader) },
+                    onPrimary = { viewModel.finish(OnboardingExit.Lesson) },
                     secondary = copy.later,
                     secondaryEnabled = !ui.finishing,
                     onSecondary = { viewModel.finish(OnboardingExit.Later) },
                 )
-
-                else -> FooterSpec(copy.next, onPrimary = ::next)
             }
             OnboardingFooter(footer)
         }

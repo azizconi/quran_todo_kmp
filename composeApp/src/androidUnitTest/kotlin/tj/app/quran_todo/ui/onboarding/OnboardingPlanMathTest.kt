@@ -129,6 +129,28 @@ class OnboardingPlanMathTest {
         assertTrue(OnboardingPlanMath.canLearn(PlanSelection(preset = PresetChoice.Custom, customQueue = listOf(114, 1), known = listOf(114))))
     }
 
+    @Test
+    fun theKnownStepSaysNothingIsLeftOnlyWhenTheWholeChosenListIsKnown() {
+        // The "known" step comes after the preset: marking all of Juz Amma leaves nothing to learn there.
+        assertFalse(OnboardingPlanMath.nothingToLearn(PlanSelection()))
+        assertFalse(OnboardingPlanMath.nothingToLearn(PlanSelection(known = HifzPresets.JUZ_30.drop(1))))
+        assertTrue(OnboardingPlanMath.nothingToLearn(PlanSelection(known = HifzPresets.JUZ_30)))
+        // Other lists are not affected by the same marks.
+        assertFalse(OnboardingPlanMath.nothingToLearn(PlanSelection(preset = PresetChoice.JuzTabarak, known = HifzPresets.JUZ_30)))
+        // No preset, or an empty own list, is the preset step's business, not "everything is known".
+        assertFalse(OnboardingPlanMath.nothingToLearn(PlanSelection(preset = null, known = HifzPresets.JUZ_30)))
+        assertFalse(OnboardingPlanMath.nothingToLearn(PlanSelection(preset = PresetChoice.Custom, known = listOf(1))))
+        assertTrue(OnboardingPlanMath.nothingToLearn(PlanSelection(preset = PresetChoice.Custom, customQueue = listOf(114, 113), known = listOf(113, 114))))
+    }
+
+    @Test
+    fun thePresetCardsAreCountedWithNothingKnown() {
+        // The view model asks with an empty known list: the cards always name the first surah of the list.
+        val info = OnboardingPlanMath.presetInfo(PresetChoice.JuzAmma, emptyList(), emptyList(), 5)
+        assertFalse(info.allKnown)
+        assertNotNull(info.firstLesson)
+    }
+
     // -- Pace and date --------------------------------------------------------------------------
 
     @Test
