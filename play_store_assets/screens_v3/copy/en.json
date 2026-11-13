@@ -1,13 +1,13 @@
 {
   "lang": "en",
   "screens": [
-    {"word": "Lesson", "sub1": "Ready every day:", "sub2": "new, recent and old.", "pill": "FREE · NO ADS"},
-    {"word": "Listen", "sub1": "12 reciters,", "sub2": "every word highlighted.", "override": {"pop": [0, 775, 1080, 1492]}},
-    {"word": "Mushaf", "sub1": "Pages just like", "sub2": "the printed Quran.", "override": {"pop": [0, 895, 1080, 1292]}},
-    {"word": "Tajweed", "sub1": "Reading rules in colour,", "sub2": "right in the text.", "override": {"pop": [0, 945, 1080, 1612]}},
+    {"word": "Lesson", "sub1": "Ready every day:", "sub2": "new, recent and old."},
+    {"word": "Listen", "sub1": "12 reciters,", "sub2": "every word highlighted."},
+    {"word": "Mushaf", "sub1": "Pages just like", "sub2": "the printed Quran."},
+    {"word": "Tajweed", "sub1": "Reading rules in colour,", "sub2": "right in the text."},
     {"word": "Tafsir", "sub1": "The meaning of an ayah,", "sub2": "one tap away."},
     {"word": "Plan", "sub1": "Your pace —", "sub2": "and the day you finish."},
-    {"word": "Progress", "sub1": "See what is solid", "sub2": "and what needs review.", "override": {"pop": [52, 815, 1028, 1231]}},
-    {"word": "Quiz", "sub1": "Tests and similar ayahs,", "sub2": "so you never mix them up.", "override": {"pop": [52, 732, 1028, 952]}}
+    {"word": "Progress", "sub1": "Are you on track —", "sub2": "and what is hard."},
+    {"word": "Test", "sub1": "Questions and similar ayahs,", "sub2": "so you never mix them up."}
   ]
 }

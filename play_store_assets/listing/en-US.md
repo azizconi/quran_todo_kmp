@@ -25,7 +25,7 @@ Choose what to learn — Juz Amma, Juz Tabarak, the Quran from the start or your
 
 CHECK YOURSELF
 • Recall: hints by first letters, every second word or gradual hiding; tap a hidden word to reveal only it.
-• A Quiz section: continue the ayah, name the next one, find the start of a surah, put ayahs in order, say where an ayah is.
+• Test: continue the ayah, name the next one, find the start of a surah, put ayahs in order, say where an ayah is.
 • "Tell similar ayahs apart" and practice for your hard ayahs.
 • You can record your own recitation in Recall and compare it with the reciter; it stays on your phone. The app does not grade your reading.
 
@@ -38,6 +38,7 @@ READ AND LISTEN
 • Quran audio from 12 reciters, including Mishary Alafasy, Sudais, Shuraym, Husary and Abdul Basit. A slow Husary recording is made for memorizing.
 • While the reciter reads, the current word is highlighted. Tap a word and the audio starts from it.
 • Repeat a passage, or echo mode: the reciter reads, then it is your turn. Audio plays with the screen off.
+• Under the ayah: Listen, Repeat and More; go to any ayah.
 • Tajweed rules in colour, with a legend.
 
 UNDERSTAND
@@ -51,7 +52,7 @@ QURAN OFFLINE
 The Arabic text is inside the app, no internet needed. Audio and translations can be downloaded ahead in "Downloads and storage" (Wi-Fi only option).
 
 HONEST PROGRESS
-Day streak, 30-day activity, a map of the whole Quran and progress by juz. In the "In detail" section: how well you remember each surah and juz, a calendar of the year, a forecast for the surahs of your plan and your hardest places.
+Progress shows your plan: what is covered and when you finish. Day streak, 30-day activity, a map of the whole Quran and progress by juz. In the "In detail" section: how well you remember each surah and juz, a calendar of the year, a forecast for the surahs of your plan and your hardest places.
 A report for your teacher (ustaz) for a week, a month or your own period: as a picture, a PDF or text.
 
 KHATM, RAMADAN AND WIDGET
@@ -72,8 +73,9 @@ Quran Hifz does not check your recitation and does not replace a teacher: you ju
 
 ## What's new
 Quran Hifz 2.0 — a big update
-• Lesson of the day: new, recent and old, ready every day, with a plan and a finish date
+• A new look: three sections — Lesson, Quran and Progress
+• Lesson of the day: new, recent and old, with a plan and a finish date
 • Mushaf pages, tajweed colours and 12 reciters with word highlighting
-• Check yourself: quizzes, similar ayahs, record your own recitation
-• Choose your translation and read tafsir right by the ayah
-• Detailed progress, a report for your teacher, Ramadan khatm and a widget
+• Under the ayah: Listen, Repeat and More; go to any ayah
+• Test, similar ayahs and recording your own recitation
+• Progress by plan, a report for your teacher, Ramadan khatm and a widget

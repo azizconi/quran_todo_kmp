@@ -1,13 +1,13 @@
 {
   "lang": "uz",
   "screens": [
-    {"word": "Dars", "sub1": "Har kuni tayyor:", "sub2": "yangi, yaqinda, eski.", "pill": "BEPUL · REKLAMASIZ"},
-    {"word": "Qorilar", "sub1": "12 ta ovoz,", "sub2": "har so‘z ajralib turadi.", "override": {"pop": [0, 776, 1080, 1484]}},
+    {"word": "Dars", "sub1": "Har kuni tayyor:", "sub2": "yangi, yaqinda, eski."},
+    {"word": "Qorilar", "sub1": "12 ta ovoz,", "sub2": "har so‘z ajralib turadi."},
     {"word": "Mushaf", "sub1": "Sahifalar bosma", "sub2": "Qur’ondagidek."},
-    {"word": "Tajvid", "sub1": "O‘qish qoidalari —", "sub2": "matnda rang bilan.", "override": {"pop": [0, 942, 1080, 1608]}},
+    {"word": "Tajvid", "sub1": "O‘qish qoidalari —", "sub2": "matnda rang bilan."},
     {"word": "Tafsir", "sub1": "Oyat ma’nosi", "sub2": "bir bosishda."},
     {"word": "Reja", "sub1": "Sizning sur’atingiz —", "sub2": "va tugatish sanasi."},
-    {"word": "Natija", "sub1": "Nima mustahkam,", "sub2": "nimani takrorlash kerak."},
-    {"word": "Tekshiruv", "sub1": "Testlar va o‘xshash oyatlar,", "sub2": "adashmaslik uchun.", "override": {"pop": [52, 732, 1028, 952]}}
+    {"word": "Natija", "sub1": "Reja bo‘yicha borasizmi", "sub2": "va nima qiyin."},
+    {"word": "Test", "sub1": "Savollar va o‘xshash oyatlar,", "sub2": "adashmaslik uchun."}
   ]
 }

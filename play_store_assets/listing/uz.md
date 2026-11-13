@@ -34,6 +34,7 @@ O‘QING VA TINGLANG
 • 12 qori, jumladan Mishari al-Afosiy, Sudays, Shuraym, al-Husariy va Abdulbosit. Yodlash uchun al-Husariyning sekin yozuvi bor.
 • Qori o‘qiyotganda joriy so‘z ajralib turadi. So‘zni bossangiz, ovoz shu joydan boshlanadi.
 • Parchani takrorlash va «aks-sado» rejimi: qori o‘qiydi, keyin navbat sizda. Ekran o‘chiq bo‘lsa ham ovoz davom etadi.
+• Joriy oyat ostida: «Tinglash», «Takror» va «Yana»; istalgan sura va oyatga o‘tish mumkin.
 • Tajvid: o‘qish qoidalari rang bilan ajratilgan.
 
 TUSHUNING
@@ -45,15 +46,15 @@ TUSHUNING
 
 O‘ZINGIZNI TEKSHIRING
 • «Eslang»: birinchi harflar, har ikkinchi so‘z yoki asta yashirish bo‘yicha maslahat.
-• «Tekshiruv» bo‘limi: oyatni davom ettiring, keyingisini ayting, sura boshini toping, oyatlarni tartibga soling, oyat qayerdaligini ayting.
-• «O‘xshashlarni ajrating» va qiyin oyatlar mashqi.
+• «Test»: oyatni davom ettiring, keyingisini ayting, sura boshini toping, oyatlarni tartibga soling, oyat qayerdaligini ayting.
+• «O‘xshashlarini farqlang» va qiyin oyatlar mashqi.
 • «Eslang»da o‘z qiroatingizni yozib, qori bilan solishtiring; u telefoningizda qoladi. Ilova o‘qishingizni baholamaydi.
 
 INTERNETSIZ HAM ISHLAYDI
 Arabcha matn ilovaning ichida. Ovoz va tarjimalarni oldindan «Yuklashlar va xotira» bo‘limida yuklab olish mumkin («Faqat Wi-Fi orqali» rejimi bor).
 
 HALOL NATIJA
-Kunlar seriyasi, oxirgi 30 kundagi faollik, butun Qur’on xaritasi va juzlar bo‘yicha natija. «Batafsil» bo‘limida: har bir sura va juzni qanchalik eslab qolganingiz, yil kalendari, reja suralari bo‘yicha prognoz va eng qiyin joylar.
+«Natija» bo‘limida rejangiz: qancha o‘tilgani va qachon tugatishingiz. Kunlar seriyasi, oxirgi 30 kundagi faollik, butun Qur’on xaritasi va juzlar bo‘yicha natija. «Batafsil» bo‘limida: har bir sura va juzni qanchalik eslab qolganingiz, yil kalendari, reja suralari bo‘yicha prognoz va eng qiyin joylar.
 Ustoz uchun hafta, oy yoki o‘zingiz tanlagan davr hisoboti: rasm, PDF yoki matn ko‘rinishida.
 
 XATM, RAMAZON VA VIDJET
@@ -74,8 +75,9 @@ Quran Hifz o‘qishingizni tekshirmaydi va ustozning o‘rnini bosmaydi: o‘zin
 
 ## What's new
 Quran Hifz 2.0 — katta yangilanish
-• Kunlik dars: yangi, yaqindagi va eski — har kuni tayyor, reja va tugash sanasi bilan
+• Yangi ko‘rinish: uchta bo‘lim — Dars, Qur’on va Natija
+• Kunlik dars: yangi, yaqinda va eski, reja va tugash sanasi bilan
 • Mushaf sahifalari, tajvid ranglari va so‘zlari ajraladigan 12 qori
-• O‘zingizni tekshiring: testlar, o‘xshash oyatlar, o‘z qiroatingizni yozib olish
-• Tarjimani tanlang, tafsir esa oyat yonida
-• Batafsil natija, ustoz uchun hisobot, Ramazon xatmi va vidjet
+• Oyat ostida: «Tinglash», «Takror» va «Yana»; istalgan oyatga o‘tish
+• Test, o‘xshash oyatlar va o‘z qiroatingizni yozib olish
+• Reja bo‘yicha natija, ustoz uchun hisobot, Ramazon xatmi va vidjet

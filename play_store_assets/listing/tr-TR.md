@@ -34,6 +34,7 @@ OKUYUN VE DİNLEYİN
 • Kuran dinle: 12 kâri; aralarında Mişari el-Afasi, Sudeys, Şureym, el-Husari ve Abdülbasit var. Ezber için el-Husari’nin yavaş kaydı da bulunur.
 • Kâri okurken o anki kelime vurgulanır. Kelimeye dokunun, ses oradan başlasın.
 • Bölümü tekrarlama ve «yankı» modu: kâri okur, sonra sıra sizde. Ekran kapalıyken ses çalmaya devam eder.
+• Ayetin altında: «Dinle», «Tekrar» ve «Diğer»; istediğiniz ayete gidin.
 • Tecvid: okuma kuralları renkle gösterilir, altta açıklama vardır.
 
 ANLAYIN
@@ -44,16 +45,16 @@ ANLAYIN
 • Benzer ayetler: ayette işaret ve farkı vurgulanmış liste.
 
 KENDİNİZİ SINAYIN
-• «Hatırla»: ilk harfler, her ikinci kelime ya da yavaş yavaş gizleme ipuçları; gizli kelimeye dokunursanız yalnızca o açılır.
-• «Sınav» bölümü: ayeti sürdürün, sonrakini söyleyin, surenin başlangıcını bulun, ayetleri sıraya koyun, ayetin yerini söyleyin. Yalnızca ezberlenenler sorulur.
-• «Benzerleri ayırt et» ve zor ayetler için çalışma.
-• «Hatırla»da kendi okuyuşunuzu kaydedip kâri ile karşılaştırabilirsiniz; kayıt telefonunuzda kalır. Uygulama okuyuşunuzu puanlamaz.
+• «Hatırlayın»: ilk harfler, her ikinci kelime ya da yavaş yavaş gizleme ipuçları; gizli kelimeye dokunursanız yalnızca o açılır.
+• «Test»: ayeti sürdürün, sonrakini söyleyin, surenin başlangıcını bulun, ayetleri sıraya koyun, ayetin yerini söyleyin. Yalnızca ezberlenenler sorulur.
+• «Benzerleri ayırt edin» ve zor ayetler için çalışma.
+• «Hatırlayın» adımında kendi okuyuşunuzu kaydedip kâri ile karşılaştırabilirsiniz; kayıt telefonunuzda kalır. Uygulama okuyuşunuzu puanlamaz.
 
 İNTERNETSİZ ÇALIŞIR
 Arapça metin uygulamanın içindedir. Ses ve mealler «İndirmeler ve depolama» bölümünden önceden indirilebilir («yalnızca Wi-Fi» seçeneği var).
 
 DÜRÜST İLERLEME
-Gün serisi, son 30 günün etkinliği, tüm Kur’an haritası ve cüzlere göre ilerleme. «Ayrıntılı» bölümünde: her sureyi ve cüzü ne kadar hatırladığınız, yıl takvimi, plandaki sureler için tahmin ve en zor yerler.
+«İlerleme» bölümünde planınız ve bitiş tarihiniz. Gün serisi, son 30 günün etkinliği, tüm Kur’an haritası ve cüzlere göre ilerleme. «Ayrıntılı» bölümünde: her sureyi ve cüzü ne kadar hatırladığınız, yıl takvimi, plandaki sureler için tahmin ve en zor yerler.
 Hocanız için hafta, ay ya da istediğiniz dönemin raporu: resim, PDF veya metin olarak. Tüm notlarınız tek listede.
 
 HATİM, RAMAZAN VE WİDGET
@@ -74,8 +75,9 @@ Quran Hifz okuyuşunuzu denetlemez ve hocanın yerini tutmaz: kendinizi siz değ
 
 ## What's new
 Quran Hifz 2.0 — büyük güncelleme
-• Günün dersi: yeni, yakın ve eski — her gün hazır, plan ve bitiş tarihiyle
+• Yeni görünüm: üç bölüm — Ders, Kur’an ve İlerleme
+• Günün dersi: yeni, yakın zamanda ve eski, plan ve bitiş tarihiyle
 • Mushaf sayfaları, renkli tecvid ve kelime vurgulu 12 kâri
-• Kendinizi sınayın: sınavlar, benzer ayetler, kendi kıraatinizin kaydı
-• Meal seçimi ve ayetin yanında tefsir
-• Ayrıntılı ilerleme, hocanız için rapor, Ramazan hatmi ve widget
+• Ayetin altında: «Dinle», «Tekrar» ve «Diğer»; istediğiniz ayete gidin
+• Test, benzer ayetler ve kendi kıraatinizin kaydı
+• Plana göre ilerleme, hocanız için rapor, Ramazan hatmi ve widget
