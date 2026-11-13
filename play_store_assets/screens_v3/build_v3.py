@@ -50,15 +50,22 @@ PALETTE = {
 # raw: capture stem. pop: card lifted out of the device, in raw 1080x2400 pixels (x0, y0, x1, y1).
 # tilt: rotation of the card in degrees. Overridable per language in copy/<lang>.json -> "screens"[i].
 SCREENS = [
-    dict(raw="01_home", name="lesson", accent="emerald", pop=(55, 400, 1025, 1212), tilt=-2.0),
-    dict(raw="02_reader", name="reader", accent="gold", pop=(0, 775, 1080, 1425), tilt=0.0),
-    dict(raw="03_mushaf", name="mushaf", accent="cyan", pop=(0, 885, 1080, 1290), tilt=2.0),
-    dict(raw="04_tajweed", name="tajweed", accent="rose", pop=(0, 850, 1080, 1290), tilt=-1.5),
-    dict(raw="05_tafsir", name="tafsir", accent="violet", pop=(55, 587, 1025, 1150), tilt=1.5),
-    dict(raw="06_plan", name="plan", accent="sky", pop=(57, 440, 1025, 925), tilt=-2.0),
-    dict(raw="07_details", name="progress", accent="lime", pop=(52, 762, 1028, 1178), tilt=1.5),
-    dict(raw="08_quiz", name="quiz", accent="amber", pop=(52, 795, 1028, 1015), tilt=-2.5),
+    dict(raw="01_home", name="lesson", accent="emerald", pop=(55, 385, 1025, 1255), tilt=-2.0),        # today's lesson card
+    dict(raw="02_reader", name="reader", accent="gold", pop=(0, 785, 1080, 1440), tilt=0.0),            # ayah 18 with the playing word
+    dict(raw="03_mushaf", name="mushaf", accent="cyan", pop=(0, 375, 1080, 773), tilt=2.0),             # three full lines of page 343 (ayahs 18-20), cut in the gaps between lines
+    dict(raw="04_tajweed", name="tajweed", accent="rose", pop=(0, 780, 1080, 1245), tilt=-1.5),        # ayah 18 in tajweed colours
+    dict(raw="05_tafsir", name="tafsir", accent="violet", pop=(40, 580, 1040, 1355), tilt=1.5),         # the ayah card and the source chips
+    dict(raw="06_plan", name="plan", accent="sky", pop=(55, 445, 1025, 1215), tilt=-2.0),              # what is learned: presets, next surahs
+    dict(raw="07_details", name="progress", accent="lime", pop=(50, 380, 1030, 1185), tilt=1.5),        # the Progress tab: ring and counts
+    dict(raw="08_quiz", name="quiz", accent="amber", pop=(52, 270, 1028, 1275), tilt=-2.5),             # the question and its first three cards
 ]
+
+# Per-language override of a pop box where that language's text wraps differently: {"tg": {"02_reader": (x0, y0, x1, y1)}}
+_LONGER = {"01_home": (55, 385, 1025, 1305), "02_reader": (0, 785, 1080, 1505)}    # the hint under the lesson and the translation take one more line
+POP_BY_LANG = {lang: dict(_LONGER) for lang in ("en", "tg", "uz", "tr")}
+# The quiz title is one line shorter in en, uz, tr: the question and its first three cards end 63 px higher (measured on the captures).
+for _lang in ("en", "uz", "tr"):
+    POP_BY_LANG[_lang]["08_quiz"] = (52, 270, 1028, 1212)
 
 # Geometry at final size (multiplied by S when drawing).
 MARGIN = 72
@@ -243,6 +250,7 @@ def render(lang, i, copy):
     sc = dict(SCREENS[i])
     t = copy["screens"][i]
     sc.update(t.get("override", {}))
+    sc["pop"] = POP_BY_LANG.get(lang, {}).get(sc["raw"], SCREENS[i]["pop"])      # the boxes live here, not in the copy files
     shot = Image.open(RAW / lang / f"{sc['raw']}.png").convert("RGB")
     img = background(sc["accent"])
     text_bottom = draw_title(img, t["word"], t["sub1"], t["sub2"], sc["accent"], t.get("pill"))

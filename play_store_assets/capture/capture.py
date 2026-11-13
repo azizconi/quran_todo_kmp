@@ -9,7 +9,7 @@
     python3 capture.py <lang>                   # lang: ru en tg uz tr; switches the app language, then the eight files:
                                                 #   01_home 02_reader 03_mushaf 04_tajweed 05_tafsir 06_plan 07_details 08_quiz
     python3 capture.py <lang> setlang reader quiz   # or only some steps (setlang home reader mushaf tajweed tafsir plan details quiz;
-                                                #   `translation` puts the tr default translation back after trying others)
+                                                #   setlang sets the per-app locale (Android 13+) and the prefs file; 07 is the Progress tab)
     ./run_all.sh                                # setup, then all five languages, then demo mode off
 
 The demo data is `demo/quran-hifz-demo.json` made by make_demo_backup.py for the day of the capture
@@ -43,15 +43,15 @@ os.makedirs(TMP, exist_ok=True)
 
 # Texts of the app in each language (from ui/i18n/*Copy.kt) that the driver has to find on screen.
 TEXT = {
-    "ru": dict(lang_y=1208, next="Далее", skip="Пропустить", later="Позже", notnow="Не сейчас", goal="Заучивать Коран", start="Начать урок", recall="Вспомнить", tab="Вспомни", reveal="Показать", ok="Помню",
+    "ru": dict(lang_y=1238, next="Далее", skip="Пропустить", later="Позже", notnow="Не сейчас", goal="Заучивать Коран", start="Начать урок", recall="Вспомнить", tab="Вспомни", reveal="Показать", ok="Помню",
                hard="Трудно", grade="Оцените отрывок", done="Готово", home="На главный"),
-    "en": dict(lang_y=1397, next="Next", skip="Skip", later="Later", notnow="Not now", goal="Memorize the Quran", start="Start lesson", recall="Recall", tab="Recall", reveal="Reveal", ok="I remember",
+    "en": dict(lang_y=1427, next="Next", skip="Skip", later="Later", notnow="Not now", goal="Memorize the Quran", start="Start lesson", recall="Recall", tab="Recall", reveal="Reveal", ok="I remember",
                hard="Hard", grade="Grade the passage", done="Done", home="To home"),
-    "tg": dict(lang_y=1586, next="Идома", skip="Гузаштан", later="Баъдтар", notnow="Ҳозир не", goal="Қуръонро аз бар кардан", start="Оғози дарс", recall="Ба ёд овардан", tab="Ба ёд ор", reveal="Нишон додан",
+    "tg": dict(lang_y=1616, next="Идома", skip="Гузаштан", later="Баъдтар", notnow="Ҳозир не", goal="Қуръонро аз бар кардан", start="Оғози дарс", recall="Ба ёд овардан", tab="Ба ёд ор", reveal="Нишон додан",
                ok="Дар ёд дорам", hard="Душвор", grade="Порчаро баҳо диҳед", done="Тайёр", home="Ба саҳифаи асосӣ"),
-    "uz": dict(lang_y=1775, next="Davom etish", skip="O‘tkazish", later="Keyinroq", notnow="Hozir emas", goal="Qur’onni yodlash", start="Darsni boshlash", recall="Eslab aytish", tab="Eslab ayt", reveal="Ko‘rsatish",
+    "uz": dict(lang_y=1805, next="Davom etish", skip="O‘tkazish", later="Keyinroq", notnow="Hozir emas", goal="Qur’onni yodlash", start="Darsni boshlash", recall="Eslab aytish", tab="Eslab ayt", reveal="Ko‘rsatish",
                ok="Esimda", hard="Qiyin", grade="Parchani baholang", done="Tayyor", home="Bosh sahifaga"),
-    "tr": dict(lang_y=1964, next="Devam", skip="Atla", later="Sonra", notnow="Şimdi değil", goal="Kur’an ezberlemek", start="Derse başla", recall="Hatırla", tab="Hatırla", reveal="Göster",
+    "tr": dict(lang_y=1994, next="Devam", skip="Atla", later="Sonra", notnow="Şimdi değil", goal="Kur’an ezberlemek", start="Derse başla", recall="Hatırla", tab="Hatırla", reveal="Göster",
                ok="Hatırlıyorum", hard="Zor", grade="Bölümü değerlendir", done="Bitti", home="Ana sayfaya"),
 }
 
@@ -185,8 +185,8 @@ def fresh_install_state():
     sp = os.path.join(TMP, "spotlights.xml")
     with open(sp, "w") as f:
         f.write("<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n<map>\n")
-        for k in ("home", "reader", "lesson", "lesson_peek", "lesson_grade", "player"):
-            f.write(f'    <boolean name="seen_{k}" value="true" />\n')
+        for k in ("lesson_grade",):
+            f.write(f'    <boolean name="hint_{k}" value="true" />\n')
         f.write("</map>\n")
     adb("push", sp, "/data/local/tmp/spotlights.xml")
     sh(f"run-as {PKG} sh -c 'mkdir -p shared_prefs; cp /data/local/tmp/spotlights.xml shared_prefs/quran_hifz_spotlights.xml'")
@@ -219,24 +219,16 @@ def step_onboarding(lang, t):
     print("onboarding")
     fresh_install_state()
     launch(25)
-    tap(540, t["lang_y"]); settle(2)
-    advance(t["next"])                 # language -> the slides
-    advance(t["skip"])                 # skip the slides
-    if not find(dump(), t["goal"]):
-        advance(t["next"])             # Skip may land on the last slide
-    tap_text(t["goal"]); settle(3)       # goal: memorize
-    advance(t["next"])
+    tap(540, t["lang_y"] - 0); settle(2)
+    tap(540, 2220); settle(4)          # language -> "Start" (the 2.0 onboarding has four short steps)
+    advance(t["next"])                 # what to learn: Juz Amma (preselected) -> known surahs
     for x, y in [(290, 594), (790, 594), (290, 762), (790, 762), (290, 930), (790, 930), (290, 1098), (790, 1098),
                  (290, 1266), (790, 1266), (290, 1434)]:   # Al-Fatiha and An-Nas ... Al-Fil
         tap(x, y); time.sleep(1.5)
     settle(3)
-    advance(t["next"])                 # known surahs -> what to learn
-    advance(t["next"])                 # preset: Juz Amma (preselected) -> pace
-    advance(t["next"])                 # pace: 5 ayahs a day -> reminder
-    advance(t["notnow"])               # reminder: not now
-    advance(t["next"])                 # reading look -> the plan is ready
+    tap(540, 2220); settle(5)          # known surahs -> the plan is ready
     wait_text(t["later"], 30)
-    settle(4)
+    settle(3)
     advance(t["later"], wait=20)      # home without a lesson
 
 
@@ -320,6 +312,8 @@ def step_setlang(lang, t):
         fh.write(data)
     adb("push", f, "/data/local/tmp/prefs.xml")
     sh(f"run-as {PKG} sh -c 'cp /data/local/tmp/prefs.xml shared_prefs/quran_todo_prefs.xml'")
+    # Android 13+: the app's language is the system's per-app locale (AppLocale.syncFromSystem at start wins over the prefs file)
+    sh(f"cmd locale set-app-locales {PKG} --user 0 --locales {lang}")
 
 
 def e3_relaunch(lang, t):
@@ -470,6 +464,7 @@ def ayah_badge_y(nodes, n):
 
 
 def home_ready(t, timeout=90):
+    """The Lesson tab (the app opens on it) with today's lesson card: its "Start lesson" button is on screen."""
     wait_text(t["start"], timeout)
     settle(3)
 
@@ -480,12 +475,9 @@ def launch_home(t):
     home_ready(t)
 
 
-def back_home(t, tries=6):
-    for _ in range(tries):
-        if find(dump(), t["start"]):
-            return
-        key("KEYCODE_BACK"); settle(2.5)
-    raise RuntimeError("could not get back to the home screen")
+def goto_tab(i):
+    """The bottom bar of 2.0: 0 Lesson, 1 Quran, 2 Progress."""
+    tap([190, 540, 890][i], 2280); settle(3)
 
 
 def tap_desc(label, timeout=30):
@@ -499,40 +491,50 @@ def tap_desc(label, timeout=30):
     raise TimeoutError(label)
 
 
-def open_reader(t):
-    """Home -> "Read" on the Continue card (Al-Mu'minun), the list reader at the saved ayah."""
-    for n in dump():
-        if n["text"] == "المؤمنون" and n["x1"] > 700 and n["y1"] > 1000:
-            tap(346, n["y1"] + 299)
-            break
-    else:
-        raise RuntimeError("Continue card not found")
+def open_reader(lang, t):
+    """Quran tab -> the search field gets "23" -> the row of Al-Mu'minun: the list reader (it opens at the saved position)."""
+    goto_tab(1)
+    btn = [n for n in dump() if n["clickable"] and n["x1"] < 150 and 380 < n["x2"] - n["x1"] < 560 and 600 < n["y1"] < 1100]
+    if btn:                                                     # the hero card "Continue": "Read" (a saved position exists)
+        tap_node(btn[0])
+    else:                                                       # first time: the search field finds the surah by its number
+        tap(540, 1210); settle(2)                               # (the large title scrolls away when the field is focused)
+        sh("input text 23"); settle(3)
+        for _ in range(20):
+            hit = [n for n in dump() if n["text"] == "23" and n["x1"] < 200 and n["y1"] > 500]
+            if hit:
+                break
+            time.sleep(1.5)
+        else:
+            raise RuntimeError("search result not found")
+        tap(500, (hit[0]["y1"] + hit[0]["y2"]) // 2)
+    settings_desc = copy_text("ReaderCopy", lang, "textSettings")
+    as_text = copy_text("PagesCopy", lang, "openAsText")
     for _ in range(40):
         time.sleep(1.5)
         ns = dump()
-        if ayah_badge_y(ns, 18) is not None:
+        if any(n["desc"] == settings_desc for n in ns):
             break
-        if any(n["y1"] < 200 and n["x1"] == 600 for n in ns) or any(n["y1"] < 200 and n["x1"] == 978 for n in ns):
-            break
-    settle(2)
-    ns = dump()
-    if not any(n["x1"] == 600 and 100 < n["y1"] < 140 for n in ns):    # the "Aa" button exists only in the list mode
-        tap(1006, 148); settle(4)                                       # the pages mode was left on: back to the list
+        back = [n for n in ns if n["desc"] == as_text]
+        if back:                                                # the pages mode was left on: back to the list
+            tap_node(back[0]); settle(3)
+    settle(3)
+
+
+def reader_ready(lang, t):
+    """Fresh start in the list reader of Al-Mu'minun, ayah 18 parked under the toolbar with its page marker above."""
+    launch_home(t)
+    open_reader(lang, t)
+    park_on_18()
 
 
 def park_on_18():
-    """Ayah 18 with its page marker 19 px above the ru reference (the header then reads 18 / 118 and the Continue card says ayah 18)."""
-    align(lambda ns: ayah_badge_y(ns, 18), 328, 9)
+    """Ayah 18 with its badge at y = 890 (the page marker 343 above it, the action row under it once it is selected)."""
+    align(lambda ns: ayah_badge_y(ns, 18), 890, 9)
 
 
-def settings_switch(title, want):
-    """In the "Aa" sheet: the switch of the row `title`. Reads its state from the screenshot (the knob is on the right when it is on)."""
-    n = wait_text(title, 10)[0]
-    y = (n["y1"] + n["y2"]) // 2
-    p = grab()
-    on = sum(1 for dx in range(860, 980, 6) if abs(px(p, dx, y)[0] - 16) < 25 and abs(px(p, dx, y)[1] - 109) < 30) > 6
-    if on != want:
-        tap(916, y); settle(3)
+def select_18():
+    tap(540, 1100); settle(2)                                   # a tap on the text of ayah 18: it becomes the current one, the action row opens
 
 
 def step_setup(lang, t):
@@ -547,29 +549,23 @@ def step_setup(lang, t):
     wait_text(t["start"], 60)
     tap(1006, 148); settle(4)                                   # settings
     tap_text(copy_text("SettingsCopy", "ru", "themeLight")); settle(2)
-    for _ in range(8):
-        if find(dump(), copy_text("TransferCopy", "ru", "restoreTitle")):
+    for _ in range(8):                                          # 2.0: the row "Backup" opens a sheet with save / share / restore
+        if find(dump(), copy_text("TransferCopy", "ru", "backupTitle")):
             break
         swipe(25, 1900, 25, 400, 1000); settle(2)
+    tap_text(copy_text("TransferCopy", "ru", "backupTitle")); settle(3)
     tap_text(copy_text("TransferCopy", "ru", "restoreTitle")); settle(5)
     tap_text("quran-hifz-demo.json"); settle(3)                 # the system file picker
     tap_text(copy_text("TransferCopy", "ru", "replace")); settle(6)
     key("KEYCODE_BACK"); settle(3)
     home_ready(t)
-    # reader at Al-Mu'minun: translation on, tajweed on once (downloads the markup), then off
-    for _ in range(10):
-        if find(dump(), "Аль-Муминун"):
-            break
-        swipe(25, 1900, 25, 400, 1200); settle(2)
-    tap_text("Аль-Муминун"); settle(6)
-    tap(629, 148); settle(3)                                    # "Aa"
-    settings_switch("Перевод", True)
-    settings_switch(copy_text("TajweedCopy", "ru", "switchTitle"), True)
-    settle(12)                                                  # the markup downloads
-    settings_switch(copy_text("TajweedCopy", "ru", "switchTitle"), False)
-    key("KEYCODE_BACK"); settle(3)
+    # reader at Al-Mu'minun: translation on (the offer under the title), tajweed on once (downloads the markup), then off
+    open_reader("ru", t)
+    tap_text(copy_text("AyahActionsCopy", "ru", "yes")); settle(3)
+    set_tajweed("ru", True)
+    settle(15)                                                  # the markup downloads
+    set_tajweed("ru", False)
     park_on_18()
-    key("KEYCODE_BACK"); settle(3)
 
 
 def step_home(lang, t):
@@ -580,92 +576,70 @@ def step_home(lang, t):
 
 def step_reader(lang, t):
     print("reader")
-    launch_home(t)
-    open_reader(t)
-    park_on_18()
-    # play ayah 18, then the first frame with a highlighted word of the playing ayah
-    tap(540, 560); settle(2)                                    # selects ayah 18: the bar says "ayah 18"
-    tap(856, 2246); settle(1)                                   # play
+    reader_ready(lang, t)
+    select_18()
+    tap_text(copy_text("AyahActionsCopy", lang, "listen"), lowest=False); settle(1)     # the action row: play from ayah 18
     best = None
     for _ in range(120):
         p = grab()
-        x = word_highlight_x(p)
+        x = word_highlight_x(p, 880, 1300)
         if x is not None:
             if best is None:
                 best = os.path.join(TMP, "first_word.png")
                 shutil.copy(p, best)                            # fallback: the first highlighted word
-            if 330 < x < 820:                                   # a word in the middle of the line, like the reference
+            if 330 < x < 820:                                   # a word in the middle of the line
                 best = p
                 break
     if best is None:
         raise RuntimeError("no highlighted word while playing")
-    p = best
     os.makedirs(f"{OUT}/{lang}", exist_ok=True)
-    shutil.copy(p, f"{OUT}/{lang}/02_reader.png")
+    shutil.copy(best, f"{OUT}/{lang}/02_reader.png")
     print("  shot", f"{lang}/02_reader.png")
-    tap(856, 2246); settle(2)                                   # pause
-
-
-def reader_ready(t):
-    """Fresh start in the list reader of Al-Mu'minun, ayah 18 parked at the top like in the reference."""
-    launch_home(t)
-    open_reader(t)
-    park_on_18()
-
-
-def pages_after_playing_18():
-    """Ayah 18 becomes the current one by playing it for a moment; the mushaf pages then open on page 343 (the list reader's
-    own position is ayah 17, page 342), and the stop button of the mini player gives the clean page of the reference."""
-    tap(540, 560); settle(2)                                    # selects ayah 18
-    tap(856, 2246); settle(4)                                   # play ... pause
-    tap(856, 2246); settle(2)
-    tap(755, 148)                                               # the book icon: mushaf pages
-    wait_text("343", 40)
-    settle(3)
-    tap(974, 2148); settle(3)                                   # the cross of the mini player: stop, the page is clean
+    tap(856, 2246); settle(2)                                   # pause (the play button of the dock)
 
 
 def step_mushaf(lang, t):
     print("mushaf")
-    reader_ready(t)
-    pages_after_playing_18()
+    reader_ready(lang, t)
+    select_18()
+    tap_text(copy_text("AyahActionsCopy", lang, "listen"), lowest=False); settle(4)     # playing makes ayah 18 the current one:
+    tap(856, 2246); settle(2)                                   # pause; the pages then open on its page, 343
+    tap_desc(copy_text("PagesCopy", lang, "openAsPages")); settle(3)
+    wait_text("343", 40)
+    settle(3)
+    stop = [n for n in dump() if n["clickable"] and n["x1"] > 900 and 2050 < n["y1"] < 2300 and n["x2"] - n["x1"] < 160]
+    if stop:                                                    # the cross of the mini player: stop, the page is clean
+        tap_node(stop[0]); settle(3)
     screenshot(f"{OUT}/{lang}/03_mushaf.png")
-    tap(1006, 148); settle(3)                                   # back to the list
+    tap_desc(copy_text("PagesCopy", lang, "openAsText")); settle(3)      # back to the list
 
 
 def set_tajweed(lang, want):
-    tap(629, 148); settle(3)                                    # "Aa"
+    tap_desc(copy_text("ReaderCopy", lang, "textSettings")); settle(3)      # the sheet "Text look"
+    tap_text(copy_text("GoToCopy", lang, "tabAdvanced")); settle(2)
     settings_switch(copy_text("TajweedCopy", lang, "switchTitle"), want)
     key("KEYCODE_BACK"); settle(3)
 
 
+def settings_switch(title, want):
+    """In the sheet: the switch of the row `title` (its knob is on the right when it is on). The title and its hint are two lines of the row."""
+    n = wait_text(title, 10)[0]
+    y = (n["y1"] + n["y2"]) // 2 + 20
+    p = grab()
+    on = sum(1 for dx in range(860, 980, 6) if abs(px(p, dx, y)[0] - 16) < 25 and abs(px(p, dx, y)[1] - 109) < 30) > 6
+    if on != want:
+        tap(916, y); settle(3)
+
+
 def step_tajweed(lang, t):
     print("tajweed")
-    reader_ready(t)
-    pages_after_playing_18()                                    # ayah 18 is now the current one: the bar says "ayah 18", paused
-    tap(1006, 148); settle(4)
-    park_on_18()
+    reader_ready(lang, t)
     set_tajweed(lang, True)
     settle(3)
     park_on_18()
+    select_18()
     screenshot(f"{OUT}/{lang}/04_tajweed.png")
     set_tajweed(lang, False)
-
-
-def step_translation(lang, t):
-    """Puts the language's default translation back (a trial of the other editions leaves the choice on): only tr needs it."""
-    names = dict(tr="Elmalılı")
-    if lang not in names:
-        return
-    print("translation")
-    reader_ready(t)
-    tap(629, 148); settle(3)                                    # "Aa"
-    row = [n for n in dump() if ":" in n["text"] and 1400 < n["y1"] < 1600 and n["x1"] < 200]
-    if not row:
-        raise RuntimeError("translation row not found")
-    tap_node(row[0]); settle(4)
-    tap_text(names[lang]); settle(6)
-    key("KEYCODE_BACK"); settle(3)
 
 
 TAFSIR_CHIP = dict(ru="chipSaadi", en="chipIbnKathir", tg="chipSaadi", uz="chipMokhtasarUz", tr="chipMokhtasarTr")
@@ -673,13 +647,14 @@ TAFSIR_CHIP = dict(ru="chipSaadi", en="chipIbnKathir", tg="chipSaadi", uz="chipM
 
 def step_tafsir(lang, t):
     print("tafsir")
-    reader_ready(t)
-    swipe(540, 560, 540, 560, 1000); settle(3)                  # long press on ayah 18: its sheet
+    reader_ready(lang, t)
+    select_18()
+    tap_text(copy_text("AyahActionsCopy", lang, "more"), lowest=True); settle(3)             # the action row: "More" -> the sheet of the ayah
     tap_text(copy_text("TafsirCopy", lang, "sheetRow")); settle(4)
     # the source of the language (the choice is remembered, so it is tapped every time): ru, tg: as-Saadi; en: Ibn Kathir;
     # uz, tr: the Mukhtasar of QuranEnc in the language
     chip = copy_text("TafsirCopy", lang, TAFSIR_CHIP[lang])
-    hits = [n for n in dump() if chip in n["text"] and 1150 < n["y1"] < 1350]
+    hits = [n for n in dump() if chip in n["text"] and 1250 < n["y1"] < 1600]
     if not hits:
         raise RuntimeError("tafsir chip not found: " + chip)
     tap_node(hits[0]); settle(6)
@@ -695,53 +670,33 @@ def step_tafsir(lang, t):
     screenshot(f"{OUT}/{lang}/05_tafsir.png")
 
 
+def open_plan_card():
+    """The wide plan card of the Progress tab (it opens "My plan")."""
+    for _ in range(10):
+        cards = [n for n in dump() if n["clickable"] and n["x2"] - n["x1"] > 900 and 200 < n["y2"] - n["y1"] < 420 and 1150 < n["y1"] < 1800]
+        if cards:
+            tap_node(cards[0]); settle(6)
+            return
+        time.sleep(1.5)
+    raise RuntimeError("plan card not found")
+
+
 def step_plan(lang, t):
     print("plan")
     launch_home(t)
-    tap(1006, 148); settle(4)                                   # settings
-    title = copy_text("PlanCopy", lang, "title")
-    for _ in range(6):                                          # the row "My plan" is in the middle of the settings
-        hits = [n for n in dump() if n["text"] == title and 300 < n["y1"] < 2200]
-        if hits:
-            tap_node(hits[0]); break
-        swipe(25, 1900, 25, 700, 1200); settle(2)
-    else:
-        raise RuntimeError("plan row not found")
-    settle(6)
-    wait_text(title, 30)
+    goto_tab(2)
+    open_plan_card()
+    wait_text(copy_text("PlanCopy", lang, "title"), 30)
     settle(3)
     screenshot(f"{OUT}/{lang}/06_plan.png")
 
 
-DETAILS_FIRST_PERCENT_Y = 774        # top of the first retention percentage ("88%") in the ru capture
-
-
 def step_details(lang, t):
-    print("details")
+    """07 is the Progress tab (ring, plan, forecast), not the old details screen."""
+    print("progress")
     launch_home(t)
-    tap(880, 148); settle(6)                                    # the progress ring
-    title = copy_text("AnalyticsCopy", lang, "detailsTitle")
-    for _ in range(6):
-        hits = [n for n in dump() if n["text"] == title and 150 < n["y1"] < 2100 and n["x1"] > 150]
-        if hits:
-            tap_node(hits[0]); break
-        swipe(25, 1900, 25, 700, 1200); settle(2)
-    else:
-        raise RuntimeError("details row not found")
-    want = copy_text("AnalyticsCopy", lang, "retentionTitle").upper()
-    for _ in range(30):                                         # the section label is set in capitals
-        if any(n["text"].upper() == want for n in dump()):
-            break
-        time.sleep(1.5)
-    else:
-        raise RuntimeError("details screen did not open")
-    settle(5)
-    # the hint under "Retention" takes two lines in ru, uz, tr and three in en, tg: the bars of those two are 53 px lower than in ru
-    # (a scroll to fix that would leave the large title half faded; the template's crop for them is set per language instead)
-    ns = dump()
-    first = next((n["y1"] for n in sorted(ns, key=lambda n: n["y1"]) if re.fullmatch(r"%?\d+%?", n["text"]) and n["y1"] > 500), None)
-    print("  first retention percentage at y =", first, "(ru:", DETAILS_FIRST_PERCENT_Y, ")")
-    settle(2)
+    goto_tab(2)
+    settle(6)                                                   # the ring and the bars animate in
     screenshot(f"{OUT}/{lang}/07_details.png")
 
 
@@ -779,7 +734,7 @@ def step_quiz(lang, t):
     progress = Q("progressPattern").replace("{a}", r"\d+").replace("{b}", r"\d+")
     for attempt in range(25):
         launch_home(t)
-        hits = [n for n in dump() if n["text"] == title and 1000 < n["y1"] < 1500]
+        hits = [n for n in dump() if n["text"] == title and 1100 < n["y1"] < 1900 and n["x1"] > 150]
         if not hits:
             raise RuntimeError("quiz row not found")
         tap_node(hits[0])
@@ -792,9 +747,10 @@ def step_quiz(lang, t):
             ns = dump()
             if find(ns, order):
                 cards = quiz_cards(ns)
-                if len(cards) == 3 and all(c["y2"] - c["y1"] < 280 for c in cards):     # the three-ayah variant, one line per card
-                    for i in (1, 2, 0):                          # numbers 3, 1, 2 from the top, like the reference
-                        tap_node(cards[i]); settle(2)
+                if len(cards) in (3, 4) and all(c["y2"] - c["y1"] < 400 for c in cards):     # 2.0: three or four ayahs, one or two lines each
+                    for i in (1, 2, 0, 3)[:len(cards) + (len(cards) == 3)]:    # numbers 1, 2, 3 (4) are set in a mixed order
+                        if i < len(cards):
+                            tap_node(cards[i]); settle(2)
                     settle(2)
                     screenshot(f"{OUT}/{lang}/08_quiz.png")
                     return
