@@ -77,7 +77,7 @@ private struct ResultBar: View {
                 .pressable(shape: Capsule(), action: onChange)
                 .accessibilityLabel(copy.change)
         }
-        RecallWideButton(nextLabel, loading: saving, action: onNext)
+        QhButton(nextLabel, loading: saving, fullWidth: true, action: onNext)
             .disabled(saving)
     }
 }
@@ -136,12 +136,12 @@ private struct RevealBar: View {
             BarAction(icon: "mic", label: recordLabel, action: onRecord)
         }
         if hidesMore {
-            RecallWideButton(copy.hideMore, size: .l, icon: "eye.slash") { host.hideMore(position: session.index) }
+            QhButton(copy.hideMore, size: .l, icon: "eye.slash", fullWidth: true) { host.hideMore(position: session.index) }
             if step > 0, let item {
                 AnswerPills(host: host, item: item, position: session.index, early: true)
             }
         } else {
-            RecallWideButton(copy.reveal, size: .l, icon: "eye") { host.reveal() }
+            QhButton(copy.reveal, size: .l, icon: "eye", fullWidth: true) { host.reveal() }
         }
         Color.clear.frame(height: 0).qhHintSheet(isPresented: $hintOpen, host: host, ayahWords: words)
     }

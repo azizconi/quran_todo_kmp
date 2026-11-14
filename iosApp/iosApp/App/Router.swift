@@ -8,7 +8,7 @@ import SwiftUI
 enum AppTab: Int, CaseIterable, Hashable {
     case lesson, quran, progress
 
-    var kotlin: MainTab { MainTab.entries[rawValue] }
+    var kotlin: MainTab { MainTab.allCases[rawValue] }
     var screenName: String { kotlin.screenName }
 }
 
@@ -62,45 +62,45 @@ enum Route: Hashable {
     var dest: Dest {
         switch self {
         case let .reader(surah, ayah, origin, hifz, start, end):
-            return Dest.Reader(surah: Int32(surah), ayah: ayah.map { KotlinInt(int: Int32($0)) }, origin: origin, hifz: hifz,
+            return DestReader(surah: Int32(surah), ayah: ayah.map { KotlinInt(int: Int32($0)) }, origin: origin, hifz: hifz,
                                rangeStart: start.map { KotlinInt(int: Int32($0)) }, rangeEnd: end.map { KotlinInt(int: Int32($0)) })
-        case let .mushaf(page, key): return Dest.Mushaf(page: Int32(page), ayahKey: key)
-        case .lesson: return Dest.Lesson.shared
-        case .plan: return Dest.Plan.shared
-        case .quiz: return Dest.Quiz.shared
-        case let .tellApart(surah, ayah): return Dest.TellApart(surah: Int32(surah), ayah: Int32(ayah))
-        case let .khatm(pick): return Dest.Khatm(pickTarget: pick)
-        case .progressDetails: return Dest.ProgressDetails.shared
-        case .notes: return Dest.Notes.shared
-        case .settings: return Dest.Settings.shared
-        case .downloads: return Dest.Downloads.shared
-        case .hardDrill: return Dest.HardDrill.shared
-        case .privacy: return Dest.Privacy.shared
-        case .sources: return Dest.Sources.shared
-        case let .tafsir(surah, ayah, id): return Dest.Tafsir(surah: Int32(surah), ayah: Int32(ayah), tafsirId: id)
+        case let .mushaf(page, key): return DestMushaf(page: Int32(page), ayahKey: key)
+        case .lesson: return DestLesson.shared
+        case .plan: return DestPlan.shared
+        case .quiz: return DestQuiz.shared
+        case let .tellApart(surah, ayah): return DestTellApart(surah: Int32(surah), ayah: Int32(ayah))
+        case let .khatm(pick): return DestKhatm(pickTarget: pick)
+        case .progressDetails: return DestProgressDetails.shared
+        case .notes: return DestNotes.shared
+        case .settings: return DestSettings.shared
+        case .downloads: return DestDownloads.shared
+        case .hardDrill: return DestHardDrill.shared
+        case .privacy: return DestPrivacy.shared
+        case .sources: return DestSources.shared
+        case let .tafsir(surah, ayah, id): return DestTafsir(surah: Int32(surah), ayah: Int32(ayah), tafsirId: id)
         }
     }
 
     /// The route of a Kotlin destination (what `ReaderRouting.route` returns); nil for Home / Onboarding / Progress / Catalog.
     init?(dest: Dest) {
         switch dest {
-        case let d as Dest.Reader:
+        case let d as DestReader:
             self = .reader(surah: Int(d.surah), ayah: d.ayah.map { Int(truncating: $0) }, origin: d.origin, hifz: d.hifz,
                            rangeStart: d.rangeStart.map { Int(truncating: $0) }, rangeEnd: d.rangeEnd.map { Int(truncating: $0) })
-        case let d as Dest.Mushaf: self = .mushaf(page: Int(d.page), ayahKey: d.ayahKey)
-        case is Dest.Lesson: self = .lesson
-        case is Dest.Plan: self = .plan
-        case is Dest.Quiz: self = .quiz
-        case let d as Dest.TellApart: self = .tellApart(surah: Int(d.surah), ayah: Int(d.ayah))
-        case let d as Dest.Khatm: self = .khatm(pickTarget: d.pickTarget)
-        case is Dest.ProgressDetails: self = .progressDetails
-        case is Dest.Notes: self = .notes
-        case is Dest.Settings: self = .settings
-        case is Dest.Downloads: self = .downloads
-        case is Dest.HardDrill: self = .hardDrill
-        case is Dest.Privacy: self = .privacy
-        case is Dest.Sources: self = .sources
-        case let d as Dest.Tafsir: self = .tafsir(surah: Int(d.surah), ayah: Int(d.ayah), tafsirId: d.tafsirId)
+        case let d as DestMushaf: self = .mushaf(page: Int(d.page), ayahKey: d.ayahKey)
+        case is DestLesson: self = .lesson
+        case is DestPlan: self = .plan
+        case is DestQuiz: self = .quiz
+        case let d as DestTellApart: self = .tellApart(surah: Int(d.surah), ayah: Int(d.ayah))
+        case let d as DestKhatm: self = .khatm(pickTarget: d.pickTarget)
+        case is DestProgressDetails: self = .progressDetails
+        case is DestNotes: self = .notes
+        case is DestSettings: self = .settings
+        case is DestDownloads: self = .downloads
+        case is DestHardDrill: self = .hardDrill
+        case is DestPrivacy: self = .privacy
+        case is DestSources: self = .sources
+        case let d as DestTafsir: self = .tafsir(surah: Int(d.surah), ayah: Int(d.ayah), tafsirId: d.tafsirId)
         default: return nil
         }
     }
@@ -150,6 +150,8 @@ final class Router {
     var lessonPath: [Route] = []
     var quranPath: [Route] = []
     var progressPath: [Route] = []
+    /// A link (reminder, widget) was opened in this launch: the "What's new" sheet waits for the next launch.
+    var deepLinkedThisLaunch = false
 
     var topRoute: Route? { path(of: selectedTab).last }
     var isAtHome: Bool { path(of: selectedTab).isEmpty }
@@ -191,7 +193,7 @@ final class Router {
 
     /// Opens the reader the way every entrance of the app does: `ReaderRouting.route` sends it to the pages when the mode is "Pages".
     func openReader(_ surah: Int, ayah: Int? = nil, origin: String, in tab: AppTab? = nil) {
-        let request = Dest.Reader(surah: Int32(surah), ayah: ayah.map { KotlinInt(int: Int32($0)) }, origin: origin, hifz: false,
+        let request = DestReader(surah: Int32(surah), ayah: ayah.map { KotlinInt(int: Int32($0)) }, origin: origin, hifz: false,
                                   rangeStart: nil, rangeEnd: nil)
         let routed = ReaderRouting.shared.route(dest: request, layout: IosUi.shared.uiPrefs.readerLayout.value,
                                                 lastRead: IosUi.shared.uiPrefs.lastReadPosition.value)
@@ -243,6 +245,7 @@ final class Router {
     @discardableResult
     func open(url: URL) -> Bool {
         guard url.scheme == "quranhifz" else { return false }
+        deepLinkedThisLaunch = true
         let parts = [url.host].compactMap { $0 } + url.pathComponents.filter { $0 != "/" }
         switch parts.first {
         case "lesson":

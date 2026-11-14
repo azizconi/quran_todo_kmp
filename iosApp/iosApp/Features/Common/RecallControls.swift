@@ -54,9 +54,9 @@ private struct RevealControls: View {
             Text(copy.reciteFromMemory).qhText({ $0.callout }, color: { $0.inkSecondary })
             let action = Group {
                 if hidesMore {
-                    RecallWideButton(copy.hideMore, size: .l, icon: "eye.slash") { host.hideMore(position: session.index) }
+                    QhButton(copy.hideMore, size: .l, icon: "eye.slash", fullWidth: true) { host.hideMore(position: session.index) }
                 } else {
-                    RecallWideButton(copy.reveal, size: .l, icon: "eye") { host.reveal() }
+                    QhButton(copy.reveal, size: .l, icon: "eye", fullWidth: true) { host.reveal() }
                 }
             }
             let listen = QhButton(host.listening ? copy.listenPause : copy.listen, variant: .tonal, size: .m,

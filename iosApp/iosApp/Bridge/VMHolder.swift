@@ -13,7 +13,7 @@ import SwiftUI
 /// }
 /// ```
 @MainActor
-final class VMHolder<VM: ViewModel> {
+final class VMHolder<VM: Lifecycle_viewmodelViewModel> {
     private let make: () -> VM
     private var made: VM?
 

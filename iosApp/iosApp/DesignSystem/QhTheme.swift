@@ -1,5 +1,6 @@
 import SwiftUI
 import Observation
+import UIKit
 
 /// The tokens of the active theme, read with `@Environment(\.qh)`.
 struct QhTheme: Equatable {
@@ -54,7 +55,7 @@ final class ThemeSettings {
 /// Root of the new UI: provides the tokens, reduced motion and the colour scheme. Wrap the whole app (and every preview) in it.
 struct QhThemeRoot<Content: View>: View {
     @Bindable var settings: ThemeSettings
-    @Environment(\.colorScheme) private var systemScheme
+    private var system = SystemScheme.shared
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private let content: Content
 
@@ -65,7 +66,7 @@ struct QhThemeRoot<Content: View>: View {
 
     private var dark: Bool {
         switch settings.mode {
-        case .system: return systemScheme == .dark
+        case .system: return system.isDark
         case .light: return false
         case .dark: return true
         }
@@ -74,6 +75,7 @@ struct QhThemeRoot<Content: View>: View {
     var body: some View {
         let theme = QhTheme.resolve(dark: dark, palette: settings.palette)
         content
+            .onAppear { system.attach() }
             .environment(\.qh, theme)
             .environment(\.qhReduceMotion, systemReduceMotion || settings.reducedMotion)
             .tint(theme.colors.primary)
@@ -90,6 +92,40 @@ extension View {
         settings.palette = palette
         return QhThemeRoot(settings: settings) {
             self.background(QhTheme.resolve(dark: dark, palette: palette).colors.bg)
+        }
+    }
+}
+
+/// The colour scheme of the DEVICE, independent of what the app forces with `preferredColorScheme`. Reading `@Environment(\.colorScheme)`
+/// at the root returned the forced scheme, so going from "dark" back to "system" kept the dark tokens until something else
+/// invalidated the view. This reads the window scene's traits (the override sits on the window, below the scene) and observes changes.
+@MainActor
+@Observable
+final class SystemScheme {
+    static let shared = SystemScheme()
+
+    private(set) var isDark: Bool = SystemScheme.read()
+    @ObservationIgnored private var registration: UITraitChangeRegistration?
+    @ObservationIgnored private weak var scene: UIWindowScene?
+
+    private static var activeScene: UIWindowScene? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        return scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+    }
+
+    private static func read() -> Bool {
+        let style = activeScene?.traitCollection.userInterfaceStyle ?? UIScreen.main.traitCollection.userInterfaceStyle
+        return style == .dark
+    }
+
+    /// Call when a window exists (the root's `onAppear`); safe to call again.
+    func attach() {
+        isDark = Self.read()
+        guard let found = Self.activeScene, found !== scene else { return }
+        scene = found
+        registration = found.registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (scene: UIWindowScene, _) in
+            let dark = scene.traitCollection.userInterfaceStyle == .dark
+            Task { @MainActor in SystemScheme.shared.isDark = dark }
         }
     }
 }
