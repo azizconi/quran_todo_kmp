@@ -12,6 +12,10 @@ struct QuranHifzApp: App {
     init() {
         KoinInitializerKt.InitKoinIos()
         ServicesBootstrap.register()
+        #if DEBUG
+        // QA: `-qhSeedDemo YES` passes the onboarding, fills the database (a plan, history, hard ayahs) in `.task` below.
+        if UserDefaults.standard.bool(forKey: "qhSeedDemo") { IosDebugSeed.shared.passOnboarding() }
+        #endif
         // The gate first (it marks an existing user as having passed), then the What's-new decision that reads it.
         let gate = IosStartup.shared.resolveGate()
         showOnboardingAtLaunch = gate.showsOnboarding
@@ -36,6 +40,9 @@ struct QuranHifzApp: App {
                 NotificationRouter.shared.onLink = { url in _ = router.open(url: url) }
                 if let url = NotificationRouter.shared.consumePendingURL() { _ = router.open(url: url) }
                 #if DEBUG
+                if UserDefaults.standard.bool(forKey: "qhSeedDemo") {
+                    try? await IosDebugSeed.shared.seed(withKhatm: UserDefaults.standard.bool(forKey: "qhSeedKhatm"))
+                }
                 // QA and screenshots: `-qhOpen quranhifz://plan` as a launch argument opens that place (simulator taps are not scriptable).
                 if let link = UserDefaults.standard.string(forKey: "qhOpen"), let url = URL(string: link) {
                     try? await Task.sleep(for: .milliseconds(600))
