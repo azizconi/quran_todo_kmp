@@ -43,10 +43,13 @@ struct QhButton: View {
     var size: QhButtonSize = .l
     var icon: String?
     var loading = false
+    /// Fills the width it is offered (Android `fillMaxWidth`) instead of hugging the content.
+    var fullWidth = false
     let action: () -> Void
 
     init(_ title: String, variant: QhButtonVariant = .primary, size: QhButtonSize = .l, icon: String? = nil,
-         loading: Bool = false, action: @escaping () -> Void) {
+         loading: Bool = false, fullWidth: Bool = false, action: @escaping () -> Void) {
+        self.fullWidth = fullWidth
         self.title = title
         self.variant = variant
         self.size = size
@@ -103,7 +106,7 @@ struct QhButton: View {
             if loading { DotSpinner(color: content) }
         }
         .padding(.horizontal, size.horizontalPadding)
-        .frame(minHeight: size.height)
+        .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: size.height)
         .frame(minHeight: QhSpacing.minTouch)
         .background(container, in: qh.shapes.full)
         .qhSoftShadow(enabled: withShadow)

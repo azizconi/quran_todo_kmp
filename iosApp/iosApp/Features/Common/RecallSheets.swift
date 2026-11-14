@@ -140,7 +140,7 @@ struct RecallGradeSheet: View {
                 }
             }
             .scrollBounceBehavior(.basedOnSize)
-            RecallWideButton(copy.done, loading: busy) { onConfirm(grade, hard) }
+            QhButton(copy.done, loading: busy, fullWidth: true) { onConfirm(grade, hard) }
                 .padding(.top, 16)
                 .padding(.bottom, QhSpacing.x2)
         }
