@@ -20,6 +20,7 @@ object IosDebugSeed {
     /** Marks the onboarding as passed. Call before `IosStartup.resolveGate()`. */
     fun passOnboarding() {
         iosPrefs(UiPrefs.PREFS_NAME).putBoolean(UiPrefs.KEY_ONBOARDING_COMPLETED, true)
+        iosPrefs(UiPrefs.PREFS_NAME).putBoolean(UiPrefs.KEY_WHATS_NEW_SHOWN, true)
     }
 
     /**

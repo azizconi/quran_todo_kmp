@@ -124,7 +124,7 @@ extension Route {
         case let .khatm(pick): KhatmScreen(pickTarget: pick)
         case .progressDetails: ComingSoon(route: self, stage: "S6")
         case .notes: ComingSoon(route: self, stage: "S6")
-        case .hardDrill: ComingSoon(route: self, stage: "S6")
+        case .hardDrill: DrillScreen()
         case .settings: ComingSoon(route: self, stage: "S7")
         case .downloads: ComingSoon(route: self, stage: "S7")
         case .privacy: ComingSoon(route: self, stage: "S7")
