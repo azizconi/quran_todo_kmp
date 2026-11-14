@@ -20,6 +20,7 @@
 			membershipExceptions = (
 				GoogleService-Info.plist,
 				Info.plist,
+				iosApp.entitlements,
 			);
 			target = 7555FF7A242A565900829871 /* iosApp */;
 		};
@@ -317,6 +318,7 @@
 					"$(inherited)",
 					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)\n$(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
 				);
+				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
 				INFOPLIST_FILE = iosApp/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -345,6 +347,7 @@
 					"$(inherited)",
 					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)\n$(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
 				);
+				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
 				INFOPLIST_FILE = iosApp/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (

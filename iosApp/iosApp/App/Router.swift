@@ -253,7 +253,10 @@ final class Router {
             selectedTab = .lesson
             lessonPath = [.lesson]
         case "reader":
-            let numbers = parts.dropFirst().compactMap { Int($0) }
+            // Both quranhifz://reader/2/255 and the reminders' quranhifz://reader?surah=2&ayah=255.
+            let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            let fromQuery = ["surah", "ayah"].compactMap { key in query.first { $0.name == key }?.value.flatMap { Int($0) } }
+            let numbers = fromQuery.isEmpty ? parts.dropFirst().compactMap { Int($0) } : fromQuery
             guard let surah = numbers.first else { return false }
             quranPath = []
             openReader(surah, ayah: numbers.dropFirst().first, origin: "reminder", in: .quran)
