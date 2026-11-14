@@ -524,18 +524,17 @@ private struct ReaderContent: View {
         let place = model.place(at: index)
         return VStack(spacing: 0) {
             Button { sheet = .goTo } label: {
-                HStack(spacing: 6) {
-                    Text(model.title(copy: copy)).qhText({ $0.title2 }).lineLimit(1)
-                    HStack(spacing: 0) {
-                        AnimatedCounter(value: index + 1, style: { $0.callout }, color: qh.colors.inkSecondary)
-                        Text(" / \(total)").qhText({ $0.callout }, color: { $0.inkSecondary })
-                    }
-                }
+                Text(model.title(copy: copy)).qhText({ $0.title2 }).lineLimit(1).minimumScaleFactor(0.7)
             }
             .buttonStyle(.plain)
-            if let place {
-                Text(copy.mushaf.placeText(place: place)).qhText({ $0.label }, color: { $0.inkTertiary }).lineLimit(1)
+            HStack(spacing: 0) {
+                AnimatedCounter(value: index + 1, style: { $0.label }, color: qh.colors.inkSecondary)
+                Text(" / \(total)").qhText({ $0.label }, color: { $0.inkSecondary })
+                if let place {
+                    Text(" \u{00B7} \(copy.mushaf.placeText(place: place))").qhText({ $0.label }, color: { $0.inkTertiary }).lineLimit(1)
+                }
             }
+            .lineLimit(1).minimumScaleFactor(0.75)
         }
         .opacity(collapsed)
         .animation(reduced ? nil : .easeOut(duration: 0.15), value: collapsed > 0.5)

@@ -274,6 +274,12 @@ final class Router {
         case "drill": selectedTab = .progress; progressPath = [.hardDrill]
         case "quiz": selectedTab = .lesson; lessonPath = [.quiz]
         case "analytics": selectedTab = .progress; progressPath = [.progressDetails]
+        #if DEBUG
+        case "tafsir":
+            let n = parts.dropFirst().compactMap { Int($0) }
+            guard n.count >= 2 else { return false }
+            selectedTab = .quran; quranPath = [.tafsir(surah: n[0], ayah: n[1], tafsirId: nil)]
+        #endif
         default: return false
         }
         return true

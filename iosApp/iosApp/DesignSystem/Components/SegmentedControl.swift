@@ -27,7 +27,7 @@ struct QhSegmentedControl: View {
                             if let icon = icons?[safe: index] ?? nil {
                                 Image(systemName: icon).font(.system(size: 14, weight: .semibold))
                             }
-                            Text(label).qhText({ $0.label }, color: { selected ? $0.ink : $0.inkSecondary }).lineLimit(1)
+                            Text(label).qhText({ $0.label }, color: { selected ? $0.ink : $0.inkSecondary }).lineLimit(1).minimumScaleFactor(0.8)
                         }
                         .foregroundStyle(selected ? qh.colors.ink : qh.colors.inkSecondary)
                         .padding(.horizontal, 8)
@@ -46,6 +46,8 @@ struct QhSegmentedControl: View {
             .background(qh.colors.surfaceMuted, in: qh.shapes.full)
         }
         .frame(height: QhSpacing.minTouch + inset * 2 - inset * 2)
+        // The track has a fixed height: past xxxLarge the labels would be clipped, so the control stops growing there.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .accessibilityElement(children: .contain)
     }
 }

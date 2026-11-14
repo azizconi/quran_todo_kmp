@@ -41,3 +41,16 @@ Fix pass, agent **F3 (reader + motion + reminders)**:
 - [x] iOS 18 zoom transitions (lesson card → lesson, surah row → reader), `#available(iOS 18)`, iOS 17 push (Features/Shell/ZoomTransition.swift). Navigation verified; the animation itself not captured in a still.
 - [x] Reminder weekdays: Android has no days/cadence setting, so added `UiPrefs.reminderDays` (bit mask, Mon..Sun) + `ReminderController.setDays` + `SettingsViewModel.setReminderDays`, localized names in `ReminderCopy`, iOS day chips in the reminder section, and `IosReminderPlanner` skips switched-off days over its 14-day horizon (absence tone still counts all days). Android keeps its daily alarm (not exposed there).
 - [x] Mushaf swipe between pages, memorize mode, theme reveal walked on the simulator: all work, nothing to fix (f3/mushaf-*.png).
+
+## S8 QA — 2026-11-14 (iPhone 17 Pro Max simulator, iOS 26.5, debug build, demo seed)
+
+Matrix walked by deep link: lesson, home, plan, progress, quiz, reader 2:255, quran, drill, settings, khatm, analytics, downloads in ru/tg/uz/en/tr (light);
+lesson, plan, progress, reader, settings, home in all 5 languages in dark; the same plus quiz at Dynamic Type accessibility-XXL in ru/tg/uz. No crash, no
+untranslated string, no Arabic U+06DE, no star shape found.
+- [x] Reader title: surah name, counter and place were squeezed into one row next to four bar buttons («Аль-...  2... / ...»). Now the name on its own row, `255 / 286 · place` under it.
+- [x] Segmented controls (lesson modes, theme in Settings, plan filters) clipped their labels at accessibility sizes: the control stops growing at xxxLarge and scales text down to 80%.
+- [ ] Accessibility XXL (not fixed): lesson top bar title and «Осталось ≈ 14 мин» truncate ("Дарс…"), the Home greeting truncates, the lesson card on Home grows past the tab bar (scrolls, reachable). Needs a vertical layout of the bar at accessibility sizes. Owner: S3/F1.
+- [ ] Tajweed: the first display of a long surah (2:255, debug build) takes ~20 s to get its colours after the switch is on (the markup is parsed off the main actor, the rows redraw when `version` grows). Check in a release build; if still slow, parse per ayah window instead of the whole surah. Owner: S5.
+- [ ] Quiz opens a random question type each time (expected) — captures differ run to run.
+- [ ] Not walked: Reduce Motion in motion (the in-app toggle was seen in Settings; the system flag was not switched), no-network, upgrade from a master build with data (no master iOS build exists), VoiceOver labels (checked in code review only: bar buttons have labels).
+- Debug-only helpers added for capture: `quranhifz://tafsir/<s>/<a>` (Router, `#if DEBUG`), launch args `-qhTajweed YES`, `-qhMushaf YES`.
