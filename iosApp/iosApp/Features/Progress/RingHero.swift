@@ -189,11 +189,11 @@ private struct StreakLine: View {
             HStack(spacing: QhSpacing.x2) {
                 Image(systemName: "flame.fill").font(.system(size: 16)).foregroundStyle(qh.colors.gold)
                 Text("\(days)").qhText({ $0.title2 })
-                Text(copy.progress.tileStreak).qhText({ $0.callout }, color: { $0.inkSecondary })
+                Text(copy.progress.streakWords(n: Int32(days))).qhText({ $0.callout }, color: { $0.inkSecondary })
             }
             .padding(.top, QhSpacing.x3)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(days), \(copy.progress.tileStreak)")
+            .accessibilityLabel("\(days) \(copy.progress.streakWords(n: Int32(days)))")
         }
     }
 }

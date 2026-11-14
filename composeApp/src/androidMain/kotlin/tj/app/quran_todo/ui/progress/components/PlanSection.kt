@@ -112,13 +112,13 @@ private fun StreakLine(days: Int, copy: ProgressCopy) {
     val colors = QhTheme.colors
     Spacer(Modifier.height(QhSpacing.x3))
     Row(
-        Modifier.semantics(mergeDescendants = true) { contentDescription = "$days, ${copy.tileStreak}" },
+        Modifier.semantics(mergeDescendants = true) { contentDescription = "$days ${copy.streakWords(days)}" },
         horizontalArrangement = Arrangement.spacedBy(QhSpacing.x2),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Rounded.LocalFireDepartment, contentDescription = null, tint = colors.gold, modifier = Modifier.size(QhSpacing.iconInline))
         Text(text = "$days", style = QhTheme.type.title2, color = colors.ink)
-        Text(text = copy.tileStreak, style = QhTheme.type.callout, color = colors.inkSecondary)
+        Text(text = copy.streakWords(days), style = QhTheme.type.callout, color = colors.inkSecondary)
     }
 }
 

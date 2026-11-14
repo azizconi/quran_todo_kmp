@@ -72,14 +72,19 @@ struct MushafGradeSheet: View {
     let title: String
 
     var body: some View {
+        // The ayahs are keyed by (surah, ayah) as `surah * 1000 + ayah`: a page with two surahs has two "ayah 5".
+        let id: (AyahKey) -> Int = { Int($0.surah) * 1000 + Int($0.ayah) }
+        let recallCopy = ReaderRecall.makeCopy(copy.hifz, language: copy.language)
+        let multiple = Set(check.items.map { $0.key.surah }).count > 1
         let items = check.items.enumerated().map {
-            HifzItem(number: $0.offset + 1, inSurah: Int($0.element.key.ayah), mark: $0.element.mark.map { ReaderRecall.swiftMark($0) })
+            HifzItem(number: $0.offset + 1, inSurah: id($0.element.key), mark: $0.element.mark.map { ReaderRecall.swiftMark($0) })
         }
         var session = HifzSession(surah: Int(check.items.first?.key.surah ?? 1), items: items)
         session.index = items.count
-        return RecallGradeSheet(session: session, title: title, copy: ReaderRecall.makeCopy(copy.hifz, language: copy.language),
-                                busy: model.saving.value.boolValue, initial: nil) { grade, hard in
-            let keys = Set(check.items.filter { hard.contains(Int($0.key.ayah)) }.map { $0.key })
+        return RecallGradeSheet(session: session, title: title, copy: recallCopy,
+                                busy: model.saving.value.boolValue, initial: nil,
+                                chipLabel: multiple ? { "\(recallCopy.ayah) \($0 / 1000):\($0 % 1000)" } : { "\(recallCopy.ayah) \($0 % 1000)" }) { grade, hard in
+            let keys = Set(check.items.filter { hard.contains(id($0.key)) }.map { $0.key })
             model.vm.finishCheck(grade: ReaderRecall.kotlinGrade(grade), hard: keys)
             dismiss()
         }

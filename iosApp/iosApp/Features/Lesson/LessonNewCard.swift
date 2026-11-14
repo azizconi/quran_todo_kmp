@@ -118,7 +118,7 @@ private struct ListenPhase: View {
         let line = running?.place.map { $0.label(copy: copy.lessonListenCopy) } ?? c.listenHint(ayahRepeats: Int32(ayahRepeats), passageRepeats: Int32(passageRepeats))
         VStack(spacing: 0) {
             PhaseTopLine(model: model, text: line, progress: running.map { Double($0.fraction) })
-            PassageList(model: model, work: work, current: audio.active ? audio.ayah.map { Int(truncating: $0) } : nil, onTap: nil, similarHints: true)
+            PassageList(model: model, work: work, current: audio.active ? audio.ayah.map { Int(truncating: $0) } : nil, playing: audio.playing, onTap: nil, similarHints: true)
             VStack(spacing: QhSpacing.x3) {
                 YourTurnLine(yourTurn: copy.listen.yourTurn, secondsShort: copy.listen.secondsShort,
                              remaining: Int(audio.silenceSeconds), active: audio.yourTurn)
@@ -225,7 +225,7 @@ private struct ReadPhase: View {
         let audio = model.audioState.value
         VStack(spacing: 0) {
             PhaseTopLine(model: model, text: copy.lessonCopy.readHint, progress: nil)
-            PassageList(model: model, work: work, current: audio.active ? audio.ayah.map { Int(truncating: $0) } : nil,
+            PassageList(model: model, work: work, current: audio.active ? audio.ayah.map { Int(truncating: $0) } : nil, playing: audio.playing,
                         onTap: { model.vm.toggleListenAyah(work: work, inSurah: Int32($0)) }, similarHints: true)
             QhButton(copy.lessonCopy.next, fullWidth: true) { model.vm.next(work: work) }
                 .padding(.horizontal, QhSpacing.screen).padding(.top, QhSpacing.x2).padding(.bottom, QhSpacing.x3)
@@ -286,6 +286,7 @@ struct PassageList: View {
     let model: LessonModel
     let work: LessonUiWorking
     let current: Int?
+    var playing = false
     let onTap: ((Int) -> Void)?
     var similarHints = false
     @Environment(Copy.self) private var copy
@@ -301,7 +302,7 @@ struct PassageList: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(ayahs.enumerated()), id: \.element.number) { index, ayah in
-                        PassageRow(ayah: ayah, marked: Int(ayah.numberInSurah) == current, onTap: onTap,
+                        PassageRow(ayah: ayah, marked: Int(ayah.numberInSurah) == current, playing: playing, onTap: onTap,
                                    translation: on ? map[KotlinInt(int: ayah.number)] : nil,
                                    translationMissing: missing && index == 0) {
                             model.vm.ensureTranslations(work: work, language: copy.language, force: true)
@@ -317,6 +318,7 @@ struct PassageList: View {
             }
         }
         // The translation is loaded when the chip is on, the card changes or the language does (the reader's rule: once per surah).
+        .task(id: surah) { if ReadingPrefs.shared.tajweed { TajweedService.shared.prepare(surah: surah) } }
         .task(id: TranslationKey(on: on, surah: surah, count: ayahs.count, language: copy.language.name)) {
             if on { model.vm.ensureTranslations(work: work, language: copy.language, force: false) }
         }
@@ -331,18 +333,33 @@ private struct PassageRow: View {
     @Environment(\.qhReduceMotion) private var reduced
     let ayah: AyahEntity
     let marked: Bool
+    let playing: Bool
     let onTap: ((Int) -> Void)?
     let translation: String?
     let translationMissing: Bool
     let retry: () -> Void
+
+    /// The ayah that sounds gets the word wash (the word being recited); every ayah gets the tajweed colours when the setting is on and
+    /// the markup is ready (the same `QuranText` as the reader).
+    @ViewBuilder private func arabic(number: Int) -> some View {
+        let prefs = ReadingPrefs.shared
+        let plain = ayah.display
+        let shown = prefs.tajweed ? (TajweedService.shared.tajweedDisplay(for: plain) ?? plain) : plain
+        if marked {
+            FollowedQuranText(ayah: shown, face: LessonArabic.face, size: LessonArabic.lessonSize, tajweed: prefs.tajweed, playing: playing,
+                              tappable: false, anchoredWord: nil) { _, _ in }
+        } else {
+            QuranText(ayah: shown, face: LessonArabic.face, readingSize: LessonArabic.lessonSize, showTajweed: prefs.tajweed)
+                .equatable()
+        }
+    }
 
     var body: some View {
         let number = Int(ayah.numberInSurah)
         let row = HStack(alignment: .top, spacing: QhSpacing.x3) {
             AyahRosette(number: number, size: 30).padding(.top, QhSpacing.x2)
             VStack(alignment: .leading, spacing: QhSpacing.x1) {
-                QuranText(ayah: ayah.display, face: LessonArabic.face, readingSize: LessonArabic.lessonSize)
-                    .equatable()
+                arabic(number: number)
                 if let translation, !translation.isEmpty {
                     Text(translation).qhText({ $0.callout }, color: { $0.inkSecondary })
                         .frame(maxWidth: .infinity, alignment: .leading)

@@ -29,11 +29,11 @@ Fix pass, agent **F1 (shell + settings)**:
 - [ ] Aref Ruqaa Ink missing in `QhQuranFace`; `TranslationSearchView` not embedded in the Quran tab search.
 
 Fix pass, agent **F2 (lesson + progress)**:
-- [ ] Progress: «1 Дней подряд» — plural from the copy like Android.
-- [ ] Progress: «Учу: 2 суры» after one finished Al-Fatiha — compare with Android state.
-- [ ] Lesson passage list lacks word highlight while playing and tajweed colours (reader has both through `QuranText`).
-- [ ] Lesson record button hidden — show it like Android (recording works on device).
-- [ ] Mushaf page check grades map by ayah number — wrong on pages with two surahs; key by (surah, ayah).
+- [x] Progress: «1 Дней подряд» — plural from the copy like Android.
+- [x] Progress: «Учу: 2 суры» after one finished Al-Fatiha — compare with Android state. Same as Android (shared `HifzStatuses`: Al-Fatiha covered = learning, plus the plan's current surah is learning); no change.
+- [x] Lesson passage list lacks word highlight while playing and tajweed colours (reader has both through `QuranText`).
+- [x] Lesson record button hidden — show it like Android (recording works on device).
+- [x] Mushaf page check grades map by ayah number — wrong on pages with two surahs; key by (surah, ayah).
 
 Fix pass, agent **F3 (reader + motion + reminders)**:
 - [ ] Reader play: the dock's play button turns into «…» — verify the stream starts on the simulator, word highlight follows, Now Playing shows.

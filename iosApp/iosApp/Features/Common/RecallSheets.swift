@@ -98,13 +98,16 @@ struct RecallGradeSheet: View {
     let title: String
     let copy: RecallCopy
     let busy: Bool
+    /// The text of an ayah chip; the default is "Ayah n". A page with two surahs keys its ayahs by `surah * 1000 + ayah` and labels them itself.
+    var chipLabel: ((Int) -> String)?
     let onConfirm: (ReviewGrade, Set<Int>) -> Void
 
     @State private var hard: Set<Int>
     @State private var picked: ReviewGrade?
 
-    init(session: HifzSession, title: String, copy: RecallCopy, busy: Bool, initial: RecallResult?,
+    init(session: HifzSession, title: String, copy: RecallCopy, busy: Bool, initial: RecallResult?, chipLabel: ((Int) -> String)? = nil,
          onConfirm: @escaping (ReviewGrade, Set<Int>) -> Void) {
+        self.chipLabel = chipLabel
         self.session = session
         self.title = title
         self.copy = copy
@@ -132,7 +135,7 @@ struct RecallGradeSheet: View {
                         Text(copy.hardAyahsTitle).qhText({ $0.title2 }).padding(.top, 16).accessibilityAddTraits(.isHeader)
                         Text(copy.hardAyahsHint).qhText({ $0.callout }, color: { $0.inkSecondary })
                         FlowChips(items: session.items.map(\.inSurah)) { n in
-                            QhChip(label: "\(copy.ayah) \(n)", selected: hard.contains(n)) {
+                            QhChip(label: chipLabel?(n) ?? "\(copy.ayah) \(n)", selected: hard.contains(n)) {
                                 if hard.contains(n) { hard.remove(n) } else { hard.insert(n) }
                             }
                         }

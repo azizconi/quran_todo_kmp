@@ -191,6 +191,9 @@ data class ProgressCopy(
 
     fun hardCount(n: Int): String = hardCountLabel(n, language)
 
+    /** The words after the streak number: "день подряд" / "дня подряд" / "дней подряд"; "day in a row" / "days in a row". */
+    fun streakWords(n: Int): String = streakWordsLabel(n, language)
+
     fun hardAyahDescription(name: String, ayah: Int): String =
         hardAyahDescriptionPattern.fill("name" to name, "n" to ayah)
 
@@ -242,6 +245,23 @@ fun hardCountLabel(n: Int, language: AppLanguage): String = when (language) {
     AppLanguage.TG -> "$n душвор"
     AppLanguage.UZ -> "$n ta qiyin"
     AppLanguage.TR -> "$n zor"
+}
+
+fun streakWordsLabel(n: Int, language: AppLanguage): String = when (language) {
+    AppLanguage.RU -> {
+        val tail = n % 100
+        val last = n % 10
+        when {
+            tail in 11..14 -> "дней подряд"
+            last == 1 -> "день подряд"
+            last in 2..4 -> "дня подряд"
+            else -> "дней подряд"
+        }
+    }
+    AppLanguage.EN -> if (n == 1) "day in a row" else "days in a row"
+    AppLanguage.TG -> "рӯзи пайваста"
+    AppLanguage.UZ -> "kun ketma-ket"
+    AppLanguage.TR -> "gün üst üste"
 }
 
 fun progressCopy(language: AppLanguage): ProgressCopy = when (language) {
