@@ -36,7 +36,7 @@ Fix pass, agent **F2 (lesson + progress)**:
 - [ ] Mushaf page check grades map by ayah number — wrong on pages with two surahs; key by (surah, ayah).
 
 Fix pass, agent **F3 (reader + motion + reminders)**:
-- [ ] Reader play: the dock's play button turns into «…» — verify the stream starts on the simulator, word highlight follows, Now Playing shows.
-- [ ] iOS 18 zoom transitions (lesson card → lesson, surah row → reader) per Decision 1; iOS 17 push.
-- [ ] Reminder days / cadence settings missing in the shared layer — port from Android reminder settings, scheduler honours them.
-- [ ] Mushaf swipe between pages, memorize mode, theme reveal animation: walk and fix.
+- [x] Reader play: verified on the simulator (F3): audio enqueues in AVPlayer, the dock shows pause, the word highlight follows, Now Playing info is set. The «…» is the preparing state while the first ayah is downloaded into the cache (no engine bug found); shots in f3/reader-*.png.
+- [x] iOS 18 zoom transitions (lesson card → lesson, surah row → reader), `#available(iOS 18)`, iOS 17 push (Features/Shell/ZoomTransition.swift). Navigation verified; the animation itself not captured in a still.
+- [x] Reminder weekdays: Android has no days/cadence setting, so added `UiPrefs.reminderDays` (bit mask, Mon..Sun) + `ReminderController.setDays` + `SettingsViewModel.setReminderDays`, localized names in `ReminderCopy`, iOS day chips in the reminder section, and `IosReminderPlanner` skips switched-off days over its 14-day horizon (absence tone still counts all days). Android keeps its daily alarm (not exposed there).
+- [x] Mushaf swipe between pages, memorize mode, theme reveal walked on the simulator: all work, nothing to fix (f3/mushaf-*.png).

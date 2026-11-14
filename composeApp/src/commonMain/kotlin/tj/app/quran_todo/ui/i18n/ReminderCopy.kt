@@ -42,6 +42,26 @@ data class ReminderCopy(
     val readingNoAyahFmt: String,
     val gentleFmt: String,
 ) {
+    /** Title of the row with the weekdays of the reminder (iOS settings). */
+    val daysTitle: String
+        get() = when (language) {
+            AppLanguage.RU -> "Дни"
+            AppLanguage.EN -> "Days"
+            AppLanguage.TG -> "Рӯзҳо"
+            AppLanguage.UZ -> "Kunlar"
+            AppLanguage.TR -> "Günler"
+        }
+
+    /** Short names of the weekdays, Monday first (the order of the bits of `UiPrefs.reminderDays`). */
+    val weekdays: List<String>
+        get() = when (language) {
+            AppLanguage.RU -> listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
+            AppLanguage.EN -> listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+            AppLanguage.TG -> listOf("Дш", "Сш", "Чш", "Пш", "Ҷм", "Шн", "Яш")
+            AppLanguage.UZ -> listOf("Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya")
+            AppLanguage.TR -> listOf("Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz")
+        }
+
     /** The gentle text for a person who has been away for a few days (task U18): "Coming back is easy: your lesson is waiting, ~5 min". */
     fun gentleBody(minutes: Int): String =
         gentleFmt.fill("min" to homeCopy(language).lessonMinutes(minutes.coerceAtLeast(1)))

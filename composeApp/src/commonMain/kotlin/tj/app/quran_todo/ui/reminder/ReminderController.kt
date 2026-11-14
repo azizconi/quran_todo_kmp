@@ -37,6 +37,12 @@ class ReminderController(private val planner: ReminderPlanner, private val prefs
         if (prefs.reminderEnabled.value && track) logEnabled()
     }
 
+    /** Sets the weekdays of the reminder (bit 0 Monday .. bit 6 Sunday, at least one). A reminder that is on is planned again. */
+    fun setDays(mask: Int) {
+        prefs.setReminderDays(mask)
+        planner.sync()
+    }
+
     private fun logEnabled() {
         AppTelemetry.logEvent("reminder_enabled", mapOf("hour" to (prefs.reminderMinuteOfDay.value / 60).toString()))
     }
