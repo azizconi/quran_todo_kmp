@@ -68,3 +68,26 @@ builds and walks the simulator.
 - Motion: springs from `DesignSystem/Motion`, respects Reduce Motion; haptics via `Haptics` (respects the in-app toggle).
 - Builds with `xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -destination 'platform=iOS Simulator,name=iPhone 17' build`.
 - Screenshot of the screen on the simulator attached to the agent's report (light + dark).
+
+## Decisions (orchestrator, 2026-11-14; inventory: `docs/redesign/ios/SCREEN_INVENTORY.md`)
+
+1. **Shared-element flights**: iOS 18+ uses `.navigationTransition(.zoom(sourceID:in:))` + `.matchedTransitionSource`;
+   iOS 17 gets the native push. Inside one screen use `matchedGeometryEffect` freely.
+2. **Player dock**: a custom overlay pinned with `.safeAreaInset(edge: .bottom)` (spring height change, drag to expand);
+   the expanded player is a `.sheet` with `.presentationDetents([.medium, .large])`.
+3. **Arabic text**: one shared component `QuranText` (Features/Common/QuranText) built on `Text` + `AttributedString`
+   per word run (words as tappable runs through a `Layout`-based flowing word view for hidden/peek/seek/meaning taps,
+   tajweed colour runs, word wash highlight). Built in S2b before the screens; every Arabic string goes through the Kotlin
+   display helpers (`splitBismillah`, `hideRubSign`) so U+06DE never shows.
+4. **Reminders**: schedule the next 14 days of local notifications (respecting cadence, pause, quiet days), reschedule on
+   foreground, on `BGAppRefreshTask`, and after each graded lesson (today's is cancelled once the lesson is done).
+5. **Downloads**: background `URLSession`; progress lives in the app (Downloads screen + Live Activity is out of scope).
+6. **In-app update banner**: not on iOS (App Store updates). In-app review: `AppStore.requestReview` with the same gate.
+7. Top-bar progress ring on the Quran tab: port only if `TopBarActions.ProgressAction` is still used on Android.
+
+## Waves
+
+- Wave 1 (running): S0, S1, inventory.
+- Wave 2 (after S0+S1 merge, parallel): **S2** services, **S2b** QuranText + Recall core components, **S3** shell.
+- Wave 3 (parallel, 3 agents): **A** = S7 (+ widget), **B** = S5 (reader; mushaf pages as its second half), **C** = S4 + S6.
+- Wave 4: S8 QA + screenshots (and a fix pass in parallel per stage owner).
