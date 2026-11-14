@@ -30,6 +30,7 @@ struct MainTabs: View {
         .toolbarBackground(.visible, for: .tabBar)
         .background(qh.colors.bg)
         .whatsNewHost(pending: whatsNewPending, atHome: router.isAtHome)
+        .similarSheetHost()
         .onAppear {
             home.bindEvents(toaster: env.toaster, copy: copy)
             log(router.selectedTab.screenName)
