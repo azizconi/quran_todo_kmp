@@ -10,10 +10,10 @@
 
 Walked: onboarding (language → «С начала Корана» → nothing known) → Lesson tab → lesson Al-Fatiha (Listen, Recall: reveal/«Помню» ×7, grade «Хорошо, вернётся завтра») → summary («Урок выполнен», «Сура Аль-Фатиха пройдена полностью», reminder ask) → home → Progress tab. No crash, flows match Android.
 
-- [ ] Onboarding: the 4th step («готово») was not seen — after «Пока ничего» the app went straight to the tabs (check whether Android also skips it when nothing is known, else S3 fix).
-- [ ] Progress: «1 Дней подряд» — the label is capitalised mid-phrase and the plural doesn't agree with 1; use the copy's plural form like Android. Owner: S6.
-- [ ] Progress: «Учу: 2 суры» after one finished Al-Fatiha lesson — compare with Android on the same state (it may count tomorrow's Al-Baqarah). Owner: S6.
-- [ ] Simulator screenshots lag one action behind taps with the iOS simulator tool — not an app bug; wait ~1.5 s before a screenshot.
+- [x] Onboarding: the 4th step («готово») was not seen — after «Пока ничего» the app went straight to the tabs (check whether Android also skips it when nothing is known, else S3 fix). Not a bug: the step shows (screenshot lag), F1.
+- [x] Progress: «1 Дней подряд» — the label is capitalised mid-phrase and the plural doesn't agree with 1; use the copy's plural form like Android. Owner: S6. Fixed in F2.
+- [x] Progress: «Учу: 2 суры» after one finished Al-Fatiha lesson — compare with Android on the same state (it may count tomorrow's Al-Baqarah). Owner: S6. Same as Android (F2).
+- Simulator screenshots lag one action behind taps with the iOS simulator tool — not an app bug; wait ~1.5 s before a screenshot.
 
 ## Orchestrator walk 2 — 2026-11-14 (after S5, S6, S7 merges)
 
@@ -51,6 +51,6 @@ untranslated string, no Arabic U+06DE, no star shape found.
 - [x] Segmented controls (lesson modes, theme in Settings, plan filters) clipped their labels at accessibility sizes: the control stops growing at xxxLarge and scales text down to 80%.
 - [x] Accessibility XXL (fixed by orchestrator: bar rows cap at accessibility1 like system bars, buttons wrap to 2 lines, the plan row stacks its action under the text; the Home lesson card still scrolls under the tab bar, as a scroll view should): lesson top bar title and «Осталось ≈ 14 мин» truncate ("Дарс…"), the Home greeting truncates, the lesson card on Home grows past the tab bar (scrolls, reachable). Needs a vertical layout of the bar at accessibility sizes. Owner: S3/F1.
 - [ ] Tajweed: the first display of a long surah (2:255, debug build) takes ~20 s to get its colours after the switch is on (the markup is parsed off the main actor, the rows redraw when `version` grows). Check in a release build; if still slow, parse per ayah window instead of the whole surah. Owner: S5.
-- [ ] Quiz opens a random question type each time (expected) — captures differ run to run.
+- Quiz opens a random question type each time (expected) — captures differ run to run.
 - [ ] Not walked: Reduce Motion in motion (the in-app toggle was seen in Settings; the system flag was not switched), no-network, upgrade from a master build with data (no master iOS build exists), VoiceOver labels (checked in code review only: bar buttons have labels).
 - Debug-only helpers added for capture: `quranhifz://tafsir/<s>/<a>` (Router, `#if DEBUG`), launch args `-qhTajweed YES`, `-qhMushaf YES`.
