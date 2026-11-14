@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.LocaleList
 import java.util.Locale
 import tj.app.quran_todo.common.platform.AndroidContextHolder
+import tj.app.quran_todo.ui.platform.LocaleApplier
 
 /**
  * Gives the app's own language choice to Android, so the texts Android and the libraries draw themselves (Material's "Close sheet" on
@@ -18,7 +19,7 @@ import tj.app.quran_todo.common.platform.AndroidContextHolder
  *
  * Compose and Material have no Tajik texts: the ones they speak on sheets are translated in `res/values-tg/library_overrides.xml`.
  */
-object AppLocale {
+object AppLocale : LocaleApplier {
     private const val PREFS_NAME = "quran_todo_prefs"
     private const val KEY_LANGUAGE = "language_code"
 
@@ -26,7 +27,7 @@ object AppLocale {
     fun tags(language: AppLanguage): String = language.code
 
     /** Called after the person picked [language] in the app. */
-    fun apply(language: AppLanguage) {
+    override fun apply(language: AppLanguage) {
         val context = AndroidContextHolder.context
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val manager = context.getSystemService(LocaleManager::class.java) ?: return

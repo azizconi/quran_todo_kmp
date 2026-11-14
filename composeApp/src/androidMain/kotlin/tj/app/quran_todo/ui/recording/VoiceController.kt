@@ -32,30 +32,8 @@ import kotlinx.coroutines.withContext
 import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.ui.playback.PlaybackController
 
-/** What the recorder is doing. */
-@Immutable
-sealed interface RecorderState {
-    data object Idle : RecorderState
-
-    /** Recording the passage [key]: [elapsedMs] since the start, [level] (0..1) the loudness of the last moment. */
-    data class Recording(val key: PassageKey, val elapsedMs: Long, val level: Float) : RecorderState
-}
-
-/** What the player of "My reading" is doing. [file] is the recording that is loaded (playing or paused), null when none. */
-@Immutable
-data class PlayerState(
-    val file: File? = null,
-    val playing: Boolean = false,
-    val positionMs: Int = 0,
-    val durationMs: Int = 0,
-)
-
-/** The answer to [VoiceController.start]. */
-enum class StartResult { Started, AlreadyRecording, Failed }
-
-/** A recording with its length, as the list of "My reading" shows it. */
-@Immutable
-data class VoiceNote(val recording: Recording, val durationMs: Long)
+/** The loaded file of the player. */
+val PlayerState.file: File? get() = path?.let(::File)
 
 /**
  * The microphone of the app (task F2a): records the person's own reading of a passage and plays it back. Everything is on the
@@ -75,19 +53,19 @@ class VoiceController internal constructor(
     private val store: RecordingStore,
     private val playback: PlaybackController,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
-) : RecordingsStorage {
+) : VoiceService {
     private val appContext = context.applicationContext
     private val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
     private val _recorder = MutableStateFlow<RecorderState>(RecorderState.Idle)
 
     /** The recorder: idle, or recording a passage. */
-    val recorder: StateFlow<RecorderState> = _recorder.asStateFlow()
+    override val recorder: StateFlow<RecorderState> = _recorder.asStateFlow()
 
     private val _player = MutableStateFlow(PlayerState())
 
     /** The player of the recordings. */
-    val player: StateFlow<PlayerState> = _player.asStateFlow()
+    override val player: StateFlow<PlayerState> = _player.asStateFlow()
 
     /** Bumped whenever the set of files changes: the lists read again. */
     private val revision = MutableStateFlow(0)
@@ -115,14 +93,14 @@ class VoiceController internal constructor(
     // -- Lists ------------------------------------------------------------------------------------------
 
     /** The recordings of [key] with their lengths, the newest first; read again whenever a file is added or removed. */
-    fun notes(key: PassageKey): Flow<List<VoiceNote>> = revision
+    override fun notes(key: PassageKey): Flow<List<VoiceNote>> = revision
         .mapLatest {
             store.list(key).map { VoiceNote(it, durationOf(it.file)) }
         }
         .flowOn(Dispatchers.IO)
 
     /** How many recordings [key] has. */
-    fun count(key: PassageKey): Flow<Int> = revision
+    override fun count(key: PassageKey): Flow<Int> = revision
         .map { store.count(key) }
         .distinctUntilChanged()
         .flowOn(Dispatchers.IO)
@@ -139,14 +117,14 @@ class VoiceController internal constructor(
     }
 
     /** Removes one recording for good, at once (the sheet that held it is closing). */
-    fun deleteNow(recording: Recording) {
+    override fun deleteNow(recording: Recording) {
         if (_player.value.file == recording.file) stopPlayback()
         store.delete(recording)
         revision.value++
     }
 
     /** Removes one recording for good. */
-    suspend fun delete(recording: Recording) {
+    override suspend fun delete(recording: Recording) {
         if (_player.value.file == recording.file) stopPlayback()
         withContext(Dispatchers.IO) { store.delete(recording) }
         revision.value++
@@ -170,7 +148,7 @@ class VoiceController internal constructor(
      * Starts recording the passage [key] (the microphone permission must be granted). The sound of the reciter and the playing of
      * a recording stop first. [StartResult.Failed] when the recorder could not start (no microphone, in use by a call).
      */
-    fun start(key: PassageKey): StartResult {
+    override fun start(key: PassageKey): StartResult {
         if (_recorder.value is RecorderState.Recording) return StartResult.AlreadyRecording
         stopPlayback()
         playback.stop()
@@ -232,7 +210,7 @@ class VoiceController internal constructor(
     }
 
     /** Stops the recording and keeps what was made (null when nothing worth keeping, or when none runs). */
-    fun stop(): Recording? {
+    override fun stop(): Recording? {
         val recorder = mediaRecorder ?: return null
         val file = part
         val key = key
@@ -274,6 +252,8 @@ class VoiceController internal constructor(
     // -- Playing ----------------------------------------------------------------------------------------
 
     /** Plays [file], or pauses / resumes it when it is the recording that is loaded. The reciter is silenced first. */
+    override fun toggle(path: String) = toggle(File(path))
+
     fun toggle(file: File) {
         val state = _player.value
         val loaded = mediaPlayer
@@ -324,7 +304,7 @@ class VoiceController internal constructor(
             }
             player.start()
             mediaPlayer = player
-            _player.value = PlayerState(file = file, playing = true, positionMs = 0, durationMs = player.duration.coerceAtLeast(0))
+            _player.value = PlayerState(path = file.path, playing = true, positionMs = 0, durationMs = player.duration.coerceAtLeast(0))
             playJob = scope.launch { follow(player) }
         } catch (e: Exception) {
             AppTelemetry.logError(e, context = "voice_play_failed")
@@ -349,7 +329,7 @@ class VoiceController internal constructor(
     }
 
     /** Stops the playing for good and lets go of the file. */
-    fun stopPlayback() {
+    override fun stopPlayback() {
         playJob?.cancel()
         playJob = null
         val player = mediaPlayer
@@ -364,7 +344,7 @@ class VoiceController internal constructor(
     }
 
     /** The app leaves the screen (or the sheet closes): what is recorded is kept, what is playing stops. */
-    fun release() {
+    override fun release() {
         stop()
         stopPlayback()
     }

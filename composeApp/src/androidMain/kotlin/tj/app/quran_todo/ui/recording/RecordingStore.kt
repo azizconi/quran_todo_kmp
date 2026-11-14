@@ -3,14 +3,8 @@ package tj.app.quran_todo.ui.recording
 import java.io.File
 import tj.app.quran_todo.common.platform.AndroidContextHolder
 
-/** The passage a recording belongs to: the ayahs [startAyah]..[endAyah] (numbers in the surah) of [surah]. */
-data class PassageKey(val surah: Int, val startAyah: Int, val endAyah: Int) {
-    /** The folder name of the passage: `78_1_5`. */
-    val folder: String get() = "${surah}_${startAyah}_$endAyah"
-}
-
-/** One recording of the person's own reading: the file, when it was started ([epochMillis]) and its size. */
-data class Recording(val file: File, val key: PassageKey, val epochMillis: Long, val sizeBytes: Long)
+/** The file of the recording. */
+val Recording.file: File get() = File(path)
 
 /**
  * The files of the person's own recordings (task F2a): `{root}/{surah}_{start}_{end}/{epochMillis}.m4a`. The root is in the no-backup
@@ -101,7 +95,7 @@ class RecordingStore(
     private fun recordingOf(file: File, key: PassageKey): Recording? {
         if (!file.isFile || !file.name.endsWith(SUFFIX)) return null
         val stamp = file.name.removeSuffix(SUFFIX).toLongOrNull() ?: return null
-        return Recording(file, key, stamp, file.length())
+        return Recording(file.path, key, stamp, file.length())
     }
 
     companion object {
