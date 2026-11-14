@@ -121,7 +121,7 @@ object Streak {
      * made only of pause days neither adds to the run nor breaks it. 0 for an empty log.
      */
     fun best(daysWithRecords: Collection<Int>, pauses: List<PlanPause> = emptyList()): Int {
-        val days = daysWithRecords.toSortedSet().toList()
+        val days = daysWithRecords.distinct().sorted()
         if (days.isEmpty()) return 0
         var best = 1
         var run = 1
