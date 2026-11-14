@@ -248,7 +248,16 @@ def final():
         ImageDraw.Draw(rd).ellipse((0, 0, s - 1, s - 1), fill=255)
         a = im.copy(); a.putalpha(sq); a.save(RES / f"mipmap-{dpi}" / "ic_launcher.png")
         b = im.copy(); b.putalpha(rd); b.save(RES / f"mipmap-{dpi}" / "ic_launcher_round.png")
+    write_ios_icon()
     print("final set written")
+
+
+IOS_ICON = ROOT.parent / "iosApp" / "iosApp" / "Assets.xcassets" / "AppIcon.appiconset" / "app-icon-1024.png"
+
+
+def write_ios_icon():
+    """The iOS app icon: the same artwork, 1024x1024, square and opaque (iOS draws the corners itself; alpha is refused)."""
+    icon_glass().resize((1024, 1024), Image.Resampling.LANCZOS).convert("RGB").save(IOS_ICON)
 
 
 def banner_bg(accent):
