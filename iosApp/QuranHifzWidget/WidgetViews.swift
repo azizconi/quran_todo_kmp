@@ -113,7 +113,7 @@ struct LessonWidgetView: View {
 
     // MARK: Lock screen
 
-    private var rectangular: some View {
+    var rectangular: some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(snapshot.title).font(.system(size: 13, weight: .bold)).lineLimit(1).widgetAccentable()
             if !snapshot.detail.isEmpty { Text(snapshot.detail).font(.system(size: 12)).lineLimit(2) }
@@ -122,7 +122,7 @@ struct LessonWidgetView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var circular: some View {
+    var circular: some View {
         ZStack {
             AccessoryWidgetBackground()
             VStack(spacing: 0) {
