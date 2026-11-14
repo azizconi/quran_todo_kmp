@@ -44,6 +44,7 @@ struct QhButton: View {
     var icon: String?
     var loading = false
     /// Fills the width it is offered (Android `fillMaxWidth`) instead of hugging the content.
+    @Environment(\.dynamicTypeSize) private var typeSize
     var fullWidth = false
     let action: () -> Void
 
@@ -99,8 +100,11 @@ struct QhButton: View {
                 }
                 Text(title)
                     .qhText({ _ in textStyle }, color: { _ in content })
-                    .lineLimit(1)
+                    .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(typeSize.isAccessibilitySize ? 0.85 : 1)
             }
+            .padding(.vertical, typeSize.isAccessibilitySize ? QhSpacing.x2 : 0)
             .foregroundStyle(content)
             .opacity(loading ? 0 : 1)
             if loading { DotSpinner(color: content) }

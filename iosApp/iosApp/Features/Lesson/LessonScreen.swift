@@ -198,16 +198,18 @@ struct LessonTopBar: View {
     var body: some View {
         HStack(spacing: QhSpacing.x1) {
             QhIconButton(icon: "chevron.backward", label: backLabel, filled: false, action: onBack)
-            Text(title).qhText({ $0.title1 }).lineLimit(1).accessibilityAddTraits(.isHeader)
+            Text(title).qhText({ $0.title1 }).lineLimit(1).minimumScaleFactor(0.8).accessibilityAddTraits(.isHeader)
             Spacer(minLength: QhSpacing.x2)
             if let subtitle {
-                Text(subtitle).qhText({ $0.callout }, color: { $0.inkSecondary }).lineLimit(1)
+                Text(subtitle).qhText({ $0.callout }, color: { $0.inkSecondary }).lineLimit(1).minimumScaleFactor(0.8)
                     .transition(.opacity)
             }
         }
         .padding(.leading, QhSpacing.x1)
         .padding(.trailing, QhSpacing.screen)
         .frame(minHeight: 56)
+        // A bar row: stops growing at accessibility1 like the system bars, the content below keeps scaling.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
 }
 

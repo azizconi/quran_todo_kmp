@@ -59,6 +59,7 @@ struct LessonTabView: View {
 struct PlanRowView: View {
     @Environment(Copy.self) private var copy
     @Environment(\.qh) private var qh
+    @Environment(\.dynamicTypeSize) private var typeSize
     let row: PlanRowUi
     let onTap: () -> Void
 
@@ -66,9 +67,13 @@ struct PlanRowView: View {
         let finish = row.finishEpochDay.map { copy.plan.dateLabel(epochDay: Int32(truncating: $0), today: row.today) }
         let text = copy.tabs.planRow(name: copy.progress.scopeName(scope: row.scope), covered: row.covered, total: row.total, finish: finish)
         QhCard(padding: 0, onTap: onTap) {
-            HStack(spacing: QhSpacing.x3) {
-                Text(text).qhText({ $0.callout }, color: { $0.inkSecondary }).lineLimit(3)
-                Spacer(minLength: QhSpacing.x2)
+            // At accessibility sizes the action goes under the text instead of being squeezed beside it.
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: QhSpacing.x1))
+                : AnyLayout(HStackLayout(spacing: QhSpacing.x3))
+            layout {
+                Text(text).qhText({ $0.callout }, color: { $0.inkSecondary }).lineLimit(typeSize.isAccessibilitySize ? nil : 3)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: QhSpacing.x2) }
                 Text(copy.tabs.planChange).qhText({ $0.title2 }, color: { $0.primary }).lineLimit(1)
             }
             .padding(.horizontal, QhSpacing.card).padding(.vertical, QhSpacing.x2)

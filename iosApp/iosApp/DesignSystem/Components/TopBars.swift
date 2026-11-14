@@ -49,6 +49,7 @@ struct QhLargeTopBar<Leading: View, Actions: View>: View {
             }
             .padding(.horizontal, QhSpacing.x1)
             .frame(minHeight: 56)
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             Text(title)
                 .qhText({ $0.display })
                 .lineLimit(2)
