@@ -282,7 +282,7 @@ enum RecallHints {
         let dots = "···"
         let line = cut.indices.map { i -> String in
             if shown.contains(i) { return cut[i] }
-            if mode == .firstLetters { return firstLetter(of: Array(cut[i].utf16)) ?? dots }
+            if mode == .firstLetters { return firstLetter(of: Array(cut[i].utf16)).map { $0 + "\u{200D}" } ?? dots }
             return dots
         }.joined(separator: " ")
         return line + (words.count > cut.count ? " \(dots)" : "")
