@@ -114,7 +114,7 @@ extension Route {
     @ViewBuilder
     func screen() -> some View {
         switch self {
-        case .lesson: ComingSoon(route: self, stage: "S4")
+        case .lesson: LessonScreen()
         case .reader: ComingSoon(route: self, stage: "S5")
         case .mushaf: ComingSoon(route: self, stage: "S5")
         case .tafsir: ComingSoon(route: self, stage: "S5")
@@ -131,12 +131,6 @@ extension Route {
         case .sources: ComingSoon(route: self, stage: "S7")
         }
     }
-}
-
-/// The root of the Progress tab. S6 replaces this view.
-struct ProgressTabRoot: View {
-    @Environment(Copy.self) private var copy
-    var body: some View { ComingSoonBody(title: copy.progress.title, stage: "S6") }
 }
 
 // MARK: - Router
