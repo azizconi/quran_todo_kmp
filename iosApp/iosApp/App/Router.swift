@@ -116,7 +116,7 @@ extension Route {
         switch self {
         case .lesson: LessonScreen()
         case .reader: ReaderScreen(route: self)
-        case .mushaf: ComingSoon(route: self, stage: "S5")
+        case .mushaf: MushafScreen(route: self)
         case .tafsir: TafsirScreen(route: self)
         case .plan: ComingSoon(route: self, stage: "S6")
         case .quiz: ComingSoon(route: self, stage: "S6")
