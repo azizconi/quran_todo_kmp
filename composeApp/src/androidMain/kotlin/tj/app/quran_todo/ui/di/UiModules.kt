@@ -2,7 +2,9 @@ package tj.app.quran_todo.ui.di
 
 import org.koin.android.ext.koin.androidContext
 import org.koin.compose.viewmodel.dsl.viewModel
+import org.koin.dsl.bind
 import org.koin.dsl.module
+import tj.app.quran_todo.ui.downloads.DownloadsService
 import tj.app.quran_todo.common.audio.AudioCacheStorage
 import tj.app.quran_todo.common.audio.timing.WordTimingsStore
 import tj.app.quran_todo.ui.downloads.AndroidStorageSpace
@@ -191,7 +193,7 @@ val downloadsUiModule = module {
     // The queue, the files and the work scheduler of "Downloads and storage" are one single, shared with the worker (which finds it
     // through Koin when WorkManager starts it). The shared Home view model (names of surahs), the HifzRepository (the plan), the
     // text of the Quran and its metrics come in through the constructor, never through koinViewModel.
-    single { DownloadsManager.create(androidContext()) }
+    single { DownloadsManager.create(androidContext()) } bind DownloadsService::class
     viewModel {
         DownloadsViewModel(
             manager = get(),
