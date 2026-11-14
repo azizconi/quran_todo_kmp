@@ -5,7 +5,6 @@ import androidx.room.RoomDatabase
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSFileManager
-import platform.Foundation.NSLog
 import platform.Foundation.NSURL
 import platform.Foundation.NSUserDomainMask
 import tj.app.quran_todo.data.database.QuranTodoDatabase
@@ -22,7 +21,7 @@ fun databasePath(): String = applicationSupportDirectory() + "/quran_todo.db"
 
 fun logDatabaseFile(stage: String, path: String) {
     val exists = NSFileManager.defaultManager.fileExistsAtPath(path)
-    NSLog("Room DB (%s): %s exists=%s", stage, path, exists.toString())
+    println("Room DB ($stage): $path exists=$exists")
 }
 
 @OptIn(ExperimentalForeignApi::class)
