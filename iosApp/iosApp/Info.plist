@@ -42,6 +42,8 @@
 		<string>noto_naskh_arabic.ttf</string>
 		<string>noto_nastaliq_urdu.ttf</string>
 		<string>aref_ruqaa_ink.ttf</string>
+		<string>aref_ruqaa.ttf</string>
+		<string>manrope_variable.ttf</string>
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Microphone is used to check your Quran recitation.</string>
