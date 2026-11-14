@@ -35,7 +35,9 @@ struct LessonTabView: View {
                             QuizRowView { router.push(.quiz) }
                                 .staggeredEnter(index: 2, state: stagger)
                         }
-                        KhatmHomeCards { router.push(.khatm(pickTarget: false)) }
+                        KhatmHomeCards(onOpenKhatm: { router.push(.khatm(pickTarget: false)) },
+                                       onOpenKhatmPicker: { router.push(.khatm(pickTarget: true)) },
+                                       onOpenMushaf: { router.push(.mushaf(page: $0, ayahKey: nil)) })
                             .staggeredEnter(index: 3, state: stagger)
                     } else {
                         Skeleton(shape: qh.shapes.lgShape).frame(height: 196)
@@ -101,25 +103,5 @@ struct QuizRowView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(copy.quiz.title), \(sub)")
         .accessibilityAddTraits(.isButton)
-    }
-}
-
-/// The reading-plan (khatm) and Ramadan cards. S6 fills this; for now the quiet "Reading plan" row that opens the khatm screen.
-struct KhatmHomeCards: View {
-    @Environment(Copy.self) private var copy
-    @Environment(\.qh) private var qh
-    let onOpenKhatm: () -> Void
-
-    var body: some View {
-        HStack(spacing: QhSpacing.x3) {
-            Image(systemName: "calendar").foregroundStyle(qh.colors.inkSecondary)
-            Text(copy.khatm.screenTitle).qhText({ $0.callout }, color: { $0.inkSecondary })
-            Spacer()
-            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(qh.colors.inkTertiary)
-        }
-        .padding(.horizontal, QhSpacing.x2)
-        .frame(minHeight: QhSpacing.minTouch)
-        .pressable(scale: 0.99, action: onOpenKhatm)
-        .accessibilityLabel(copy.khatm.screenTitle)
     }
 }

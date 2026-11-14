@@ -118,10 +118,10 @@ extension Route {
         case .reader: ComingSoon(route: self, stage: "S5")
         case .mushaf: ComingSoon(route: self, stage: "S5")
         case .tafsir: ComingSoon(route: self, stage: "S5")
-        case .plan: ComingSoon(route: self, stage: "S6")
+        case .plan: PlanScreen()
         case .quiz: ComingSoon(route: self, stage: "S6")
         case .tellApart: ComingSoon(route: self, stage: "S6")
-        case .khatm: ComingSoon(route: self, stage: "S6")
+        case let .khatm(pick): KhatmScreen(pickTarget: pick)
         case .progressDetails: ComingSoon(route: self, stage: "S6")
         case .notes: ComingSoon(route: self, stage: "S6")
         case .hardDrill: ComingSoon(route: self, stage: "S6")
@@ -257,6 +257,10 @@ final class Router {
         case "quran": quranPath = []; selectedTab = .quran
         case "progress": progressPath = []; selectedTab = .progress
         case "plan": selectedTab = .lesson; lessonPath = [.plan]
+        case "khatm": selectedTab = .lesson; lessonPath = [.khatm(pickTarget: false)]
+        case "drill": selectedTab = .progress; progressPath = [.hardDrill]
+        case "quiz": selectedTab = .lesson; lessonPath = [.quiz]
+        case "analytics": selectedTab = .progress; progressPath = [.progressDetails]
         default: return false
         }
         return true
