@@ -14,3 +14,29 @@ Walked: onboarding (language → «С начала Корана» → nothing kn
 - [ ] Progress: «1 Дней подряд» — the label is capitalised mid-phrase and the plural doesn't agree with 1; use the copy's plural form like Android. Owner: S6.
 - [ ] Progress: «Учу: 2 суры» after one finished Al-Fatiha lesson — compare with Android on the same state (it may count tomorrow's Al-Baqarah). Owner: S6.
 - [ ] Simulator screenshots lag one action behind taps with the iOS simulator tool — not an app bug; wait ~1.5 s before a screenshot.
+
+## Orchestrator walk 2 — 2026-11-14 (after S5, S6, S7 merges)
+
+Walked by deep link: reader 2:255 (ayah tap → action row Слушать/Повтор/Ещё, dock), plan, khatm, quiz, analytics, drill, settings,
+downloads. All render with real data, no crash.
+
+Fix pass, agent **F1 (shell + settings)**:
+- [ ] Tab bar stays over pushed screens (plan «Сохранить», khatm, analytics, settings, downloads) — hide it on push like Android / iOS idiom (`.toolbar(.hidden, for: .tabBar)` or own bar hidden when the stack is not empty), with the spring.
+- [ ] Onboarding 4th step skipped after «Пока ничего» (compare with Android `OnboardingScreen`).
+- [ ] Shared `TrustCopy` privacy text speaks of Android — platform-specific lines for iOS (Kotlin copy, all 5 languages).
+- [ ] `SettingsLinks.appStoreId` empty — hide «Оценить» / share link until set, no dead button.
+- [ ] Reading font/size not observed reactively — reader and lesson must update when Aa changes.
+- [ ] Aref Ruqaa Ink missing in `QhQuranFace`; `TranslationSearchView` not embedded in the Quran tab search.
+
+Fix pass, agent **F2 (lesson + progress)**:
+- [ ] Progress: «1 Дней подряд» — plural from the copy like Android.
+- [ ] Progress: «Учу: 2 суры» after one finished Al-Fatiha — compare with Android state.
+- [ ] Lesson passage list lacks word highlight while playing and tajweed colours (reader has both through `QuranText`).
+- [ ] Lesson record button hidden — show it like Android (recording works on device).
+- [ ] Mushaf page check grades map by ayah number — wrong on pages with two surahs; key by (surah, ayah).
+
+Fix pass, agent **F3 (reader + motion + reminders)**:
+- [ ] Reader play: the dock's play button turns into «…» — verify the stream starts on the simulator, word highlight follows, Now Playing shows.
+- [ ] iOS 18 zoom transitions (lesson card → lesson, surah row → reader) per Decision 1; iOS 17 push.
+- [ ] Reminder days / cadence settings missing in the shared layer — port from Android reminder settings, scheduler honours them.
+- [ ] Mushaf swipe between pages, memorize mode, theme reveal animation: walk and fix.
