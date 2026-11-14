@@ -28,6 +28,7 @@ import tj.app.quran_todo.ui.notes.NotesViewModel
 import tj.app.quran_todo.ui.onboarding.OnboardingViewModel
 import tj.app.quran_todo.ui.plan.PlanViewModel
 import tj.app.quran_todo.ui.playback.PlaybackController
+import tj.app.quran_todo.ui.playback.ReciterPreview
 import tj.app.quran_todo.ui.progress.ProgressViewModel
 import tj.app.quran_todo.ui.progress.analytics.AnalyticsViewModel
 import tj.app.quran_todo.ui.quiz.QuizViewModel
@@ -98,6 +99,8 @@ object IosUi {
     val hifz: HifzRepository get() = koin.get()
     val ticker: EpochDayTicker get() = koin.get()
     val similar: SimilarStore get() = koin.get()
+    /** The reciter sample of the Settings sheet (`state` is Idle / Loading / Playing(reciterId)). */
+    val reciterPreview: ReciterPreview get() = koin.get()
 
     // -- language -------------------------------------------------------------------------------------------------------
 

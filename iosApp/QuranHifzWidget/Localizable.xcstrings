@@ -1,0 +1,22 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Lesson of the day" : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Урок дня" } },
+        "tg" : { "stringUnit" : { "state" : "translated", "value" : "Дарси рӯз" } },
+        "uz" : { "stringUnit" : { "state" : "translated", "value" : "Kun darsi" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "Günün dersi" } }
+      }
+    },
+    "Today's lesson and your streak." : {
+      "localizations" : {
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Сегодняшний урок и ваша серия дней." } },
+        "tg" : { "stringUnit" : { "state" : "translated", "value" : "Дарси имрӯз ва силсилаи рӯзҳои шумо." } },
+        "uz" : { "stringUnit" : { "state" : "translated", "value" : "Bugungi dars va kunlar seriyangiz." } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "Bugünün dersi ve gün seriniz." } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

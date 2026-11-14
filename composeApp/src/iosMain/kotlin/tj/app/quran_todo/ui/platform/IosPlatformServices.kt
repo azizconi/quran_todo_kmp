@@ -166,6 +166,7 @@ class IosWidgetRefresher(
             mapOf(
                 "version" to JsonPrimitive(1),
                 "language" to JsonPrimitive(language.code),
+                "palette" to JsonPrimitive((tj.app.quran_todo.common.theme.ThemeStorage.getSavedThemePalette()?.name ?: "FOREST").lowercase()),
                 "epochDay" to JsonPrimitive(today),
                 "updatedAtMs" to JsonPrimitive(nowMillis()),
                 "state" to JsonPrimitive(model.state.name),
