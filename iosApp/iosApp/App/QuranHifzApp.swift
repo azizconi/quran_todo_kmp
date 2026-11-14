@@ -35,6 +35,13 @@ struct QuranHifzApp: App {
                 // A tapped reminder: the link of a cold start waits in the router of notifications, later ones come live.
                 NotificationRouter.shared.onLink = { url in _ = router.open(url: url) }
                 if let url = NotificationRouter.shared.consumePendingURL() { _ = router.open(url: url) }
+                #if DEBUG
+                // QA and screenshots: `-qhOpen quranhifz://plan` as a launch argument opens that place (simulator taps are not scriptable).
+                if let link = UserDefaults.standard.string(forKey: "qhOpen"), let url = URL(string: link) {
+                    try? await Task.sleep(for: .milliseconds(600))
+                    _ = router.open(url: url)
+                }
+                #endif
             }
         }
     }
