@@ -122,7 +122,7 @@ extension Route {
         case .quiz: QuizScreen(mode: .mixed)
         case let .tellApart(surah, ayah): QuizScreen(mode: .tellApart(surah: surah, ayah: ayah))
         case let .khatm(pick): KhatmScreen(pickTarget: pick)
-        case .progressDetails: ComingSoon(route: self, stage: "S6")
+        case .progressDetails: AnalyticsScreen()
         case .notes: ComingSoon(route: self, stage: "S6")
         case .hardDrill: DrillScreen()
         case .settings: ComingSoon(route: self, stage: "S7")

@@ -31,6 +31,10 @@ object IosDebugSeed {
         val koin = KoinPlatform.getKoin()
         val hifz: HifzRepository = koin.get()
         val today = EpochDays.now()
+        if (withKhatm && hifz.khatm().first() == null) {
+            hifz.saveKhatm(KhatmPlan(startEpochDay = today - 5, targetEpochDay = today + 24))
+            hifz.markKhatmUpTo(40, today)
+        }
         if (hifz.plan().first() != null) return
 
         hifz.setPlan(HifzScope.JUZ_30, HifzPresets.order(HifzScope.JUZ_30), dailyNewAyahs = 5, targetEpochDay = null, manzilDays = 7, today = today - 40)
@@ -53,9 +57,5 @@ object IosDebugSeed {
         hifz.markHard(108, setOf(2))
         hifz.markHard(111, setOf(3, 4))
         hifz.markHard(105, setOf(3))
-        if (withKhatm) {
-            hifz.saveKhatm(KhatmPlan(startEpochDay = today - 5, targetEpochDay = today + 24))
-            hifz.markKhatmUpTo(40, today)
-        }
     }
 }
