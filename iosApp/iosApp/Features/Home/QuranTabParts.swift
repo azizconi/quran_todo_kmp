@@ -25,6 +25,45 @@ private func qhStatus(_ status: SurahTodoStatus?) -> QhStatus {
     }
 }
 
+// MARK: - Lesson strip
+
+/// The compact "Today's lesson" card on top of the Quran tab (`LessonStripCard.kt`): one line of state and a small button that opens
+/// the lesson (zooming out of the button); a tap on the card opens the Lesson tab. The words come from the shared `LessonStrip`.
+struct LessonStripView: View {
+    let strip: LessonStripUi
+    @Environment(Router.self) private var router
+    @Environment(Copy.self) private var copy
+    @Environment(\.qh) private var qh
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        QhCard(padding: 0, onTap: { router.selectedTab = .lesson }) {
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: QhSpacing.x3))
+                : AnyLayout(HStackLayout(spacing: QhSpacing.x3))
+            layout {
+                VStack(alignment: .leading, spacing: QhSpacing.x1) {
+                    Text(copy.home.lessonTitle.uppercased()).qhText({ $0.overline }, color: { $0.primary }).lineLimit(1)
+                    HStack(spacing: QhSpacing.x2) {
+                        if strip.done {
+                            Image(systemName: "checkmark").font(.system(size: 14, weight: .bold)).foregroundStyle(qh.colors.learned)
+                        }
+                        Text(strip.text).qhText({ $0.callout }, color: { strip.done ? $0.inkSecondary : $0.ink }).lineLimit(2)
+                    }
+                }
+                if !typeSize.isAccessibilitySize { Spacer(minLength: QhSpacing.x2) }
+                if let action = strip.action {
+                    QhButton(action, size: .s) { router.push(.lesson) }
+                        .fixedSize()
+                        .qhZoomSource(QhZoomID.lessonStrip)
+                }
+            }
+            .padding(.horizontal, QhSpacing.card).padding(.vertical, QhSpacing.x3)
+        }
+        .accessibilityElement(children: .contain)
+    }
+}
+
 // MARK: - Hero
 
 /// The "Continue" hero: the surah the person stopped at, how far, and the two ways on: read or listen.

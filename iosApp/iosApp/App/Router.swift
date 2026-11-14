@@ -6,7 +6,7 @@ import SwiftUI
 
 /// The three tabs of the app (`MainTab` of Kotlin, same order).
 enum AppTab: Int, CaseIterable, Hashable {
-    case lesson, quran, progress
+    case quran, lesson, progress
 
     var kotlin: MainTab { MainTab.allCases[rawValue] }
     var screenName: String { kotlin.screenName }
@@ -140,7 +140,7 @@ extension Route {
 @MainActor
 @Observable
 final class Router {
-    var selectedTab: AppTab = .lesson
+    var selectedTab: AppTab = .quran
     var lessonPath: [Route] = []
     var quranPath: [Route] = []
     var progressPath: [Route] = []
@@ -208,30 +208,30 @@ final class Router {
         setPath(path, of: selectedTab)
     }
 
-    /// Lesson "To home": drops everything above Home and selects the Lesson tab.
+    /// Lesson "To home": drops everything above Home and selects the Quran tab (home).
     func goHome() {
         lessonPath = []
-        selectedTab = .lesson
+        quranPath = []
+        selectedTab = .quran
     }
 
     func popToRoot(of tab: AppTab) { setPath([], of: tab) }
 
     // -- After onboarding, deep links ---------------------------------------------------------------------------------
 
-    /// Where the onboarding leaves to (`Finished(exit)`): the first lesson over Home, Home, or Al-Fatihah in the reader.
+    /// Where the onboarding leaves to (`Finished(exit)`): the first lesson over Home, Home (the Quran tab), or Al-Fatihah in the reader.
     func finishedOnboarding(_ exit: OnboardingExit) {
         lessonPath = []; quranPath = []; progressPath = []
-        let home = AppTab(rawValue: Int(MainTab.Companion.shared.defaultFor(goals: IosUi.shared.uiPrefs.onboardingGoals.value).ordinal)) ?? .lesson
         switch exit {
         // The stacks are created right after this; a path set before they exist is dropped, so the push waits for the tabs.
         case .lesson:
-            selectedTab = .lesson
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { self.lessonPath = [.lesson] }
+            selectedTab = .quran
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { self.quranPath = [.lesson] }
         case .reader:
             selectedTab = .quran
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { self.openReader(1, origin: "onboarding", in: .quran) }
         default:
-            selectedTab = home
+            selectedTab = .quran
         }
     }
 
@@ -253,8 +253,10 @@ final class Router {
         let parts = [url.host].compactMap { $0 } + url.pathComponents.filter { $0 != "/" }
         switch parts.first {
         case "lesson":
-            selectedTab = .lesson
-            lessonPath = [.lesson]
+            // The lesson opens over home (the Quran tab), so back lands on home.
+            lessonPath = []
+            selectedTab = .quran
+            quranPath = [.lesson]
         case "reader":
             // Both quranhifz://reader/2/255 and the reminders' quranhifz://reader?surah=2&ayah=255.
             let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []

@@ -14,14 +14,16 @@ extension EnvironmentValues {
 
 enum QhZoomID {
     static let lesson = "zoom.lesson"
+    /// The compact lesson card on top of the Quran tab (a source of its own: both tabs are alive at once).
+    static let lessonStrip = "zoom.lesson.strip"
     static func surah(_ number: Int) -> String { "zoom.surah.\(number)" }
 }
 
 extension Route {
     /// The source that pairs with this destination, nil for routes that keep the push.
-    var zoomSourceID: String? {
+    func zoomSourceID(from tab: AppTab) -> String? {
         switch self {
-        case .lesson: return QhZoomID.lesson
+        case .lesson: return tab == .quran ? QhZoomID.lessonStrip : QhZoomID.lesson
         case let .reader(surah, _, _, _, _, _): return QhZoomID.surah(surah)
         default: return nil
         }
@@ -44,9 +46,10 @@ private struct ZoomSource: ViewModifier {
 private struct ZoomDestination: ViewModifier {
     @Environment(\.qhZoomNamespace) private var namespace
     let route: Route
+    let tab: AppTab
 
     @ViewBuilder func body(content: Content) -> some View {
-        if #available(iOS 18, *), let namespace, let id = route.zoomSourceID {
+        if #available(iOS 18, *), let namespace, let id = route.zoomSourceID(from: tab) {
             content.navigationTransition(.zoom(sourceID: id, in: namespace))
         } else {
             content
@@ -56,5 +59,5 @@ private struct ZoomDestination: ViewModifier {
 
 extension View {
     func qhZoomSource(_ id: String) -> some View { modifier(ZoomSource(id: id)) }
-    func qhZoomDestination(_ route: Route) -> some View { modifier(ZoomDestination(route: route)) }
+    func qhZoomDestination(_ route: Route, from tab: AppTab) -> some View { modifier(ZoomDestination(route: route, tab: tab)) }
 }

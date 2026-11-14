@@ -402,10 +402,9 @@ private fun AppNavigation() {
     val openReader: (Dest.Reader) -> Unit = remember(navController, uiPrefs) { { dest -> navController.openReader(dest, uiPrefs) } }
 
     // The tab of Home (U14). Saved as an ordinal (a rotation, a process death); -1 until the person or a deep entry chose one, so the
-    // default follows the goal chosen in onboarding (which is passed after this state is created).
+    // app opens on the Quran tab, which is home.
     var savedTab by rememberSaveable { mutableStateOf(NoTabChosen) }
-    val goals by uiPrefs.onboardingGoals.collectAsState()
-    val defaultTab = MainTab.defaultFor(goals)
+    val defaultTab = MainTab.Default
     val selectedTab = MainTab.restore(savedTab.takeIf { it != NoTabChosen }, defaultTab)
     val selectTab: (MainTab) -> Unit = { tab -> savedTab = tab.ordinal }
 
@@ -427,9 +426,9 @@ private fun AppNavigation() {
         }
         ReminderOpenRequests.consume(request)
         if (ready == true) {
-            // Back from the lesson lands on the "Lesson" tab.
+            // Back from the lesson lands on the Quran tab (home).
             if (request.target == ReminderTarget.Lesson && navController.currentBackStack.value.any { it.destination.hasRoute<Dest.Home>() }) {
-                selectTab(MainTab.Lesson)
+                selectTab(MainTab.Quran)
             }
             navController.openFromReminder(request.target, uiPrefs)
         }
@@ -546,8 +545,8 @@ private fun AppNavigation() {
                             onOpenPlan = { navController.navigateOnce(Dest.Plan) },
                             onOpenQuiz = { navController.navigateOnce(Dest.Quiz) },
                             onHome = {
-                                // "To home" lands on the "Lesson" tab.
-                                selectTab(MainTab.Lesson)
+                                // "To home" lands on the Quran tab (home).
+                                selectTab(MainTab.Quran)
                                 navController.goHome()
                             },
                             onOpenDrill = { navController.navigateOnce(Dest.HardDrill) },

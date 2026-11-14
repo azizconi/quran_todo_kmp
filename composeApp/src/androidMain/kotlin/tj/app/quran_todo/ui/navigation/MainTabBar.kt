@@ -69,8 +69,8 @@ internal data class MainTabLabels(val lesson: String, val quran: String, val pro
 }
 
 private fun MainTab.icon(): ImageVector = when (this) {
-    MainTab.Lesson -> Icons.Rounded.School
     MainTab.Quran -> Icons.AutoMirrored.Rounded.MenuBook
+    MainTab.Lesson -> Icons.Rounded.School
     MainTab.Progress -> Icons.Rounded.BarChart
 }
 

@@ -121,6 +121,14 @@ fun MainTabs(
         Box(Modifier.weight(1f)) {
             holder.SaveableStateProvider(selected.name) {
                 when (selected) {
+                    MainTab.Quran -> QuranTab(
+                        onOpenReader = actions.openReader,
+                        onOpenSettings = actions.openSettings,
+                        onOpenCatalog = actions.openCatalog,
+                        onOpenLesson = actions.openLesson,
+                        onOpenLessonTab = { onSelect(MainTab.Lesson) },
+                    )
+
                     MainTab.Lesson -> LessonTab(
                         onOpenSettings = actions.openSettings,
                         onOpenLesson = actions.openLesson,
@@ -131,11 +139,6 @@ fun MainTabs(
                         onOpenMushaf = actions.openMushaf,
                     )
 
-                    MainTab.Quran -> QuranTab(
-                        onOpenReader = actions.openReader,
-                        onOpenSettings = actions.openSettings,
-                        onOpenCatalog = actions.openCatalog,
-                    )
 
                     MainTab.Progress -> ProgressScreen(
                         onBack = null,

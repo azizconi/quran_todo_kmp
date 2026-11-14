@@ -1,7 +1,7 @@
 import ComposeApp
 import SwiftUI
 
-/// The three tabs Lesson / Quran / Progress in a native `TabView`, each with its own `NavigationStack(path:)` driven by the `Router`.
+/// The three tabs Quran / Lesson / Progress in a native `TabView`, each with its own `NavigationStack(path:)` driven by the `Router`.
 /// Pushed screens come from `Route.screen()` (App/Router.swift). One `HomeModel` serves both home tabs and the mini player slot.
 struct MainTabs: View {
     let whatsNewPending: Bool
@@ -16,12 +16,12 @@ struct MainTabs: View {
     var body: some View {
         @Bindable var router = router
         TabView(selection: $router.selectedTab) {
-            stack(.lesson) { LessonTabView(home: home) }
-                .tabItem { Label(copy.tabs.tabLesson, systemImage: "graduationcap") }
-                .tag(AppTab.lesson)
             stack(.quran) { QuranTabView(home: home) }
                 .tabItem { Label(copy.home.title, systemImage: "book") }
                 .tag(AppTab.quran)
+            stack(.lesson) { LessonTabView(home: home) }
+                .tabItem { Label(copy.tabs.tabLesson, systemImage: "graduationcap") }
+                .tag(AppTab.lesson)
             stack(.progress) { ProgressTabRoot().miniPlayerInset(home) }
                 .tabItem { Label(copy.progress.title, systemImage: "chart.bar") }
                 .tag(AppTab.progress)
@@ -61,7 +61,7 @@ struct MainTabs: View {
                 .navigationDestination(for: Route.self) { route in
                     route.screen()
                         .toolbar(.hidden, for: .tabBar)
-                        .qhZoomDestination(route)
+                        .qhZoomDestination(route, from: tab)
                 }
         }
         .environment(\.qhZoomNamespace, zoomNamespace)

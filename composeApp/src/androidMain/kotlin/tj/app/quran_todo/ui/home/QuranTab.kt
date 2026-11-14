@@ -80,6 +80,7 @@ import tj.app.quran_todo.ui.home.components.HeroListenState
 import tj.app.quran_todo.ui.home.components.HomeSkeletonRow
 import tj.app.quran_todo.ui.home.components.HomeSkeletonTop
 import tj.app.quran_todo.ui.home.components.JuzListRow
+import tj.app.quran_todo.ui.home.components.LessonStripCard
 import tj.app.quran_todo.ui.home.components.ListEmptyState
 import tj.app.quran_todo.ui.home.components.RecentSection
 import tj.app.quran_todo.ui.home.components.RowTexts
@@ -114,7 +115,7 @@ import kotlinx.coroutines.flow.Flow
 /**
  * The "Quran" tab (UX task U14; docs/redesign/ANDROID_REDESIGN.md, 6.3): a large "Quran" title with the settings gear, the "Continue"
  * hero, Recent, a sticky search field with the status segments, the 114 surahs (or the 30 juz). The lesson of the day lives on the
- * "Lesson" tab ([LessonTab]); the floating mini player is hosted by the tab scaffold.
+ * "Lesson" tab ([LessonTab]) and shows here as a compact card on top; the floating mini player is hosted by the tab scaffold.
  *
  * [onOpenCatalog] is non-null in debug builds only: a long press on the title area opens the
  * component catalog.
@@ -125,6 +126,8 @@ fun QuranTab(
     onOpenReader: (Dest.Reader) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenCatalog: (() -> Unit)? = null,
+    onOpenLesson: () -> Unit = {},
+    onOpenLessonTab: () -> Unit = {},
 ) {
     val viewModel = koinViewModel<HomeUiViewModel>()
     val language = LocalAppLanguage.current
@@ -175,6 +178,8 @@ fun QuranTab(
         copy = copy,
         actions = actions,
         onOpenCatalog = onOpenCatalog,
+        onOpenLesson = onOpenLesson,
+        onOpenLessonTab = onOpenLessonTab,
     )
 }
 
@@ -208,6 +213,8 @@ private fun HomeContent(
     copy: HomeCopy,
     actions: HomeActions,
     onOpenCatalog: (() -> Unit)?,
+    onOpenLesson: () -> Unit,
+    onOpenLessonTab: () -> Unit,
 ) {
     val colors = QhTheme.colors
     val type = QhTheme.type
@@ -298,7 +305,8 @@ private fun HomeContent(
         HeroListenState.Idle
     }
     // Index of the sticky header: the title space and whatever sections exist above it, then the tabs.
-    val searchHeaderIndex = 1 + (if (hero != null) 1 else 0) + (if (ui.recent.isNotEmpty()) 1 else 0) + 1
+    val strip = remember(ui.lesson, copy) { LessonStrip.of(ui.lesson, copy) }
+    val searchHeaderIndex = 1 + (if (strip != null) 1 else 0) + (if (hero != null) 1 else 0) + (if (ui.recent.isNotEmpty()) 1 else 0) + 1
     val searchStuck = remember(listState, searchHeaderIndex) { { listState.firstVisibleItemIndex >= searchHeaderIndex } }
 
     // Focusing the field lifts it under the top bar. Only when the sections above it are still on
@@ -374,6 +382,22 @@ private fun HomeContent(
                 }
 
                 HomePhase.Content -> {
+                    // "Today's lesson", compact: on top of the hero, folded away while searching.
+                    if (strip != null) {
+                        item(key = "lesson-strip", contentType = "lesson-strip") {
+                            FoldableSection(visible = !searchMode, trailingSpace = QhSpacing.x3) {
+                                LessonStripCard(
+                                    strip = strip,
+                                    copy = copy,
+                                    onOpenLesson = onOpenLesson,
+                                    onOpenLessonTab = onOpenLessonTab,
+                                    modifier = Modifier
+                                        .padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x2)
+                                        .staggeredEnter(0, stagger),
+                                )
+                            }
+                        }
+                    }
                     if (hero != null) {
                         item(key = "hero", contentType = "hero") {
                             FoldableSection(visible = !searchMode) {

@@ -160,6 +160,12 @@ private struct QuranList: View {
     @ViewBuilder private var content: some View {
         let mushaf = copy.mushaf
         if !searchMode {
+            if let strip = LessonStrip.shared.of(card: ui.lesson, copy: copy.home) {
+                LessonStripView(strip: strip)
+                    .padding(.horizontal, QhSpacing.screen).padding(.top, QhSpacing.x2)
+                    .staggeredEnter(index: 0, state: stagger)
+                    .plainRow()
+            }
             if let hero = ui.continueItem {
                 HeroCardView(item: hero, playing: isPlaying(hero.surah)) {
                     router.openReader(Int(hero.surah), ayah: hero.isFresh ? nil : Int(hero.ayah), origin: "hero")
