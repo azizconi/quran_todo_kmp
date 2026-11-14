@@ -17,6 +17,7 @@ class GlossaryCopyTest {
         val roots = listOf(File("."), File("composeApp"))
         return roots.flatMap { root ->
             listOf(
+                File(root, "src/commonMain/kotlin/tj/app/quran_todo/ui/i18n"),
                 File(root, "src/androidMain/kotlin/tj/app/quran_todo/ui/i18n"),
                 File(root, "src/voiceproto/kotlin/tj/app/quran_todo/ui/i18n"),
             )

@@ -146,7 +146,7 @@ class OnboardingCopyTest {
         copies.forEach { text -> assertTrue(text.none { it in starGlyphs }, "a star in: $text") }
 
         val forbidden = Regex("""Icons\.\w+\.(\w*Star\w*|AutoAwesome\w*|TipsAndUpdates|Sparkle\w*|Stars)|drawStar|StarShape|starPath""")
-        val roots = listOf("src/androidMain/kotlin/tj/app/quran_todo/ui/onboarding", "src/androidMain/kotlin/tj/app/quran_todo/ui/whatsnew")
+        val roots = listOf("src/androidMain/kotlin/tj/app/quran_todo/ui/onboarding", "src/androidMain/kotlin/tj/app/quran_todo/ui/whatsnew", "src/commonMain/kotlin/tj/app/quran_todo/ui/onboarding", "src/commonMain/kotlin/tj/app/quran_todo/ui/whatsnew")
         var scanned = 0
         for (root in roots) {
             val dir = File(root)
