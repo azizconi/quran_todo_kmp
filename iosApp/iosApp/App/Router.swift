@@ -235,6 +235,15 @@ final class Router {
         }
     }
 
+    /// Settings and its children: pushed after the tab stacks exist (a path set during launch is dropped).
+    private func openStack(_ routes: [Route]) {
+        selectedTab = .lesson
+        lessonPath = routes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [self] in
+            if lessonPath != routes { lessonPath = routes }
+        }
+    }
+
     /// `quranhifz://lesson`, `quranhifz://reader/2/255`, `quranhifz://quran`, `quranhifz://progress`, `quranhifz://plan`
     /// (notifications, the widget). Returns true when it was one of ours. A deep link drops everything above Home first.
     @discardableResult
@@ -257,10 +266,10 @@ final class Router {
         case "quran": quranPath = []; selectedTab = .quran
         case "progress": progressPath = []; selectedTab = .progress
         case "plan": selectedTab = .lesson; lessonPath = [.plan]
-        case "settings": selectedTab = .lesson; lessonPath = [.settings]
-        case "downloads": selectedTab = .lesson; lessonPath = [.settings, .downloads]
-        case "about": selectedTab = .lesson; lessonPath = [.settings, .privacy]
-        case "sources": selectedTab = .lesson; lessonPath = [.settings, .sources]
+        case "settings": openStack([.settings])
+        case "downloads": openStack([.settings, .downloads])
+        case "about": openStack([.settings, .privacy])
+        case "sources": openStack([.settings, .sources])
         default: return false
         }
         return true
