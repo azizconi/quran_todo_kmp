@@ -30,7 +30,13 @@ struct MainTabs: View {
         .toolbarBackground(.visible, for: .tabBar)
         .background(qh.colors.bg)
         .whatsNewHost(pending: whatsNewPending, atHome: router.isAtHome)
+        .similarSheetHost()
         .onAppear {
+            #if DEBUG
+            if let url = UserDefaults.standard.string(forKey: "s5route").flatMap(URL.init(string:)) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { _ = router.open(url: url) }
+            }
+            #endif
             home.bindEvents(toaster: env.toaster, copy: copy)
             log(router.selectedTab.screenName)
         }
