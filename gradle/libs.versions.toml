@@ -40,6 +40,8 @@ firebaseCrashlyticsPlugin = "3.0.2"
 playReview = "2.0.2"
 playAppUpdate = "2.1.0"
 onnxruntime = "1.25.1"
+# SKIE turns StateFlow/Flow into AsyncSequence and sealed classes/enums into exhaustive Swift enums. 0.10.2 supports Kotlin 2.1.21.
+skie = "0.10.2"
 
 
 [libraries]
@@ -108,6 +110,7 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 room = { id = "androidx.room", version.ref = "room" }
 googleServices = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 firebaseCrashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsPlugin" }
+skie = { id = "co.touchlab.skie", version.ref = "skie" }
 
 
 

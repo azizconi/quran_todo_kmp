@@ -13,6 +13,7 @@ plugins {
     alias(libs.plugins.room)
     alias(libs.plugins.googleServices)
     alias(libs.plugins.firebaseCrashlytics)
+    alias(libs.plugins.skie)
 }
 
 kotlin {
