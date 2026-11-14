@@ -33,8 +33,8 @@ final class TajweedService {
     @ObservationIgnored private var downloadTask: Task<Void, Never>?
     @ObservationIgnored private var built: [Int: QuranAyahDisplay] = [:]
 
-    private static let marker = "ready"
-    private static let markerContent = "tajweed-v1 6236"
+    private nonisolated static let marker = "ready"
+    private nonisolated static let markerContent = "tajweed-v1 6236"
     private static let retryAfter: TimeInterval = 30
     private static let maxSurahs = 10
 
@@ -142,26 +142,22 @@ final class TajweedService {
         let fm = FileManager.default
         try? fm.createDirectory(at: directory, withIntermediateDirectories: true)
         try? fm.removeItem(at: directory.appendingPathComponent(Self.marker))
+        var request = URLRequest(url: URL(string: TajweedFormat.shared.URL)!)
+        request.timeoutInterval = 30
+        let expected = Double(TajweedFormat.shared.EXPECTED_BYTES)
         var ok = false
         do {
-            var request = URLRequest(url: URL(string: TajweedFormat.shared.URL)!)
-            request.timeoutInterval = 30
-            let (bytes, response) = try await URLSession.shared.bytes(for: request)
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
-            var data = Data()
-            var reported = 0.0
-            let expected = Double(TajweedFormat.shared.EXPECTED_BYTES)
-            for try await byte in bytes {
-                data.append(byte)
-                if data.count % 20_000 == 0 {
-                    let fraction = min(Double(data.count) / expected, 0.97)
-                    if fraction - reported >= 0.01 { reported = fraction; availability = .downloading(fraction) }
+            // One plain data task: iterating `URLSession.bytes` one byte at a time took tens of seconds for 2.5 MB.
+            let (data, response) = try await Self.fetch(request) { [weak self] (received: Int64) in
+                Task { @MainActor in
+                    guard let self, case .downloading = self.availability else { return }
+                    self.availability = .downloading(min(Double(received) / expected, 0.97))
                 }
             }
-            if let json = String(data: data, encoding: .utf8) { ok = store(json) }
-        } catch is CancellationError {
-            availability = .missing
-            return
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+            let dir = directory
+            // Splitting and writing 114 files is done off the main actor, so the reader keeps scrolling.
+            ok = await Task.detached(priority: .userInitiated) { Self.store(String(decoding: data, as: UTF8.self), in: dir) }.value
         } catch {
             ok = false
         }
@@ -169,12 +165,27 @@ final class TajweedService {
         version += 1
     }
 
+    /// A data task whose received byte count is reported while it runs (the server may not send a length, so bytes, not a fraction).
+    private nonisolated static func fetch(_ request: URLRequest, received: @escaping @Sendable (Int64) -> Void) async throws -> (Foundation.Data, URLResponse) {
+        final class Box: @unchecked Sendable { var observation: NSKeyValueObservation? }
+        let box = Box()
+        defer { box.observation?.invalidate() }
+        return try await withCheckedThrowingContinuation { continuation in
+            let task = URLSession.shared.dataTask(with: request) { data, response, error in
+                if let data, let response { continuation.resume(returning: (data, response)) }
+                else { continuation.resume(throwing: error ?? URLError(.unknown)) }
+            }
+            box.observation = task.observe(\.countOfBytesReceived) { task, _ in received(task.countOfBytesReceived) }
+            task.resume()
+        }
+    }
+
     /// Writes every surah (a temporary file, then the final name) and the marker; false when the answer is not a whole Quran.
-    private func store(_ json: String) -> Bool {
+    private nonisolated static func store(_ json: String, in directory: URL) -> Bool {
         guard let surahs = TajweedFormat.shared.splitQuran(json: json) else { return false }
         let fm = FileManager.default
         for (index, markups) in surahs.enumerated() {
-            let target = surahFile(index + 1)
+            let target = directory.appendingPathComponent(String(format: "s%03d.txt", index + 1))
             let temporary = target.appendingPathExtension("tmp")
             do {
                 try TajweedFormat.shared.encodeSurah(markups: markups).write(to: temporary, atomically: false, encoding: .utf8)
@@ -182,7 +193,7 @@ final class TajweedService {
                 try fm.moveItem(at: temporary, to: target)
             } catch { return false }
         }
-        do { try Self.markerContent.write(to: directory.appendingPathComponent(Self.marker), atomically: true, encoding: .utf8) } catch { return false }
+        do { try markerContent.write(to: directory.appendingPathComponent(marker), atomically: true, encoding: .utf8) } catch { return false }
         var dir = directory
         var values = URLResourceValues()
         values.isExcludedFromBackup = true

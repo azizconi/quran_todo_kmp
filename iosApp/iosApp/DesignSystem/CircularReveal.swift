@@ -66,13 +66,44 @@ enum QhThemeReveal {
     }
 }
 
+/// Records the last touch point without taking part in gestures: a SwiftUI `DragGesture(minimumDistance: 0)` at the root
+/// swallowed the system back button and the swipe-back of every NavigationStack. A UIKit recognizer on the window only
+/// watches `touchesBegan` and then fails, so every other gesture and control gets the touch as usual.
 private struct TouchTracker: ViewModifier {
     func body(content: Content) -> some View {
-        content.simultaneousGesture(
-            DragGesture(minimumDistance: 0, coordinateSpace: .global).onChanged { value in
-                QhThemeReveal.lastTouch = value.startLocation
+        content.background(WindowTouchHook().allowsHitTesting(false))
+    }
+}
+
+private struct WindowTouchHook: UIViewRepresentable {
+    func makeUIView(context: Context) -> HookView { HookView() }
+    func updateUIView(_ uiView: HookView, context: Context) {}
+
+    final class HookView: UIView {
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            guard let window, !(window.gestureRecognizers ?? []).contains(where: { $0 is TouchSpy }) else { return }
+            window.addGestureRecognizer(TouchSpy())
+        }
+    }
+
+    final class TouchSpy: UIGestureRecognizer, UIGestureRecognizerDelegate {
+        init() {
+            super.init(target: nil, action: nil)
+            cancelsTouchesInView = false
+            delaysTouchesBegan = false
+            delaysTouchesEnded = false
+            delegate = self
+        }
+
+        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+            if let touch = touches.first, let window = view as? UIWindow {
+                QhThemeReveal.lastTouch = touch.location(in: window)
             }
-        )
+            state = .failed
+        }
+
+        func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
     }
 }
 
