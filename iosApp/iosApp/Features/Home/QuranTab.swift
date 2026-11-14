@@ -234,6 +234,7 @@ private struct QuranList: View {
             } onLongPress: {
                 sheetSurah = Int(row.number)
             }
+            .qhZoomSource(QhZoomID.surah(Int(row.number)))
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
             .listRowSeparator(.visible, edges: .bottom)

@@ -11,6 +11,7 @@ struct MainTabs: View {
     @Environment(\.qh) private var qh
     @Environment(\.scenePhase) private var scenePhase
     @State private var home = HomeModel()
+    @Namespace private var zoomNamespace
 
     var body: some View {
         @Bindable var router = router
@@ -58,9 +59,12 @@ struct MainTabs: View {
         NavigationStack(path: router.binding(for: tab)) {
             root()
                 .navigationDestination(for: Route.self) { route in
-                    route.screen().toolbar(.hidden, for: .tabBar)
+                    route.screen()
+                        .toolbar(.hidden, for: .tabBar)
+                        .qhZoomDestination(route)
                 }
         }
+        .environment(\.qhZoomNamespace, zoomNamespace)
     }
 
     private func log(_ name: String) {

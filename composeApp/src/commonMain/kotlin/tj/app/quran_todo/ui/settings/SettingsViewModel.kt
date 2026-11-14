@@ -158,6 +158,8 @@ class SettingsViewModel(
     fun setReminderMinuteOfDay(value: Int) =
         reminder.setMinuteOfDay(value, track = false)
 
+    fun setReminderDays(mask: Int) = reminder.setDays(mask)
+
     fun setReminderEnabled(value: Boolean) =
         reminder.setEnabled(value, track = false)
 

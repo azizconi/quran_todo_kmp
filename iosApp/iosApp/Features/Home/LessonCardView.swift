@@ -30,7 +30,7 @@ struct LessonCardView: View {
                 PlanInvitation(icon: "leaf", title: copy.home.lessonPlanFinished, message: copy.home.lessonPlanFinishedBody,
                                action: copy.home.lessonNewPlan, primary: true) { router.push(.plan) }
             default:
-                lessonBody
+                lessonBody.qhZoomSource(QhZoomID.lesson)
             }
         }
         .qhSheet(isPresented: $listenOpen, detents: [.large]) { ListenOldSheet(onDismiss: { listenOpen = false }) }

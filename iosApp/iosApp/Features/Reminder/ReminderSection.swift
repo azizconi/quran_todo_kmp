@@ -23,6 +23,9 @@ struct ReminderSection: View {
                 QhValueRow(title: r.timeTitle, value: Self.timeText(Int(model.reminderMinute.value.int32Value)),
                            icon: "clock", iconTint: qh.colors.gold) { showTime = true }
                     .transition(.opacity.combined(with: .move(edge: .top)))
+                QhRowDivider()
+                ReminderDaysRow(model: model)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
             if on && model.notificationsBlocked {
                 QhRowDivider()
@@ -65,6 +68,39 @@ struct ReminderSection: View {
     static func date(_ minuteOfDay: Int) -> Date {
         let minute = min(max(minuteOfDay, 0), 24 * 60 - 1)
         return Calendar.current.date(bySettingHour: minute / 60, minute: minute % 60, second: 0, of: Date()) ?? Date()
+    }
+}
+
+/// The weekdays of the reminder as seven round chips, Monday first (the order of the bits of `UiPrefs.reminderDays`).
+private struct ReminderDaysRow: View {
+    @Environment(\.qh) private var qh
+    @Environment(Copy.self) private var copy
+    let model: SettingsModel
+
+    var body: some View {
+        let r = copy.reminderCopy
+        let mask = Int(model.reminderDays.value.int32Value)
+        VStack(alignment: .leading, spacing: QhSpacing.x2) {
+            Text(r.daysTitle).qhText({ $0.body }, color: { $0.ink })
+            HStack(spacing: 6) {
+                ForEach(0..<7, id: \.self) { i in
+                    let on = mask & (1 << i) != 0
+                    Button { model.toggleReminderDay(i) } label: {
+                        Text(r.weekdays[i])
+                            .font(.system(size: 13, weight: .semibold))
+                            .minimumScaleFactor(0.7).lineLimit(1)
+                            .foregroundStyle(on ? qh.colors.onPrimary : qh.colors.inkSecondary)
+                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .background(Capsule().fill(on ? qh.colors.primary : qh.colors.primary.opacity(0.1)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(r.weekdays[i])
+                    .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+                }
+            }
+        }
+        .padding(QhSpacing.card)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

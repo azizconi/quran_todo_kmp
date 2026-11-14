@@ -22,6 +22,7 @@ final class SettingsModel {
     let reciter: FlowState<Reciter>
     let reminderEnabled: FlowState<KotlinBoolean>
     let reminderMinute: FlowState<KotlinInt>
+    let reminderDays: FlowState<KotlinInt>
 
     /// The reading font (`ReadingFontStyle.storageValue`) and size, not observable in Kotlin: kept here and written through.
     var fontStorage: String { ReadingPrefs.shared.styleStorage }
@@ -46,6 +47,7 @@ final class SettingsModel {
         reciter = FlowState(prefs.reciter)
         reminderEnabled = FlowState(prefs.reminderEnabled)
         reminderMinute = FlowState(prefs.reminderMinuteOfDay)
+        reminderDays = FlowState(prefs.reminderDays)
     }
 
     /// Toasts for the backup events, the share sheet for "Send a copy", and the settings of an imported file. Call once from the screen.
@@ -126,6 +128,12 @@ final class SettingsModel {
         notificationsBlocked = !granted
         if granted { vm.setReminderEnabled(value: true) }
         return granted
+    }
+
+    /// Bit 0 Monday .. bit 6 Sunday; the last day cannot be switched off.
+    func toggleReminderDay(_ index: Int) {
+        let mask = Int(reminderDays.value.int32Value) ^ (1 << index)
+        vm.setReminderDays(mask: Int32(mask))
     }
 
     func setReminderMinute(_ minute: Int) { vm.setReminderMinuteOfDay(value: Int32(minute)) }

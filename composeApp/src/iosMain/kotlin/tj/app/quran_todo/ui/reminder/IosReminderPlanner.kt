@@ -43,13 +43,14 @@ import tj.app.quran_todo.ui.platform.SyncLock
 import tj.app.quran_todo.ui.platform.iosPrefs
 import tj.app.quran_todo.ui.platform.withLock
 import tj.app.quran_todo.ui.state.UiPrefs
+import tj.app.quran_todo.ui.state.reminderDayOn
 import kotlin.coroutines.resume
 
 /**
  * The daily reminder on iOS (Decision 4 of `IOS_PORT_PLAN.md`). iOS cannot look at the lesson at the moment the notification is shown,
  * so the next [HORIZON_DAYS] days are planned ahead as one-off local notifications, each with the text of the lesson of that day:
  *
- * - the time of the day is `UiPrefs.reminderMinuteOfDay`, the switch `UiPrefs.reminderEnabled`;
+ * - the time of the day is `UiPrefs.reminderMinuteOfDay`, the switch `UiPrefs.reminderEnabled`, the weekdays `UiPrefs.reminderDays`;
  * - a day whose lesson is paused (`LessonPlan.paused`) or already done gets none ([ReminderNotices.build] is null);
  * - the tone follows how long the person has been away ([reminderDecision] with the days away grown by the days ahead): the usual
  *   text, the gentle one, or silence;
@@ -113,6 +114,7 @@ class IosReminderPlanner(
         val language = LanguageStorage.getSavedLanguage() ?: LanguageStorage.getDeviceLanguage()
         val names = ReminderSurahNames(koin.get(), koin.get()).forLanguage(language)
         val minuteOfDay = prefs.reminderMinuteOfDay.value
+        val days = prefs.reminderDays.value
         val lastRead = prefs.lastReadPosition.value
         val away = absence.daysAway(today)
         val calendar = gregorian()
@@ -122,6 +124,8 @@ class IosReminderPlanner(
             val lesson = hifz.lesson(day).first()
             // The days of a pause are not absence: the count restarts every day while the plan rests.
             if (lesson.paused != null && ahead == 0) absence.recordPauseDay(today)
+            // A weekday the person switched off gets none; the days away still count.
+            if (!reminderDayOn(days, day)) continue
             val decision = reminderDecision(away + ahead)
             if (decision == ReminderDecision.Skip) continue
             val notice = ReminderNotices.build(

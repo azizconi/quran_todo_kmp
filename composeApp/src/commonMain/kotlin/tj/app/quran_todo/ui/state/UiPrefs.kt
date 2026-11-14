@@ -419,6 +419,21 @@ class UiPrefs(private val prefs: KeyValueStore) {
     }
 
     /**
+     * The days of the week the reminder comes on: a bit mask, Monday is bit 0 and Sunday bit 6 (all seven, 127, by default). Planned by
+     * the iOS reminder planner (Android keeps the daily alarm). At least one day stays on.
+     */
+    private val _reminderDays = MutableStateFlow(
+        prefs.getInt(KEY_REMINDER_DAYS, ALL_REMINDER_DAYS).and(ALL_REMINDER_DAYS).takeIf { it != 0 } ?: ALL_REMINDER_DAYS,
+    )
+    val reminderDays: StateFlow<Int> = _reminderDays.asStateFlow()
+
+    fun setReminderDays(mask: Int) {
+        val next = mask.and(ALL_REMINDER_DAYS).takeIf { it != 0 } ?: ALL_REMINDER_DAYS
+        prefs.putInt(KEY_REMINDER_DAYS, next)
+        _reminderDays.value = next
+    }
+
+    /**
      * The person has answered "Remind you about tomorrow's lesson?" on the lesson summary (task U2), with yes, no or a refused
      * permission. The question is never shown again. Not in the backup file.
      */
@@ -498,6 +513,7 @@ class UiPrefs(private val prefs: KeyValueStore) {
         const val KEY_REMINDER_ENABLED = "reminder_enabled"
         const val KEY_REMINDER_MINUTE = "reminder_minute_of_day"
         const val KEY_REMINDER_ASKED = "reminder_asked"
+        const val KEY_REMINDER_DAYS = "reminder_days"
         const val KEY_LESSON_DURATIONS = "lesson_durations_s"
         const val KEY_LESSON_CLOCK_DAY = "lesson_clock_day"
         const val KEY_LESSON_CLOCK_MS = "lesson_clock_ms"
@@ -520,6 +536,16 @@ data class ReminderPrefs(val enabled: Boolean, val minuteOfDay: Int)
 /** Allowed values of [UiPrefs.reminderMinuteOfDay] and its default, 20:00. */
 val REMINDER_MINUTE_RANGE = 0..1439
 const val DEFAULT_REMINDER_MINUTE_OF_DAY = 20 * 60
+
+/** All seven days of [UiPrefs.reminderDays]. */
+const val ALL_REMINDER_DAYS = 127
+
+/** Monday is 0 and Sunday 6 for [epochDay] (day 0 is Thursday, 1 January 1970). */
+fun weekdayIndexOf(epochDay: Int): Int = ((epochDay + 3) % 7 + 7) % 7
+
+/** True when the reminder mask [days] includes the weekday of [epochDay]. */
+fun reminderDayOn(days: Int, epochDay: Int): Boolean = days and (1 shl weekdayIndexOf(epochDay)) != 0
+
 
 /** Allowed values of [UiPrefs.lessonAyahRepeats] and [UiPrefs.lessonPassageRepeats], and their defaults. */
 val LESSON_AYAH_REPEATS_RANGE = 1..5
