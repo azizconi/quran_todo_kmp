@@ -229,12 +229,13 @@ final class Router {
         lessonPath = []; quranPath = []; progressPath = []
         let home = AppTab(rawValue: Int(MainTab.Companion.shared.defaultFor(goals: IosUi.shared.uiPrefs.onboardingGoals.value).ordinal)) ?? .lesson
         switch exit {
+        // The stacks are created right after this; a path set before they exist is dropped, so the push waits for the tabs.
         case .lesson:
             selectedTab = .lesson
-            lessonPath = [.lesson]
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { self.lessonPath = [.lesson] }
         case .reader:
             selectedTab = .quran
-            openReader(1, origin: "onboarding", in: .quran)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { self.openReader(1, origin: "onboarding", in: .quran) }
         default:
             selectedTab = home
         }

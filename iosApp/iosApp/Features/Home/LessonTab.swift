@@ -13,9 +13,10 @@ struct LessonTabView: View {
     var body: some View {
         let ui = home.ui.value
         QhLargeTitleScroll(title: copy.home.lessonTitle, overline: copy.home.greeting) {
-            EmptyView()
+            Color.clear.frame(width: 8, height: 1)
         } actions: {
             QhIconLabelButton(icon: "gearshape", label: copy.home.settings) { router.push(.settings) }
+                .padding(.trailing, QhSpacing.x3)
         } content: {
             VStack(spacing: QhSpacing.x2) {
                 switch ui.phase {
