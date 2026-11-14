@@ -81,7 +81,7 @@ final class ReadingPrefs {
 
     private static func clamp(_ n: Int) -> Int { min(max(n, minSize), maxSize) }
 
-    /// The face the Swift components draw (Aref Ruqaa Ink falls back to Amiri Quran until that face joins `QhQuranFace`).
+    /// The face the Swift components draw .
     var face: QhQuranFace { Self.face(of: style) }
 
     static func face(of style: ReadingFontStyle) -> QhQuranFace {
@@ -92,8 +92,21 @@ final class ReadingPrefs {
         case ReadingFontStyle.notoNaskhArabic: return .naskh
         case ReadingFontStyle.lateef: return .lateef
         case ReadingFontStyle.notoNastaliqUrdu: return .nastaliq
+        case ReadingFontStyle.arefRuqaaInk: return .ruqaa
         default: return .amiri
         }
+    }
+
+    /// The saved choice changed behind our back (a backup import): read it again.
+    func reload() {
+        style = ThemeStorage.shared.getSavedReadingFontStyle() ?? ReadingFontStyle.madinahMushaf
+        size = Self.clamp(Int(truncating: UserSettingsStorage.shared.getReadingFontSize() ?? 28))
+    }
+
+    var styleStorage: String { style.storageValue }
+
+    func setStyle(storage: String) {
+        setStyle(ReadingFontStyle.companion.fromStorage(value: storage))
     }
 
     func setStyle(_ next: ReadingFontStyle) {

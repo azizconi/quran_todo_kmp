@@ -173,10 +173,13 @@ struct SettingsScreen: View {
                 QhValueRow(title: s.version, value: SettingsLinks.versionLabel, icon: "info.circle", iconTint: qh.colors.primary)
                 QhRowDivider()
             }
-            QhNavRow(title: s.rateApp, description: s.rateAppDescription, icon: "hand.thumbsup", iconTint: qh.colors.gold) {
-                if !SettingsLinks.open(SettingsLinks.reviewURL) { toaster.show(s.storeUnavailable, kind: .error) }
+            // No dead button: the rate row appears once the app has an App Store id (SettingsLinks.appStoreId).
+            if let review = SettingsLinks.reviewURL {
+                QhNavRow(title: s.rateApp, description: s.rateAppDescription, icon: "hand.thumbsup", iconTint: qh.colors.gold) {
+                    if !SettingsLinks.open(review) { toaster.show(s.storeUnavailable, kind: .error) }
+                }
+                QhRowDivider()
             }
-            QhRowDivider()
             QhNavRow(title: s.showTipsAgain, description: s.showTipsAgainDescription, icon: "lightbulb", iconTint: qh.colors.gold) {
                 HintFlags.shared.resetAll()
                 toaster.show(s.tipsWillShowAgain, kind: .success)

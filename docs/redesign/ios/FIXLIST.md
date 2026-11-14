@@ -21,12 +21,13 @@ Walked by deep link: reader 2:255 (ayah tap → action row Слушать/Пов
 downloads. All render with real data, no crash.
 
 Fix pass, agent **F1 (shell + settings)**:
-- [ ] Tab bar stays over pushed screens (plan «Сохранить», khatm, analytics, settings, downloads) — hide it on push like Android / iOS idiom (`.toolbar(.hidden, for: .tabBar)` or own bar hidden when the stack is not empty), with the spring.
-- [ ] Onboarding 4th step skipped after «Пока ничего» (compare with Android `OnboardingScreen`).
-- [ ] Shared `TrustCopy` privacy text speaks of Android — platform-specific lines for iOS (Kotlin copy, all 5 languages).
-- [ ] `SettingsLinks.appStoreId` empty — hide «Оценить» / share link until set, no dead button.
-- [ ] Reading font/size not observed reactively — reader and lesson must update when Aa changes.
-- [ ] Aref Ruqaa Ink missing in `QhQuranFace`; `TranslationSearchView` not embedded in the Quran tab search.
+- [x] Tab bar stays over pushed screens (plan «Сохранить», khatm, analytics, settings, downloads) — hide it on push like Android / iOS idiom (`.toolbar(.hidden, for: .tabBar)` or own bar hidden when the stack is not empty), with the spring.
+- [x] Onboarding 4th step skipped after «Пока ничего» (compare with Android `OnboardingScreen`).
+- [x] Shared `TrustCopy` privacy text speaks of Android — platform-specific lines for iOS (Kotlin copy, all 5 languages).
+- [x] `SettingsLinks.appStoreId` empty — hide «Оценить» / share link until set, no dead button.
+- [x] Reading font/size not observed reactively — reader and lesson must update when Aa changes.
+- [x] Aref Ruqaa Ink missing in `QhQuranFace`; `TranslationSearchView` not embedded in the Quran tab search.
+  - F1 notes: tab bar hidden on pushed routes (`.toolbar(.hidden, for: .tabBar)` in the navigation destination); onboarding 4th step was NOT skipped (walked: «Пока ничего» -> «План готов», same as Android; the earlier look was screenshot lag); `trustCopyIos` in Kotlin; rate row hidden while appStoreId is empty; `ReadingPrefs` is the single observable source for reader, lesson, drill, quiz and Settings; `QhQuranFace.ruqaa`; Quran tab search has the third tab «В переводе» (not walked on the simulator: the tool taps did not focus the search field).
 
 Fix pass, agent **F2 (lesson + progress)**:
 - [ ] Progress: «1 Дней подряд» — plural from the copy like Android.

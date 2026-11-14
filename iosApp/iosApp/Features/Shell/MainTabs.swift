@@ -58,7 +58,7 @@ struct MainTabs: View {
         NavigationStack(path: router.binding(for: tab)) {
             root()
                 .navigationDestination(for: Route.self) { route in
-                    route.screen()
+                    route.screen().toolbar(.hidden, for: .tabBar)
                 }
         }
     }

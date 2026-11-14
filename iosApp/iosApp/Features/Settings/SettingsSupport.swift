@@ -31,7 +31,7 @@ enum SettingsLinks {
     private static let policyBase = "https://azizconi.github.io/quran_todo_kmp/privacy"
     /// The developer's contact address for privacy questions (same as Android `ContactEmail`).
     static let contactEmail: String? = "azizconi1@gmail.com"
-    /// The App Store id of the app; empty until the app has a listing, then the rate row shows "store unavailable".
+    /// The App Store id of the app; empty until the app has a listing; while empty the rate row is hidden.
     static let appStoreId = ""
 
     /// Russian for ru / tg / uz, English for en / tr (same rule as Android).

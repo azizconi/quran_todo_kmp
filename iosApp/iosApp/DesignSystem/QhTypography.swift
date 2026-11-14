@@ -56,7 +56,7 @@ struct QhTypography: Equatable {
 
 /// Quran faces bundled with the app (UIAppFonts).
 enum QhQuranFace: String, CaseIterable, Identifiable {
-    case amiri, madinah, scheherazade, lateef, naskh, nastaliq
+    case amiri, madinah, scheherazade, lateef, naskh, nastaliq, ruqaa
     var id: String { rawValue }
 
     var postScriptName: String {
@@ -67,6 +67,7 @@ enum QhQuranFace: String, CaseIterable, Identifiable {
         case .lateef: return "Lateef-Regular"
         case .naskh: return "NotoNaskhArabic-Regular"
         case .nastaliq: return "NotoNastaliqUrdu-Regular"
+        case .ruqaa: return "ArefRuqaaInk-Regular"
         }
     }
 }

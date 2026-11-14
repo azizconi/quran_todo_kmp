@@ -151,6 +151,8 @@ private struct QuranList: View {
         .background(qh.colors.bg)
         .environment(\.defaultMinListRowHeight, 1)
         .qhAnimation(QhMotion.gentle, value: searchMode)
+        // Leaving the search drops the "In translation" tab, which only exists while searching.
+        .onChange(of: searchMode) { _, on in if !on && listTab == 2 { listTab = 0 } }
         .qhAnimation(QhMotion.gentle, value: listTab)
         .qhAnimation(QhMotion.gentle, value: filter)
     }
@@ -187,13 +189,20 @@ private struct QuranList: View {
                 filterSegments.plainRow()
             }
         } else {
-            QhSegmentedControl(options: [mushaf.tabSurahs, mushaf.tabJuz], selection: $listTab)
+            // Searching adds the third tab "In translation" (Android `searchTabLabels`).
+            QhSegmentedControl(options: [mushaf.tabSurahs, mushaf.tabJuz, copy.translation.searchTab], selection: $listTab)
                 .padding(.horizontal, QhSpacing.screen)
                 .padding(.vertical, QhSpacing.x2)
                 .plainRow()
         }
 
-        if listTab == 0 { surahRows } else { juzRows }
+        if searchMode && listTab == 2 {
+            TranslationSearchView(query: query).plainRow()
+        } else if listTab == 1 {
+            juzRows
+        } else {
+            surahRows
+        }
     }
 
     private var filterSegments: some View {
