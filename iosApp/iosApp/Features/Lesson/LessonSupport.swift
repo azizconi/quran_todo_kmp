@@ -35,23 +35,13 @@ extension Copy {
 }
 
 /// The face and size the Arabic text is read in: the person's choice of the reader (`ThemeStorage`, `UserSettingsStorage`).
+@MainActor
 enum LessonArabic {
-    static var face: QhQuranFace {
-        switch ThemeStorage.shared.getSavedReadingFontStyle() {
-        case .madinahMushaf: return .madinah
-        case .scheherazadeNew: return .scheherazade
-        case .notoNaskhArabic: return .naskh
-        case .lateef: return .lateef
-        case .notoNastaliqUrdu: return .nastaliq
-        default: return .amiri
-        }
-    }
+    /// Read through the observable `ReadingPrefs`, so a card re-draws when the Aa sheet changes the face or the size.
+    static var face: QhQuranFace { ReadingPrefs.shared.face }
 
     /// The reading size of the reader (default 28), clamped to the range of the settings.
-    static var size: CGFloat {
-        let saved = UserSettingsStorage.shared.getReadingFontSize()?.intValue ?? 28
-        return CGFloat(min(max(saved, 22), 40))
-    }
+    static var size: CGFloat { CGFloat(ReadingPrefs.shared.size) }
 
     /// Passages of the lesson are drawn a little larger than in the reader (`rememberLessonArabicStyle`: +2, at most 40).
     static var lessonSize: CGFloat { min(size + 2, 40) }

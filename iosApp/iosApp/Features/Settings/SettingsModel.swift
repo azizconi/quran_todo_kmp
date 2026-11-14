@@ -24,8 +24,8 @@ final class SettingsModel {
     let reminderMinute: FlowState<KotlinInt>
 
     /// The reading font (`ReadingFontStyle.storageValue`) and size, not observable in Kotlin: kept here and written through.
-    var fontStorage: String = IosTransferApply.shared.readingFontStorageValue()
-    var fontSize: Int = Int(IosTransferApply.shared.readingFontSize())
+    var fontStorage: String { ReadingPrefs.shared.styleStorage }
+    var fontSize: Int { ReadingPrefs.shared.size }
 
     /// Notification permission is denied in the system while the reminder is on (the "blocked" note).
     var notificationsBlocked = false
@@ -94,21 +94,18 @@ final class SettingsModel {
         )
         // "System" comes last in the file's order; the reveal above already ran for light / dark.
         if settings.themeFollowsSystem?.boolValue == true { env.setThemeMode(.system, reveal: false) }
-        fontStorage = IosTransferApply.shared.readingFontStorageValue()
-        fontSize = Int(IosTransferApply.shared.readingFontSize())
+        ReadingPrefs.shared.reload()
         vm.consumePendingSettings()
     }
 
     // MARK: Reading font
 
     func setFont(_ storage: String) {
-        fontStorage = storage
-        IosTransferApply.shared.setReadingFont(storageValue: storage)
+        ReadingPrefs.shared.setStyle(storage: storage)
     }
 
     func setFontSize(_ size: Int) {
-        fontSize = size
-        IosTransferApply.shared.setReadingFontSize(value: Int32(size))
+        ReadingPrefs.shared.setSize(size)
     }
 
     // MARK: Reader preferences
