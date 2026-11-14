@@ -13,6 +13,7 @@
 | R1 | **Проверка release-сборки.** R8 и keep-правила, все основные сценарии на release-APK, сбои в logcat, зависания (ANR), размер, отсутствие `voiceproto` | агент, бриф `tasks/PR1-release-qa.md` | **готово** (2026-11-01): release-APK 16,8 МБ (R8 без сбоев, `voiceproto`/whisper/нативных библиотек F7 нет, лишних сервисов записи нет), все основные сценарии на эмуляторе прошли без исключений в logcat; единственная правка кода — прогрев SharedPreferences в фоне при старте; не проверено: карточка Рамадана (вне Рамадана), звук с реального динамика |
 | R2 | **Магазин и политика.** «Что нового» и полное описание на 5 языках, политика конфиденциальности (новые серверы, виджет), черновик «Безопасность данных», скриншоты новых функций | агент, бриф `tasks/PR2-store-policy.md` | готово: тексты, политика, черновик «Безопасности данных», скриншоты ru и en (tg, uz, tr — по старому набору) |
 | R3 | **Версия 2.0.0**, этот чек-лист, итоговая сборка AAB (после ваших пунктов 2.1–2.2) | оркестратор | готово, кроме подписи (2026-11-01): после слияния R1 и R2 — 1870 тестов без сбоев, iOS собирается; `composeApp-release.aab` 19,9 МБ собран **без подписи** (в `local.properties` нет `release.*`). После вашего пункта 2.1 — `./gradlew :composeApp:bundleRelease`, файл `composeApp/build/outputs/bundle/release/composeApp-release.aab`. Ещё R1: чтение диска при старте убрано с главного потока (StrictMode при холодном старте — 0 нарушений), статистика до чтения согласия не отправляется, при отказе неотправленные отчёты удаляются; значок «Подробно» без искр, тест `NoStarIconsTest` |
+| R5 | **Release-сборка 2026-11-14.** R8 падал на `NoNullnessRewrite` (review-ktx) — правило `-dontwarn`; lintVital падал на таджикских переводах строк библиотек — `tools:ignore="ExtraTranslation"`. AAB 20,0 МБ, APK 16,9 МБ; release-APK (подписан отладочным ключом) на чистых данных: онбординг, урок, Коран, чтение, прогресс, конфиденциальность — без сбоев; 1924 теста | оркестратор | готово, кроме подписи |
 | R4 | **Перед каждым push в `master`:** установить обычную debug-сборку (`./gradlew :composeApp:assembleDebug`) на эмулятор с чистыми данными (`adb shell pm clear tj.app.quran_todo`), запустить, пройти онбординг до главного экрана. Причина: 2026-11-10 на `master` попал сбой при каждом запуске, потому что приложение никто не запустил | оркестратор | при каждом push |
 
 ## 2. Только вы
@@ -21,12 +22,13 @@
    - Впишите в `local.properties` четыре строки подписи: `storeFile`, `storePassword`, `keyAlias`, `keyPassword`. Названия ключей — в `composeApp/build.gradle.kts`, блок `hasReleaseSigning`.
    - Ключ лежит в `~/quran_hifz_release_backup/keystoreq.jks`.
    - Пароли агенты не пишут и не видят.
-2. **Контакты в политике.**
-   - E-mail для связи — `{{CONTACT_EMAIL}}` в политиках и в `SettingsLinks.kt`.
-   - Опубликованный адрес политики — `PrivacyPolicyUrl`.
+2. **Контакты в политике.** Готово 2026-11-14: e-mail azizconi1@gmail.com в политиках и `SettingsLinks.kt`; политика на GitHub Pages
+   (ветка `gh-pages`, собирается `play_store_assets/make_policy_pages.py`): https://azizconi.github.io/quran_todo_kmp/privacy/ (англ., для
+   Play Console) и `.../privacy/ru.html` (рус.; приложение открывает её на ru, tg, uz). Вам: включить Pages — Settings › Pages › branch
+   `gh-pages`, папка `/ (root)`.
 3. **Push ветки и PR.**
-   - Локальная `redesign/android` впереди `origin` на 101 коммит.
-   - PR [azizconi/quran_todo_kmp#1](https://github.com/azizconi/quran_todo_kmp/pull/1) открыт в `master`.
+   - PR [azizconi/quran_todo_kmp#1](https://github.com/azizconi/quran_todo_kmp/pull/1) слит 2026-11-09; после него в `redesign/android`
+     ещё десятки коммитов — для выпуска нужен новый PR в `master`.
    - Push и слияние — только с вашего согласия.
 4. **Письма об условиях данных.**
    - **quran.com** (developers@quran.com): OAuth для Content API с 2026-08-10. Как бесплатному мобильному приложению получать раскладку страниц, переводы, тафсир, значения слов и тайминги.

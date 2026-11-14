@@ -2,7 +2,7 @@
 <!-- Compose and Material3 have no Tajik texts. These names override the libraries' own strings, so TalkBack speaks Tajik on sheets
      and dialogs when the app's language is Tajik (AppLocale). Android's locale fallback cannot help: the app has values-tg, so "tg"
      is chosen for everything and a missing string falls to English, not Russian. -->
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="PrivateResource">
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="PrivateResource,ExtraTranslation">
     <string name="close_sheet">Пӯшидани лавҳа</string>
     <string name="close_drawer">Пӯшидани меню</string>
     <string name="navigation_menu">Менюи гузариш</string>

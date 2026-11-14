@@ -35,3 +35,6 @@
 # "An internet connection is needed once" for ever in a release build only.
 -keep @kotlinx.serialization.Serializable class tj.app.quran_todo.common.tajweed.** { *; }
 -keep class tj.app.quran_todo.common.tajweed.**$$serializer { *; }
+
+# Play review-ktx refers to a build-time annotation of play-services-basement that is not shipped (R8 "Missing class").
+-dontwarn com.google.android.gms.common.annotation.NoNullnessRewrite

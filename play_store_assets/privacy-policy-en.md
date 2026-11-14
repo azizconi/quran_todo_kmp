@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Effective date: November 1, 2026 (updated 2026-11-01)
+Effective date: November 14, 2026
 
 This Privacy Policy explains how **Quran Hifz** (package `tj.app.quran_todo`, "the App", "we", "us") handles information when you use the Android application. The short version: there are no accounts, your study data stays on your phone, and the only data that leaves the device is what is needed to download the Quran content (text, translations, tafsir, mushaf pages, audio) and, unless you turn it off, anonymous usage statistics and crash reports.
 
@@ -96,5 +96,5 @@ We may update this Privacy Policy from time to time, for example when the App ge
 
 If you have questions about this Privacy Policy, contact us:
 
-- Email: **{{CONTACT_EMAIL}}**
+- Email: **azizconi1@gmail.com**
 - Developer: **Azizjon Ibragimov**

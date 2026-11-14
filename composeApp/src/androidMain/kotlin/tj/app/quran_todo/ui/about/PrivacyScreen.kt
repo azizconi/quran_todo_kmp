@@ -38,7 +38,7 @@ import tj.app.quran_todo.ui.components.ToastKind
 import tj.app.quran_todo.ui.i18n.rememberSettingsCopy
 import tj.app.quran_todo.ui.i18n.rememberTrustCopy
 import tj.app.quran_todo.ui.motion.staggeredEnter
-import tj.app.quran_todo.ui.settings.PrivacyPolicyUrl
+import tj.app.quran_todo.ui.settings.privacyPolicyUrl
 import tj.app.quran_todo.ui.settings.configuredContactEmail
 import tj.app.quran_todo.ui.settings.openLink
 import tj.app.quran_todo.ui.settings.openMailTo
@@ -47,7 +47,7 @@ import tj.app.quran_todo.ui.theme.QhTheme
 
 /**
  * The short privacy summary (`Dest.Privacy`): the main facts in a few lines. "Full text" opens
- * [PrivacyPolicyUrl] when the owner has set it; the contact button shows once a contact address is set.
+ * the published policy ([privacyPolicyUrl]); the contact button shows once a contact address is set.
  */
 @Composable
 fun PrivacyScreen(onBack: () -> Unit) {
@@ -69,7 +69,7 @@ fun PrivacyScreen(onBack: () -> Unit) {
             Icons.Rounded.DeleteOutline to colors.danger,
         )
     }
-    val fullTextUrl = PrivacyPolicyUrl
+    val fullTextUrl: String? = privacyPolicyUrl(language)
     val contactEmail = configuredContactEmail()
 
     AboutScaffold(

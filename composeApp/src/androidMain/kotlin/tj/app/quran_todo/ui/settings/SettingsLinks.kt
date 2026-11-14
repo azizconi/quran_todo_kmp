@@ -1,5 +1,6 @@
 package tj.app.quran_todo.ui.settings
 
+import tj.app.quran_todo.common.i18n.AppLanguage
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.ContextWrapper
@@ -13,18 +14,19 @@ import android.app.Activity
 private const val AppPackage = "tj.app.quran_todo"
 
 /**
- * Where the privacy policy is published. No such URL exists in the repository (the policy text lives
- * in `play_store_assets/privacy-policy-*.md`, the Play listing URL is not recorded anywhere), so the
- * "Full text" button of the privacy screen stays hidden until the owner puts the address here.
+ * Where the privacy policy is published: GitHub Pages of the repository (branch `gh-pages`, made from
+ * `play_store_assets/privacy-policy-*.md`). Russian for ru, tg and uz (people there read Russian more often than English), English for
+ * en and tr. The Play listing uses the English address.
  */
-internal val PrivacyPolicyUrl: String? = null
+internal fun privacyPolicyUrl(language: AppLanguage): String = when (language) {
+    AppLanguage.RU, AppLanguage.TG, AppLanguage.UZ -> "$PrivacyPolicyBase/ru.html"
+    AppLanguage.EN, AppLanguage.TR -> "$PrivacyPolicyBase/"
+}
 
-/**
- * The developer's contact address for privacy questions. The owner has not given one yet, so the value
- * is a marker in double braces (the same marker stands in `play_store_assets/privacy-policy-*.md`):
- * replace it with the address. While it is a marker the contact button is not shown.
- */
-internal const val ContactEmail = "{{CONTACT_EMAIL}}"
+private const val PrivacyPolicyBase = "https://azizconi.github.io/quran_todo_kmp/privacy"
+
+/** The developer's contact address for privacy questions (also in `play_store_assets/privacy-policy-*.md`). */
+internal const val ContactEmail = "azizconi1@gmail.com"
 
 /** [ContactEmail] once the owner has filled it in, otherwise null. */
 internal fun configuredContactEmail(): String? = ContactEmail.takeUnless { it.startsWith("{{") }

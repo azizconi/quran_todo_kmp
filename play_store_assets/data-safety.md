@@ -88,7 +88,7 @@
 
 ## 6. Прочие пункты формы
 
-- **Политика конфиденциальности:** нужен опубликованный URL (`PrivacyPolicyUrl`; пункт владельца) и `{{CONTACT_EMAIL}}` (пункт владельца).
+- **Политика конфиденциальности:** https://azizconi.github.io/quran_todo_kmp/privacy/ (англ.), https://azizconi.github.io/quran_todo_kmp/privacy/ru.html (рус.); e-mail azizconi1@gmail.com.
 - **Реклама:** «Приложение не содержит рекламы». Рекламный идентификатор — «Нет» (в манифесте удалён).
 - **Целевая аудитория:** в приложении нет аккаунтов, рекламы и социальных функций; учащиеся младше 13 лет упоминаются в политике. **Решить владельцу:** выбрать ли «Дети» в целевой аудитории (тогда включаются правила Families Policy). Нынешняя политика исходит из общей аудитории.
 - **Разрешения (для объяснений):** `INTERNET`, `ACCESS_NETWORK_STATE`, `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `FOREGROUND_SERVICE` (+ `MEDIA_PLAYBACK`, `DATA_SYNC`), `WAKE_LOCK`, `RECORD_AUDIO`, плюс из библиотек Firebase/Play: `BIND_GET_INSTALL_REFERRER_SERVICE` (список из release-APK по R1). **Решить владельцу:** источник установки (Install Referrer) Firebase может учитывать в аналитике; отдельного пункта в форме для него нет, он входит в «Взаимодействие с приложением» и «Идентификаторы».
