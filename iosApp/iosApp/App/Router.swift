@@ -125,10 +125,10 @@ extension Route {
         case .progressDetails: ComingSoon(route: self, stage: "S6")
         case .notes: ComingSoon(route: self, stage: "S6")
         case .hardDrill: ComingSoon(route: self, stage: "S6")
-        case .settings: ComingSoon(route: self, stage: "S7")
-        case .downloads: ComingSoon(route: self, stage: "S7")
-        case .privacy: ComingSoon(route: self, stage: "S7")
-        case .sources: ComingSoon(route: self, stage: "S7")
+        case .settings: SettingsScreen()
+        case .downloads: DownloadsScreen()
+        case .privacy: PrivacyScreen()
+        case .sources: SourcesScreen()
         }
     }
 }
@@ -257,6 +257,10 @@ final class Router {
         case "quran": quranPath = []; selectedTab = .quran
         case "progress": progressPath = []; selectedTab = .progress
         case "plan": selectedTab = .lesson; lessonPath = [.plan]
+        case "settings": selectedTab = .lesson; lessonPath = [.settings]
+        case "downloads": selectedTab = .lesson; lessonPath = [.settings, .downloads]
+        case "about": selectedTab = .lesson; lessonPath = [.settings, .privacy]
+        case "sources": selectedTab = .lesson; lessonPath = [.settings, .sources]
         default: return false
         }
         return true
