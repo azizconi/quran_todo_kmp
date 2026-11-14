@@ -23,8 +23,8 @@ import tj.app.quran_todo.common.audio.selectEvictions
 import tj.app.quran_todo.common.platform.AndroidContextHolder
 import tj.app.quran_todo.data.translation.FailureThrottle
 
-/** A page that can be drawn: its layout and the file of its font. */
-internal class LoadedPage(val page: MushafPage, val font: File)
+/** The font file of a loaded page. */
+internal val LoadedPage.font: File get() = File(fontPath)
 
 /**
  * The pages of the mushaf that the downloads keep, as the download work sees them: which pages are pinned, how to pin one, and the
@@ -74,14 +74,14 @@ internal class MushafPageStore(
     private val memoryPages: Int = MEMORY_PAGES,
     private val cacheLimitBytes: Long = CACHE_LIMIT_BYTES,
     private val now: () -> Long = System::currentTimeMillis,
-) : PagesSource {
+) : MushafPageProvider, PagesSource {
     // The most recently used page is the last entry.
     private val memory = LinkedHashMap<Int, MushafPage>()
 
     private val _revision = MutableStateFlow(0L)
 
     /** Grows with every page that is pinned or deleted from the pinned copies, so a screen can read [pinnedSnapshot] again. */
-    val revision: StateFlow<Long> = _revision.asStateFlow()
+    override val revision: StateFlow<Long> = _revision.asStateFlow()
 
     init {
         pinned.mkdirs()
@@ -187,16 +187,16 @@ internal class MushafPageStore(
     }
 
     /** The page and its font, fetched together; null unless both are there. */
-    suspend fun load(page: Int, force: Boolean = false): LoadedPage? = coroutineScope {
+    override suspend fun load(page: Int, force: Boolean): LoadedPage? = coroutineScope {
         val layout = async { page(page, force) }
         val font = async { font(page, force) }
         val loadedLayout = layout.await()
         val loadedFont = font.await()
-        if (loadedLayout != null && loadedFont != null) LoadedPage(loadedLayout, loadedFont) else null
+        if (loadedLayout != null && loadedFont != null) LoadedPage(loadedLayout, loadedFont.path) else null
     }
 
     /** Fetches [pages] that are not on the device yet, one after the other (a quiet look ahead; a failure is ignored). */
-    suspend fun prefetch(pages: Collection<Int>) {
+    override suspend fun prefetch(pages: Collection<Int>) {
         for (page in pages) {
             if (page !in 1..MushafPages.COUNT || withContext(Dispatchers.IO) { isLocal(page) }) continue
             load(page)
@@ -251,7 +251,7 @@ internal class MushafPageStore(
     }
 
     /** The pinned pages: page to the bytes of its two files. Only pages that are whole are in it. */
-    fun pinnedSnapshot(): Map<Int, Long> {
+    override fun pinnedSnapshot(): Map<Int, Long> {
         val files = pinned.listFiles { file -> file.isFile && (file.name.startsWith("mushaf_p") || file.name.startsWith("mushaf_f")) }
             ?: return emptyMap()
         val layouts = HashMap<Int, Long>()
@@ -319,10 +319,10 @@ internal class MushafPageStore(
     // -- Cache -----------------------------------------------------------------------------------------------
 
     /** Bytes the cached pages take on disk. */
-    fun cacheBytes(): Long = cacheFiles().sumOf { it.length() }
+    override fun cacheBytes(): Long = cacheFiles().sumOf { it.length() }
 
     /** Deletes every cached page; returns the bytes that were freed (the pinned ones stay). */
-    fun clearCache(): Long {
+    override fun clearCache(): Long {
         var freed = 0L
         cache.listFiles()?.forEach { file ->
             val size = file.length()

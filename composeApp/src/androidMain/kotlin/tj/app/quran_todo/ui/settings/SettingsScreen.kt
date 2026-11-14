@@ -173,10 +173,10 @@ fun SettingsScreen(
     // "Transfer and backup": the system pickers. The result goes to the ViewModel, which reads, checks and writes off the main thread.
     val saveLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument(BackupFormat.MIME_TYPE),
-    ) { uri -> viewModel.exportToFile(uri) }
+    ) { uri -> viewModel.exportToFile(uri?.toString()) }
     val openLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
-    ) { uri -> viewModel.importFrom(uri) }
+    ) { uri -> viewModel.importFrom(uri?.toString()) }
 
     val importPrompt by viewModel.importPrompt.collectAsState()
 
@@ -235,7 +235,7 @@ fun SettingsScreen(
                 SettingsEvent.ExportSaved -> toaster.show(text.transfer.exportSaved, ToastKind.Success)
                 SettingsEvent.ExportFailed -> toaster.show(text.transfer.exportFailed, ToastKind.Error)
                 is SettingsEvent.ShareReady -> {
-                    val chooser = TransferIo.shareIntent(event.uri, event.fileName, text.transfer.shareChooserTitle)
+                    val chooser = TransferIo.shareIntent(android.net.Uri.parse(event.location), event.fileName, text.transfer.shareChooserTitle)
                     try {
                         context.startActivity(chooser)
                     } catch (_: ActivityNotFoundException) {

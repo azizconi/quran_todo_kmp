@@ -127,7 +127,7 @@ internal class TafsirStore(
     throttle: FailureThrottle = FailureThrottle(),
     limitBytes: Long = CACHE_LIMIT_BYTES,
     now: () -> Long = System::currentTimeMillis,
-) {
+) : TafsirChapters {
     private val cache = ChapterCache<TafsirChapter>(
         directory = directory,
         limitBytes = limitBytes,
@@ -148,15 +148,15 @@ internal class TafsirStore(
     private fun keyOf(tafsir: TafsirSource, surah: Int) = "tafsir-${tafsir.key}-$surah"
 
     /** From memory or the disk; never the network. */
-    fun local(tafsir: TafsirSource, surah: Int): TafsirChapter? = cache.local(keyOf(tafsir, surah))
+    override fun local(tafsir: TafsirSource, surah: Int): TafsirChapter? = cache.local(keyOf(tafsir, surah))
 
     /** The commentary: from the device, else from the network (cached). Null when neither works. */
-    suspend fun load(tafsir: TafsirSource, surah: Int, force: Boolean = false): TafsirChapter? =
+    override suspend fun load(tafsir: TafsirSource, surah: Int, force: Boolean): TafsirChapter? =
         cache.load(keyOf(tafsir, surah), force) { source.fetch(tafsir, surah) }
 
-    fun bytes(): Long = cache.bytes()
+    override fun bytes(): Long = cache.bytes()
 
-    fun clear(): Long = cache.clear()
+    override fun clear(): Long = cache.clear()
 
     companion object {
         /** Surahs kept decoded in memory. */

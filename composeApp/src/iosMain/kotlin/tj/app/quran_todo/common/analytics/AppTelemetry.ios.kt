@@ -2,6 +2,7 @@ package tj.app.quran_todo.common.analytics
 
 actual object AppTelemetry {
     actual fun initialize() = Unit
+    actual fun setEnabled(enabled: Boolean) = Unit
 
     actual fun logScreen(screenName: String, params: Map<String, String>) = Unit
 

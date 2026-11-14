@@ -2,6 +2,7 @@ package tj.app.quran_todo.common.reminder
 
 import android.content.Context
 import tj.app.quran_todo.ui.state.UiPrefs
+import tj.app.quran_todo.ui.state.readReminder
 
 /**
  * Brings the alarms in line with the stored reminder settings (`UiPrefs.reminderEnabled` / `reminderMinuteOfDay`). It is the single

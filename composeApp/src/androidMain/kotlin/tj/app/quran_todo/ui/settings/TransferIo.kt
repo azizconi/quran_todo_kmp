@@ -13,27 +13,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import tj.app.quran_todo.hifz.backup.BackupFormat
 
-/** The answer of [TransferIo.readText]. */
-internal sealed interface ReadOutcome {
-    class Text(val text: String) : ReadOutcome
-
-    /** More than [BackupFormat.MAX_FILE_BYTES]: not a backup of this app. */
-    data object TooLarge : ReadOutcome
-
-    /** The file could not be opened or read (permission, a provider that went away, no space...). */
-    data object Unreadable : ReadOutcome
-}
-
 /**
  * The files of "Transfer and backup": reading a file the person picked, writing the one they chose to save, and the temporary
  * file that goes to another app through [FileProvider]. Everything runs on the IO dispatcher.
  */
-internal class TransferIo(private val context: Context) {
+internal class TransferIo(private val context: Context) : TransferFiles {
 
     /** `"1.0.2 (7)"`: goes into the file as `appVersion`. */
-    fun appVersion(): String = appVersionLabel(context)
+    override fun appVersion(): String = appVersionLabel(context)
 
-    suspend fun readText(uri: Uri): ReadOutcome = withContext(Dispatchers.IO) {
+    override suspend fun readText(location: String): ReadOutcome = withContext(Dispatchers.IO) {
+        val uri = Uri.parse(location)
         try {
             val input = context.contentResolver.openInputStream(uri) ?: return@withContext ReadOutcome.Unreadable
             input.use { stream ->
@@ -58,7 +48,8 @@ internal class TransferIo(private val context: Context) {
     }
 
     /** Writes [text] to the document [uri] that the person created in the system picker (truncating an existing one). */
-    suspend fun writeText(uri: Uri, text: String) = withContext(Dispatchers.IO) {
+    override suspend fun writeText(location: String, text: String) = withContext(Dispatchers.IO) {
+        val uri = Uri.parse(location)
         val output = context.contentResolver.openOutputStream(uri, "wt") ?: throw IOException("no output stream")
         output.use { it.write(text.toByteArray(Charsets.UTF_8)) }
     }
@@ -67,16 +58,16 @@ internal class TransferIo(private val context: Context) {
      * Writes [text] to the cache directory and returns the content uri to hand to another app. The files of earlier exports
      * are deleted first, so the cache never holds more than one copy.
      */
-    suspend fun createShareFile(fileName: String, text: String): Uri = withContext(Dispatchers.IO) {
+    override suspend fun createShareFile(fileName: String, text: String): String = withContext(Dispatchers.IO) {
         clearShareDir()
         val dir = File(context.cacheDir, SHARE_DIR).apply { mkdirs() }
         val file = File(dir, fileName)
         file.writeText(text, Charsets.UTF_8)
-        FileProvider.getUriForFile(context, authority(context), file)
+        FileProvider.getUriForFile(context, authority(context), file).toString()
     }
 
     /** Deletes the temporary copies of earlier "Send a copy" exports (called by every export, so none outlives the next one). */
-    suspend fun clearShareFiles() = withContext(Dispatchers.IO) { clearShareDir() }
+    override suspend fun clearShareFiles() = withContext(Dispatchers.IO) { clearShareDir() }
 
     private fun clearShareDir() {
         File(context.cacheDir, SHARE_DIR).listFiles()?.forEach { it.delete() }

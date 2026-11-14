@@ -418,9 +418,3 @@ internal fun lineText(line: LessonLineUi, copy: HomeCopy): String {
         LessonLineKind.Old -> copy.lessonOld(if (line.count > 1) "$range +${line.count - 1}" else range)
     }
 }
-
-/** "Tomorrow: An-Naba 6–10 · 2 to review". */
-internal fun tomorrowText(tomorrow: LessonTomorrowUi, copy: HomeCopy): String = copy.lessonTomorrow(
-    newRange = if (tomorrow.hasNew) passageRangeLabel(tomorrow.surahName, tomorrow.startAyah, tomorrow.endAyah) else null,
-    dueCount = tomorrow.dueCount,
-)

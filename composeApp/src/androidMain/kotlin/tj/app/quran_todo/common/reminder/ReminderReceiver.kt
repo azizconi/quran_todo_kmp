@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import tj.app.quran_todo.common.analytics.AppTelemetry
 import tj.app.quran_todo.ui.state.UiPrefs
+import tj.app.quran_todo.ui.state.readReminder
 
 /**
  * The receiver of the app's own reminder broadcasts (not exported, no intent filter: only our `PendingIntent`s reach it).

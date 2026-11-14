@@ -91,6 +91,7 @@ import tj.app.quran_todo.ui.i18n.mushafCopy
 import tj.app.quran_todo.ui.i18n.pagesCopy
 import tj.app.quran_todo.ui.i18n.readerCopy
 import tj.app.quran_todo.ui.mushaf.data.LoadedPage
+import tj.app.quran_todo.ui.mushaf.data.font
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.i18n.goToCopy
 import tj.app.quran_todo.ui.navigation.Dest

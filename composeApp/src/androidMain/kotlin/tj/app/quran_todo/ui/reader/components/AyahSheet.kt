@@ -69,24 +69,6 @@ import org.koin.compose.koinInject
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
-/** What the ayah sheet shows about one ayah. */
-class AyahSheetModel(
-    val ayah: AyahEntity,
-    val index: Int,
-    val surahName: String,
-    val arabic: String,
-    val translation: String?,
-    /** The ayah is covered by a passage (it can be taken out of the repetitions). */
-    val learned: Boolean,
-    /** LEARNED when its passage is past the 7-day repetition, LEARNING while it is still being learned, null when not covered. */
-    val status: AyahTodoStatus? = null,
-    /** The ayah is marked as difficult. */
-    val hard: Boolean,
-    /** When a learned ayah comes back; null when it is not learned. */
-    val schedule: AyahSchedule?,
-    val note: String,
-)
-
 /**
  * The sheet of one ayah (long press or the "..." button): listen from here, repeat it, check oneself from it, whether
  * it is learned (and when it comes back), a note, copy and share. Closing it saves a note that was typed but not saved.

@@ -11,7 +11,11 @@ import org.koin.dsl.module
 val khatmUiModule = module {
     viewModel {
         KhatmViewModel(
-            context = androidContext(),
+            debugDay = androidContext().let { context ->
+                DebugToday.load(context)
+                DebugToday.override
+            },
+            hijri = IcuHijriConverter,
             hifz = get(),
             ticker = get(),
             uiPrefs = get(),

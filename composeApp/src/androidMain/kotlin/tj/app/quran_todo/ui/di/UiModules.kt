@@ -3,7 +3,14 @@ package tj.app.quran_todo.ui.di
 import org.koin.android.ext.koin.androidContext
 import org.koin.compose.viewmodel.dsl.viewModel
 import org.koin.dsl.module
+import tj.app.quran_todo.common.audio.AudioCacheStorage
+import tj.app.quran_todo.common.audio.timing.WordTimingsStore
+import tj.app.quran_todo.ui.downloads.AndroidStorageSpace
 import tj.app.quran_todo.ui.downloads.DownloadsManager
+import tj.app.quran_todo.ui.mushaf.data.MushafPageStore
+import tj.app.quran_todo.ui.platform.SharedPreferencesStore
+import tj.app.quran_todo.ui.reminder.ReminderController
+import tj.app.quran_todo.ui.tafsir.TafsirStore
 import tj.app.quran_todo.ui.downloads.DownloadsViewModel
 import tj.app.quran_todo.ui.translation.TranslationSearchViewModel
 import tj.app.quran_todo.ui.drill.DrillViewModel
@@ -56,6 +63,7 @@ val homeUiModule = module {
             surahViewModel = get(),
             reference = get(),
             uiPrefs = get(),
+            store = TafsirStore.shared,
         )
     }
 }
@@ -77,6 +85,7 @@ val readerUiModule = module {
             playback = get(),
             hifz = get(),
             ticker = get(),
+            wordTimings = WordTimingsStore.shared,
         )
     }
 }
@@ -94,6 +103,7 @@ val mushafUiModule = module {
             playback = get(),
             hifz = get(),
             ticker = get(),
+            store = MushafPageStore.shared,
         )
     }
 }
@@ -169,7 +179,12 @@ val analyticsUiModule = module {
 
 val settingsUiModule = module {
     // The HifzRepository comes in through Koin; the files of "Transfer and backup" through TransferIo.
-    viewModel { SettingsViewModel(uiPrefs = get(), hifz = get(), io = TransferIo(androidContext())) }
+    viewModel { SettingsViewModel(
+            uiPrefs = get(),
+            hifz = get(),
+            io = TransferIo(androidContext()),
+            reminder = ReminderController(androidContext(), get<UiPrefs>()),
+        ) }
 }
 
 val downloadsUiModule = module {
@@ -185,8 +200,10 @@ val downloadsUiModule = module {
             uiPrefs = get(),
             quran = get(),
             hifzDao = get(),
-            voice = get(),
+            voice = get<VoiceController>(),
             references = get(),
+            cache = AudioCacheStorage.shared,
+            space = AndroidStorageSpace,
         )
     }
     // The search "In translation" of the home screen (F4a): over the stored edition; its download is a request of the same queue.
@@ -229,7 +246,7 @@ val whatsNewUiModule = module {
 
 /** App-wide singletons shared by all screens. */
 val appUiModule = module {
-    single { UiPrefs(androidContext()) }
+    single { UiPrefs(SharedPreferencesStore(androidContext(), UiPrefs.PREFS_NAME)) }
     single { createPlaybackController(androidContext(), get<UiPrefs>()) }
     // The microphone of "My reading" (task F2a): the recordings never leave the phone.
     single { VoiceController(androidContext(), RecordingStore.shared, get()) }

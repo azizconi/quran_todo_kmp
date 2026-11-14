@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import tj.app.quran_todo.common.platform.AndroidContextHolder
 import tj.app.quran_todo.common.platform.PendingCalls
 import tj.app.quran_todo.ui.state.UiPrefs
+import tj.app.quran_todo.ui.state.readAnalyticsEnabled
 
 /**
  * Firebase Analytics and Crashlytics behind the person's choice ("Anonymous statistics and crash
@@ -65,7 +66,7 @@ actual object AppTelemetry {
      * Android only: applies the person's choice. Off stops all collection at once (events, crash
      * reports) and clears what the analytics SDK stored on the device.
      */
-    fun setEnabled(enabled: Boolean) {
+    actual fun setEnabled(enabled: Boolean) {
         runCatching { gate.setEnabled(enabled) }
             .onFailure { error -> Log.e(TAG, "Could not change telemetry collection", error) }
     }

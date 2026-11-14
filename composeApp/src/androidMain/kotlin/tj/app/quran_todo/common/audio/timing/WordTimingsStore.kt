@@ -7,6 +7,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import tj.app.quran_todo.common.audio.AudioCacheStorage
 import tj.app.quran_todo.common.audio.AudioFetch
+import tj.app.quran_todo.ui.words.WordTimingsLoader
 import tj.app.quran_todo.common.audio.DownloadStorage
 import tj.app.quran_todo.common.audio.httpAudioFetch
 import tj.app.quran_todo.common.utils.Constants
@@ -33,7 +34,7 @@ internal class WordTimingsStore(
     private val baseUrl: String = Constants.QURAN_COM_API_BASE_URL,
     private val throttle: FailureThrottle = FailureThrottle(),
     private val memorySize: Int = MEMORY_SURAHS,
-) {
+) : WordTimingsLoader {
     // The most recently used surah is the last entry.
     private val memory = LinkedHashMap<String, WordTimings>()
 
@@ -73,7 +74,7 @@ internal class WordTimingsStore(
     }
 
     /** The timings of [surah] for [recitationId]: from the device, else from the network (cached). Null when neither works. */
-    suspend fun load(recitationId: Int, surah: Int): WordTimings? = withContext(Dispatchers.IO) {
+    override suspend fun load(recitationId: Int, surah: Int): WordTimings? = withContext(Dispatchers.IO) {
         local(recitationId, surah)?.let { return@withContext it }
         val key = fileName(recitationId, surah)
         if (throttle.isBlocked(key)) return@withContext null

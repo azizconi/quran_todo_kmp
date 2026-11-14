@@ -36,9 +36,6 @@ import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 import tj.app.quran_todo.ui.theme.tabular
 
-/** The pace row of this step offers 1-10 ayahs a day; the plan itself allows 20 (the "by a date" mode stays in "My plan"). */
-internal const val WheelMaxPerDay = 10
-
 /**
  * Step 4: the plan is ready. The first lesson, what is known, when the plan ends, how long a lesson takes (a range, not a promise),
  * and the pace: a row with - / + that moves the forecast and the first lesson at once. The switch of the anonymous statistics

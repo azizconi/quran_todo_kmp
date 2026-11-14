@@ -13,29 +13,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import java.util.concurrent.TimeUnit
 
-/** What the work of the downloads is doing, as the screen tells it ("waiting for Wi-Fi"). */
-internal enum class WorkPhase {
-    /** No work is scheduled. */
-    NONE,
-
-    /** The worker is running. */
-    RUNNING,
-
-    /** Scheduled but not running: waiting for the network (or for a retry after a failure). */
-    WAITING,
-}
-
-/** Starts and stops the one unique work that goes through the queue. A fake in tests. */
-internal interface DownloadScheduler {
-    /** Starts the work (or starts it again with the new constraints): [wifiOnly] needs an unmetered network, otherwise any network. */
-    fun schedule(wifiOnly: Boolean)
-
-    /** Stops the work (the file in progress is lost, the queue is not touched). */
-    fun cancel()
-
-    val phase: Flow<WorkPhase>
-}
-
 /**
  * One unique work `quran-downloads`, replaced each time it is scheduled: the worker reads the queue file when it starts, so a
  * replacement just carries on where the old one was stopped (finished files are kept). The constraint is `UNMETERED` for "Wi-Fi only",

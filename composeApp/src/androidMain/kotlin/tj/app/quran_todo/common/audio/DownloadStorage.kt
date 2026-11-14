@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import tj.app.quran_todo.common.platform.AndroidContextHolder
+import tj.app.quran_todo.ui.downloads.DownloadedFiles
 import java.io.File
 
 /**
@@ -16,11 +17,11 @@ import java.io.File
  *
  * [revision] changes every time the set of files changes, so a screen can read [snapshot] again.
  */
-internal class DownloadStorage(val directory: File) {
+internal class DownloadStorage(val directory: File) : DownloadedFiles {
     private val _revision = MutableStateFlow(0L)
 
     /** Grows with every file that is added or deleted. */
-    val revision: StateFlow<Long> = _revision.asStateFlow()
+    override val revision: StateFlow<Long> = _revision.asStateFlow()
 
     init {
         if (!directory.exists()) directory.mkdirs()
@@ -53,7 +54,7 @@ internal class DownloadStorage(val directory: File) {
     }
 
     /** Every downloaded ayah: key (`ayah_78_1`, `husary_78_1`) to its size in bytes. */
-    fun snapshot(): Map<String, Long> {
+    override fun snapshot(): Map<String, Long> {
         val files = directory.listFiles { file -> file.isFile && file.name.endsWith(SUFFIX) } ?: return emptyMap()
         val result = HashMap<String, Long>(files.size * 2)
         for (file in files) {

@@ -4,6 +4,7 @@ import tj.app.quran_todo.common.platform.AndroidContextHolder
 import tj.app.quran_todo.common.platform.OnceResolved
 import tj.app.quran_todo.ui.state.OnboardingFlags
 import tj.app.quran_todo.ui.state.UiPrefs
+import tj.app.quran_todo.ui.state.readOnboarding
 
 /** What the start of the app knows about the onboarding: the decision and the stored flags, read together. */
 internal class OnboardingStartState(val gate: OnboardingGate, val flags: OnboardingFlags)

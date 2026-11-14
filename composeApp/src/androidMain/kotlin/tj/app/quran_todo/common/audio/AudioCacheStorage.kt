@@ -1,5 +1,6 @@
 package tj.app.quran_todo.common.audio
 
+import tj.app.quran_todo.ui.downloads.ListeningCache
 import tj.app.quran_todo.common.platform.AndroidContextHolder
 import java.io.File
 
@@ -41,7 +42,7 @@ internal class AudioCacheStorage(
     val directory: File,
     private val limitBytes: Long = DEFAULT_LIMIT_BYTES,
     private val now: () -> Long = System::currentTimeMillis,
-) {
+) : ListeningCache {
     private val lock = Any()
 
     // Size of the cached files, -1 until the directory has been scanned once.
@@ -76,10 +77,10 @@ internal class AudioCacheStorage(
     }
 
     /** Bytes the cached audio takes on disk. */
-    fun totalBytes(): Long = synchronized(lock) { scan().also { knownBytes = it } }
+    override fun totalBytes(): Long = synchronized(lock) { scan().also { knownBytes = it } }
 
     /** Deletes all cached audio (and unfinished downloads); returns the bytes that were freed. */
-    fun clear(): Long = synchronized(lock) {
+    override fun clear(): Long = synchronized(lock) {
         var freed = 0L
         directory.listFiles()?.forEach { file ->
             val size = file.length()

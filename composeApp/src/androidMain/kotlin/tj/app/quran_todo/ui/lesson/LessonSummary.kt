@@ -27,10 +27,6 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -228,21 +224,3 @@ private fun SummaryLine(text: String) {
 
 private fun rangeLabel(range: AyahRange): String =
     if (range.startAyah == range.endAyah) "${range.startAyah}" else "${range.startAyah}–${range.endAyah}"
-
-private const val MillisPerDay = 24L * 60 * 60 * 1000
-
-/** "14 March" in the language of the app. */
-internal fun formatDay(epochDay: Int, language: AppLanguage): String {
-    val locale = Locale.forLanguageTag(
-        when (language) {
-            AppLanguage.RU -> "ru"
-            AppLanguage.EN -> "en"
-            AppLanguage.TG -> "tg"
-            AppLanguage.UZ -> "uz"
-            AppLanguage.TR -> "tr"
-        },
-    )
-    // The epoch day is a calendar day, so the date is formatted in UTC, whatever the time zone of the device is.
-    val format = SimpleDateFormat("d MMMM", locale).apply { timeZone = TimeZone.getTimeZone("UTC") }
-    return format.format(Date(epochDay * MillisPerDay))
-}

@@ -13,6 +13,7 @@ import androidx.compose.runtime.Immutable
 import java.io.File
 import kotlin.math.sqrt
 import kotlinx.coroutines.CoroutineScope
+import tj.app.quran_todo.ui.downloads.RecordingsStorage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -74,7 +75,7 @@ class VoiceController internal constructor(
     private val store: RecordingStore,
     private val playback: PlaybackController,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
-) {
+) : RecordingsStorage {
     private val appContext = context.applicationContext
     private val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
@@ -127,10 +128,10 @@ class VoiceController internal constructor(
         .flowOn(Dispatchers.IO)
 
     /** The size of all the recordings on the device, in bytes. */
-    suspend fun totalBytes(): Long = withContext(Dispatchers.IO) { store.totalBytes() }
+    override suspend fun totalBytes(): Long = withContext(Dispatchers.IO) { store.totalBytes() }
 
     /** "Delete all recordings" (the storage screen). */
-    suspend fun deleteAll() {
+    override suspend fun deleteAll() {
         stop()
         stopPlayback()
         withContext(Dispatchers.IO) { store.deleteAll() }
