@@ -44,8 +44,13 @@ struct QuranHifzApp: App {
                     do { try await IosDebugSeed.shared.seed(withKhatm: UserDefaults.standard.bool(forKey: "qhSeedKhatm")) } catch { NSLog("SEEDFAIL \(error)") }
                 }
                 // QA and screenshots: `-qhTajweed YES` / `-qhMushaf YES` switch the reader prefs for a capture.
-                IosUi.shared.uiPrefs.setTajweed(value: UserDefaults.standard.bool(forKey: "qhTajweed"))
-                IosUi.shared.uiPrefs.setReaderLayout(value: UserDefaults.standard.bool(forKey: "qhMushaf") ? .mushaf : .list)
+                // Only when the argument is passed, so an ordinary debug run keeps the reader settings.
+                if UserDefaults.standard.object(forKey: "qhTajweed") != nil {
+                    IosUi.shared.uiPrefs.setTajweed(value: UserDefaults.standard.bool(forKey: "qhTajweed"))
+                }
+                if UserDefaults.standard.object(forKey: "qhMushaf") != nil {
+                    IosUi.shared.uiPrefs.setReaderLayout(value: UserDefaults.standard.bool(forKey: "qhMushaf") ? .mushaf : .list)
+                }
                 // QA and screenshots: `-qhOpen quranhifz://plan` as a launch argument opens that place (simulator taps are not scriptable).
                 if let link = UserDefaults.standard.string(forKey: "qhOpen"), let url = URL(string: link) {
                     try? await Task.sleep(for: .milliseconds(600))
