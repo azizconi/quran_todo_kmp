@@ -53,12 +53,12 @@ struct DownloadsScreen: View {
     private func optionsSection(_ d: DownloadsCopy, _ ui: DownloadsUi) -> some View {
         Section {
             QhValueRow(title: d.reciter, value: ui.reciter.shortName(language: env.language), description: d.reciterHint,
-                       icon: "waveform", iconTint: qh.colors.gold).card(qh)
+                       icon: "waveform", iconTint: qh.colors.gold).card(qh, inset: 0)
             QhSwitchRow(title: d.wifiOnly, isOn: Binding(get: { ui.wifiOnly }, set: { model.vm.setWifiOnly(value: $0) }),
-                        description: d.wifiOnlyHint, icon: "wifi", iconTint: qh.colors.primary).card(qh)
+                        description: d.wifiOnlyHint, icon: "wifi", iconTint: qh.colors.primary).card(qh, inset: 0)
             QhSwitchRow(title: d.withTranslationLabel(languageName: env.language.nativeLabel),
                         isOn: Binding(get: { ui.withTranslation }, set: { model.vm.setWithTranslation(value: $0) }),
-                        description: d.withTranslationHint, icon: "character.book.closed", iconTint: qh.colors.due).card(qh)
+                        description: d.withTranslationHint, icon: "character.book.closed", iconTint: qh.colors.due).card(qh, inset: 0)
         }
     }
 
@@ -114,7 +114,7 @@ struct DownloadsScreen: View {
                         action: d.storageClear, enabled: s.cacheBytes > 0, icon: "trash.slash", tint: qh.colors.gold) { ask = .clearCache }
             storageLine(title: d.storageRecordings, value: d.sizeLabel(bytes: s.recordingsBytes), hint: d.storageRecordingsHint,
                         action: d.storageDeleteRecordings, enabled: s.recordingsBytes > 0, icon: "mic", tint: qh.colors.due) { ask = .deleteRecordings }
-            QhValueRow(title: d.storageFree, value: d.sizeLabel(bytes: s.freeBytes), icon: "internaldrive", iconTint: qh.colors.learned).card(qh)
+            QhValueRow(title: d.storageFree, value: d.sizeLabel(bytes: s.freeBytes), icon: "internaldrive", iconTint: qh.colors.learned).card(qh, inset: 0)
         } header: { header(d.sectionStorage) }
     }
 
@@ -283,11 +283,11 @@ struct DownloadsScreen: View {
 
 extension View {
     /// A list row on the card surface with our separator colour.
-    func card(_ qh: QhTheme) -> some View {
+    func card(_ qh: QhTheme, inset: CGFloat = QhSpacing.card) -> some View {
         self
             .listRowBackground(qh.colors.surface)
             .listRowSeparatorTint(qh.colors.hairline)
-            .listRowInsets(EdgeInsets(top: 0, leading: QhSpacing.card, bottom: 0, trailing: QhSpacing.card))
+            .listRowInsets(EdgeInsets(top: 0, leading: inset, bottom: 0, trailing: inset))
     }
 }
 
