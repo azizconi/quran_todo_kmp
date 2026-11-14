@@ -84,23 +84,12 @@ object IosReminderPlanner : ReminderPlanner {
     override fun sync() = Unit
 }
 
-/** TODO(IOS-S2): the folder of the audio cache in Caches. */
-object IosListeningCache : ListeningCache {
-    override fun totalBytes(): Long = 0L
-    override fun clear(): Long = 0L
-}
-
 /** TODO(IOS-S2): the commentary files under Caches and the quran.com / QuranEnc fetch (see `TafsirStore` on Android). */
 object IosTafsirChapters : TafsirChapters {
     override fun local(tafsir: TafsirSource, surah: Int): TafsirChapter? = null
     override suspend fun load(tafsir: TafsirSource, surah: Int, force: Boolean): TafsirChapter? = null
     override fun bytes(): Long = 0L
     override fun clear(): Long = 0L
-}
-
-/** TODO(IOS-S2): the word timings files (`WordTimingsStore` on Android). Without them the reader has no word highlight. */
-object IosWordTimingsLoader : WordTimingsLoader {
-    override suspend fun load(recitationId: Int, surah: Int): WordTimings? = null
 }
 
 /** TODO(IOS-S2): the layout and font files of the mushaf pages (`MushafPageStore` on Android). Pages are "not loaded" until then. */
