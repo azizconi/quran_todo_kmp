@@ -5,6 +5,6 @@ import tj.app.quran_todo.ui.di.sharedUiModule
 
 fun InitKoinIos() {
     startKoin {
-        modules(commonModule, iosModule, viewModelModule, iosUiPlatformModule, sharedUiModule)
+        modules(commonModule, iosModule, viewModelModule, iosUiPlatformModule, iosServicesModule, sharedUiModule)
     }
 }

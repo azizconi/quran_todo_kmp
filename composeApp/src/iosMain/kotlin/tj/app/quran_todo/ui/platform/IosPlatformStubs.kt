@@ -70,86 +70,9 @@ object IosHijriConverter : HijriConverter {
     }
 }
 
-/** Free space of the volume of the app. */
-object IosStorageSpace : StorageSpace {
-    @OptIn(ExperimentalForeignApi::class)
-    override fun freeBytes(): Long {
-        val attributes = NSFileManager.defaultManager.attributesOfFileSystemForPath(NSHomeDirectory(), null)
-        return (attributes?.get(NSFileSystemFreeSize) as? NSNumber)?.longLongValue ?: Long.MAX_VALUE
-    }
-}
-
-/** TODO(IOS-S2): cancel the pending `UNNotificationRequest`s and, when the reminder is on, add the repeating calendar trigger. */
-object IosReminderPlanner : ReminderPlanner {
-    override fun sync() = Unit
-}
-
-/** TODO(IOS-S2): the folder of the audio cache in Caches. */
-object IosListeningCache : ListeningCache {
-    override fun totalBytes(): Long = 0L
-    override fun clear(): Long = 0L
-}
-
-/** TODO(IOS-S2): the commentary files under Caches and the quran.com / QuranEnc fetch (see `TafsirStore` on Android). */
-object IosTafsirChapters : TafsirChapters {
-    override fun local(tafsir: TafsirSource, surah: Int): TafsirChapter? = null
-    override suspend fun load(tafsir: TafsirSource, surah: Int, force: Boolean): TafsirChapter? = null
-    override fun bytes(): Long = 0L
-    override fun clear(): Long = 0L
-}
-
 /** TODO(IOS-S2): the word timings files (`WordTimingsStore` on Android). Without them the reader has no word highlight. */
 object IosWordTimingsLoader : WordTimingsLoader {
     override suspend fun load(recitationId: Int, surah: Int): WordTimings? = null
-}
-
-/** TODO(IOS-S2): the layout and font files of the mushaf pages (`MushafPageStore` on Android). Pages are "not loaded" until then. */
-object IosMushafPageProvider : MushafPageProvider {
-    private val changes = MutableStateFlow(0L)
-    override val revision: StateFlow<Long> = changes.asStateFlow()
-    override suspend fun load(page: Int, force: Boolean): LoadedPage? = null
-    override suspend fun prefetch(pages: Collection<Int>) = Unit
-    override fun pinnedSnapshot(): Map<Int, Long> = emptyMap()
-    override fun cacheBytes(): Long = 0L
-    override fun clearCache(): Long = 0L
-}
-
-private class MemoryQueueStore : QueueStore {
-    private var state = QueueState()
-    override fun load(): QueueState = state
-    override fun save(state: QueueState) {
-        this.state = state
-    }
-}
-
-/**
- * TODO(IOS-S2): a background `URLSession` that runs the queue, with a queue file in Application Support. Until then the queue is in
- * memory, requests are accepted and never run, and nothing is stored.
- */
-class IosDownloadsService(override val prefs: DownloadsPrefs) : DownloadsService {
-    override val queue = DownloadQueue(MemoryQueueStore())
-    override val phase: Flow<WorkPhase> = flowOf(WorkPhase.NONE)
-    override val storage: DownloadedFiles = object : DownloadedFiles {
-        override val revision: StateFlow<Long> = MutableStateFlow(0L)
-        override fun snapshot(): Map<String, Long> = emptyMap()
-    }
-    override val pages: PinnedPages = IosMushafPageProvider
-
-    override fun enqueue(request: DownloadRequest, estimatedBytes: Long): Boolean = queue.enqueue(request)
-    override fun enqueueTranslation(edition: TranslationEdition, title: String): Boolean = false
-    override fun pauseAll() = queue.pause()
-    override fun resume() = queue.resume()
-    override fun cancel(requestId: String) {
-        queue.cancel(requestId)
-    }
-    override fun cancelAll() = queue.cancelAll()
-    override fun retry() {
-        queue.retryFailed()
-    }
-    override fun onNetworkChoiceChanged() = Unit
-    override fun delete(keys: Collection<String>): Long = 0L
-    override fun deletePages(pageNumbers: Collection<Int>): Long = 0L
-    override fun deleteAll(): Long = 0L
 }
 
 /**
