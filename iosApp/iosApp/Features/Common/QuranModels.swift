@@ -214,7 +214,8 @@ enum QuranDisplay {
         spans.compactMap { span in
             var start = min(max(span.start, 0), units.count)
             var end = min(max(span.end, start), units.count)
-            while start > 0, start < units.count, isAttached(units[start]) { start -= 1 }            while end < units.count, isAttached(units[end]) { end += 1 }
+            while start > 0, start < units.count, isAttached(units[start]) { start -= 1 }
+            while end < units.count, isAttached(units[end]) { end += 1 }
             return end > start ? TajweedRun(rule: span.rule, start: start, end: end) : nil
         }
     }
