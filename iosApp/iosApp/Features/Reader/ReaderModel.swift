@@ -81,11 +81,17 @@ final class ReaderModel {
         }
     }
 
+    /// Draws the ayahs again (the reading face changed): the Madinah face has no usable glyph for U+06DF, so there it is drawn as the
+    /// sukun that stands for it in the same text (same length, so the word ranges stay).
+    func rebuildDisplays() { displays = []; buildDisplays() }
+
     private func buildDisplays() {
         guard displays.isEmpty, let surah = surahState.value else { return }
+        let madinah = ReadingPrefs.shared.face == .madinah
         let n = Int(surah.surah.number)
         displays = surah.ayahs.map { ayah in
-            let shown = BismillahKt.splitBismillah(surahNumber: Int32(n), ayahNumberInSurah: ayah.numberInSurah, text: ayah.text)
+            var shown = BismillahKt.splitBismillah(surahNumber: Int32(n), ayahNumberInSurah: ayah.numberInSurah, text: ayah.text)
+            if madinah { shown = shown.replacingOccurrences(of: "\u{06DF}", with: "\u{0652}") }
             let ranges = AyahWordsKt.wordRanges(text: shown).map { Int($0.first)..<(Int($0.last) + 1) }
             return QuranAyahDisplay(surah: n, ayah: Int(ayah.numberInSurah), displayText: shown, ranges: ranges)
         }

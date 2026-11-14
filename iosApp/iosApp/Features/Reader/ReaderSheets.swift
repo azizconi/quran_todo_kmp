@@ -289,72 +289,77 @@ struct GoToSheetContent: View {
 
 // MARK: - Ayah sheet
 
+/// What the sheet of one ayah shows; built by the text reader and by the mushaf pages (the sheet is shared).
+struct AyahSheetData {
+    var surah: Int
+    var number: Int
+    var title: String
+    var status: AyahTodoStatus?
+    var weak: Bool
+    var stateLine: (String, Bool)?
+    var display: QuranAyahDisplay?
+    var note: String
+    var shareText: String
+    var onListen: () -> Void
+    var onRepeat: () -> Void
+    var onCheck: (() -> Void)?
+    var onKnown: () -> Void
+    var onForget: () -> Void
+    var onSaveNote: (String) -> Void
+}
+
 struct AyahSheetContent: View {
     @Environment(\.qh) private var qh
     @Environment(\.dismiss) private var dismiss
     @Environment(Copy.self) private var copy
     @Environment(Router.self) private var router
     @Environment(AppEnvironment.self) private var env
-    let model: ReaderModel
-    let index: Int
-    let onListen: () -> Void
-    let onRepeat: () -> Void
-    let onCheck: () -> Void
+    let data: AyahSheetData
 
     @State private var note: String
     @State private var saved: String
 
-    init(model: ReaderModel, index: Int, onListen: @escaping () -> Void, onRepeat: @escaping () -> Void, onCheck: @escaping () -> Void) {
-        self.model = model; self.index = index; self.onListen = onListen; self.onRepeat = onRepeat; self.onCheck = onCheck
-        let initial = model.ayahs.indices.contains(index) ? model.noteText(model.ayahs[index]) : ""
-        _note = State(initialValue: initial)
-        _saved = State(initialValue: initial)
+    init(data: AyahSheetData) {
+        self.data = data
+        _note = State(initialValue: data.note)
+        _saved = State(initialValue: data.note)
     }
 
     var body: some View {
-        if model.ayahs.indices.contains(index) {
-            content(model.ayahs[index])
-        }
-    }
-
-    private func content(_ ayah: AyahEntity) -> some View {
         let r = copy.reader
-        let number = Int(ayah.numberInSurah)
-        let status = model.statusOf(ayah)
-        let learned = status != nil
+        let learned = data.status != nil
         let dirty = note.trimmingCharacters(in: .whitespacesAndNewlines) != saved.trimmingCharacters(in: .whitespacesAndNewlines)
-        let shareText = model.shareText(for: ayah, copy: copy)
-        let similarCount = SimilarService.shared.count(surah: model.number, ayah: number)
+        let similarCount = SimilarService.shared.count(surah: data.surah, ayah: data.number)
         return ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: QhSpacing.x3) {
-                    AyahRosette(number: number, status: rdStatus(status), weak: model.isWeak(ayah), size: 48)
+                    AyahRosette(number: data.number, status: rdStatus(data.status), weak: data.weak, size: 48)
                     VStack(alignment: .leading, spacing: 0) {
-                        Text("\(model.title(copy: copy)) \u{00B7} \(r.ayah) \(number)").qhText({ $0.title1 }).lineLimit(2)
-                        if let line = stateLine(ayah, r) { Text(line.0).qhText({ $0.callout }, color: { line.1 ? $0.due : $0.inkSecondary }) }
+                        Text("\(data.title) \u{00B7} \(r.ayah) \(data.number)").qhText({ $0.title1 }).lineLimit(2)
+                        if let line = data.stateLine { Text(line.0).qhText({ $0.callout }, color: { line.1 ? $0.due : $0.inkSecondary }) }
                     }
                 }
-                if let display = model.displays.indices.contains(index) ? model.displays[index] : nil {
+                if let display = data.display {
                     QuranText(ayah: display, face: ReadingPrefs.shared.face, readingSize: CGFloat(min(ReadingPrefs.shared.size, 26)))
                         .lineLimit(2).padding(.top, QhSpacing.x3)
                 }
                 Spacer().frame(height: QhSpacing.x3)
-                row("play.fill", r.listenFromHere) { onListen(); dismiss() }
-                row("repeat", r.repeatThisAyah) { onRepeat(); dismiss() }
-                row("eye", r.checkFromHere) { onCheck(); dismiss() }
+                row("play.fill", r.listenFromHere) { data.onListen(); dismiss() }
+                row("repeat", r.repeatThisAyah) { data.onRepeat(); dismiss() }
+                if let check = data.onCheck { row("eye", r.checkFromHere) { check(); dismiss() } }
                 row("book.pages", copy.tafsir.sheetRow) {
                     dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { router.push(.tafsir(surah: model.number, ayah: number, tafsirId: nil)) }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { router.push(.tafsir(surah: data.surah, ayah: data.number, tafsirId: nil)) }
                 }
                 if similarCount > 0 {
                     row(nil, copy.similar.sheetRow(count: Int32(similarCount)), similar: true) {
                         dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { SimilarService.shared.open(surah: model.number, ayah: number) }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { SimilarService.shared.open(surah: data.surah, ayah: data.number) }
                     }
                 }
                 QhSectionHeader(r.ayahStatus).padding(.top, QhSpacing.x5).padding(.bottom, QhSpacing.x2)
                 QhButton(learned ? r.removeFromLearned : r.knowThisAyah, variant: learned ? .tonal : .primary, size: .m, fullWidth: true) {
-                    if learned { model.vm.forgetAyah(ayah: ayah) } else { model.vm.markAyahKnown(ayah: ayah) }
+                    if learned { data.onForget() } else { data.onKnown() }
                     dismiss()
                 }
                 QhSectionHeader(r.note).padding(.top, QhSpacing.x5).padding(.bottom, QhSpacing.x2)
@@ -364,16 +369,16 @@ struct AyahSheetContent: View {
                 }
                 .padding(QhSpacing.x3).background(qh.colors.surfaceMuted, in: qh.shapes.mdShape)
                 if dirty {
-                    QhButton(r.saveNote, size: .m, fullWidth: true) { save(ayah); dismiss() }.padding(.top, QhSpacing.x3)
+                    QhButton(r.saveNote, size: .m, fullWidth: true) { save(); dismiss() }.padding(.top, QhSpacing.x3)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
                 HStack(spacing: QhSpacing.x3) {
                     QhButton(r.copyAction, variant: .tonal, size: .m, icon: "doc.on.doc", fullWidth: true) {
-                        UIPasteboard.general.string = shareText
+                        UIPasteboard.general.string = data.shareText
                         env.toaster.show(r.copied, kind: .success)
                         dismiss()
                     }
-                    ShareLink(item: shareText) {
+                    ShareLink(item: data.shareText) {
                         HStack(spacing: QhSpacing.x2) {
                             Image(systemName: "square.and.arrow.up").font(.system(size: 15, weight: .semibold))
                             Text(r.share).qhText({ $0.callout.weight("SemiBold") }, color: { $0.onPrimaryContainer })
@@ -389,13 +394,13 @@ struct AyahSheetContent: View {
             .qhAnimation(QhMotion.gentle, value: dirty)
         }
         .scrollDismissesKeyboard(.interactively)
-        .onDisappear { if dirty { save(ayah) } }
+        .onDisappear { if dirty { save() } }
         .qhSheetStyle([.large])
     }
 
-    private func save(_ ayah: AyahEntity) {
+    private func save() {
         guard note.trimmingCharacters(in: .whitespacesAndNewlines) != saved.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
-        model.vm.saveNote(ayah: ayah, note: note)
+        data.onSaveNote(note)
         saved = note
         env.toaster.show(note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? copy.reader.noteRemoved : copy.reader.noteSaved, kind: .success)
     }
@@ -411,8 +416,15 @@ struct AyahSheetContent: View {
         .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
         .pressable(shape: qh.shapes.mdShape, action: action)
     }
+}
 
-    private func stateLine(_ ayah: AyahEntity, _ r: ReaderCopy) -> (String, Bool)? {
+/// The ayah sheet of the text reader (`ReaderViewModel` supplies everything).
+extension AyahSheetData {
+    @MainActor static func of(model: ReaderModel, index: Int, copy: Copy, onListen: @escaping () -> Void, onRepeat: @escaping () -> Void,
+                              onCheck: @escaping () -> Void) -> AyahSheetData? {
+        guard model.ayahs.indices.contains(index) else { return nil }
+        let ayah = model.ayahs[index]
+        let r = copy.reader
         var parts: [(String, Bool)] = []
         if model.isWeak(ayah) { parts.append((r.weakAyah, true)) }
         if let schedule = model.vm.scheduleOf(ayahInSurah: ayah.numberInSurah) {
@@ -422,8 +434,13 @@ struct AyahSheetContent: View {
             case .inDays(let d): parts.append((r.reviewIn(days: d.days), false))
             }
         }
-        guard !parts.isEmpty else { return nil }
-        return (parts.map(\.0).joined(separator: " \u{00B7} "), parts.contains { $0.1 })
+        return AyahSheetData(
+            surah: model.number, number: Int(ayah.numberInSurah), title: model.title(copy: copy), status: model.statusOf(ayah), weak: model.isWeak(ayah),
+            stateLine: parts.isEmpty ? nil : (parts.map(\.0).joined(separator: " \u{00B7} "), parts.contains { $0.1 }),
+            display: model.displays.indices.contains(index) ? model.displays[index] : nil, note: model.noteText(ayah),
+            shareText: model.shareText(for: ayah, copy: copy), onListen: onListen, onRepeat: onRepeat, onCheck: onCheck,
+            onKnown: { model.vm.markAyahKnown(ayah: ayah) }, onForget: { model.vm.forgetAyah(ayah: ayah) },
+            onSaveNote: { model.vm.saveNote(ayah: ayah, note: $0) })
     }
 }
 

@@ -210,6 +210,7 @@ private struct ReaderContent: View {
             }
             .onChange(of: reading) { _, index in model.vm.onVisibleAyah(index: Int32(index)) }
             .onChange(of: prefs.wordMeanings) { _, on in if !on { meaning = nil } }
+            .onChange(of: prefs.style) { _, _ in model.rebuildDisplays() }
         }
         .toolbar { toolbar }
         .navigationTitle("")
@@ -557,10 +558,12 @@ private struct ReaderContent: View {
         case .goTo:
             GoToSheetContent(surahs: goToSurahs(), currentSurah: model.number) { surah, ayah in goTo(surah, ayah) }
         case .ayah(let index):
-            AyahSheetContent(model: model, index: index,
-                             onListen: { following = true; model.vm.listenFrom(index: Int32(index)) },
-                             onRepeat: { following = true; model.vm.repeatAyah(index: Int32(index)) },
-                             onCheck: { startRecall(at: index) })
+            if let data = AyahSheetData.of(model: model, index: index, copy: copy,
+                                           onListen: { following = true; model.vm.listenFrom(index: Int32(index)) },
+                                           onRepeat: { following = true; model.vm.repeatAyah(index: Int32(index)) },
+                                           onCheck: { startRecall(at: index) }) {
+                AyahSheetContent(data: data)
+            }
         case .appearance:
             AppearanceSheetContent(model: model, previewIndex: max(reading, 0))
         case .player:

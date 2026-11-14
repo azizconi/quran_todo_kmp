@@ -14,7 +14,8 @@ struct MiniPlayerSlot: View {
         let shown = player ?? held
         ZStack {
             if let shown, player != nil {
-                MiniPlayerPill(home: home, player: shown)
+                MiniPlayerPill(player: shown, progress: CGFloat(truncating: home.playbackProgress.value),
+                               onToggle: { home.togglePlayback() }, onStop: { home.stopPlayback() })
                     .padding(.horizontal, 12).padding(.bottom, 8).padding(.top, 4)
                     .transition(reduced ? .opacity : .move(edge: .bottom).combined(with: .opacity))
             }
@@ -24,21 +25,24 @@ struct MiniPlayerSlot: View {
     }
 }
 
-private struct MiniPlayerPill: View {
+/// The pill itself: shared by the tab roots (`MiniPlayerSlot`) and the mushaf pages.
+struct MiniPlayerPill: View {
     @Environment(\.qh) private var qh
     @Environment(\.qhReduceMotion) private var reduced
     @Environment(Copy.self) private var copy
     @Environment(Router.self) private var router
     @Environment(\.dynamicTypeSize) private var typeSize
-    let home: HomeModel
     let player: MiniPlayerUi
+    let progress: CGFloat
+    let onToggle: () -> Void
+    let onStop: () -> Void
     @State private var drag: CGFloat = 0
 
     var body: some View {
         let h = copy.home
         let height: CGFloat = typeSize.isAccessibilitySize ? 96 : 64
         HStack(spacing: 0) {
-            MiniPlayButton(home: home, player: player)
+            MiniPlayButton(player: player, progress: progress, onToggle: onToggle)
             VStack(alignment: .leading, spacing: 0) {
                 Text(player.name).font(.custom("Manrope-SemiBold", size: 15)).foregroundStyle(qh.colors.ink).lineLimit(1)
                 Text(player.hasError ? h.audioError : h.playerSub(ayah: player.ayah, speed: player.speed))
@@ -48,7 +52,7 @@ private struct MiniPlayerPill: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             Button {
                 QhHaptics.shared.perform(.tick)
-                home.stopPlayback()
+                onStop()
             } label: {
                 Image(systemName: "xmark").font(.system(size: 14, weight: .semibold)).foregroundStyle(qh.colors.inkSecondary)
                     .frame(width: QhSpacing.minTouch, height: QhSpacing.minTouch)
@@ -73,7 +77,7 @@ private struct MiniPlayerPill: View {
                 .onEnded { v in
                     if v.translation.height > 56 || v.predictedEndTranslation.height > 200 {
                         QhHaptics.shared.perform(.tick)
-                        home.stopPlayback()
+                        onStop()
                         drag = 0
                     } else {
                         withAnimation(reduced ? nil : QhMotion.snappy) { drag = 0 }
@@ -90,12 +94,12 @@ private struct MiniPlayButton: View {
     @Environment(\.qh) private var qh
     @Environment(\.qhReduceMotion) private var reduced
     @Environment(Copy.self) private var copy
-    let home: HomeModel
     let player: MiniPlayerUi
+    let progress: CGFloat
+    let onToggle: () -> Void
     @State private var smooth: CGFloat = 0
 
     var body: some View {
-        let progress = CGFloat(truncating: home.playbackProgress.value)
         let label = player.isPlaying ? copy.home.pause : copy.home.play
         ZStack {
             Circle().stroke(qh.colors.hairline, lineWidth: 3)
@@ -116,7 +120,7 @@ private struct MiniPlayButton: View {
         .frame(width: 44, height: 44)
         .frame(width: QhSpacing.minTouch, height: QhSpacing.minTouch)
         .contentShape(Circle())
-        .pressable(haptic: .tick, shape: Circle(), highlight: false) { home.togglePlayback() }
+        .pressable(haptic: .tick, shape: Circle(), highlight: false) { onToggle() }
         .animation(reduced ? nil : QhMotion.snappy, value: player.isPlaying)
         .onChange(of: progress) { old, now in
             if reduced || now < old { smooth = now } else { withAnimation(.linear(duration: 0.2)) { smooth = now } }
