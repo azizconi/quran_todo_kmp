@@ -43,6 +43,9 @@ struct QuranHifzApp: App {
                 if UserDefaults.standard.bool(forKey: "qhSeedDemo") {
                     do { try await IosDebugSeed.shared.seed(withKhatm: UserDefaults.standard.bool(forKey: "qhSeedKhatm")) } catch { NSLog("SEEDFAIL \(error)") }
                 }
+                // QA and screenshots: `-qhTajweed YES` / `-qhMushaf YES` switch the reader prefs for a capture.
+                IosUi.shared.uiPrefs.setTajweed(value: UserDefaults.standard.bool(forKey: "qhTajweed"))
+                IosUi.shared.uiPrefs.setReaderLayout(value: UserDefaults.standard.bool(forKey: "qhMushaf") ? .mushaf : .list)
                 // QA and screenshots: `-qhOpen quranhifz://plan` as a launch argument opens that place (simulator taps are not scriptable).
                 if let link = UserDefaults.standard.string(forKey: "qhOpen"), let url = URL(string: link) {
                     try? await Task.sleep(for: .milliseconds(600))
