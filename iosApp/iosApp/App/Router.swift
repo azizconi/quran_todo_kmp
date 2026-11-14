@@ -118,13 +118,13 @@ extension Route {
         case .reader: ReaderScreen(route: self)
         case .mushaf: MushafScreen(route: self)
         case .tafsir: TafsirScreen(route: self)
-        case .plan: ComingSoon(route: self, stage: "S6")
-        case .quiz: ComingSoon(route: self, stage: "S6")
-        case .tellApart: ComingSoon(route: self, stage: "S6")
-        case .khatm: ComingSoon(route: self, stage: "S6")
-        case .progressDetails: ComingSoon(route: self, stage: "S6")
+        case .plan: PlanScreen()
+        case .quiz: QuizScreen(mode: .mixed)
+        case let .tellApart(surah, ayah): QuizScreen(mode: .tellApart(surah: surah, ayah: ayah))
+        case let .khatm(pick): KhatmScreen(pickTarget: pick)
+        case .progressDetails: AnalyticsScreen()
         case .notes: NotesScreen()
-        case .hardDrill: ComingSoon(route: self, stage: "S6")
+        case .hardDrill: DrillScreen()
         case .settings: SettingsScreen()
         case .downloads: DownloadsScreen()
         case .privacy: PrivacyScreen()
@@ -270,6 +270,10 @@ final class Router {
         case "downloads": openStack([.settings, .downloads])
         case "about": openStack([.settings, .privacy])
         case "sources": openStack([.settings, .sources])
+        case "khatm": selectedTab = .lesson; lessonPath = [.khatm(pickTarget: false)]
+        case "drill": selectedTab = .progress; progressPath = [.hardDrill]
+        case "quiz": selectedTab = .lesson; lessonPath = [.quiz]
+        case "analytics": selectedTab = .progress; progressPath = [.progressDetails]
         default: return false
         }
         return true
