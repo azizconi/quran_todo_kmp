@@ -39,10 +39,10 @@ kotlin {
             linkerOpts.add("Speech")
             linkerOpts.add("-framework")
             linkerOpts.add("UserNotifications")
-            linkerOpts.add("-framework")
-            linkerOpts.add("AVFoundation")
-            linkerOpts.add("-framework")
-            linkerOpts.add("MediaPlayer")
+            for (framework in listOf("BackgroundTasks", "CoreText", "StoreKit", "AVFAudio", "AVFoundation", "MediaPlayer")) {
+                linkerOpts.add("-framework")
+                linkerOpts.add(framework)
+            }
         }
     }
     

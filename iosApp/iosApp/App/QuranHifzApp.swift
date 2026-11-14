@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct QuranHifzApp: App {
+    @UIApplicationDelegateAdaptor(ServicesAppDelegate.self) private var appDelegate
     private let env: AppEnvironment
     @State private var router = Router()
     private let showOnboardingAtLaunch: Bool
@@ -10,7 +11,7 @@ struct QuranHifzApp: App {
 
     init() {
         KoinInitializerKt.InitKoinIos()
-        // ServicesBootstrap.register()   // IOS-S2: iOS platform services (playback, reminders, downloads...) hook in here.
+        ServicesBootstrap.register()
         // The gate first (it marks an existing user as having passed), then the What's-new decision that reads it.
         let gate = IosStartup.shared.resolveGate()
         showOnboardingAtLaunch = gate.showsOnboarding
@@ -29,7 +30,19 @@ struct QuranHifzApp: App {
             .environment(env)
             .environment(env.copy)
             .environment(router)
-            .onOpenURL { router.open(url: $0) }
+            .onOpenURL { _ = router.open(url: $0) }
+            .task {
+                // A tapped reminder: the link of a cold start waits in the router of notifications, later ones come live.
+                NotificationRouter.shared.onLink = { url in _ = router.open(url: url) }
+                if let url = NotificationRouter.shared.consumePendingURL() { _ = router.open(url: url) }
+                #if DEBUG
+                // QA and screenshots: `-qhOpen quranhifz://plan` as a launch argument opens that place (simulator taps are not scriptable).
+                if let link = UserDefaults.standard.string(forKey: "qhOpen"), let url = URL(string: link) {
+                    try? await Task.sleep(for: .milliseconds(600))
+                    _ = router.open(url: url)
+                }
+                #endif
+            }
         }
     }
 }

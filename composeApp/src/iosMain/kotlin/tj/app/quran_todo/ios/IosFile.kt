@@ -31,6 +31,9 @@ import platform.Foundation.writeToFile
 class File(val path: String) {
     constructor(parent: File, child: String) : this(parent.path.trimEnd('/') + "/" + child)
 
+    /** `File(null, child)` is `File(child)`, as on the JVM (a `parentFile` of a root-level path is null). */
+    constructor(parent: File?, child: String) : this(parent?.path?.trimEnd('/')?.plus("/")?.plus(child) ?: child)
+
     private val manager get() = NSFileManager.defaultManager
 
     val name: String get() = path.trimEnd('/').substringAfterLast('/')
@@ -121,5 +124,17 @@ object AppFolders {
     fun noBackup(name: String): File = File(applicationSupport, name).also {
         it.mkdirs()
         it.excludeFromBackup()
+    }
+}
+
+private val globalLock = tj.app.quran_todo.ui.platform.SyncLock()
+
+/** `synchronized` of the JVM for the stores that are ported as they are: one coarse reentrant lock (the critical sections are tiny). */
+internal inline fun <T> synchronized(@Suppress("UNUSED_PARAMETER") lock: Any, block: () -> T): T {
+    globalLock.enter()
+    try {
+        return block()
+    } finally {
+        globalLock.exit()
     }
 }

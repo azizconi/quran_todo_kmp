@@ -19,6 +19,8 @@ struct RecallBottomBar: View {
     var returnDays: Int?
     var recordLabel: String?
     var onRecord: () -> Void = {}
+    /// False hides the "Record reading" action (a screen without a recording sheet yet).
+    var showsRecord = true
     var onChange: () -> Void = {}
     var nextLabel = ""
     var onNext: () -> Void = {}
@@ -35,7 +37,7 @@ struct RecallBottomBar: View {
                     } else if session.revealed {
                         AnswerBar(host: host, session: session)
                     } else {
-                        RevealBar(host: host, session: session, recordLabel: recordLabel ?? host.copy.recordShort, onRecord: onRecord)
+                        RevealBar(host: host, session: session, recordLabel: recordLabel ?? host.copy.recordShort, showsRecord: showsRecord, onRecord: onRecord)
                     }
                 }
             }
@@ -107,6 +109,7 @@ private struct RevealBar: View {
     let host: any RecallActions
     let session: HifzSession
     let recordLabel: String
+    let showsRecord: Bool
     let onRecord: () -> Void
     @State private var hintOpen = false
 
@@ -133,7 +136,7 @@ private struct RevealBar: View {
                 host.toggleListen()
             }
             BarAction(icon: "lightbulb", label: copy.hintTitle) { hintOpen = true }
-            BarAction(icon: "mic", label: recordLabel, action: onRecord)
+            if showsRecord { BarAction(icon: "mic", label: recordLabel, action: onRecord) }
         }
         if hidesMore {
             QhButton(copy.hideMore, size: .l, icon: "eye.slash", fullWidth: true) { host.hideMore(position: session.index) }

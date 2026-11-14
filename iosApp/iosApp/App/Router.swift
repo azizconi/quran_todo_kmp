@@ -114,7 +114,7 @@ extension Route {
     @ViewBuilder
     func screen() -> some View {
         switch self {
-        case .lesson: ComingSoon(route: self, stage: "S4")
+        case .lesson: LessonScreen()
         case .reader: ReaderScreen(route: self)
         case .mushaf: ComingSoon(route: self, stage: "S5")
         case .tafsir: TafsirScreen(route: self)
@@ -131,12 +131,6 @@ extension Route {
         case .sources: ComingSoon(route: self, stage: "S7")
         }
     }
-}
-
-/// The root of the Progress tab. S6 replaces this view.
-struct ProgressTabRoot: View {
-    @Environment(Copy.self) private var copy
-    var body: some View { ComingSoonBody(title: copy.progress.title, stage: "S6") }
 }
 
 // MARK: - Router
@@ -253,7 +247,10 @@ final class Router {
             selectedTab = .lesson
             lessonPath = [.lesson]
         case "reader":
-            let numbers = parts.dropFirst().compactMap { Int($0) }
+            // Both quranhifz://reader/2/255 and the reminders' quranhifz://reader?surah=2&ayah=255.
+            let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            let fromQuery = ["surah", "ayah"].compactMap { key in query.first { $0.name == key }?.value.flatMap { Int($0) } }
+            let numbers = fromQuery.isEmpty ? parts.dropFirst().compactMap { Int($0) } : fromQuery
             guard let surah = numbers.first else { return false }
             quranPath = []
             openReader(surah, ayah: numbers.dropFirst().first, origin: "reminder", in: .quran)

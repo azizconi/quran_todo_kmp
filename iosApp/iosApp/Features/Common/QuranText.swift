@@ -193,7 +193,8 @@ private struct QuranWordView: View, Equatable {
                     .blur(radius: 14 * veilAmount)
                     .overlay(alignment: .trailing) {
                         if letters, let letter = word.firstLetter {
-                            Text(verbatim: letter).font(font).foregroundStyle(inkSecondary).opacity(veilAmount)
+                            // The first letter in its joined (initial) form: a zero width joiner after it, as the word itself starts.
+                            Text(verbatim: letter + "\u{200D}").font(font).foregroundStyle(inkSecondary).opacity(veilAmount)
                                 .padding(.horizontal, 1).allowsHitTesting(false)
                         }
                     }
