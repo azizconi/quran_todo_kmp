@@ -127,6 +127,7 @@ struct SettingsScreen: View {
                 Text(s.palette).qhText({ $0.callout }, color: { $0.inkSecondary })
                 PaletteSwatches(selected: env.theme.palette, labels: [s.paletteForest, s.paletteSand, s.paletteOcean]) { palette in
                     env.setPalette(palette)
+                    IosTransferApply.shared.refreshWidget()
                 }
             }
             .padding(QhSpacing.card)

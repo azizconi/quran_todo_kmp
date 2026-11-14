@@ -63,6 +63,9 @@ object IosTransferApply {
         )
     }
 
+    /** Rewrites the widget snapshot (the palette changed in Settings) and reloads the timelines. */
+    fun refreshWidget() = org.koin.mp.KoinPlatform.getKoin().get<tj.app.quran_todo.ui.widget.WidgetRefresher>().refresh()
+
     /** Bytes of downloaded audio plus the listening cache: the value of the "Downloads and storage" row of Settings. */
     fun audioBytes(): Long = DownloadStorage.shared.totalBytes() + AudioCacheStorage.shared.totalBytes()
 
