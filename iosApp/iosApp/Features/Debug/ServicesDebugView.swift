@@ -7,6 +7,7 @@ import UIKit
 struct ServicesDebugView: View {
     @State private var log: [String] = []
     @State private var pageFontName: String?
+    private let auto = ProcessInfo.processInfo.arguments.contains("-servicesAutoTest")
 
     var body: some View {
         NavigationStack {
@@ -44,6 +45,37 @@ struct ServicesDebugView: View {
             }
             .navigationTitle("Services")
         }
+        .task {
+            // `-servicesAutoTest` runs every check once and writes the log to Documents/services_debug.log (for the simulator runs).
+            if ProcessInfo.processInfo.arguments.contains("-servicesReminderOnly") {
+                await reminder()
+                for _ in 0..<6 { await pending(); try? await Task.sleep(nanoseconds: 20_000_000_000) }
+                add("DONE")
+                return
+            }
+            if ProcessInfo.processInfo.arguments.contains("-servicesPlanOnly") {
+                let prefs = IosUi.shared.uiPrefs
+                let now = Calendar.current.dateComponents([.hour, .minute], from: Date().addingTimeInterval(120))
+                prefs.setReminderMinuteOfDay(value: Int32((now.hour ?? 0) * 60 + (now.minute ?? 0)))
+                prefs.setReminderEnabled(value: true)
+                IosServicesRuntime.shared.onForeground()
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                await pending()
+                for _ in 0..<5 { try? await Task.sleep(nanoseconds: 30_000_000_000); await pending() }
+                add("DONE")
+                return
+            }
+            guard auto else { return }
+            await reminder()
+            await pending()
+            await widget()
+            await transfer()
+            await reportPdf()
+            await mushaf(1)
+            await download()
+            await recordAndPlay()
+            add("DONE")
+        }
     }
 
     private func button(_ title: String, _ action: @escaping () async -> Void) -> some View {
@@ -51,7 +83,11 @@ struct ServicesDebugView: View {
     }
 
     private func add(_ line: String) {
-        DispatchQueue.main.async { log.insert(line, at: 0) }
+        DispatchQueue.main.async {
+            log.insert(line, at: 0)
+            let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("services_debug.log")
+            try? log.reversed().joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+        }
     }
 
     private func reminder() async {
@@ -62,16 +98,34 @@ struct ServicesDebugView: View {
 
     private func pending() async {
         let requests = await UNUserNotificationCenter.current().pendingNotificationRequests()
-        add("pending: \(requests.count)")
-        for request in requests.prefix(4) {
+        let delivered = await UNUserNotificationCenter.current().deliveredNotifications()
+        add("pending: \(requests.count), delivered: \(delivered.count) \(delivered.first?.request.content.title ?? "")")
+        for request in requests.sorted(by: { $0.identifier < $1.identifier }).prefix(3) {
             add("  \(request.identifier): \(request.content.title) | \(request.content.body)")
         }
     }
 
     private func recordAndPlay() async {
-        guard await MicrophonePermission.request() else { add("microphone denied"); return }
         let voice = IosServicesDebug.shared.voice()
         let key = PassageKey(surah: 1, startAyah: 1, endAyah: 7)
+        // A sample in Documents (put there by the test script) is played instead of recording: the simulator may have no microphone.
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let sample = docs.appendingPathComponent("sample.m4a")
+        if FileManager.default.fileExists(atPath: sample.path) {
+            let folder = (NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true)[0] as NSString).appendingPathComponent("recordings/1_1_7")
+            try? FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+            let target = (folder as NSString).appendingPathComponent("\(Int(Date().timeIntervalSince1970 * 1000)).m4a")
+            try? FileManager.default.copyItem(atPath: sample.path, toPath: target)
+            for await n in voice.count(key: key) { add("recordings of the passage: \(n)"); break }
+            for await notes in voice.notes(key: key) { add("notes: \(notes.count), first duration \(notes.first?.durationMs ?? 0) ms"); break }
+            voice.toggle(path: target)
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            add("playing: \(voice.player.value.playing) pos \(voice.player.value.positionMs) of \(voice.player.value.durationMs)")
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            add("after: playing \(voice.player.value.playing) pos \(voice.player.value.positionMs)")
+            return
+        }
+        guard await MicrophonePermission.request() else { add("microphone denied"); return }
         add("start: \(voice.start(key: key))")
         try? await Task.sleep(nanoseconds: 5_000_000_000)
         if let recording = voice.stop() {
@@ -93,7 +147,7 @@ struct ServicesDebugView: View {
             add("export: \(location)")
             let outcome = try await files.readText(location: location)
             add("import: \(outcome)")
-            if let url = TransferAccess.url(of: location) { await MainActor.run { ShareSheet.present(items: [url]) } }
+            if !auto, let url = TransferAccess.url(of: location) { await MainActor.run { ShareSheet.present(items: [url]) } }
         } catch {
             add("transfer failed: \(error)")
         }
@@ -116,7 +170,7 @@ struct ServicesDebugView: View {
             if let location, let url = URL(string: location) {
                 let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
                 add("pdf bytes: \(size)")
-                await MainActor.run { ShareSheet.present(items: [url]) }
+                if !auto { await MainActor.run { ShareSheet.present(items: [url]) } }
             }
         } catch {
             add("pdf failed: \(error)")
