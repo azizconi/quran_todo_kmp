@@ -91,3 +91,5 @@ builds and walks the simulator.
 - Wave 2 (after S0+S1 merge, parallel): **S2** services, **S2b** QuranText + Recall core components, **S3** shell.
 - Wave 3 (parallel, 3 agents): **A** = S7 (+ widget), **B** = S5 (reader; mushaf pages as its second half), **C** = S4 + S6.
 - Wave 4: S8 QA + screenshots (and a fix pass in parallel per stage owner).
+8. Reminder weekdays (owner, 2026-11-14): iOS keeps the day-of-week chips in reminder settings (`UiPrefs.reminderDays`), an
+   iOS-only addition; Android keeps its daily reminder for now.
