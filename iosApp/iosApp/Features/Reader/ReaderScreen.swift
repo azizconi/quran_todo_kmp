@@ -139,6 +139,8 @@ private struct ReaderContent: View {
     @State private var sheetAfter: ReaderSheet?
     @State private var recall: ReaderRecall?
     @State private var scrollTarget: Int?
+    @State private var voiceOpen = false
+    @State private var gradeReady = false
 
     private let space = "reader-scroll"
     private let total: Int
@@ -196,6 +198,11 @@ private struct ReaderContent: View {
                 guard let open else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + QhMotion.short + 0.05) { revealRow(open, proxy: proxy) }
             }
+            .onChange(of: recall?.currentIndex) { old, now in
+                guard let now else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + (reduced ? 0 : 0.16)) { bring(now, proxy: proxy, anchor: 0.3) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + (reduced ? 0 : 0.55)) { revealRow(now, proxy: proxy, force: true) }
+            }
             .onChange(of: scrollTarget) { _, target in
                 guard let target else { return }
                 scrollTarget = nil
@@ -207,6 +214,34 @@ private struct ReaderContent: View {
         .toolbar { toolbar }
         .navigationTitle("")
         .sheet(item: $sheet, onDismiss: presentQueuedSheet) { sheetContent($0) }
+        .navigationBarBackButtonHidden(recall?.active == true)
+        .toolbarBackground(recall?.active == true ? qh.colors.goldContainer : qh.colors.readerBg, for: .navigationBar)
+        .sheet(isPresented: Binding(get: { recall?.exitPrompt == true && recall?.session?.finished == false },
+                                     set: { if !$0 { recall?.dismissExitPrompt() } })) {
+            if let recall { RecallLeaveSheet(recall: recall) }
+        }
+        .sheet(isPresented: Binding(get: { gradeReady && recall?.session?.finished == true },
+                                     set: { if !$0 { gradeReady = false; if recall?.session?.finished == true { recall?.exit() } } })) {
+            if let recall, let session = recall.session {
+                RecallGradeSheet(session: session, title: recallPassageTitle(session), copy: recall.copy, busy: recall.saving, initial: nil) { grade, hard in
+                    recall.finish(grade, hard: hard)
+                }
+            }
+        }
+        .sheet(isPresented: $voiceOpen) {
+            if let session = recall?.session {
+                VoiceSheet(key: PassageKey(surah: Int32(model.number), startAyah: Int32(session.items.first?.inSurah ?? 1),
+                                           endAyah: Int32(session.items.last?.inSurah ?? 1)),
+                           title: recallPassageTitle(session), startRecording: false) { recall?.listenPassage() }
+            }
+        }
+        .onChange(of: recall?.session?.finished) { _, finished in
+            if finished == true {
+                DispatchQueue.main.asyncAfter(deadline: .now() + (reduced ? 0 : 0.48)) { if recall?.session?.finished == true { gradeReady = true } }
+            } else { gradeReady = false }
+        }
+        .onChange(of: recall?.ended) { _, ended in if ended == true { withQhAnimation(QhMotion.gentle) { recall = nil } } }
+        .onChange(of: recall?.active) { _, on in if on == true { actionOpen = nil; meaning = nil; IdleLock.set(true, owner: self.model) } }
         .onChange(of: model.statuses.value.count) { _, _ in }
         .onChange(of: anything || prefs.keepScreenOn) { _, on in IdleLock.set(on, owner: model) }
         .onChange(of: player.hasError) { _, error in if error { QhHaptics.shared.perform(.reject) } }
@@ -214,6 +249,20 @@ private struct ReaderContent: View {
             IdleLock.set(anything || prefs.keepScreenOn, owner: model)
             model.bindEvents(toaster: env.toaster, copy: copy) { celebration += 1 }
             model.vm.onOpened()
+            #if DEBUG
+            if let name = UserDefaults.standard.string(forKey: "s5sheet") {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                switch name {
+                case "ayah": sheet = .ayah(1)
+                case "aa": sheet = .appearance
+                case "goto": sheet = .goTo
+                case "player": sheet = .player
+                case "surah": sheet = .surah(status: false)
+                case "action": select(2)
+                default: break
+                }
+            }
+            #endif
             if prefs.tajweed { TajweedService.shared.prepare(surah: model.number) }
         }
         .onChange(of: prefs.tajweed) { _, on in if on { TajweedService.shared.prepare(surah: model.number) } }
@@ -240,7 +289,21 @@ private struct ReaderContent: View {
         if yes { model.vm.setShowTranslation(show: true) }
     }
 
-    private func row(_ index: Int) -> some View {
+    @ViewBuilder private func row(_ index: Int) -> some View {
+        if let recall, recall.active {
+            let prefs = ReadingPrefs.shared
+            let ayah = model.ayahs[index]
+            RecallRowView(recall: recall, ayah: model.display(at: index, tajweed: prefs.tajweed) ?? model.displays[index],
+                          status: rdStatus(model.statusOf(ayah)), weak: model.isWeak(ayah),
+                          translation: model.prefs.value.showTranslation ? model.translation(ayah) : nil,
+                          face: prefs.face, size: CGFloat(prefs.size), tajweed: prefs.tajweed)
+                .opacity(enter).offset(y: (1 - enter) * 24)
+        } else {
+            normalRow(index)
+        }
+    }
+
+    private func normalRow(_ index: Int) -> some View {
         let prefs = ReadingPrefs.shared
         let ayah = model.ayahs[index]
         let player = model.player.value
@@ -352,8 +415,8 @@ private struct ReaderContent: View {
     }
 
     /// Once the row of actions has opened, make sure it is not hidden behind the dock.
-    private func revealRow(_ index: Int, proxy: ScrollViewProxy) {
-        guard actionOpen == index, let f = frames.first(where: { $0.index == index + 1 }) else { return }
+    private func revealRow(_ index: Int, proxy: ScrollViewProxy, force: Bool = false) {
+        guard force || actionOpen == index, let f = frames.first(where: { $0.index == index + 1 }) else { return }
         let bottom = viewport.height - insets.bottom
         let visible = bottom - insets.top
         if f.minY + f.height > bottom, f.height < visible {
@@ -410,15 +473,41 @@ private struct ReaderContent: View {
     // MARK: Toolbar
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .principal) { titleView }
-        ToolbarItemGroup(placement: .topBarTrailing) {
-            barButton("book", label: copy.pages.openAsPages) { openPages() }
-            barButton("eye", label: copy.hifz.eyeAction) { startRecall(at: nil) }
-            Button { sheet = .appearance } label: {
-                Text("Aa").font(.custom("Manrope-Bold", size: 17)).foregroundStyle(qh.colors.ink).frame(minWidth: 32, minHeight: 44)
+        if let recall, recall.active {
+            ToolbarItem(placement: .topBarLeading) {
+                Button { QhHaptics.shared.perform(.tick); recall.requestExit() } label: {
+                    Image(systemName: "xmark").font(.system(size: 16, weight: .semibold)).foregroundStyle(qh.colors.ink).frame(minWidth: 32, minHeight: 44)
+                }
+                .accessibilityLabel(copy.hifz.exit)
             }
-            .accessibilityLabel(copy.reader.textSettings)
-            barButton("ellipsis", label: copy.reader.more) { sheet = .surah(status: false) }
+            ToolbarItem(placement: .principal) { recallTitle(recall) }
+            ToolbarItem(placement: .topBarTrailing) { barButton("mic", label: copy.voice.myReading) { voiceOpen = true } }
+        } else {
+            ToolbarItem(placement: .principal) { titleView }
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                barButton("book", label: copy.pages.openAsPages) { openPages() }
+                barButton("eye", label: copy.hifz.eyeAction) { startRecall(at: nil) }
+                Button { sheet = .appearance } label: {
+                    Text("Aa").font(.custom("Manrope-Bold", size: 17)).foregroundStyle(qh.colors.ink).frame(minWidth: 32, minHeight: 44)
+                }
+                .accessibilityLabel(copy.reader.textSettings)
+                barButton("ellipsis", label: copy.reader.more) { sheet = .surah(status: false) }
+            }
+        }
+    }
+
+    private func recallTitle(_ recall: ReaderRecall) -> some View {
+        let s = recall.session
+        let done = s?.markedCount ?? 0, size = s?.size ?? 0
+        return VStack(spacing: 0) {
+            HStack(spacing: 4) {
+                Text(recall.copy.modeName).qhText({ $0.title2 }).lineLimit(1)
+                Text("\u{00B7}").qhText({ $0.title2 }, color: { $0.inkSecondary })
+                AnimatedCounter(value: min(done + 1, max(size, 1)), style: { $0.title2 }, color: qh.colors.primary)
+                Text("/ \(size)").qhText({ $0.title2 }, color: { $0.inkSecondary })
+            }
+            Text("\(model.title(copy: copy)) \u{00B7} \(copy.reader.ayah) \((s?.current?.inSurah) ?? (s?.items.last?.inSurah ?? 1))")
+                .qhText({ $0.label }, color: { $0.inkSecondary }).lineLimit(1)
         }
     }
 
@@ -509,7 +598,16 @@ private struct ReaderContent: View {
 
     private func startRecall(at index: Int?) {
         sheet = nil
-        ReaderRecall.begin(model: model, start: index ?? max(reading, 0)) { recall = $0 }
+        let r = recall ?? ReaderRecall(model: model, toaster: env.toaster, copy: copy)
+        recall = r
+        let practice = model.practice.value
+        r.start(at: index ?? max(reading, 0), rangeEnd: practice.rangeEnabled ? Int(practice.endAyah) - 1 : nil)
+    }
+
+    private func recallPassageTitle(_ session: HifzSession) -> String {
+        let first = session.items.first?.inSurah ?? 1, last = session.items.last?.inSurah ?? first
+        let range = first == last ? "\(copy.reader.ayah) \(first)" : "\(copy.reader.ayah) \(first)\u{2013}\(last)"
+        return "\(model.title(copy: copy)) \u{00B7} \(range)"
     }
 }
 

@@ -4,6 +4,7 @@ import org.koin.mp.KoinPlatform
 import tj.app.quran_todo.common.audio.timing.WordSpan
 import tj.app.quran_todo.common.audio.timing.usableSpans
 import tj.app.quran_todo.domain.repository.QuranReferenceRepository
+import tj.app.quran_todo.ui.recording.VoiceService
 import tj.app.quran_todo.ui.state.UiPrefs
 import tj.app.quran_todo.ui.words.WordTimingsLoader
 
@@ -12,6 +13,9 @@ import tj.app.quran_todo.ui.words.WordTimingsLoader
  */
 object IosReaderBridge {
     private val koin get() = KoinPlatform.getKoin()
+
+    /** The recorder and player of "My reading" (the iOS `VoiceService`). */
+    val voice: VoiceService get() = koin.get()
 
     /**
      * The usable word spans (start/end in ms inside the ayah's recording) of ayah [ayah] of [surah] for the reciter of the settings, or
