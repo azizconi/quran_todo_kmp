@@ -41,7 +41,7 @@ struct QuranHifzApp: App {
                 if let url = NotificationRouter.shared.consumePendingURL() { _ = router.open(url: url) }
                 #if DEBUG
                 if UserDefaults.standard.bool(forKey: "qhSeedDemo") {
-                    try? await IosDebugSeed.shared.seed(withKhatm: UserDefaults.standard.bool(forKey: "qhSeedKhatm"))
+                    do { try await IosDebugSeed.shared.seed(withKhatm: UserDefaults.standard.bool(forKey: "qhSeedKhatm")) } catch { NSLog("SEEDFAIL \(error)") }
                 }
                 // QA and screenshots: `-qhOpen quranhifz://plan` as a launch argument opens that place (simulator taps are not scriptable).
                 if let link = UserDefaults.standard.string(forKey: "qhOpen"), let url = URL(string: link) {
