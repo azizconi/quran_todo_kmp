@@ -44,9 +44,9 @@ final class NotificationRouter: NSObject, UNUserNotificationCenterDelegate {
             if let onLink {
                 onLink(url)
             } else {
+                // Cold start: the shell has not attached yet; it consumes the link once its task runs. Not also through the system
+                // (`UIApplication.open` -> `onOpenURL`), or the place would open twice.
                 pendingURL = url
-                // Without a handler the system routes it to onOpenURL.
-                UIApplication.shared.open(url)
             }
         }
     }

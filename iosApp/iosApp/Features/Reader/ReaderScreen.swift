@@ -171,8 +171,8 @@ private struct ReaderContent: View {
                         row(index).id(index).trackRow(index + 1, space: space)
                     }
                     NextSurahCardView(next: model.nextSurah(copy: copy),
-                                      onOpen: { router.push(.reader(model.number + 1, origin: "next")) },
-                                      onStartOver: { router.push(.reader(1, origin: "next")) })
+                                      onOpen: { router.openReader(model.number + 1, origin: "next") },
+                                      onStartOver: { router.openReader(1, origin: "next") })
                         .opacity(enter).trackRow(total + 1, space: space).padding(.bottom, QhSpacing.x4)
                 }
             }

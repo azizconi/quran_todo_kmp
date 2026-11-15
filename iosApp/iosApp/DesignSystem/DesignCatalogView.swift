@@ -1,3 +1,4 @@
+#if DEBUG
 import SwiftUI
 
 /// Debug catalog of the whole design system: colours, type, every component, ornaments and motion. Temporary root of the app until
@@ -319,3 +320,4 @@ private struct OrnamentsPage: View {
 
 #Preview("Catalog light") { QhThemeRoot { DesignCatalogView() } }
 #Preview("Catalog dark") { QhThemeRoot(settings: { let s = ThemeSettings(); s.mode = .dark; return s }()) { DesignCatalogView() } }
+#endif
