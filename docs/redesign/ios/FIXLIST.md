@@ -1,5 +1,8 @@
 # iOS port — orchestrator fix list (open items found in review)
 
+> 2026-11-15: release blockers and open defects from the full inventory (privacy manifest, Firebase claims on iOS, report
+> "Save Image" key, Info.plist, lock-screen audio gaps, VoiceOver, iPad) are tracked in `docs/redesign/IOS_PRO_PLAN.md` §10.1.
+
 - [x] S2b: first-letters hint shows letters in isolated form; show the initial (joined) form like Android. Done by S4.
 - [x] S2b demo: Al-Fatiha bismillah header follows Kotlin `splitBismillah` (reader uses it). Done in S5.
 - [x] S2b: Madinah face U+06DF drawn as a dotted circle: the reader draws it as the sukun in the Madinah face (same length). Done in S5.
