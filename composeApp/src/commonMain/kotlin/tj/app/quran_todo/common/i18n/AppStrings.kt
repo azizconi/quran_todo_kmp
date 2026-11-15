@@ -445,7 +445,7 @@ fun stringsFor(language: AppLanguage): AppStrings = when (language) {
         recitationNoDataLabel = "No recitation data yet. Start microphone recitation to build this report.",
     )
     AppLanguage.RU -> AppStrings(
-        appName = "Quran Todo",
+        appName = "Quran Hifz",
         homeTitle = "Прогресс",
         homeSubtitle = "Небольшие шаги каждый день",
         statsTitle = "Статистика",
@@ -614,14 +614,14 @@ fun stringsFor(language: AppLanguage): AppStrings = when (language) {
         recitationNoDataLabel = "Пока нет данных чтения. Запустите микрофон, чтобы начать сбор отчёта.",
     )
     AppLanguage.UZ -> AppStrings(
-        appName = "Quran Todo",
+        appName = "Quran Hifz",
         homeTitle = "Progress",
         homeSubtitle = "Har kuni kichik qadamlar",
         statsTitle = "Statistika",
         settingsTitle = "Sozlamalar",
         languageLabel = "Til",
         onboardingLanguageTitle = "Ilova tilini tanlang",
-        onboardingLanguageSubtitle = "Quran Todo shu tilda ishlaydi. Keyin sozlamalarda o'zgartira olasiz.",
+        onboardingLanguageSubtitle = "Quran Hifz shu tilda ishlaydi. Keyin sozlamalarda o'zgartira olasiz.",
         onboardingContinueLabel = "Davom etish",
         themeLabel = "Mavzu",
         themeLight = "Yorug'",
@@ -783,14 +783,14 @@ fun stringsFor(language: AppLanguage): AppStrings = when (language) {
         recitationNoDataLabel = "Hali qiroat ma'lumotlari yo'q. Hisobotni boshlash uchun mikrofonni ishga tushiring.",
     )
     AppLanguage.TG -> AppStrings(
-        appName = "Quran Todo",
+        appName = "Quran Hifz",
         homeTitle = "Пешрафт",
         homeSubtitle = "Қадамҳои хурд ҳар рӯз",
         statsTitle = "Омор",
         settingsTitle = "Танзимот",
         languageLabel = "Забон",
         onboardingLanguageTitle = "Забони барномаро интихоб кунед",
-        onboardingLanguageSubtitle = "Quran Todo бо ҳамин забон кор мекунад. Баъд дар танзимот иваз кардан мумкин аст.",
+        onboardingLanguageSubtitle = "Quran Hifz бо ҳамин забон кор мекунад. Баъд дар танзимот иваз кардан мумкин аст.",
         onboardingContinueLabel = "Идома",
         themeLabel = "Мавзӯъ",
         themeLight = "Рӯшан",
@@ -952,14 +952,14 @@ fun stringsFor(language: AppLanguage): AppStrings = when (language) {
         recitationNoDataLabel = "Ҳоло маълумоти қироат нест. Барои оғоз микрофонро фаъол кунед.",
     )
     AppLanguage.TR -> AppStrings(
-        appName = "Quran Todo",
+        appName = "Quran Hifz",
         homeTitle = "Ilerleme",
         homeSubtitle = "Her gun kucuk adimlar",
         statsTitle = "Istatistik",
         settingsTitle = "Ayarlar",
         languageLabel = "Dil",
         onboardingLanguageTitle = "Uygulama dilini secin",
-        onboardingLanguageSubtitle = "Quran Todo bu dilde calisacak. Daha sonra Ayarlar'dan degistirebilirsiniz.",
+        onboardingLanguageSubtitle = "Quran Hifz bu dilde calisacak. Daha sonra Ayarlar'dan degistirebilirsiniz.",
         onboardingContinueLabel = "Devam et",
         themeLabel = "Tema",
         themeLight = "Açık",
