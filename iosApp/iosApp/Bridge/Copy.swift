@@ -48,4 +48,6 @@ final class Copy {
     var listen: ListenCopy { cached("listen") { IosCopy.shared.listenCopy() } }
     var a11y: A11yCopy { cached("a11y") { IosCopy.shared.a11yCopy() } }
     var khatm: KhatmCopy { cached("khatm") { IosCopy.shared.khatmCopy() } }
+    /// iOS text under "Transfer and backup" (the shared footnote talks about Android).
+    var transferFootnote: String { cached("transferFootnote") { IosCopy.shared.transferFootnoteIos() } }
 }

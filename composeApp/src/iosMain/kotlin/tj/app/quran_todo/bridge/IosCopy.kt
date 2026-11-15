@@ -120,6 +120,15 @@ object IosCopy {
     fun tafsirCopy(): TafsirCopy = tafsirCopy(language.value)
     fun tajweedCopy(): TajweedCopy = tajweedCopy(language.value)
     fun transferCopy(): TransferCopy = transferCopy(language.value)
+
+    /** iOS replacement for [TransferCopy.footnote], which talks about Android and Google backup. */
+    fun transferFootnoteIos(): String = when (language.value) {
+        AppLanguage.EN -> "Your progress is stored on this iPhone. To move it to another phone, save a copy to a file."
+        AppLanguage.RU -> "Прогресс хранится на этом iPhone. Чтобы перенести его на другой телефон, сохраните копию в файл."
+        AppLanguage.TG -> "Пешрафт дар ҳамин iPhone нигоҳ дошта мешавад. Барои интиқол ба телефони дигар нусхаро ба файл захира кунед."
+        AppLanguage.UZ -> "Jarayon shu iPhone’da saqlanadi. Uni boshqa telefonga o‘tkazish uchun nusxani faylga saqlang."
+        AppLanguage.TR -> "İlerleme bu iPhone’da saklanır. Başka bir telefona taşımak için kopyayı bir dosyaya kaydedin."
+    }
     fun translationCopy(): TranslationCopy = translationCopy(language.value)
     fun trustCopy(): TrustCopy = trustCopyIos(language.value)
     fun welcomeBackCopy(): WelcomeBackCopy = welcomeBackCopy(language.value)

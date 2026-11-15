@@ -53,7 +53,7 @@ struct SettingsScreen: View {
                     }
                 }
                 .staggeredEnter(index: 6, state: stagger)
-                SettingsSection(title: transfer.sectionTitle, footnote: transfer.footnote) {
+                SettingsSection(title: transfer.sectionTitle, footnote: copy.transferFootnote) {
                     QhNavRow(title: transfer.backupTitle, description: lastBackupLine(transfer),
                              icon: "square.and.arrow.down", iconTint: qh.colors.primary) { sheet = .backup }
                         .disabled(model.busy.value.boolValue)
