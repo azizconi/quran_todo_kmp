@@ -1,60 +1,46 @@
-Quran Hifz is a Quran memorization app: memorize the Quran a little every day, review each passage on the right day, and keep what you learned. Works offline.
+Quran Hifz helps you memorize the Quran step by step: a short lesson every day, review on the right day, and what you have learned stays with you.
 
-One clear hifz lesson a day, and what you know comes back before you forget it. For those on the way to becoming a hafiz, memorizing Juz Amma, learning with a teacher, or returning to the Quran.
+For anyone on the way to becoming a hafiz, memorizing Juz Amma, studying with a teacher or returning to the Quran.
 
-DAILY HIFZ LESSON
-The lesson is ready, in the traditional order of sabaq, sabqi and manzil:
-• New — a short passage to learn today. Listen, read, then recall it from memory.
-• Recent — passages from the last days and weeks, repeated on a ladder: +1, +3, +7, +14 and +30 days.
-• Old — the passages you know well, passed in a circle so that nothing is lost.
-After each ayah you answer honestly: "I remember" or "Hard". Hard ayahs are marked and come back until they stick.
+YOUR LESSON IS READY EVERY DAY
+Built on the traditional sabaq, sabqi and manzil:
+• New: a short passage for today. Listen, read, then recite it from memory.
+• Recent: passages from the last weeks come back after 1, 3, 7, 14 and 30 days.
+• Old: what you know well goes round in a circle, so nothing is lost.
+After each ayah, mark "I remember" or "Hard". Hard ayahs come back until they stick.
 
-MY PLAN AND FORECAST
-Choose what to learn — Juz Amma, Juz Tabarak, the Quran from the start or your own surahs — and set the pace in ayahs a day, or pick a date you want to finish by. The app shows when you will finish. Already know some surahs? Mark them: they go straight into review.
+A PLAN THAT FITS YOU
+Choose Juz Amma, Juz Tabarak, the whole Quran or your own surahs. Set a pace in ayahs a day or a finish date, and see when you will complete it. Surahs you already know go straight into review.
 
-CHECK YOURSELF
-• Recall: hints by first letters, every second word or gradual hiding; tap a hidden word to reveal only it.
-• Test: continue the ayah, name the next one, find the start of a surah, put ayahs in order, say where an ayah is.
-• "Tell similar ayahs apart" and practice for your hard ayahs.
-
-A REMINDER THAT RESPECTS YOU
-Pick the time yourself. If today's lesson is already done, the reminder does not arrive. Pause the plan for 1-14 days if you are ill or travelling: the streak is kept.
+TEST YOURSELF
+• Recall with hints: first letters, every other word or gradual hiding.
+• Quizzes: continue the ayah, name the next one, put ayahs in order, find where an ayah is.
+• Tell similar ayahs apart and practise your hard places.
 
 READ AND LISTEN
-• Two ways to read: text, and mushaf pages like the printed Quran (604 pages, 15 lines), with the current ayah highlighted.
-• Juz, Hizb and page marks, a large font, three themes.
-• Quran audio from 12 reciters, including Mishary Alafasy, Sudais, Shuraym, Husary and Abdul Basit. A slow Husary recording is made for memorizing.
-• While the reciter reads, the current word is highlighted. Tap a word and the audio starts from it.
-• Repeat a passage, or echo mode: the reciter reads, then it is your turn. Audio plays with the screen off.
-• Under the ayah: Listen, Repeat and More; go to any ayah.
-• Tajweed rules in colour, with a legend.
+• Mushaf pages like the printed Quran (604 pages, 15 lines), or clear text in a large font.
+• 12 reciters, including Mishary Alafasy, Sudais, Shuraim, Husary and Abdul Basit, plus a slow Husary recitation for memorizing.
+• Each word lights up as it is recited. Tap a word to start from it.
+• Repeat a passage, or use echo mode: the reciter reads, then it is your turn. Audio keeps playing with the screen off.
+• Colour-coded tajweed with a legend.
 
-UNDERSTAND
-• Several translations for each language.
-• Tafsir in the ayah sheet; if your language has none, the app shows another and marks its language.
-• Word meanings are in English only.
-• Search in a translation downloaded whole.
-• Similar ayahs: a mark on the ayah and a list with the difference highlighted.
+UNDERSTAND WHAT YOU MEMORIZE
+• Several translations for each language and tafsir for every ayah.
+• Word-by-word meanings (in English).
+• Similar ayahs with the differences highlighted.
 
-QURAN OFFLINE
-The Arabic text is inside the app, no internet needed. Audio and translations can be downloaded ahead in "Downloads and storage" (Wi-Fi only option).
+SEE YOUR PROGRESS
+Day streak, a map of the whole Quran, progress by juz and a forecast for your plan. See how well you remember each surah and where it is hardest. Share a report with your teacher as an image, PDF or text.
 
-HONEST PROGRESS
-Progress shows your plan: what is covered and when you finish. Day streak, 30-day activity, a map of the whole Quran and progress by juz. In the "In detail" section: how well you remember each surah and juz, a calendar of the year, a forecast for the surahs of your plan and your hardest places.
-A report for your teacher (ustaz) for a week, a month or your own period: as a picture, a PDF or text.
+AND MORE
+• A reminder at the time you choose. If today's lesson is done, it stays silent. Pause the plan for 1–14 days and keep your streak.
+• Khatm plan for 30 days or by any date. In Ramadan: a one-month khatm in one tap and "Juz of the night" for taraweeh.
+• Home Screen widget with today's lesson and your streak.
+• Works offline: the Arabic text is built in, and audio and translations can be downloaded ahead.
 
-KHATM, RAMADAN AND WIDGET
-• A reading plan for the whole Quran in 30 days or by a date you choose, with a daily portion in pages.
-• In Ramadan: a one-month khatm in one tap, and the "Juz of the night" for taraweeh.
-• A home screen widget shows today's lesson and your streak.
+YOUR DATA STAYS WITH YOU
+No account and no analytics. Your progress is stored on your iPhone, and you can move it to another phone with a file.
 
-YOUR DATA IS YOURS
-• No account needed.
-• The app collects no data: no analytics and no crash reports.
-• Move your progress to another phone through a file. There is no cloud sync.
+Languages: English, Russian, Turkish, Tajik and Uzbek.
 
-LANGUAGES
-Russian, English, Tajik, Uzbek and Turkish.
-
-GOOD TO KNOW
-Quran Hifz does not check your recitation and does not replace a teacher: you judge yourself, the app keeps the schedule.
+Quran Hifz does not check your recitation and does not replace a teacher: you judge yourself, and the app keeps the schedule.
