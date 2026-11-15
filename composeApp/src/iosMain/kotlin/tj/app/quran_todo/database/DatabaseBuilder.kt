@@ -2,6 +2,8 @@ package tj.app.quran_todo.database
 
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import kotlin.experimental.ExperimentalNativeApi
+import kotlin.native.Platform
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSFileManager
@@ -19,7 +21,10 @@ fun getDatabaseBuilder(): RoomDatabase.Builder<QuranTodoDatabase> {
 
 fun databasePath(): String = applicationSupportDirectory() + "/quran_todo.db"
 
+/** Debug binaries only: a release build prints nothing about where the database lives. */
+@OptIn(ExperimentalNativeApi::class)
 fun logDatabaseFile(stage: String, path: String) {
+    if (!Platform.isDebugBinary) return
     val exists = NSFileManager.defaultManager.fileExistsAtPath(path)
     println("Room DB ($stage): $path exists=$exists")
 }

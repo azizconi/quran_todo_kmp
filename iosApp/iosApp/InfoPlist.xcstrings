@@ -1,72 +1,37 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "NSMicrophoneUsageDescription": {
+    "NSPhotoLibraryAddUsageDescription": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The microphone records your own recitation so you can listen to it again. Recordings stay on your device."
+            "value": "Saves the progress report image to your Photos."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Микрофон записывает ваше чтение, чтобы вы могли послушать его снова. Записи остаются на вашем устройстве."
+            "value": "Сохраняет изображение отчёта о прогрессе в «Фото»."
           }
         },
         "tg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Микрофон хониши шуморо сабт мекунад, то шумо онро дубора шунавед. Сабтҳо дар дастгоҳи шумо мемонанд."
+            "value": "Тасвири ҳисоботи пешрафтро ба «Акс»-ҳои шумо захира мекунад."
           }
         },
         "uz": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mikrofon o'qishingizni yozib oladi, shunda uni qayta tinglashingiz mumkin. Yozuvlar qurilmangizda qoladi."
+            "value": "Taraqqiyot hisoboti rasmini «Rasmlar»ga saqlaydi."
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mikrofon, okuyuşunuzu kaydeder; böylece tekrar dinleyebilirsiniz. Kayıtlar cihazınızda kalır."
-          }
-        }
-      }
-    },
-    "NSSpeechRecognitionUsageDescription": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Speech recognition is used to detect the current ayah and mistakes."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Распознавание речи помогает определить текущий аят и ошибки."
-          }
-        },
-        "tg": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Шиносоии нутқ барои муайян кардани ояти ҷорӣ ва хатогиҳо истифода мешавад."
-          }
-        },
-        "uz": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nutqni aniqlash joriy oyat va xatolarni aniqlash uchun ishlatiladi."
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Konuşma tanıma, geçerli ayeti ve hataları algılamak için kullanılır."
+            "value": "İlerleme raporu görselini Fotoğraflar'a kaydeder."
           }
         }
       }
