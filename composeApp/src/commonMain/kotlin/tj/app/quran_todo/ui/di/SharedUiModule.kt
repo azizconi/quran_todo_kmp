@@ -33,7 +33,7 @@ import tj.app.quran_todo.ui.whatsnew.WhatsNewViewModel
  *
  * What a platform must bind before this module is used (the iOS ones are in `IosUiPlatformModule`):
  * `UiPrefs`, `PlaybackController`, `DownloadsService`, `TafsirChapters`, `MushafPageProvider`, `WordTimingsLoader`, `TransferFiles`,
- * `ReminderPlanner`, `StorageSpace`, `ListeningCache`, `RecordingsStorage`, `HijriConverter`. The shared ones (`HomeViewModel`,
+ * `ReminderPlanner`, `StorageSpace`, `ListeningCache`, `HijriConverter`. The shared ones (`HomeViewModel`,
  * `SurahViewModel`, `HifzRepository`, `EpochDayTicker`, the DAOs) come from the common and iOS modules.
  */
 val sharedUiModule = module {
@@ -115,7 +115,6 @@ val sharedUiModule = module {
             uiPrefs = get(),
             quran = get(),
             hifzDao = get(),
-            voice = get(),
             references = get(),
             cache = get(),
             space = get(),

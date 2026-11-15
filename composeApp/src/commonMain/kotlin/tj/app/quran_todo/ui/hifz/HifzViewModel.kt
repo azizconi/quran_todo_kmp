@@ -226,12 +226,6 @@ class HifzViewModel(
 
     // -- Listening ----------------------------------------------------------------------------------------
 
-    /** "Listen to the reciter" of the sheet "My reading": the passage of the session, every ayah once. */
-    fun listenPassage(surah: SurahWithAyahs) {
-        val session = _session.value ?: return
-        audio.toggleSequence(surah, session.items.map { it.inSurah })
-    }
-
     /** The "Listen" button: plays the current ayah, pauses it while it plays, resumes it when paused. */
     fun toggleListen(surah: SurahWithAyahs) {
         val current = _session.value?.current ?: return

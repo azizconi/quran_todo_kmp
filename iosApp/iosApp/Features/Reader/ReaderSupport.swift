@@ -28,7 +28,6 @@ extension Copy {
     var tajweed: TajweedCopy { ReaderCopies.cached(self, "tajweed") { IosCopy.shared.tajweedCopy() } }
     var translation: TranslationCopy { ReaderCopies.cached(self, "translation") { IosCopy.shared.translationCopy() } }
     var similar: SimilarCopy { ReaderCopies.cached(self, "similar") { IosCopy.shared.similarCopy() } }
-    var voice: VoiceCopy { ReaderCopies.cached(self, "voice") { IosCopy.shared.voiceCopy() } }
     var pages: PagesCopy { ReaderCopies.cached(self, "pages") { IosCopy.shared.pagesCopy() } }
     var hifz: HifzCopy { ReaderCopies.cached(self, "hifz") { IosCopy.shared.hifzCopy() } }
     var audio: AudioCopy { ReaderCopies.cached(self, "audio") { IosCopy.shared.audioCopy() } }

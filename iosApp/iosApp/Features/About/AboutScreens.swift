@@ -7,8 +7,7 @@ struct PrivacyScreen: View {
     @Environment(Copy.self) private var copy
     @State private var stagger = StaggerState(screen: "privacy")
 
-    private static let icons = ["person.crop.circle.badge.xmark", "iphone", "network", "chart.bar", "lock.shield", "speaker.slash",
-                                "mic", "trash"]
+    private static let icons = ["person.crop.circle.badge.xmark", "iphone", "network", "chart.bar", "lock.shield", "speaker.slash", "trash"]
 
     var body: some View {
         let t = copy.trust
@@ -62,7 +61,7 @@ struct SourcesScreen: View {
     @Environment(Copy.self) private var copy
     @State private var stagger = StaggerState(screen: "sources")
 
-    private static let androidOnly = ["Media3", "AndroidX", "Calf", "Decompose", "Compose Multiplatform"]
+    private static let androidOnly = ["Media3", "AndroidX", "Calf", "Decompose", "Compose Multiplatform", "Firebase"]
 
     var body: some View {
         let t = copy.trust

@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.Lightbulb
-import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
@@ -54,14 +53,14 @@ import tj.app.quran_todo.ui.theme.QhTheme
  * where the thumb is, whatever the list does:
  *
  * - the ayah being recalled is hidden: the main button "Reveal" (or "Hide more" of the progressive hint) and above it one row of the
- *   quieter actions: "Listen", "Hint", "Record reading";
+ *   quieter actions: "Listen", "Hint";
  * - the ayah is revealed: the line "The answer decides when the passage comes back" and two large answers, "I remember" and "Hard";
  * - every ayah is answered (task U5): the result row (the grade, when the passage comes back, "Change") and the button [nextLabel].
  *
  * The same controls under the ayah (for the reader and the drill) are `RecallControlsHost`.
  *
  * [result] is the grade that is about to be written (null while ayahs are left); [returnDays] says when the passage comes back (null: leave
- * it out). [onRecord] opens "Record my reading", [onChange] the grade sheet, [onNext] writes the grade and goes on; [saving] holds the button.
+ * it out). [onChange] the grade sheet, [onNext] writes the grade and goes on; [saving] holds the button.
  */
 @Composable
 fun RecallBottomBar(
@@ -69,8 +68,6 @@ fun RecallBottomBar(
     session: HifzSession,
     result: RecallResult?,
     returnDays: Int?,
-    recordLabel: String,
-    onRecord: () -> Unit,
     onChange: () -> Unit,
     nextLabel: String,
     onNext: () -> Unit,
@@ -96,7 +93,7 @@ fun RecallBottomBar(
             when {
                 result != null -> ResultBar(host, result, returnDays, onChange, nextLabel, onNext, saving)
                 session.revealed -> AnswerBar(host, session)
-                else -> RevealBar(host, session, recordLabel, onRecord)
+                else -> RevealBar(host, session)
             }
         }
     }
@@ -159,7 +156,7 @@ private fun AnswerBar(host: RecallHost, session: HifzSession) {
 // -- The ayah is hidden -------------------------------------------------------------------------------------
 
 @Composable
-private fun RevealBar(host: RecallHost, session: HifzSession, recordLabel: String, onRecord: () -> Unit) {
+private fun RevealBar(host: RecallHost, session: HifzSession) {
     val copy = host.copy
     val colors = QhTheme.colors
     val listening by host.listening.collectAsState()
@@ -194,7 +191,6 @@ private fun RevealBar(host: RecallHost, session: HifzSession, recordLabel: Strin
             onClick = { hintOpen = true },
             modifier = Modifier.weight(1f),
         )
-        BarAction(icon = Icons.Rounded.Mic, label = recordLabel, onClick = onRecord, modifier = Modifier.weight(1f))
     }
     if (hidesMore) {
         QhButton(

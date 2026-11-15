@@ -139,7 +139,6 @@ private struct ReaderContent: View {
     @State private var sheetAfter: ReaderSheet?
     @State private var recall: ReaderRecall?
     @State private var scrollTarget: Int?
-    @State private var voiceOpen = false
     @State private var gradeReady = false
 
     private let space = "reader-scroll"
@@ -227,13 +226,6 @@ private struct ReaderContent: View {
                 RecallGradeSheet(session: session, title: recallPassageTitle(session), copy: recall.copy, busy: recall.saving, initial: nil) { grade, hard in
                     recall.finish(grade, hard: hard)
                 }
-            }
-        }
-        .sheet(isPresented: $voiceOpen) {
-            if let session = recall?.session {
-                VoiceSheet(key: PassageKey(surah: Int32(model.number), startAyah: Int32(session.items.first?.inSurah ?? 1),
-                                           endAyah: Int32(session.items.last?.inSurah ?? 1)),
-                           title: recallPassageTitle(session), startRecording: false) { recall?.listenPassage() }
             }
         }
         .onChange(of: recall?.session?.finished) { _, finished in
@@ -482,7 +474,6 @@ private struct ReaderContent: View {
                 .accessibilityLabel(copy.hifz.exit)
             }
             ToolbarItem(placement: .principal) { recallTitle(recall) }
-            ToolbarItem(placement: .topBarTrailing) { barButton("mic", label: copy.voice.myReading) { voiceOpen = true } }
         } else {
             ToolbarItem(placement: .principal) { titleView }
             ToolbarItemGroup(placement: .topBarTrailing) {

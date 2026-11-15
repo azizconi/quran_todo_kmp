@@ -27,7 +27,6 @@ extension Copy {
     var reminderCopy: ReminderCopy { ExtraCopyCache.get(self, "reminder") { IosCopy.shared.reminderCopy() } }
     var analyticsCopy: AnalyticsCopy { ExtraCopyCache.get(self, "analytics") { IosCopy.shared.analyticsCopy() } }
     var reportCopy: ReportCopy { ExtraCopyCache.get(self, "report") { IosCopy.shared.reportCopy() } }
-    var voiceCopy: VoiceCopy { ExtraCopyCache.get(self, "voice") { IosCopy.shared.voiceCopy() } }
     var hintsCopy: HintsCopy { ExtraCopyCache.get(self, "hints") { IosCopy.shared.hintsCopy() } }
 
     /// "14 March" in the language of the app.

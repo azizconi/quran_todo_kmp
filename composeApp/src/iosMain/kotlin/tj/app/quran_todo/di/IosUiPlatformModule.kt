@@ -5,13 +5,11 @@ import org.koin.dsl.module
 import tj.app.quran_todo.khatm.HijriConverter
 import tj.app.quran_todo.ui.downloads.DownloadsPrefs
 import tj.app.quran_todo.ui.downloads.DownloadsService
-import tj.app.quran_todo.ui.downloads.RecordingsStorage
 import tj.app.quran_todo.ui.downloads.StorageSpace
 import tj.app.quran_todo.ui.mushaf.data.MushafPageProvider
 import tj.app.quran_todo.ui.platform.IosHijriConverter
 import tj.app.quran_todo.ui.platform.LocaleApplier
 import tj.app.quran_todo.ui.platform.NoLocaleApplier
-import tj.app.quran_todo.ui.recording.VoiceService
 import tj.app.quran_todo.ui.store.NoReviewPrompt
 import tj.app.quran_todo.ui.store.ReviewPrompt
 import tj.app.quran_todo.ui.widget.NoWidgetRefresher

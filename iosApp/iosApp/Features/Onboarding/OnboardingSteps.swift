@@ -386,13 +386,6 @@ struct ReadyStep: View {
                         .disabled(perDay >= 10)
                 }
             }
-            QhCard(padding: 0) {
-                QhSwitchRow(
-                    title: copy.trust.analyticsTitle,
-                    isOn: Binding(get: { model.analyticsEnabled.value.boolValue }, set: { model.vm.setAnalyticsEnabled(value: $0) }),
-                    description: copy.trust.analyticsDescription, icon: "shield", iconTint: qh.colors.inkSecondary
-                )
-            }
         }
     }
 

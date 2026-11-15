@@ -2,7 +2,7 @@
 
 Effective date: November 14, 2026
 
-This Privacy Policy explains how **Quran Hifz** (package `tj.app.quran_todo`, "the App", "we", "us") handles information when you use the Android application. The short version: there are no accounts, your study data stays on your phone, and the only data that leaves the device is what is needed to download the Quran content (text, translations, tafsir, mushaf pages, audio) and, unless you turn it off, anonymous usage statistics and crash reports.
+This Privacy Policy explains how **Quran Hifz** (package `tj.app.quran_todo`, "the App", "we", "us") handles information when you use the Android application (the iOS app is described in section 10). The short version: there are no accounts, your study data stays on your phone, and the only data that leaves the device is what is needed to download the Quran content (text, translations, tafsir, mushaf pages, audio) and, unless you turn it off, anonymous usage statistics and crash reports.
 
 ## 1. Information We Collect
 
@@ -10,9 +10,9 @@ This Privacy Policy explains how **Quran Hifz** (package `tj.app.quran_todo`, "t
 
 Your learning progress, ayah and surah statuses, notes, goals, reminders, reading plan (khatm), similar-ayah index, quiz results, detailed statistics and app settings are stored locally on your device. We do not have a server that receives them and we cannot see them. The App has no accounts: you do not sign in, and nothing is linked to your name, e-mail address or phone number.
 
-### 1.2 Your own recordings (microphone)
+### 1.2 Microphone
 
-In the Recall step the App can record **your own reading** of a passage ("My reading"). The microphone is used **only while you press Record**: the App does not listen in the background and never records on its own. Android asks for your permission before the first recording. A recording is a short audio file stored **only on your phone**, in the private storage of the App. It is **never sent anywhere** (not to us, not to Firebase, not to any other server), and it is not part of any backup, neither the backup of Android nor the backup file you can make in the App. The App keeps the last 20 recordings of each passage and removes older ones. You can delete a recording in the "My reading" sheet, and all of them in Settings > Downloads and storage > My recordings.
+The App does not use the microphone and does not record sound. It does not ask for the microphone permission.
 
 ### 1.3 Anonymous usage statistics and crash reports (Firebase)
 
@@ -57,14 +57,13 @@ If Android backup is enabled on your device, Android (Google Backup) may store a
 - `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and `WAKE_LOCK`: so that recitation keeps playing with the screen off.
 - `FOREGROUND_SERVICE_DATA_SYNC`: so that a download of audio and translations in "Downloads and storage" can finish while the app is in the background.
 - `BIND_GET_INSTALL_REFERRER_SERVICE` (`com.google.android.finsky.permission`): added by the Firebase library; through it Google Play tells the library where the App was installed from. We do not use it for advertising.
-- `RECORD_AUDIO`: used only while you press Record to record your own reading in the Recall step (section 1.2); Android asks you before the first use, and you can take the permission back in the settings of your device. The recording is stored only on your phone.
 - The App does not access your contacts, location, camera or photos. It accesses a file only when you yourself pick a transfer file or a place to save a report.
 
 ## 3. How We Use Information
 
 We use information only to:
 
-- provide the App's features (reading, listening, memorization, review, self-checks, progress, the widget, reminders and recording your own reading);
+- provide the App's features (reading, listening, memorization, review, self-checks, progress, the widget and reminders);
 - download Quran content and related resources (text, translations, tafsir, mushaf pages and their fonts, audio);
 - find and fix bugs and understand which features are used, so that we can improve the App (anonymous statistics and crash reports, if you leave them on).
 
@@ -80,7 +79,7 @@ The App has no accounts, no ads and no social features, and does not knowingly c
 
 ## 6. Data Retention and Deletion
 
-- Data stored on your device stays there until you delete the App or clear its data (Android Settings > Apps > Quran Hifz > Storage > Clear data). Your own recordings can also be deleted one by one in the "My reading" sheet, or all at once in Settings > Downloads and storage > My recordings.
+- Data stored on your device stays there until you delete the App or clear its data (Android Settings > Apps > Quran Hifz > Storage > Clear data).
 - A copy in Android backup is managed in your Google account and your device settings.
 - Anonymous statistics and crash reports are kept by Google for a limited period set in Firebase. Because they are not linked to a name or an account, we cannot look up or delete the data of a particular person; you can stop further collection by turning the switch in Settings off, or by uninstalling the App.
 
@@ -98,3 +97,7 @@ If you have questions about this Privacy Policy, contact us:
 
 - Email: **azizconi1@gmail.com**
 - Developer: **Azizjon Ibragimov**
+
+## 10. The iOS app
+
+The iOS version of Quran Hifz **collects no analytics and no crash data**. It does not include Firebase or any other analytics or crash-reporting library, and it has no accounts. Your progress, notes and settings stay on your iPhone or iPad (and in your iCloud backup, if you have turned iCloud backup on in Apple's settings; we cannot see it). The only data that leaves the device is the requests that download Quran audio, translations and tajweed markup from the public sources listed in section 1.4; those servers can see your IP address and what you asked for, as with any download. The iOS app does not ask for the microphone or for access to your contacts, location or photos, except to save a report image to Photos if you choose to. Deleting the app removes the data stored on the device. The anonymous statistics switch described in section 1.3 exists only in the Android app.

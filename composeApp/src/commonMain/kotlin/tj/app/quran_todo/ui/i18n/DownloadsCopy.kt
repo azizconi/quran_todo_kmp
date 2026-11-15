@@ -104,14 +104,6 @@ data class DownloadsCopy(
     val storageCacheHint: String,
     val storageClear: String,
     val storageFree: String,
-    // "My recordings" (task F2a): the person's own reading, kept on the phone only
-    val storageRecordings: String,
-    val storageRecordingsHint: String,
-    val storageDeleteRecordings: String,
-    val recordingsDeleteTitle: String,
-    val recordingsDeleteBody: String,
-    val recordingsDeleteConfirm: String,
-    val recordingsDeletedToast: String,
 
     // Notification
     val channelName: String,
@@ -169,8 +161,6 @@ data class DownloadsCopy(
     fun deleteBodyLabel(title: String, bytes: Long): String = deleteBody.fill("title" to title, "size" to sizeLabel(bytes))
 
     fun deleteAllBodyLabel(bytes: Long): String = deleteAllBody.fill("size" to sizeLabel(bytes))
-
-    fun recordingsDeleteBodyLabel(bytes: Long): String = recordingsDeleteBody.fill("size" to sizeLabel(bytes))
 
     /**
      * What is left undone: "3 ayahs did not download", "Translation did not download", or both joined by a dot. Empty when nothing
@@ -289,13 +279,6 @@ fun downloadsCopy(language: AppLanguage): DownloadsCopy = when (language) {
         storageCacheHint = "Up to 1 GB; the oldest files go first.",
         storageClear = "Clear",
         storageFree = "Free on the phone",
-        storageRecordings = "My recordings",
-        storageRecordingsHint = "Your own reading, on this phone only.",
-        storageDeleteRecordings = "Delete all recordings",
-        recordingsDeleteTitle = "Delete all recordings?",
-        recordingsDeleteBody = "All your recordings ({size}) will be removed from this phone. They cannot be brought back.",
-        recordingsDeleteConfirm = "Delete all",
-        recordingsDeletedToast = "Recordings deleted",
         channelName = "Downloads",
         channelDescription = "Progress of audio downloads.",
         notificationQueued = "{n} more in the queue",
@@ -373,13 +356,6 @@ fun downloadsCopy(language: AppLanguage): DownloadsCopy = when (language) {
         storageCacheHint = "До 1 ГБ; старые файлы удаляются первыми.",
         storageClear = "Очистить",
         storageFree = "Свободно на телефоне",
-        storageRecordings = "Мои записи",
-        storageRecordingsHint = "Ваше чтение, только на этом телефоне.",
-        storageDeleteRecordings = "Удалить все записи",
-        recordingsDeleteTitle = "Удалить все записи?",
-        recordingsDeleteBody = "Все ваши записи чтения ({size}) будут удалены с этого телефона. Вернуть их нельзя.",
-        recordingsDeleteConfirm = "Удалить все",
-        recordingsDeletedToast = "Записи удалены",
         channelName = "Загрузки",
         channelDescription = "Ход загрузки аудио.",
         notificationQueued = "Ещё в очереди: {n}",
@@ -457,13 +433,6 @@ fun downloadsCopy(language: AppLanguage): DownloadsCopy = when (language) {
         storageCacheHint = "То 1 ГБ; файлҳои кӯҳна аввал нест мешаванд.",
         storageClear = "Тоза кардан",
         storageFree = "Дар телефон озод",
-        storageRecordings = "Сабтҳои ман",
-        storageRecordingsHint = "Қироати худи шумо, танҳо дар ҳамин телефон.",
-        storageDeleteRecordings = "Нест кардани ҳамаи сабтҳо",
-        recordingsDeleteTitle = "Ҳамаи сабтҳо нест карда шаванд?",
-        recordingsDeleteBody = "Ҳамаи сабтҳои қироати шумо ({size}) аз ин телефон нест карда мешаванд. Онҳоро баргардондан имкон надорад.",
-        recordingsDeleteConfirm = "Ҳамаро нест кардан",
-        recordingsDeletedToast = "Сабтҳо нест карда шуданд",
         channelName = "Боргириҳо",
         channelDescription = "Ҷараёни боргирии аудио.",
         notificationQueued = "Дар навбат боз: {n}",
@@ -541,13 +510,6 @@ fun downloadsCopy(language: AppLanguage): DownloadsCopy = when (language) {
         storageCacheHint = "1 GB gacha; eng eski fayllar birinchi o‘chadi.",
         storageClear = "Tozalash",
         storageFree = "Telefonda bo‘sh joy",
-        storageRecordings = "Mening yozuvlarim",
-        storageRecordingsHint = "O‘zingizning o‘qishingiz, faqat shu telefonda.",
-        storageDeleteRecordings = "Barcha yozuvlarni o‘chirish",
-        recordingsDeleteTitle = "Barcha yozuvlar o‘chirilsinmi?",
-        recordingsDeleteBody = "Barcha o‘qish yozuvlaringiz ({size}) shu telefondan o‘chiriladi. Ularni qaytarib bo‘lmaydi.",
-        recordingsDeleteConfirm = "Hammasini o‘chirish",
-        recordingsDeletedToast = "Yozuvlar o‘chirildi",
         channelName = "Yuklashlar",
         channelDescription = "Audio yuklash jarayoni.",
         notificationQueued = "Navbatda yana: {n}",
@@ -625,13 +587,6 @@ fun downloadsCopy(language: AppLanguage): DownloadsCopy = when (language) {
         storageCacheHint = "En çok 1 GB; en eski dosyalar önce silinir.",
         storageClear = "Temizle",
         storageFree = "Telefonda boş alan",
-        storageRecordings = "Kayıtlarım",
-        storageRecordingsHint = "Kendi okuyuşunuz, yalnızca bu telefonda.",
-        storageDeleteRecordings = "Tüm kayıtları sil",
-        recordingsDeleteTitle = "Tüm kayıtlar silinsin mi?",
-        recordingsDeleteBody = "Tüm okuma kayıtlarınız ({size}) bu telefondan silinecek. Geri getirilemezler.",
-        recordingsDeleteConfirm = "Hepsini sil",
-        recordingsDeletedToast = "Kayıtlar silindi",
         channelName = "İndirmeler",
         channelDescription = "Ses indirmelerinin ilerlemesi.",
         notificationQueued = "Sırada {n} tane daha",

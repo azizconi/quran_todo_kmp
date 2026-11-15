@@ -23,7 +23,6 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.MenuBook
-import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.RecordVoiceOver
@@ -196,7 +195,6 @@ internal fun StorageCard(
     copy: DownloadsCopy,
     onDeleteAll: () -> Unit,
     onClearCache: () -> Unit,
-    onDeleteRecordings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = QhTheme.colors
@@ -221,17 +219,6 @@ internal fun StorageCard(
             icon = Icons.Rounded.DeleteSweep,
             tint = colors.gold,
             onAction = onClearCache,
-        )
-        QhRowDivider()
-        StorageLine(
-            title = copy.storageRecordings,
-            value = copy.sizeLabel(storage.recordingsBytes),
-            hint = copy.storageRecordingsHint,
-            action = copy.storageDeleteRecordings,
-            actionEnabled = storage.recordingsBytes > 0L,
-            icon = Icons.Rounded.Mic,
-            tint = colors.due,
-            onAction = onDeleteRecordings,
         )
         QhRowDivider()
         QhValueRow(

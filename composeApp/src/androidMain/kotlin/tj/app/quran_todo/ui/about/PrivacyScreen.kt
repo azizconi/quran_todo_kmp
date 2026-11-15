@@ -12,7 +12,6 @@ import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Mail
-import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material.icons.rounded.PersonOff
 import androidx.compose.material.icons.rounded.PhoneAndroid
@@ -65,7 +64,6 @@ fun PrivacyScreen(onBack: () -> Unit) {
             Icons.Rounded.BarChart to colors.learned,
             Icons.Rounded.Lock to colors.primary,
             Icons.Rounded.Block to colors.gold,
-            Icons.Rounded.Mic to colors.primary,
             Icons.Rounded.DeleteOutline to colors.danger,
         )
     }

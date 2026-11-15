@@ -112,8 +112,6 @@ struct DownloadsScreen: View {
                         action: d.storageDeleteAll, enabled: s.downloadsBytes > 0, icon: "arrow.down.circle", tint: qh.colors.primary) { ask = .deleteAll }
             storageLine(title: d.storageCache, value: d.sizeLabel(bytes: s.cacheBytes), hint: d.storageCacheHint,
                         action: d.storageClear, enabled: s.cacheBytes > 0, icon: "trash.slash", tint: qh.colors.gold) { ask = .clearCache }
-            storageLine(title: d.storageRecordings, value: d.sizeLabel(bytes: s.recordingsBytes), hint: d.storageRecordingsHint,
-                        action: d.storageDeleteRecordings, enabled: s.recordingsBytes > 0, icon: "mic", tint: qh.colors.due) { ask = .deleteRecordings }
             QhValueRow(title: d.storageFree, value: d.sizeLabel(bytes: s.freeBytes), icon: "internaldrive", iconTint: qh.colors.learned).card(qh, inset: 0)
         } header: { header(d.sectionStorage) }
     }
@@ -241,7 +239,6 @@ struct DownloadsScreen: View {
         switch ask {
         case .deleteRow, .deleteTranslation: return d.deleteTitle
         case .deleteAll: return d.deleteAllTitle
-        case .deleteRecordings: return d.recordingsDeleteTitle
         case .clearCache: return d.cacheClearTitle
         case .cancelAll: return d.cancelAllTitle
         case nil: return ""
@@ -252,7 +249,6 @@ struct DownloadsScreen: View {
         switch a {
         case .deleteRow, .deleteTranslation: return d.deleteConfirm
         case .deleteAll: return d.deleteAllConfirm
-        case .deleteRecordings: return d.recordingsDeleteConfirm
         case .clearCache: return d.cacheClearConfirm
         case .cancelAll: return d.cancelAllConfirm
         }
@@ -263,7 +259,6 @@ struct DownloadsScreen: View {
         case let .deleteRow(row): return d.deleteBodyLabel(title: row.displayTitle(d), bytes: row.bytesOnPhone)
         case let .deleteTranslation(row): return copy.s7Translation.deleteBody(name: row.name)
         case .deleteAll: return d.deleteAllBodyLabel(bytes: ui.storage.downloadsBytes)
-        case .deleteRecordings: return d.recordingsDeleteBodyLabel(bytes: ui.storage.recordingsBytes)
         case .clearCache: return d.cacheClearBody
         case .cancelAll: return d.cancelAllBody
         }
@@ -274,7 +269,6 @@ struct DownloadsScreen: View {
         case let .deleteRow(row): model.vm.delete(rowId: row.id)
         case let .deleteTranslation(row): model.vm.deleteTranslation(key: row.key)
         case .deleteAll: model.vm.deleteAll()
-        case .deleteRecordings: model.vm.deleteRecordings()
         case .clearCache: model.vm.clearCache()
         case .cancelAll: model.vm.cancelAll()
         }

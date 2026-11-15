@@ -31,8 +31,6 @@ import tj.app.quran_todo.ui.progress.ProgressViewModel
 import tj.app.quran_todo.ui.progress.analytics.AnalyticsViewModel
 import tj.app.quran_todo.ui.quiz.QuizViewModel
 import tj.app.quran_todo.ui.reader.ReaderViewModel
-import tj.app.quran_todo.ui.recording.RecordingStore
-import tj.app.quran_todo.ui.recording.VoiceController
 import tj.app.quran_todo.ui.settings.SettingsViewModel
 import tj.app.quran_todo.ui.similar.SimilarStore
 import tj.app.quran_todo.ui.settings.TransferIo
@@ -202,7 +200,6 @@ val downloadsUiModule = module {
             uiPrefs = get(),
             quran = get(),
             hifzDao = get(),
-            voice = get<VoiceController>(),
             references = get(),
             cache = AudioCacheStorage.shared,
             space = AndroidStorageSpace,
@@ -250,8 +247,6 @@ val whatsNewUiModule = module {
 val appUiModule = module {
     single { UiPrefs(SharedPreferencesStore(androidContext(), UiPrefs.PREFS_NAME)) }
     single { createPlaybackController(androidContext(), get<UiPrefs>()) }
-    // The microphone of "My reading" (task F2a): the recordings never leave the phone.
-    single { VoiceController(androidContext(), RecordingStore.shared, get()) }
 }
 
 val uiModules = listOf(

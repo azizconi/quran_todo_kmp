@@ -32,8 +32,6 @@ import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.navigation.Dest
 import tj.app.quran_todo.ui.reader.AyahWords
 import tj.app.quran_todo.ui.reader.displayWords
-import tj.app.quran_todo.ui.recording.VoiceSheetState
-import tj.app.quran_todo.ui.recording.rememberVoiceSheetState
 import tj.app.quran_todo.ui.state.HifzHintMode
 
 /**
@@ -81,8 +79,6 @@ class HifzMode internal constructor(
     private val startedAt: LongArray,
     private val startIndex: State<() -> Int>,
     private val rangeEndIndex: State<() -> Int?>,
-    /** The sheet "My reading" of the passage of the session (the microphone of the top bar opens it). */
-    val voice: VoiceSheetState,
 ) : RecallHost {
     /** The running session, or null. Reading it recomposes the reader of it whenever an ayah is answered. */
     override val session: HifzSession? get() = sessionState.value
@@ -94,9 +90,6 @@ class HifzMode internal constructor(
     override fun mark(mark: AyahMark, position: Int) = viewModel.mark(mark, position)
 
     override fun toggleListen() = viewModel.toggleListen(surah)
-
-    /** "Listen to the reciter" of the sheet "My reading". */
-    fun listenPassage() = viewModel.listenPassage(surah)
 
     override val hintMode: HifzHintMode get() = hintState.value
 
@@ -232,9 +225,8 @@ fun rememberHifzMode(
 
     val start = rememberUpdatedState(startIndex)
     val rangeEnd = rememberUpdatedState(rangeEndIndex)
-    val voice = rememberVoiceSheetState()
     return remember(viewModel, surah, surahName, copy) {
-        HifzMode(viewModel, surah, surahName, copy, sessionState, hintState, startedAt, start, rangeEnd, voice)
+        HifzMode(viewModel, surah, surahName, copy, sessionState, hintState, startedAt, start, rangeEnd)
     }
 }
 

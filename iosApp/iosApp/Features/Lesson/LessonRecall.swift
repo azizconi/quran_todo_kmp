@@ -1,23 +1,6 @@
 import ComposeApp
 import SwiftUI
 
-/// How many recordings the passage has ("My reading · 3" in the bar); follows the voice service.
-@MainActor
-@Observable
-final class RecordingCount {
-    private(set) var count = 0
-    @ObservationIgnored private var task: Task<Void, Never>?
-
-    func follow(_ key: PassageKey) {
-        task?.cancel()
-        task = Task { [weak self] in
-            do { for try await notes in IosReaderBridge.shared.voice.notes(key: key) { self?.count = notes.count } } catch {}
-        }
-    }
-
-    deinit { task?.cancel() }
-}
-
 /// "Recall" of a card, new or repeated (`LessonRecall.kt`): the hidden passage, ayah by ayah, with its controls in a bar pinned to the
 /// bottom. There is one grading: after the last ayah the grade of the passage is the one the answers give and the bar shows it with
 /// "Change" (the grade sheet, for a manual choice) and "Next", which writes it. Nothing opens by itself.
@@ -25,8 +8,6 @@ struct RecallStage: View {
     let model: LessonModel
     let work: LessonUiWorking
     @Environment(Copy.self) private var copy
-    @State private var voiceOpen = false
-    @State private var recordings = RecordingCount()
     @State private var host = RecallHostBridge(copy: .en)
     @State private var gradeOpen = false
     @State private var override: RecallResult?
@@ -47,7 +28,6 @@ struct RecallStage: View {
         let returnDays: Int? = result.flatMap { ComposeApp.RecallGrading.shared.returnDays(stage: stage, grade: $0.grade.kotlin) }.map { Int(truncating: $0) }
         let range = work.card.range
         let title = "\(model.surahTitle(Int(range.surah), language: copy.language)) · \(c.range(start: range.startAyah, end: range.endAyah))"
-        let passageKey = PassageKey(surah: range.surah, startAyah: range.startAyah, endAyah: range.endAyah)
         let hard = Set((review?.item.hardAyahs ?? []).map { Int(truncating: $0) })
         let displays = model.displays(for: work)
         Group {
@@ -57,10 +37,6 @@ struct RecallStage: View {
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         RecallBottomBar(
                             host: host, result: result, returnDays: returnDays,
-                            // "Record reading" / "My reading · 3": the person's own voice for this passage (it stays on the phone).
-                            recordLabel: recordings.count > 0 ? copy.voice.myReadingCount(n: Int32(recordings.count)) : nil,
-                            onRecord: { voiceOpen = true },
-                            showsRecord: true,
                             onChange: { gradeOpen = true },
                             nextLabel: c.next,
                             onNext: { if let result { model.vm.submit(card: work.card, grade: result.grade.kotlin, hard: Set(result.hard.map { KotlinInt(int: Int32($0)) })) } },
@@ -72,10 +48,6 @@ struct RecallStage: View {
             }
         }
         .onAppear { configure(host, key: key) }
-        .task(id: key) { recordings.follow(passageKey) }
-        .sheet(isPresented: $voiceOpen) {
-            VoiceSheet(key: passageKey, title: title, startRecording: recordings.count == 0) { model.vm.toggleListenOnce(work: work) }
-        }
         .onChange(of: copy.language, initial: true) { _, _ in host.copy = RecallCopy(copy.hifzKotlinCopy, hints: copy.hintsCopy) }
         .onChange(of: session, initial: true) { _, next in host.apply(session: next) }
         .onChange(of: hint, initial: true) { _, next in host.hintMode = next }

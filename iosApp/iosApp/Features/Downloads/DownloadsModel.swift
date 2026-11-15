@@ -6,14 +6,13 @@ import SwiftUI
 enum DownloadsAsk: Identifiable {
     case deleteRow(RowUi)
     case deleteTranslation(TranslationRowUi)
-    case deleteAll, deleteRecordings, clearCache, cancelAll
+    case deleteAll, clearCache, cancelAll
 
     var id: String {
         switch self {
         case let .deleteRow(row): return "row-\(row.id)"
         case let .deleteTranslation(row): return "translation-\(row.key)"
         case .deleteAll: return "all"
-        case .deleteRecordings: return "recordings"
         case .clearCache: return "cache"
         case .cancelAll: return "cancel"
         }
@@ -46,26 +45,18 @@ final class DownloadsModel {
             case .notEnoughSpace: toaster.show(d.notEnoughSpace, kind: .error)
             case .deleted: toaster.show(d.deletedToast, kind: .success)
             case .cacheCleared: toaster.show(d.cacheClearedToast, kind: .success)
-            case .recordingsDeleted: toaster.show(d.recordingsDeletedToast, kind: .success)
             }
         }
     }
 
     func setLanguage(_ language: AppLanguage) { vm.setLanguage(next: language) }
 
-    /// A download starts: the first time the person may be asked to allow notifications (one question, at the first download).
+    /// A download starts. The iOS download runs on a background `URLSession` and needs no notification permission, so none is asked here.
     func download(_ rowId: String) {
-        askNotificationsOnce()
         vm.download(rowId: rowId)
     }
 
     func downloadTranslation(_ key: String) {
-        askNotificationsOnce()
         vm.downloadTranslation(key: key)
-    }
-
-    private func askNotificationsOnce() {
-        guard vm.takeNotificationPermissionTurn() else { return }
-        Task { _ = await NotificationPermission.request() }
     }
 }

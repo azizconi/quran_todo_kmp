@@ -4,12 +4,12 @@ import SwiftUI
 /// the thumb is, whatever the list does:
 ///
 /// - the ayah being recalled is hidden: the main button "Reveal" (or "Hide more" of the progressive hint) and above it one row of the
-///   quieter actions "Listen", "Hint", "Record reading";
+///   quieter actions "Listen", "Hint";
 /// - the ayah is revealed: the line "The answer decides when the passage comes back" and two large answers;
 /// - every ayah is answered: the result row (the grade, when the passage comes back, "Change") and the button `nextLabel`.
 ///
 /// Use it as `.safeAreaInset(edge: .bottom) { RecallBottomBar(...) }`. `result` is the grade about to be written (nil while ayahs are
-/// left); `returnDays` says when the passage comes back (nil: leave it out). `onRecord` opens "Record my reading", `onChange` the grade
+/// left); `returnDays` says when the passage comes back (nil: leave it out). `onChange` the grade
 /// sheet, `onNext` writes the grade and goes on; `saving` holds the button.
 struct RecallBottomBar: View {
     @Environment(\.qh) private var qh
@@ -17,10 +17,6 @@ struct RecallBottomBar: View {
     let host: any RecallActions
     var result: RecallResult?
     var returnDays: Int?
-    var recordLabel: String?
-    var onRecord: () -> Void = {}
-    /// False hides the "Record reading" action (a screen without a recording sheet yet).
-    var showsRecord = true
     var onChange: () -> Void = {}
     var nextLabel = ""
     var onNext: () -> Void = {}
@@ -37,7 +33,7 @@ struct RecallBottomBar: View {
                     } else if session.revealed {
                         AnswerBar(host: host, session: session)
                     } else {
-                        RevealBar(host: host, session: session, recordLabel: recordLabel ?? host.copy.recordShort, showsRecord: showsRecord, onRecord: onRecord)
+                        RevealBar(host: host, session: session)
                     }
                 }
             }
@@ -108,9 +104,6 @@ private struct RevealBar: View {
     @Environment(\.qh) private var qh
     let host: any RecallActions
     let session: HifzSession
-    let recordLabel: String
-    let showsRecord: Bool
-    let onRecord: () -> Void
     @State private var hintOpen = false
 
     var body: some View {
@@ -136,7 +129,6 @@ private struct RevealBar: View {
                 host.toggleListen()
             }
             BarAction(icon: "lightbulb", label: copy.hintTitle) { hintOpen = true }
-            if showsRecord { BarAction(icon: "mic", label: recordLabel, action: onRecord) }
         }
         if hidesMore {
             QhButton(copy.hideMore, size: .l, icon: "eye.slash", fullWidth: true) { host.hideMore(position: session.index) }

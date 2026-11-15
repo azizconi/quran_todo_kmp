@@ -9,12 +9,10 @@ final class OnboardingModel {
     @ObservationIgnored private var events: FlowEvents<OnboardingEvent>?
 
     let ui: FlowState<OnboardingUi>
-    let analyticsEnabled: FlowState<KotlinBoolean>
     var vm: OnboardingViewModel { holder.vm }
 
     init() {
         ui = FlowState(holder.vm.ui)
-        analyticsEnabled = FlowState(holder.vm.analyticsEnabled)
     }
 
     func bind(onFinished: @escaping (OnboardingExit) -> Void, onFailed: @escaping () -> Void) {

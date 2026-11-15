@@ -2,6 +2,11 @@
 <!-- Replaces src/debug/AndroidManifest.xml as the manifest of the debug source set when the F7 prototype is switched on (-Pvoiceproto=true):
      the same receiver plus the entries of the voice check. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The F7 prototype records the voice; the release app has no microphone (the own-voice recorder was removed). Phones without a
+         microphone can still install the debug build. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
     <application>
         <!-- Debug only: moves "today" of the reading plan and Ramadan (see DebugDateReceiver). A release build does not have it. -->
         <receiver

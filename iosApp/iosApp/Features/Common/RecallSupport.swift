@@ -64,7 +64,6 @@ struct RecallCopy: Equatable {
     var change: String
     var returnsTomorrow: String
     var returnsInDaysFmt: String
-    var recordShort: String
     var lessonGradeHint: String
     var dismiss: String
 
@@ -109,7 +108,7 @@ struct RecallCopy: Equatable {
                     .progressive: "The ayah starts whole and you hide it a quarter at a time"],
         hideMore: "Hide more", hiddenShareFmt: "{n}% hidden", peekedFmt: "Peeked: {n}",
         resultFmt: "Passage: {grade}", change: "Change", returnsTomorrow: "back tomorrow", returnsInDaysFmt: "back in {n} days",
-        recordShort: "Record reading", lessonGradeHint: "The answer decides when the passage comes back", dismiss: "Dismiss"
+        lessonGradeHint: "The answer decides when the passage comes back", dismiss: "Dismiss"
     )
 
     static let ru: RecallCopy = {
@@ -131,7 +130,7 @@ struct RecallCopy: Equatable {
                         .progressive: "Аят виден целиком, вы скрываете его по четвертям"],
             hideMore: "Скрыть ещё", hiddenShareFmt: "Скрыто {n} %", peekedFmt: "Подсмотрено: {n}",
             resultFmt: "Отрывок: {grade}", change: "Изменить", returnsTomorrow: "вернётся завтра",
-            returnsInDaysFmt: "вернётся через {n} дн.", recordShort: "Записать чтение",
+            returnsInDaysFmt: "вернётся через {n} дн.",
             lessonGradeHint: "Ответ решает, когда отрывок вернётся", dismiss: "Скрыть"
         )
         c.wordCount = { n in

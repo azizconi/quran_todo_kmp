@@ -82,12 +82,6 @@ interface ListeningCache {
     fun clear(): Long
 }
 
-/** The size and the removal of the person's own recordings ("My reading"). */
-interface RecordingsStorage {
-    suspend fun totalBytes(): Long
-    suspend fun deleteAll()
-}
-
 /** Free space of the phone, for the check before a big download. iOS: `volumeAvailableCapacityForImportantUsage` of the home directory. */
 fun interface StorageSpace {
     fun freeBytes(): Long

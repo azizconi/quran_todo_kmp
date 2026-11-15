@@ -60,9 +60,6 @@ struct SettingsScreen: View {
                 }
                 .staggeredEnter(index: 7, state: stagger)
                 SettingsSection(title: trust.sectionPrivacy) {
-                    QhSwitchRow(title: trust.analyticsTitle, isOn: analyticsBinding, description: trust.analyticsDescription,
-                                icon: "chart.bar", iconTint: qh.colors.learned)
-                    QhRowDivider()
                     QhNavRow(title: s.privacyPolicy, description: trust.privacyRowDescription, icon: "hand.raised", iconTint: qh.colors.gold) {
                         router.push(.privacy)
                     }
@@ -222,10 +219,6 @@ struct SettingsScreen: View {
 
     private var reduceMotionBinding: Binding<Bool> {
         Binding(get: { model.reduceMotion.value.boolValue }, set: { env.setReduceMotion($0) })
-    }
-
-    private var analyticsBinding: Binding<Bool> {
-        Binding(get: { model.analytics.value.boolValue }, set: { model.vm.setAnalyticsEnabled(value: $0) })
     }
 
     private func readerBinding(_ keyPath: KeyPath<SurahReaderPreferences, Bool>, _ set: @escaping (Bool) -> Void) -> Binding<Bool> {

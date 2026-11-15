@@ -89,10 +89,6 @@ import tj.app.quran_todo.ui.playback.FollowedArabicText
 import tj.app.quran_todo.ui.playback.PrepareWordTimings
 import tj.app.quran_todo.ui.playback.WordFollow
 import tj.app.quran_todo.ui.reader.AyahWords
-import tj.app.quran_todo.ui.recording.PassageKey
-import tj.app.quran_todo.ui.recording.VoiceEntryRow
-import tj.app.quran_todo.ui.recording.VoiceSheetHost
-import tj.app.quran_todo.ui.recording.rememberVoiceSheetState
 import tj.app.quran_todo.ui.reader.displayWords
 import tj.app.quran_todo.ui.reader.splitBismillah
 import tj.app.quran_todo.ui.similar.SimilarLessonHint

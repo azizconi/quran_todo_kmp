@@ -37,7 +37,6 @@ import tj.app.quran_todo.ui.i18n.TajweedCopy
 import tj.app.quran_todo.ui.i18n.TransferCopy
 import tj.app.quran_todo.ui.i18n.TranslationCopy
 import tj.app.quran_todo.ui.i18n.TrustCopy
-import tj.app.quran_todo.ui.i18n.VoiceCopy
 import tj.app.quran_todo.ui.i18n.WelcomeBackCopy
 import tj.app.quran_todo.ui.i18n.WidgetCopy
 import tj.app.quran_todo.ui.i18n.a11yCopy
@@ -75,7 +74,6 @@ import tj.app.quran_todo.ui.i18n.tajweedCopy
 import tj.app.quran_todo.ui.i18n.transferCopy
 import tj.app.quran_todo.ui.i18n.translationCopy
 import tj.app.quran_todo.ui.i18n.trustCopyIos
-import tj.app.quran_todo.ui.i18n.voiceCopy
 import tj.app.quran_todo.ui.i18n.welcomeBackCopy
 import tj.app.quran_todo.ui.i18n.widgetCopy
 import tj.app.quran_todo.ui.whatsnew.WhatsNewCopy
@@ -124,7 +122,6 @@ object IosCopy {
     fun transferCopy(): TransferCopy = transferCopy(language.value)
     fun translationCopy(): TranslationCopy = translationCopy(language.value)
     fun trustCopy(): TrustCopy = trustCopyIos(language.value)
-    fun voiceCopy(): VoiceCopy = voiceCopy(language.value)
     fun welcomeBackCopy(): WelcomeBackCopy = welcomeBackCopy(language.value)
     fun whatsNewCopy(): WhatsNewCopy = whatsNewCopy(language.value)
     fun widgetCopy(): WidgetCopy = widgetCopy(language.value)

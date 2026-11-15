@@ -25,8 +25,20 @@ class TrustCopyIosTest {
         AppLanguage.entries.forEach { language ->
             val shared = trustCopy(language)
             val ios = trustCopyIos(language)
-            assertEquals(shared.privacyPoints.map { it.title }, ios.privacyPoints.map { it.title })
+            assertEquals(shared.privacyPoints.size, ios.privacyPoints.size)
+            // Only the "statistics" point has another title: iOS says that nothing is collected.
+            assertEquals(1, ios.privacyPoints.zip(shared.privacyPoints).count { it.first.title != it.second.title })
             assertTrue(ios.privacyPoints.zip(shared.privacyPoints).count { it.first != it.second } == 3)
+        }
+    }
+
+    @Test
+    fun iosCopyDoesNotPromiseWhatTheIosAppDoesNot() {
+        // The iOS build has no Firebase, no statistics and no data eraser in the iPhone settings.
+        AppLanguage.entries.forEach { language ->
+            val text = trustCopyIos(language).privacyPoints.joinToString("\n") { it.title + " " + it.text }
+            assertFalse(text.contains("Firebase", ignoreCase = true), "$language names Firebase")
+            assertFalse(text.contains("microphone", ignoreCase = true) || text.contains("микрофон", ignoreCase = true), "$language names the microphone")
         }
     }
 }

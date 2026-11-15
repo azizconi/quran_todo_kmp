@@ -17,9 +17,6 @@ struct ServicesDebugView: View {
                     button("Plan 14 days now") { IosServicesRuntime.shared.onForeground(); add("planned (see pending)") }
                     button("Pending notifications") { await pending() }
                 }
-                Section("Recording") {
-                    button("Record 5 s, then play") { await recordAndPlay() }
-                }
                 Section("Transfer and report") {
                     button("Write + read a backup file") { await transfer() }
                     button("Render report PDF and share") { await reportPdf() }
@@ -73,7 +70,6 @@ struct ServicesDebugView: View {
             await reportPdf()
             await mushaf(1)
             await download()
-            await recordAndPlay()
             add("DONE")
         }
     }
@@ -102,41 +98,6 @@ struct ServicesDebugView: View {
         add("pending: \(requests.count), delivered: \(delivered.count) \(delivered.first?.request.content.title ?? "")")
         for request in requests.sorted(by: { $0.identifier < $1.identifier }).prefix(3) {
             add("  \(request.identifier): \(request.content.title) | \(request.content.body)")
-        }
-    }
-
-    private func recordAndPlay() async {
-        let voice = IosServicesDebug.shared.voice()
-        let key = PassageKey(surah: 1, startAyah: 1, endAyah: 7)
-        // A sample in Documents (put there by the test script) is played instead of recording: the simulator may have no microphone.
-        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let sample = docs.appendingPathComponent("sample.m4a")
-        if FileManager.default.fileExists(atPath: sample.path) {
-            let folder = (NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true)[0] as NSString).appendingPathComponent("recordings/1_1_7")
-            try? FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
-            let target = (folder as NSString).appendingPathComponent("\(Int(Date().timeIntervalSince1970 * 1000)).m4a")
-            try? FileManager.default.copyItem(atPath: sample.path, toPath: target)
-            for await n in voice.count(key: key) { add("recordings of the passage: \(n)"); break }
-            for await notes in voice.notes(key: key) { add("notes: \(notes.count), first duration \(notes.first?.durationMs ?? 0) ms"); break }
-            voice.toggle(path: target)
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            add("playing: \(voice.player.value.playing) pos \(voice.player.value.positionMs) of \(voice.player.value.durationMs)")
-            try? await Task.sleep(nanoseconds: 4_000_000_000)
-            add("after: playing \(voice.player.value.playing) pos \(voice.player.value.positionMs)")
-            return
-        }
-        guard await MicrophonePermission.request() else { add("microphone denied"); return }
-        add("start: \(voice.start(key: key))")
-        try? await Task.sleep(nanoseconds: 5_000_000_000)
-        if let recording = voice.stop() {
-            add("recorded \(recording.sizeBytes) bytes at \(recording.path)")
-            voice.toggle(path: recording.path)
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            add("playing: \(voice.player.value.playing) pos \(voice.player.value.positionMs) of \(voice.player.value.durationMs)")
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            add("after: playing \(voice.player.value.playing)")
-        } else {
-            add("nothing recorded")
         }
     }
 

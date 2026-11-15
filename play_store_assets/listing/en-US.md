@@ -27,7 +27,6 @@ CHECK YOURSELF
 • Recall: hints by first letters, every second word or gradual hiding; tap a hidden word to reveal only it.
 • Test: continue the ayah, name the next one, find the start of a surah, put ayahs in order, say where an ayah is.
 • "Tell similar ayahs apart" and practice for your hard ayahs.
-• You can record your own recitation in Recall and compare it with the reciter; it stays on your phone. The app does not grade your reading.
 
 A REMINDER THAT RESPECTS YOU
 Pick the time yourself. If today's lesson is already done, the reminder does not arrive. Pause the plan for 1-14 days if you are ill or travelling: the streak is kept.
@@ -77,5 +76,5 @@ Quran Hifz 2.0 — a big update
 • Lesson of the day: new, recent and old, with a plan and a finish date
 • Mushaf pages, tajweed colours and 12 reciters with word highlighting
 • Under the ayah: Listen, Repeat and More; go to any ayah
-• Test, similar ayahs and recording your own recitation
+• Test and similar ayahs
 • Progress by plan, a report for your teacher, Ramadan khatm and a widget

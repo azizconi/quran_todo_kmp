@@ -70,7 +70,6 @@ class DownloadsViewModel(
     private val uiPrefs: UiPrefs,
     private val quran: QuranRemoteRepository,
     private val hifzDao: HifzDao,
-    private val voice: RecordingsStorage,
     private val references: QuranReferenceRepository,
     private val cache: ListeningCache,
     private val space: StorageSpace,
@@ -169,10 +168,6 @@ class DownloadsViewModel(
 
     private val cacheBytes = MutableStateFlow(0L)
 
-    /** The size of the person's own recordings (task F2a). */
-    private val recordingsBytes = MutableStateFlow(0L)
-
-    private val bytes = combine(cacheBytes, recordingsBytes) { cache, recordings -> cache to recordings }
 
     // -- The model of the rows -----------------------------------------------------------------
 
@@ -286,8 +281,8 @@ class DownloadsViewModel(
 
     private val options: Flow<Options> = combine(manager.prefs.wifiOnly, manager.prefs.withTranslation, ::Options)
 
-    val ui: StateFlow<DownloadsUi> = combine(defs, status, options, bytes, metrics) { defs, status, options, (cache, recordings), metrics ->
-        build(defs, status, options, cache, recordings, metrics)
+    val ui: StateFlow<DownloadsUi> = combine(defs, status, options, cacheBytes, metrics) { defs, status, options, cache, metrics ->
+        build(defs, status, options, cache, metrics)
     }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DownloadsUi())
@@ -297,7 +292,7 @@ class DownloadsViewModel(
         viewModelScope.launch(Dispatchers.IO) { references.checkTranslationUpdates() }
     }
 
-    private fun build(defs: Defs, status: Status, options: Options, cacheBytes: Long, recordingsBytes: Long, metrics: TextMetrics?): DownloadsUi {
+    private fun build(defs: Defs, status: Status, options: Options, cacheBytes: Long, metrics: TextMetrics?): DownloadsUi {
         val queue = status.queue
         val active = queue.active
 
@@ -371,7 +366,6 @@ class DownloadsViewModel(
             storage = StorageUi(
                 downloadsBytes = status.files.values.sum(),
                 cacheBytes = cacheBytes,
-                recordingsBytes = recordingsBytes,
                 freeBytes = space.freeBytes(),
             ),
             planAll = defs.plan?.let(::rowOf),
@@ -528,21 +522,11 @@ class DownloadsViewModel(
         }
     }
 
-    /** "Delete all recordings": the person's own reading goes for good (the playing and the recording, if any, stop first). */
-    fun deleteRecordings() {
-        viewModelScope.launch {
-            voice.deleteAll()
-            recordingsBytes.value = 0L
-            eventChannel.trySend(DownloadsEvent.RecordingsDeleted)
-        }
-    }
-
-    /** Reads the size of the cache and of the recordings again (the cache grows while the person listens). */
+    /** Reads the size of the cache again (the cache grows while the person listens). */
     fun refreshCache() {
         viewModelScope.launch {
             // The listening cache and the cache of the pages the person has read: both go with "Clear".
             cacheBytes.value = withContext(Dispatchers.IO) { cache.totalBytes() + manager.pages.cacheBytes() }
-            recordingsBytes.value = voice.totalBytes()
         }
     }
 

@@ -81,7 +81,6 @@ final class ReaderRecall: RecallActions {
     func peekWord(position: Int, word: Int) { vm.peekWord(position: Int32(position), word: Int32(word)) }
     func peekAyah(position: Int) { vm.peekAyah(position: Int32(position)) }
     func toggleListen() { if let surah = model.surah { vm.toggleListen(surah: surah) } }
-    func listenPassage() { if let surah = model.surah { vm.listenPassage(surah: surah) } }
 
     func requestExit() { vm.requestExit() }
     func dismissExitPrompt() { vm.dismissExitPrompt() }
@@ -142,7 +141,7 @@ final class ReaderRecall: RecallActions {
             hardAyahsHint: k.hardAyahsHint, done: k.done, hintChipFmt: k.hintChipFmt, hintTitle: k.hintTitle, hintSubtitle: k.hintSubtitle,
             hintNames: hintNames, hintInfos: hintInfos, hideMore: k.hideMore, hiddenShareFmt: k.hiddenShareFmt, peekedFmt: k.peekedFmt,
             resultFmt: k.resultFmt, change: k.change, returnsTomorrow: k.returnsTomorrow, returnsInDaysFmt: k.returnsInDaysFmt,
-            recordShort: k.recordShort, lessonGradeHint: "", dismiss: k.keepGoing
+            lessonGradeHint: "", dismiss: k.keepGoing
         )
         c.wordCount = { n in HifzCopyKt.wordCountLabel(n: Int32(n), language: language) }
         return c

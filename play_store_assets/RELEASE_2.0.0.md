@@ -20,7 +20,7 @@ Quran Hifz 2.0 — большое обновление
 • Урок дня: новое, недавнее и старое, с планом и датой завершения
 • Страницы мусхафа, таджвид в цвете и 12 чтецов с подсветкой слов
 • Под аятом: «Слушать», «Повтор» и «Ещё»; переход к любому аяту
-• Тест, похожие аяты и запись своего чтения
+• Тест и похожие аяты
 • Прогресс по плану, отчёт для устаза, хатм в Рамадан и виджет
 </ru-RU>
 <en-US>
@@ -29,7 +29,7 @@ Quran Hifz 2.0 — a big update
 • Lesson of the day: new, recent and old, with a plan and a finish date
 • Mushaf pages, tajweed colours and 12 reciters with word highlighting
 • Under the ayah: Listen, Repeat and More; go to any ayah
-• Test, similar ayahs and recording your own recitation
+• Test and similar ayahs
 • Progress by plan, a report for your teacher, Ramadan khatm and a widget
 </en-US>
 <tg>
@@ -65,5 +65,5 @@ Quran Hifz 2.0 — büyük güncelleme
 
 - Подписанный AAB: `composeApp/build/outputs/bundle/release/composeApp-release.aab` (после подписи, см. `docs/redesign/RELEASE.md`, пункт 2.1).
 - Скриншоты: `localized/<язык>/phone/` и `localized/<язык>/feature-graphic-1024x500.png`.
-- «Безопасность данных»: черновик `data-safety.md`; новое разрешение — микрофон (запись хранится только на телефоне).
+- «Безопасность данных»: черновик `data-safety.md`; новых разрешений (микрофон и др.) в 2.0.0 нет.
 - Порядок: сначала «Внутреннее тестирование», затем «Рабочая версия».

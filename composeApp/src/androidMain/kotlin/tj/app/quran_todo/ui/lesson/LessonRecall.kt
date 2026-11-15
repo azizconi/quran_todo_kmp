@@ -27,13 +27,8 @@ import tj.app.quran_todo.ui.hifz.RecallResult
 import tj.app.quran_todo.ui.hifz.VoiceProtoHook
 import tj.app.quran_todo.ui.i18n.HifzCopy
 import tj.app.quran_todo.ui.i18n.LessonCopy
-import tj.app.quran_todo.ui.i18n.rememberVoiceCopy
 import tj.app.quran_todo.ui.reader.AyahWords
 import tj.app.quran_todo.ui.reader.displayWords
-import tj.app.quran_todo.ui.recording.PassageKey
-import tj.app.quran_todo.ui.recording.VoiceSheetHost
-import tj.app.quran_todo.ui.recording.rememberRecordingCount
-import tj.app.quran_todo.ui.recording.rememberVoiceSheetState
 import tj.app.quran_todo.ui.state.HifzHintMode
 import tj.app.quran_todo.ui.theme.QhSpacing
 
@@ -108,14 +103,10 @@ internal fun RecallStage(viewModel: LessonViewModel, copy: LessonCopy, work: Les
     val stage = (work.card as? LessonCard.Review)?.item?.stage
     val returnDays = result?.let { RecallGrading.returnDays(stage, it.grade) }
 
-    val voice = rememberVoiceSheetState()
-    val voiceCopy = rememberVoiceCopy()
-    val voiceRange = work.card.range
-    val voiceKey = remember(voiceRange) { PassageKey(voiceRange.surah, voiceRange.startAyah, voiceRange.endAyah) }
-    val recordings = rememberRecordingCount(voiceKey)
+    val passageRange = work.card.range
     val language = LocalAppLanguage.current
     val names by viewModel.chapterNames.collectAsState()
-    val passageTitle = "${viewModel.surahTitle(voiceRange.surah, language, names)} · ${copy.range(voiceRange.startAyah, voiceRange.endAyah)}"
+    val passageTitle = "${viewModel.surahTitle(passageRange.surah, language, names)} · ${copy.range(passageRange.startAyah, passageRange.endAyah)}"
 
     val hard = (work.card as? LessonCard.Review)?.item?.hardAyahs.orEmpty()
     Column(Modifier.fillMaxSize()) {
@@ -138,21 +129,12 @@ internal fun RecallStage(viewModel: LessonViewModel, copy: LessonCopy, work: Les
             session = session,
             result = result,
             returnDays = returnDays,
-            // "Record reading" / "My reading · 3": the person's own voice for this passage (it stays on the phone).
-            recordLabel = if (recordings > 0) voiceCopy.myReadingCount(recordings) else hifzCopy.recordShort,
-            onRecord = { if (recordings > 0) voice.openList() else voice.openRecording() },
             onChange = { gradeOpen = true },
             nextLabel = copy.next,
             onNext = { result?.let { viewModel.submit(work.card, it.grade, it.hard) } },
             saving = saving,
         )
     }
-    VoiceSheetHost(
-        state = voice,
-        key = voiceKey,
-        title = passageTitle,
-        onListenReciter = { viewModel.toggleListenOnce(work) },
-    )
     if (gradeOpen && session.finished) {
         RecallGradeSheet(
             session = session,

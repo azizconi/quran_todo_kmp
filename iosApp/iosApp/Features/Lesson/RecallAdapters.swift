@@ -110,7 +110,6 @@ extension RecallCopy {
         copy.change = k.change
         copy.returnsTomorrow = k.returnsTomorrow
         copy.returnsInDaysFmt = k.returnsInDaysFmt
-        copy.recordShort = k.recordShort
         copy.lessonGradeHint = hints.lessonGrade
         copy.dismiss = hints.dismiss
         let language = k.language

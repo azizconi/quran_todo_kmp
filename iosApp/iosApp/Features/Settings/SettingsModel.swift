@@ -15,7 +15,6 @@ final class SettingsModel {
     let keepScreenOn: FlowState<KotlinBoolean>
     let haptics: FlowState<KotlinBoolean>
     let reduceMotion: FlowState<KotlinBoolean>
-    let analytics: FlowState<KotlinBoolean>
     let lastExportAt: FlowState<KotlinLong?>
     let importPrompt: FlowState<ImportPrompt?>
     let busy: FlowState<KotlinBoolean>
@@ -40,7 +39,6 @@ final class SettingsModel {
         keepScreenOn = FlowState(vm.keepScreenOn)
         haptics = FlowState(vm.hapticsEnabled)
         reduceMotion = FlowState(vm.reduceMotion)
-        analytics = FlowState(vm.analyticsEnabled)
         lastExportAt = FlowState(vm.lastExportAt)
         importPrompt = FlowState(vm.importPrompt)
         busy = FlowState(vm.transferBusy)

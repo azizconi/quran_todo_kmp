@@ -68,8 +68,6 @@ private sealed interface Ask {
 
     data object ClearCache : Ask
 
-    data object DeleteRecordings : Ask
-
     data object CancelAll : Ask
 }
 
@@ -101,7 +99,6 @@ fun DownloadsScreen(onBack: () -> Unit) {
                 DownloadsEvent.NotEnoughSpace -> toaster.show(text.notEnoughSpace, ToastKind.Error)
                 DownloadsEvent.Deleted -> toaster.show(text.deletedToast, ToastKind.Success)
                 DownloadsEvent.CacheCleared -> toaster.show(text.cacheClearedToast, ToastKind.Success)
-                DownloadsEvent.RecordingsDeleted -> toaster.show(text.recordingsDeletedToast, ToastKind.Success)
             }
         }
     }
@@ -231,17 +228,6 @@ fun DownloadsScreen(onBack: () -> Unit) {
             },
             onDismiss = { ask = null },
         )
-        Ask.DeleteRecordings -> ConfirmDialog(
-            title = copy.recordingsDeleteTitle,
-            message = copy.recordingsDeleteBodyLabel(ui.storage.recordingsBytes),
-            confirm = copy.recordingsDeleteConfirm,
-            cancel = copy.cancel,
-            onConfirm = {
-                ask = null
-                viewModel.deleteRecordings()
-            },
-            onDismiss = { ask = null },
-        )
         Ask.ClearCache -> ConfirmDialog(
             title = copy.cacheClearTitle,
             message = copy.cacheClearBody,
@@ -336,7 +322,6 @@ private fun DownloadsList(
                 copy = copy,
                 onDeleteAll = { onAsk(Ask.DeleteAll) },
                 onClearCache = { onAsk(Ask.ClearCache) },
-                onDeleteRecordings = { onAsk(Ask.DeleteRecordings) },
                 modifier = Modifier.padding(start = QhSpacing.screen, end = QhSpacing.screen, top = QhSpacing.x4),
             )
         }

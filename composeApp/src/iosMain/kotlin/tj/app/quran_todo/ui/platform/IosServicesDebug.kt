@@ -8,7 +8,6 @@ import tj.app.quran_todo.ui.downloads.DownloadsService
 import tj.app.quran_todo.ui.downloads.Segment
 import tj.app.quran_todo.ui.mushaf.data.MushafPageProvider
 import tj.app.quran_todo.ui.progress.report.ReportExporter
-import tj.app.quran_todo.ui.recording.VoiceService
 import tj.app.quran_todo.ui.settings.TransferFiles
 import tj.app.quran_todo.data.bundled.QuranFacts
 
@@ -17,7 +16,6 @@ object IosServicesDebug {
     private val koin get() = KoinPlatform.getKoin()
 
     fun downloads(): DownloadsService = koin.get()
-    fun voice(): VoiceService = koin.get()
     fun mushaf(): MushafPageProvider = koin.get()
     fun transfer(): TransferFiles = koin.get()
     fun reports(): ReportExporter = koin.get()

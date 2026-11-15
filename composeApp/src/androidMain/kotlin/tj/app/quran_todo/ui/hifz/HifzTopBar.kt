@@ -33,8 +33,6 @@ import tj.app.quran_todo.ui.motion.AnimatedCounter
 import tj.app.quran_todo.ui.motion.LocalReducedMotion
 import tj.app.quran_todo.ui.motion.QhMotion
 import tj.app.quran_todo.ui.reader.components.ReaderTopBarRowHeight
-import tj.app.quran_todo.ui.recording.PassageKey
-import tj.app.quran_todo.ui.recording.VoiceBarButton
 import tj.app.quran_todo.ui.theme.QhSpacing
 import tj.app.quran_todo.ui.theme.QhTheme
 
@@ -136,11 +134,6 @@ private fun HifzTopBarContent(mode: HifzMode, session: HifzSession) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            // The person's own voice for the passage of the session (it stays on the phone).
-            VoiceBarButton(
-                key = PassageKey(session.surah, session.firstAyah, session.lastAyah),
-                state = mode.voice,
-            )
         }
         QhLinearProgress(
             progress = position.toFloat() / session.size.coerceAtLeast(1),

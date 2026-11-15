@@ -76,7 +76,6 @@ data class HifzCopy(
     val change: String,
     val returnsTomorrow: String,
     val returnsInDaysFmt: String,
-    val recordShort: String,
 ) {
     fun label(grade: ReviewGrade): String = when (grade) {
         ReviewGrade.FORGOT -> forgot
@@ -166,7 +165,7 @@ fun hifzCopy(language: AppLanguage): HifzCopy = when (language) {
         hintProgressiveInfo = "Аят виден целиком, вы скрываете его по четвертям",
         hideMore = "Скрыть ещё", hiddenShareFmt = "Скрыто {n} %",
         peekedFmt = "Подсмотрено: {n}",
-        resultFmt = "Отрывок: {grade}", change = "Изменить", returnsTomorrow = "вернётся завтра", returnsInDaysFmt = "вернётся через {n} дн.", recordShort = "Записать чтение",
+        resultFmt = "Отрывок: {grade}", change = "Изменить", returnsTomorrow = "вернётся завтра", returnsInDaysFmt = "вернётся через {n} дн.",
     )
     AppLanguage.EN -> HifzCopy(
         language = language,
@@ -194,7 +193,7 @@ fun hifzCopy(language: AppLanguage): HifzCopy = when (language) {
         hintProgressiveInfo = "The ayah starts whole and you hide it a quarter at a time",
         hideMore = "Hide more", hiddenShareFmt = "{n}% hidden",
         peekedFmt = "Peeked: {n}",
-        resultFmt = "Passage: {grade}", change = "Change", returnsTomorrow = "back tomorrow", returnsInDaysFmt = "back in {n} days", recordShort = "Record reading",
+        resultFmt = "Passage: {grade}", change = "Change", returnsTomorrow = "back tomorrow", returnsInDaysFmt = "back in {n} days",
     )
     AppLanguage.TG -> HifzCopy(
         language = language,
@@ -223,7 +222,7 @@ fun hifzCopy(language: AppLanguage): HifzCopy = when (language) {
         hintProgressiveInfo = "Оят аввал пурра аст, шумо онро қисм-қисм пинҳон мекунед",
         hideMore = "Боз пинҳон кардан", hiddenShareFmt = "{n}% пинҳон аст",
         peekedFmt = "Нигоҳ карда шуд: {n}",
-        resultFmt = "Порча: {grade}", change = "Тағйир додан", returnsTomorrow = "фардо бармегардад", returnsInDaysFmt = "пас аз {n} рӯз бармегардад", recordShort = "Сабти қироат",
+        resultFmt = "Порча: {grade}", change = "Тағйир додан", returnsTomorrow = "фардо бармегардад", returnsInDaysFmt = "пас аз {n} рӯз бармегардад",
     )
     AppLanguage.UZ -> HifzCopy(
         language = language,
@@ -253,7 +252,7 @@ fun hifzCopy(language: AppLanguage): HifzCopy = when (language) {
         hintProgressiveInfo = "Oyat avval butun, uni choraklab yashirasiz",
         hideMore = "Yana yashirish", hiddenShareFmt = "{n}% yashirilgan",
         peekedFmt = "Qarab olindi: {n}",
-        resultFmt = "Parcha: {grade}", change = "O‘zgartirish", returnsTomorrow = "ertaga qaytadi", returnsInDaysFmt = "{n} kundan keyin qaytadi", recordShort = "O‘qishni yozish",
+        resultFmt = "Parcha: {grade}", change = "O‘zgartirish", returnsTomorrow = "ertaga qaytadi", returnsInDaysFmt = "{n} kundan keyin qaytadi",
     )
     AppLanguage.TR -> HifzCopy(
         language = language,
@@ -282,6 +281,6 @@ fun hifzCopy(language: AppLanguage): HifzCopy = when (language) {
         hintProgressiveInfo = "Ayet önce bütün, siz onu parça parça gizlersiniz",
         hideMore = "Biraz daha gizle", hiddenShareFmt = "%{n} gizli",
         peekedFmt = "Göz atıldı: {n}",
-        resultFmt = "Bölüm: {grade}", change = "Değiştir", returnsTomorrow = "yarın döner", returnsInDaysFmt = "{n} gün sonra döner", recordShort = "Okumayı kaydet",
+        resultFmt = "Bölüm: {grade}", change = "Değiştir", returnsTomorrow = "yarın döner", returnsInDaysFmt = "{n} gün sonra döner",
     )
 }

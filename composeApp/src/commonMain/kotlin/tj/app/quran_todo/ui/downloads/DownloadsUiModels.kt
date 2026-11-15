@@ -84,8 +84,6 @@ data class QueueUi(
 data class StorageUi(
     val downloadsBytes: Long = 0L,
     val cacheBytes: Long = 0L,
-    /** The person's own recordings ("My reading", task F2a). */
-    val recordingsBytes: Long = 0L,
     val freeBytes: Long = 0L,
 )
 
@@ -120,5 +118,4 @@ sealed interface DownloadsEvent {
 
     data object CacheCleared : DownloadsEvent
 
-    data object RecordingsDeleted : DownloadsEvent
 }
