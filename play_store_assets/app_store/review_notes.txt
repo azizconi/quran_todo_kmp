@@ -1,0 +1,28 @@
+1. SCREEN RECORDING
+A screen recording made on a physical iPhone with the latest iOS is attached to this App Review Information (Attachment). It starts from launching the app and shows the typical flow: onboarding, today's lesson, the Quran reader with recitation audio, progress and settings. The app has no account registration or login, no user-generated content and no paid content, so there is nothing of that kind to show.
+
+2. PURPOSE AND AUDIENCE
+Quran Hifz helps Muslims memorize the Quran by heart (hifz) and keep what they have memorized. The common problem is forgetting: people learn new passages but do not know what to review and when. Each day the app prepares one lesson in the traditional order used by Quran teachers: new passage (sabaq), recent passages (sabqi, repeated after 1, 3, 7, 14 and 30 days) and old passages (manzil, in a circle). The audience is students memorizing the Quran (children with parents, adults, students of a teacher), people memorizing Juz Amma, and anyone returning to the Quran.
+
+3. HOW TO USE THE MAIN FEATURES (no login, no setup files needed)
+• Launch the app and complete the short onboarding: choose the language, what to learn (for example Juz Amma) and the pace (ayahs per day). Optionally mark surahs you already know.
+• Lesson tab: tap the lesson card to start today's lesson. Listen to the ayah, read it, recall it from memory and answer "I remember" or "Hard".
+• Quran tab: pick any surah to read it as text or as mushaf pages; press play to listen to a reciter, the current word is highlighted; long-press or tap an ayah for translation and tafsir.
+• Check (from the Lesson tab): recall with hints and quizzes on memorized ayahs.
+• Progress tab: streak, map of the Quran, progress by juz, and a report that can be shared as an image, PDF or text.
+• Settings: reminder time, reciter, translation, downloads for offline use, and saving the progress to a file to move it to another phone.
+An internet connection is needed only the first time audio or a translation is opened; the Arabic text works offline.
+
+4. EXTERNAL SERVICES
+The app has no own server, no authentication, no payments, no ads, no analytics and no AI services. It downloads public Quran content on demand from:
+• api.alquran.cloud and api.islamic.network (translations, tafsir, timings)
+• api.quran.com and quran.com resources (translations, word meanings, tajweed markup, mushaf page layout)
+• quranicaudio.com and related public audio hosts (recitation audio)
+• quranenc.com (translations)
+The Arabic Quran text (Tanzil) and fonts (SIL Open Font License) are bundled. The full list of sources with links and licenses is shown in the app under Settings > Sources.
+
+5. REGIONAL DIFFERENCES
+None. The app works the same in all regions. The interface is available in English, Russian, Turkish, Tajik and Uzbek and follows the language chosen in the app.
+
+6. THIRD-PARTY MATERIAL
+The Quran text, translations, tafsir and recitations are published by their sources for free public use and are credited in Settings > Sources, as the sources request. The app does not operate in a regulated industry.
